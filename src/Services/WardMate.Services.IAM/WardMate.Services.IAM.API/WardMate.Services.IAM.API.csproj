@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../WardMate.Services.IAM.Application/WardMate.Services.IAM.Application.csproj" />
+    <ProjectReference Include="../WardMate.Services.IAM.Infrastructure/WardMate.Services.IAM.Infrastructure.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/WardMate.SharedKernel/WardMate.SharedKernel.csproj" />
+  </ItemGroup>
+</Project>

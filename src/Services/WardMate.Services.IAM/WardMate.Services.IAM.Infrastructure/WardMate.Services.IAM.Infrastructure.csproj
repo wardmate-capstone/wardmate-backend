@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../WardMate.Services.IAM.Application/WardMate.Services.IAM.Application.csproj" />
+  </ItemGroup>
+</Project>

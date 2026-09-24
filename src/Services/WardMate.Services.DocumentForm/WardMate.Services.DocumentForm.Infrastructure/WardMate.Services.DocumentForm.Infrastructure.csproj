@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../WardMate.Services.DocumentForm.Application/WardMate.Services.DocumentForm.Application.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../WardMate.Services.AnalyticsSystem.Application/WardMate.Services.AnalyticsSystem.Application.csproj" />
+  </ItemGroup>
+</Project>
