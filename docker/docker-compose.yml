@@ -16,5 +16,19 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: wardmate_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@wardmate.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-Password123!}
+    ports:
+      - "5050:80"
+    depends_on:
+      iam-db:
+        condition: service_healthy
+
 volumes:
   iam-data:
