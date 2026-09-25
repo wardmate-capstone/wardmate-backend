@@ -25,7 +25,10 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         var username = "citizen-" + Guid.NewGuid().ToString("N");
         using var register = await client.PostAsJsonAsync("/api/v1/auth/register", new { username, email = username + "@example.test", password = Password, fullName = "Nguyen Van A" });
         Assert.Equal(HttpStatusCode.Created, register.StatusCode);
-        var user = (await register.Content.ReadFromJsonAsync<CurrentUserDto>())!;
+        var registrationJson = await register.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Nguyen Van A", registrationJson.GetProperty("profile").GetProperty("fullName").GetString());
+        Assert.Single(registrationJson.GetProperty("profile").EnumerateObject());
+        var user = registrationJson.Deserialize<CurrentUserDto>(new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
         using var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { usernameOrEmail = username, password = Password });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         return (user, (await login.Content.ReadFromJsonAsync<AuthResponseDto>())!);
@@ -42,6 +45,52 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         Assert.Single(await db.Database.GetAppliedMigrationsAsync());
         await db.Database.MigrateAsync();
         Assert.Equal(5, await db.Roles.CountAsync());
+    }
+    [Fact]
+    public async Task CurrentProfileOmitsNullFieldsAndPreservesPopulatedFields()
+    {
+        using var client = fixture.Factory.CreateClient();
+        var account = await RegisterAndLogin(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", account.Tokens.AccessToken);
+        var initial = await client.GetFromJsonAsync<JsonElement>("/api/v1/users/me");
+        Assert.Single(initial.GetProperty("profile").EnumerateObject());
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IamDbContext>();
+            var profile = await db.Set<UserProfile>().SingleAsync(x => x.UserId == account.User.Id);
+            profile.PhoneNumber = "0901234567";
+            profile.DateOfBirth = new DateOnly(2000, 1, 2);
+            profile.TemporaryAddress = "";
+            await db.SaveChangesAsync();
+        }
+        var updated = await client.GetFromJsonAsync<JsonElement>("/api/v1/users/me");
+        var json = updated.GetProperty("profile");
+        Assert.Equal(4, json.EnumerateObject().Count());
+        Assert.Equal("Nguyen Van A", json.GetProperty("fullName").GetString());
+        Assert.Equal("0901234567", json.GetProperty("phoneNumber").GetString());
+        Assert.Equal("2000-01-02", json.GetProperty("dateOfBirth").GetString());
+        Assert.Equal("", json.GetProperty("temporaryAddress").GetString());
+        Assert.False(json.TryGetProperty("identityNumber", out _));
+    }
+    [Theory]
+    [InlineData("Abcdef!", HttpStatusCode.BadRequest)]
+    [InlineData("abcdefg!", HttpStatusCode.BadRequest)]
+    [InlineData("Abcdefgh", HttpStatusCode.BadRequest)]
+    [InlineData("Abcdefg!", HttpStatusCode.Created)]
+    public async Task RegistrationPasswordPolicyIsExposedThroughApi(string password, HttpStatusCode expected)
+    {
+        using var client = fixture.Factory.CreateClient();
+        var username = "policy-" + Guid.NewGuid().ToString("N");
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/register", new { username, email = username + "@example.test", password, fullName = "Test citizen" });
+        Assert.Equal(expected, response.StatusCode);
+        if (expected == HttpStatusCode.BadRequest)
+        {
+            var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("validation_failed", problem.GetProperty("code").GetString());
+            Assert.True(problem.GetProperty("errors").TryGetProperty("password", out _));
+            using var scope = fixture.Factory.Services.CreateScope();
+            Assert.False(await scope.ServiceProvider.GetRequiredService<IamDbContext>().Users.AnyAsync(x => x.Username == username));
+        }
     }
     [Fact]
     public async Task CompleteAuthLifecycleAndOwnershipChecks()
