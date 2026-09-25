@@ -93,3 +93,7 @@ dotnet test WardMate.sln -c Release --no-build
 The complete suite requires Docker: integration tests use Testcontainers with a random-port, disposable PostgreSQL instance, never the developer database. Unit-only IAM tests: `dotnet test tests/WardMate.Services.IAM.Tests -c Release`. Schema uses snake_case, local foreign keys and UTC `timestamp with time zone`; nullable identity numbers can coexist. Refresh tokens are stored only as SHA-256 digests of 64 random bytes. BCrypt uses a random salt and work factor 12. The persisted `is_revoked` field is a concurrency token; an EF SaveChanges transaction atomically revokes the old token and inserts the replacement, rolling back a losing concurrent update.
 
 Git workflow is recorded in root `AGENTS.md`: feature → `kha` → `deploy`. GitHub Actions validates build and tests on these branches. This repository's workflow is CI validation; successful push does not by itself verify an external frontend deployment.
+
+## Ngôn ngữ thông báo API
+
+Thông báo validation và lỗi nghiệp vụ IAM trả về bằng tiếng Việt, không phụ thuộc `Accept-Language`. Tên trường JSON, HTTP status và mã lỗi (`validation_failed`, `iam.invalid_credentials`, ...) giữ nguyên để Frontend xử lý ổn định. Lỗi thiếu trường hoặc sai định dạng JSON dùng thông báo an toàn bằng tiếng Việt; không trả chi tiết exception của bộ đọc JSON. Lỗi hệ thống qua Global Exception Handler dùng thông báo tiếng Việt chung, chi tiết kỹ thuật chỉ ghi log nội bộ.
