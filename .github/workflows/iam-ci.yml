@@ -1,0 +1,20 @@
+name: WardMate build and tests
+on:
+  push:
+    branches: [kha, deploy, 'kha-feat-*']
+  pull_request:
+    branches: [kha, deploy]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet restore WardMate.sln
+      - run: dotnet build WardMate.sln -c Release --no-restore -warnaserror
+      # Ubuntu runner provides Docker for the disposable PostgreSQL integration tests.
+      - run: dotnet test WardMate.sln -c Release --no-build --logger trx --results-directory TestResults

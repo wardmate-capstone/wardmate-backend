@@ -1,6 +1,8 @@
 # WardMate Backend
 
-Bộ khung microservices .NET 8: sáu API độc lập, YARP Gateway và Global Exception Handler dùng chung. Chưa triển khai nghiệp vụ, xác thực, database hay message broker.
+Microservices .NET 8: sáu API độc lập, YARP Gateway và Global Exception Handler dùng chung. Core IAM đã có PostgreSQL, JWT và các API xác thực; năm service còn lại vẫn là bộ khung.
+
+Hướng dẫn cấu hình/chạy IAM, DTO, lỗi và token: [Core IAM authentication](docs/iam-auth.md). Nhật ký task và kiểm thử: [PROGRESS.md](PROGRESS.md). Quy trình feature → `kha` → `deploy`: [AGENTS.md](AGENTS.md).
 
 ## Cấu trúc
 
@@ -20,11 +22,11 @@ src/
     └── WardMate.Services.AnalyticsSystem/
 ```
 
-Mỗi service chứa bốn project `.Domain`, `.Application`, `.Infrastructure`, `.API`. Tham chiếu: Application → Domain; Infrastructure → Application; API → Application + Infrastructure. Các lớp bên trong hiện để trống, API chỉ có endpoint nhận diện `/` và liveness `/health`. SharedKernel/Web được tham chiếu ở API và gateway để xử lý lỗi HTTP thống nhất; các lớp Domain không phụ thuộc ASP.NET Core. EventBus chưa tích hợp RabbitMQ.
+Mỗi service chứa bốn project `.Domain`, `.Application`, `.Infrastructure`, `.API`. Tham chiếu: Application → Domain; Infrastructure → Application; API → Application + Infrastructure. IAM triển khai CQRS qua MediatR và FluentValidation; các service khác chỉ có endpoint nhận diện `/` và liveness `/health`. SharedKernel/Web được tham chiếu ở API và gateway để xử lý lỗi HTTP thống nhất; các lớp Domain không phụ thuộc ASP.NET Core. EventBus chưa tích hợp RabbitMQ.
 
 ## Build và test
 
-Yêu cầu .NET SDK 8.0.4xx.
+Yêu cầu .NET SDK 8.0.4xx. Toàn bộ suite kiểm thử cần Docker chạy Linux containers; integration tests tự tạo và dọn PostgreSQL riêng.
 
 ```powershell
 dotnet restore WardMate.sln
@@ -34,7 +36,7 @@ dotnet test WardMate.sln -c Release --no-build
 
 ## Chạy local
 
-Mở terminal riêng cho mỗi service cần chạy. Ví dụ IAM và gateway:
+Mở terminal riêng cho mỗi service cần chạy. Với IAM, thiết lập database và `Jwt__Key` theo [hướng dẫn IAM](docs/iam-auth.md) trước. Ví dụ IAM và gateway:
 
 ```powershell
 dotnet run --project src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API --launch-profile http
@@ -58,4 +60,4 @@ Gateway chạy tại `http://localhost:5000`. YARP loại bỏ prefix khi chuy�
 
 Test tạo endpoint gây lỗi trong test host để kiểm tra status, content type, trace ID và không lộ thông tin nội bộ. Không có endpoint cố tình gây lỗi trong các API thật.
 
-`docker/docker-compose.yml` vẫn là file giữ chỗ của bước cấu trúc; bước khởi tạo này chạy bằng .NET local.
+`docker/docker-compose.yml` cung cấp PostgreSQL 16 cho IAM tại localhost:5433. API và gateway hiện chạy bằng .NET local. Các endpoint `/api/v1/auth/*` và `/api/v1/users/me` được gateway chuyển nguyên đường dẫn sang IAM.
