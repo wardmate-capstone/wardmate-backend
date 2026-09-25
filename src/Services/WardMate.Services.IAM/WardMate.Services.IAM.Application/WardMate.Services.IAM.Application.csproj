@@ -2,4 +2,8 @@
   <ItemGroup>
     <ProjectReference Include="../WardMate.Services.IAM.Domain/WardMate.Services.IAM.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+  </ItemGroup>
 </Project>
