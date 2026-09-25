@@ -62,13 +62,7 @@ CurrentUserDto:
   "username": "citizen",
   "email": "citizen@example.test",
   "profile": {
-    "fullName": "Nguyen Van A",
-    "identityNumber": null,
-    "phoneNumber": null,
-    "dateOfBirth": null,
-    "gender": null,
-    "permanentAddress": null,
-    "temporaryAddress": null
+    "fullName": "Nguyen Van A"
   },
   "roles": ["REGISTERED_CITIZEN"],
   "permissions": ["iam.profile.read"]
@@ -76,7 +70,8 @@ CurrentUserDto:
 ```
 
 - Register does not log in automatically; call login afterward. New users receive only REGISTERED_CITIZEN. Clients cannot request a privileged role through registration.
-- Usernames are ASCII letters, digits, `_`, `.` or `-`, maximum 100 characters; stored usernames/emails are lowercase. Passwords need at least 12 characters and at most 72 UTF-8 bytes (BCrypt limit). Full names cannot be blank and have a 255-character limit.
+- Controller JSON responses omit properties whose values are null, including optional profile fields. Frontend DTOs must allow missing optional properties; populated values and empty strings remain present.
+- Usernames are ASCII letters, digits, `_`, `.` or `-`, maximum 100 characters; stored usernames/emails are lowercase. Registration passwords need at least 8 characters, one uppercase letter and one special character (Unicode punctuation or symbol; whitespace does not count), and at most 72 UTF-8 bytes (BCrypt limit). No digit is required. Login continues to accept existing credentials without applying the new registration strength rules. Full names cannot be blank and have a 255-character limit.
 - Send `Authorization: Bearer <accessToken>` to authorized endpoints. Access token defaults to 15 minutes, refresh token to 7 days; timestamps are UTC, dates are `YYYY-MM-DD`.
 - JWT contains `sub`, `email`, `role` and `permissions`; role and permissions are arrays in the JWT payload. UI permission checks do not replace backend authorization. `/users/me` reloads the current profile/permissions from IAM storage.
 - Refresh accepts a correctly signed expired access token only when its subject matches a still-valid stored refresh token. API authorization itself rejects expired access tokens. Invalid signature, issuer, audience or future activation time fails refresh.
