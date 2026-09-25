@@ -18,6 +18,20 @@ services:
       timeout: 3s
       retries: 10
 
+  # pgAdmin 4 - Quản lý giao diện Web PostgreSQL (port 5050)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: wardmate_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@wardmate.com
+      PGADMIN_DEFAULT_PASSWORD: Password123!
+    ports:
+      - "5050:80"
+    depends_on:
+      iam-db:
+        condition: service_healthy
+
   # 1. PostgreSQL 16 tích hợp pgvector & 35 bảng schema khởi tạo (port 5432)
   postgres:
     image: pgvector/pgvector:pg16
