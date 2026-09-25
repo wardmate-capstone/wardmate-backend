@@ -136,6 +136,8 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         var problem = await invalid.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("validation_failed", problem.GetProperty("code").GetString());
+        Assert.Equal("Dữ liệu không hợp lệ.", problem.GetProperty("title").GetString());
+        Assert.Contains("Mật khẩu phải có ít nhất 8 ký tự.", problem.GetProperty("errors").GetProperty("password").EnumerateArray().Select(x => x.GetString()));
         Assert.True(problem.GetProperty("errors").TryGetProperty("password", out _));
         Assert.True(problem.TryGetProperty("traceId", out _));
         var account = await RegisterAndLogin(client);
@@ -233,5 +235,33 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         Assert.Equal("bearer", swagger.GetProperty("components").GetProperty("securitySchemes").GetProperty("Bearer").GetProperty("scheme").GetString());
         Assert.True(swagger.GetProperty("paths").GetProperty("/api/v1/users/me").GetProperty("get").TryGetProperty("security", out _));
         Assert.False(swagger.GetProperty("paths").GetProperty("/api/v1/auth/login").GetProperty("post").TryGetProperty("security", out _));
+    }
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"username\":123}")]
+    [InlineData("{broken")]
+    public async Task InvalidRequestBodiesReturnVietnameseMessages(string body)
+    {
+        using var client = fixture.Factory.CreateClient();
+        using var response = await client.PostAsync("/api/v1/auth/register", new StringContent(body, Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Dữ liệu không hợp lệ.", problem.GetProperty("title").GetString());
+        Assert.Equal("validation_failed", problem.GetProperty("code").GetString());
+        Assert.All(problem.GetProperty("errors").EnumerateObject(), field =>
+            Assert.All(field.Value.EnumerateArray(), message =>
+                Assert.Equal("Trường dữ liệu bị thiếu hoặc không đúng định dạng.", message.GetString())));
+    }
+    [Fact]
+    public async Task AuthenticationFailuresReturnVietnameseMessages()
+    {
+        using var client = fixture.Factory.CreateClient();
+        using var anonymous = await client.GetAsync("/api/v1/users/me");
+        var unauthorized = await anonymous.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Vui lòng đăng nhập để tiếp tục.", unauthorized.GetProperty("title").GetString());
+        using var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { usernameOrEmail = "missing", password = "WrongPassword!" });
+        var problem = await login.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("iam.invalid_credentials", problem.GetProperty("code").GetString());
+        Assert.Equal("Thông tin đăng nhập không đúng hoặc tài khoản chưa được kích hoạt.", problem.GetProperty("title").GetString());
     }
 }
