@@ -15,7 +15,7 @@ public sealed class ValidationExceptionHandler : IExceptionHandler
         var problem = new ValidationProblemDetails(errors)
         {
             Status = 400,
-            Title = "Validation failed.",
+            Title = "Dữ liệu không hợp lệ.",
             Instance = context.Request.Path,
             Extensions = { ["code"] = "validation_failed", ["traceId"] = context.TraceIdentifier }
         };
