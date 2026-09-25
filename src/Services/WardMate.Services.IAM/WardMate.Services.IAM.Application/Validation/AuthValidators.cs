@@ -11,6 +11,8 @@ public sealed class RegisterCitizenValidator : AbstractValidator<RegisterCitizen
         RuleFor(x => x.Username).NotEmpty().MaximumLength(100).Matches("^[a-zA-Z0-9_.-]+$");
         RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(255);
         RuleFor(x => x.Password).NotEmpty().MinimumLength(8)
+            .Must(p => p is not null && p.Any(char.IsUpper)).WithMessage("Password must contain at least one uppercase letter.")
+            .Must(p => p is not null && p.Any(c => char.IsPunctuation(c) || char.IsSymbol(c))).WithMessage("Password must contain at least one special character (punctuation or symbol).")
             .Must(p => p is not null && Encoding.UTF8.GetByteCount(p) <= 72).WithMessage("Password must not exceed 72 UTF-8 bytes.");
         RuleFor(x => x.FullName).NotEmpty().MaximumLength(255);
     }
