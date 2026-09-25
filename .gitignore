@@ -1,7 +1,9 @@
+**/bin/
+**/obj/
 .vs/
-bin/
-obj/
+.idea/
+.env
 *.user
 *.suo
-.env
+TestResults/
 appsettings.Development.json

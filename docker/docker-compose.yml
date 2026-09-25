@@ -1,5 +1,24 @@
-﻿services:
-  # 1. PostgreSQL 16 tích hợp pgvector
+name: wardmate
+
+services:
+  # IAM database (port 5433)
+  iam-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: wardmate_iam_db
+      POSTGRES_USER: wardmate
+      POSTGRES_PASSWORD: ${IAM_DB_PASSWORD:?Set IAM_DB_PASSWORD in docker/.env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - iam-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wardmate -d wardmate_iam_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # 1. PostgreSQL 16 tích hợp pgvector & 35 bảng schema khởi tạo (port 5432)
   postgres:
     image: pgvector/pgvector:pg16
     container_name: wardmate_postgres
@@ -19,7 +38,7 @@
       timeout: 5s
       retries: 5
 
-  # 2. Redis 7 Caching
+  # 2. Redis 7 Caching (port 6379)
   redis:
     image: redis:7-alpine
     container_name: wardmate_redis
@@ -29,7 +48,7 @@
     volumes:
       - redis_data:/data
 
-  # 3. RabbitMQ Message Broker (kèm Management Dashboard)
+  # 3. RabbitMQ Message Broker (kèm Management Dashboard - port 5672, 15672)
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: wardmate_rabbitmq
@@ -42,5 +61,6 @@
       - "15672:15672" # Cổng Dashboard Web (user/pass: wardmate_admin / wardmate_secret)
 
 volumes:
+  iam-data:
   postgres_data:
   redis_data:

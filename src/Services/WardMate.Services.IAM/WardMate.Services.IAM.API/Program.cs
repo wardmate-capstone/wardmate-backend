@@ -1,0 +1,66 @@
+using WardMate.SharedKernel.Web;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi.Models;
+using WardMate.Services.IAM.API.Errors;
+using WardMate.Services.IAM.Application;
+using WardMate.Services.IAM.Infrastructure;
+using WardMate.Services.IAM.Infrastructure.Persistence;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = context => new BadRequestObjectResult(new ValidationProblemDetails(context.ModelState)
+    {
+        Status = 400,
+        Title = "Validation failed.",
+        Instance = context.HttpContext.Request.Path,
+        Extensions = { ["code"] = "validation_failed", ["traceId"] = context.HttpContext.TraceIdentifier }
+    });
+});
+builder.Services.AddHealthChecks();
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddGlobalExceptionHandling();
+builder.Services.Configure<Microsoft.AspNetCore.Http.ProblemDetailsOptions>(options => options.CustomizeProblemDetails = context =>
+{
+    context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
+    context.ProblemDetails.Extensions.TryAdd("code", context.HttpContext.Response.StatusCode == 401 ? "iam.unauthorized" : "http_error");
+});
+builder.Services.AddIamApplication();
+builder.Services.AddIamInfrastructure(builder.Configuration);
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "WardMate IAM API", Version = "v1" });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Paste the access token."
+    });
+    options.OperationFilter<WardMate.Services.IAM.API.OpenApi.BearerSecurityOperationFilter>();
+});
+
+var app = builder.Build();
+
+// EF migrations include the five role seeds and sample IAM permissions. No default password is seeded.
+if (builder.Configuration.GetValue("Database:AutoMigrate", true))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<IamDbContext>().Database.MigrateAsync();
+}
+
+app.UseGlobalExceptionHandling();
+app.UseStatusCodePages();
+if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.MapHealthChecks("/health");
+app.MapGet("/", () => Results.Ok(new { service = "WardMate.Services.IAM" }));
+
+app.Run();
+
+public partial class Program;

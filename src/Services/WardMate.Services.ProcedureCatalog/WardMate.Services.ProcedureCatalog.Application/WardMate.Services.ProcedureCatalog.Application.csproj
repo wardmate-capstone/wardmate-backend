@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../WardMate.Services.ProcedureCatalog.Domain/WardMate.Services.ProcedureCatalog.Domain.csproj" />
+  </ItemGroup>
+</Project>
