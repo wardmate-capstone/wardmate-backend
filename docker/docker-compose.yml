@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: wardmate_iam_db
       POSTGRES_USER: wardmate
-      POSTGRES_PASSWORD: ${IAM_DB_PASSWORD:?Set IAM_DB_PASSWORD in docker/.env}
+      POSTGRES_PASSWORD: ${IAM_DB_PASSWORD:-wardmate_secret}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
