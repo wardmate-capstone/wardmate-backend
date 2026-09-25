@@ -1,2 +1,20 @@
-# Placeholder: cau hinh Docker se duoc them o buoc tiep theo.
-services: {}
+# IAM database only; API and Gateway currently run through dotnet run.
+name: wardmate
+services:
+  iam-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: wardmate_iam_db
+      POSTGRES_USER: wardmate
+      POSTGRES_PASSWORD: ${IAM_DB_PASSWORD:?Set IAM_DB_PASSWORD in docker/.env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - iam-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wardmate -d wardmate_iam_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  iam-data:
