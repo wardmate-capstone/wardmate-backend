@@ -15,10 +15,13 @@ builder.Services.AddControllers().AddJsonOptions(options =>
         System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
 }).ConfigureApiBehaviorOptions(options =>
 {
-    options.InvalidModelStateResponseFactory = context => new BadRequestObjectResult(new ValidationProblemDetails(context.ModelState)
+    options.InvalidModelStateResponseFactory = context => new BadRequestObjectResult(new ValidationProblemDetails(
+        context.ModelState.Where(entry => entry.Value?.Errors.Count > 0).ToDictionary(
+            entry => System.Text.Json.JsonNamingPolicy.CamelCase.ConvertName(entry.Key),
+            entry => new[] { "Trường dữ liệu bị thiếu hoặc không đúng định dạng." }))
     {
         Status = 400,
-        Title = "Validation failed.",
+        Title = "Dữ liệu không hợp lệ.",
         Instance = context.HttpContext.Request.Path,
         Extensions = { ["code"] = "validation_failed", ["traceId"] = context.HttpContext.TraceIdentifier }
     });
@@ -28,6 +31,18 @@ builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddGlobalExceptionHandling();
 builder.Services.Configure<Microsoft.AspNetCore.Http.ProblemDetailsOptions>(options => options.CustomizeProblemDetails = context =>
 {
+    context.ProblemDetails.Title = context.HttpContext.Response.StatusCode switch
+    {
+        400 => "Dữ liệu không hợp lệ.",
+        401 => "Vui lòng đăng nhập để tiếp tục.",
+        403 => "Bạn không có quyền thực hiện thao tác này.",
+        404 => "Không tìm thấy tài nguyên yêu cầu.",
+        405 => "Phương thức yêu cầu không được hỗ trợ.",
+        415 => "Định dạng nội dung không được hỗ trợ.",
+        429 => "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.",
+        >= 500 => "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+        _ => "Không thể xử lý yêu cầu."
+    };
     context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
     context.ProblemDetails.Extensions.TryAdd("code", context.HttpContext.Response.StatusCode == 401 ? "iam.unauthorized" : "http_error");
 });
@@ -42,7 +57,7 @@ builder.Services.AddSwaggerGen(options =>
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        Description = "Paste the access token."
+        Description = "Dán mã truy cập vào đây."
     });
     options.OperationFilter<WardMate.Services.IAM.API.OpenApi.BearerSecurityOperationFilter>();
 });
