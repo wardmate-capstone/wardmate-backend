@@ -39,10 +39,10 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         using var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IamDbContext>();
         Assert.Equal(5, await db.Roles.CountAsync());
-        Assert.Equal(2, await db.Permissions.CountAsync());
-        Assert.Equal(6, await db.RolePermissions.CountAsync());
+        Assert.Equal(3, await db.Permissions.CountAsync());
+        Assert.Equal(11, await db.RolePermissions.CountAsync());
         Assert.Equal(7, db.Model.GetEntityTypes().Count());
-        Assert.Single(await db.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
         await db.Database.MigrateAsync();
         Assert.Equal(5, await db.Roles.CountAsync());
     }
