@@ -194,3 +194,68 @@ Lỗi bất ngờ trả 500 ProblemDetails đã loại bỏ thông tin nội b�
 - `tests/WardMate.Services.IAM.IntegrationTests/ProfileRbacTests.cs`
 - `tests/WardMate.Services.IAM.Tests/AuthFlowTests.cs`
 - `tests/WardMate.Services.IAM.Tests/ProfileValidationTests.cs`
+
+## DOCKER-002 — Cấu hình Local Dev để người dùng tự build
+
+- Hoàn thành cấu hình: **2026-09-26 09:59 (Asia/Saigon, UTC+07:00)**.
+- Sửa `docker/docker-compose.yml`: thêm build/service IAM và Gateway; kết nối nội bộ iam-db:5432 và iam-api:8080; bật Development/Swagger và AutoMigrate cho IAM; mở cổng localhost 5001/5000; pgAdmin dùng mật khẩu bắt buộc từ môi trường và bind localhost 5050.
+- Sửa `docker/.env.example`: thêm JWT_KEY. Cập nhật `docker/.env` local (gitignored), giữ mật khẩu database/JWT đã có, tạo ngẫu nhiên mật khẩu pgAdmin còn thiếu; không ghi giá trị secrets vào tài liệu.
+- Tạo `docs/docker-local.md`; cập nhật `PROGRESS.md`.
+- Không thêm/thay đổi API endpoint hoặc DTO; token/ProblemDetails giữ nguyên. Frontend gọi qua localhost:5000; Swagger trực tiếp localhost:5001/swagger.
+- Kiểm tra `docker compose --env-file docker/.env -f docker/docker-compose.yml config --quiet`: PASS. Không thêm unit tests. Không chạy build, test suite, migration, tải image hoặc khởi động container theo yêu cầu người dùng; runtime chưa được xác minh.
+- Không commit/push; người dùng tự chạy lệnh Compose trong tài liệu, Antigravity xử lý Git.
+
+## IAM-005 — Hoàn thiện API quản trị RBAC
+
+- Hoàn thành: **2026-09-26 10:28 (Asia/Saigon, UTC+07:00)**.
+- Thêm nhóm Swagger Rbac gồm 13 operations: CRUD vai trò tùy chỉnh, danh sách quyền, xem/gán/thu hồi quyền vai trò, xem/gán/thu hồi vai trò người dùng, đọc audit phân trang.
+- Giữ tên và bảo vệ xóa 5 vai trò hệ thống; vai trò đang được gán phải thu hồi trước khi xóa. Không cho thu hồi iam.manage khỏi IT_ADMIN. Chỉ IT_ADMIN đang hoạt động có iam.manage được quản trị RBAC, dựa vào database hiện tại chứ không dùng role claim cũ.
+- Bảo vệ admin cuối cùng trong cả thu hồi vai trò và khóa tài khoản. Các mutation dùng chung PostgreSQL transaction advisory lock và kiểm tra lại actor sau khi lấy khóa, bảo vệ giữa nhiều instance và các request đồng thời. Audit được ghi cùng transaction; lỗi rollback toàn bộ. PUT/DELETE liên kết idempotent, không ghi audit lặp cho no-op.
+- Migration `20260926032128_RbacAdministration`: bảng rbac_audit_logs (schema hiện có 8 entity), index thời gian/ID và đồng bộ role ID sequence. Đã áp dụng vào PostgreSQL tạm qua test startup; chưa áp dụng trực tiếp vào Local Dev/Azure. Không build image hoặc khởi động stack ứng dụng.
+- Endpoints mới, prefix `/api/v1/rbac`, tất cả yêu cầu Bearer + policy IT_ADMIN:
+  - GET `/roles?page=1&pageSize=20`: không body; 200 RbacPage<RoleDto>, 400/401/403.
+  - GET `/roles/{roleId}`: không body; 200 RoleDto, 401/403/404.
+  - POST `/roles`: `{ "roleName": "DOCUMENT_REVIEWER", "description": "Nhân viên kiểm tra hồ sơ" }`; 201 RoleDto + Location, 400/401/403/409.
+  - PUT `/roles/{roleId}`: cùng body POST; 200 RoleDto, 400/401/403/404/409.
+  - DELETE `/roles/{roleId}`: không body; 204, 400/401/403/404/409.
+  - GET `/permissions`: không body; 200 PermissionDto[], 401/403.
+  - GET `/roles/{roleId}/permissions`: không body; 200 PermissionDto[], 401/403/404.
+  - PUT/DELETE `/roles/{roleId}/permissions/{permissionId}`: không body; 204, 400/401/403/404/409.
+  - GET `/users/{userId}/roles`: không body; 200 RoleDto[], 401/403/404.
+  - PUT/DELETE `/users/{userId}/roles/{roleId}`: không body; 204, 400/401/403/404/409.
+  - GET `/audit-logs?page=1&pageSize=20`: không body; 200 RbacPage<AuditDto>, 400/401/403.
+- Endpoint cũ PUT `/api/v1/accounts/{userId}/status` bổ sung lỗi 409 iam.last_admin; actor hết quyền trong lúc chờ transaction trả 403. Gateway có route mới `/api/v1/rbac/{**catch-all}`.
+- Kiểm thử: **115/115 PASS**, 0 failed/skipped: 78 IAM unit, 3 SharedKernel, 34 integration PostgreSQL. Thêm 24 unit cases và 10 integration cases; cập nhật kiểm tra schema/migration và account store. Release toàn solution **0 errors, 0 warnings**. Kiểm tra schema Swagger có đủ 13 operations và Bearer; test concurrent revoke/disable giữ ít nhất một admin; test negative không tạo audit hoặc ghi dữ liệu dở dang.
+- Frontend: tên role chuẩn hóa IN HOA; RoleDto có isSystem và permissions. PageSize 1–100. Danh mục quyền được mở rộng cùng chức năng backend; không có CRUD tùy ý permission code. Thông báo tiếng Việt, mã lỗi/DTO chi tiết trong `docs/iam-rbac-admin.md`. Audit details là chuỗi JSON. Claim JWT có thể cũ nhưng policy đọc quyền hiện tại; login/refresh phát token với quyền mới. Swagger mới xuất hiện sau khi người dùng tự build/chạy lại image IAM.
+- Bàn giao: đã commit tách riêng 33 commit cho từng file theo quy ước, kiểm thử toàn bộ giải pháp 115/115 tests PASS, merge theo chuỗi kha-feat-iam-rbac-admin → kha → main → deploy và push lên origin.
+- File tạo mới/thay đổi của IAM-005:
+- `docs/iam-auth.md`
+- `docs/iam-profiles-rbac.md`
+- `docs/iam-rbac-admin.md`
+- `PROGRESS.md`
+- `src/Gateways/WardMate.YarpGateway/appsettings.json`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Authorization/PermissionAuthorization.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Authorization/RbacAdministratorAuthorization.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Controllers/RbacController.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Errors/ResultExtensions.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Accounts/AccountRequests.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Common/Result.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Rbac/IRbacStore.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Rbac/RbacCommandHandlers.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Rbac/RbacModels.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Rbac/RbacQueryHandlers.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Rbac/RbacRequests.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Rbac/RbacValidators.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Domain/Entities/RbacAuditLog.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/DependencyInjection.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/AccountStore.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Configurations/RbacAuditConfiguration.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/IamDbContext.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20260926032128_RbacAdministration.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20260926032128_RbacAdministration.Designer.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/IamDbContextModelSnapshot.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/RbacStore.cs`
+- `tests/WardMate.Services.IAM.IntegrationTests/IamApiTests.cs`
+- `tests/WardMate.Services.IAM.IntegrationTests/ProfileRbacTests.cs`
+- `tests/WardMate.Services.IAM.IntegrationTests/RbacAdministrationTests.cs`
+- `tests/WardMate.Services.IAM.Tests/RbacValidationTests.cs`
