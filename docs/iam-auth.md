@@ -26,7 +26,7 @@ dotnet run --project src/Gateways/WardMate.YarpGateway --launch-profile http
 
 API direct URL: `http://localhost:5001`. Gateway URL: `http://localhost:5000`. Both expose the same versioned IAM routes below. The previous `/api/iam` prefix remains available for the service's root/health routes. Swagger UI is at `http://localhost:5001/swagger` in Development. Click Authorize and paste the access token without a manually added Bearer prefix.
 
-`Database:AutoMigrate` defaults to true; IAM applies its own migrations before accepting traffic. Migrations seed five roles, two sample permissions (`iam.profile.read`, `iam.manage`) and six role-permission assignments. Every role receives `iam.profile.read`; only IT_ADMIN receives `iam.manage`. These are seed examples; this task does not add admin management endpoints or a full permission authorization policy. No sample user/password is seeded. Set `Database__AutoMigrate=false` when applying migrations separately as a deployment step.
+`Database:AutoMigrate` defaults to true; IAM applies its own migrations before accepting traffic. Migrations seed five roles, three permissions (`iam.profile.read`, `iam.profile.write`, `iam.manage`) and eleven role-permission assignments. Every role receives profile read/write; only IT_ADMIN receives `iam.manage`. IAM-004 adds permission policies and admin profile/account endpoints; see iam-profiles-rbac.md. No sample user/password is seeded. Set `Database__AutoMigrate=false` when applying migrations separately as a deployment step.
 
 ## Endpoints
 
@@ -97,3 +97,7 @@ Git workflow is recorded in root `AGENTS.md`: feature → `kha` → `deploy`. Gi
 ## Ngôn ngữ thông báo API
 
 Thông báo validation và lỗi nghiệp vụ IAM trả về bằng tiếng Việt, không phụ thuộc `Accept-Language`. Tên trường JSON, HTTP status và mã lỗi (`validation_failed`, `iam.invalid_credentials`, ...) giữ nguyên để Frontend xử lý ổn định. Lỗi thiếu trường hoặc sai định dạng JSON dùng thông báo an toàn bằng tiếng Việt; không trả chi tiết exception của bộ đọc JSON. Lỗi hệ thống qua Global Exception Handler dùng thông báo tiếng Việt chung, chi tiết kỹ thuật chỉ ghi log nội bộ.
+
+## Hồ sơ và RBAC (IAM-004)
+
+Xem [API hồ sơ, RBAC và khóa/mở khóa tài khoản](iam-profiles-rbac.md) cho các endpoint mới. IAM hiện kiểm tra quyền từ database trên mỗi yêu cầu có policy; migration mới bổ sung `iam.profile.write`. Sau khi xóa hồ sơ, `/users/me` vẫn trả tài khoản nhưng bỏ thuộc tính `profile`.
