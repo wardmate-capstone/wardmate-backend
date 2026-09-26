@@ -11,7 +11,7 @@ namespace WardMate.Services.IAM.API.Controllers;
 [ApiController, Authorize, Route("api/v1/users")]
 public sealed class UsersController(ISender sender) : ControllerBase
 {
-    [HttpGet("me")]
+    [HttpGet("me"), Authorize(Policy = WardMate.Services.IAM.Domain.PermissionCodes.ProfileRead)]
     [ProducesResponseType<CurrentUserDto>(200)]
     [ProducesResponseType<ProblemDetails>(401)]
     public async Task<IActionResult> Me(CancellationToken ct)
