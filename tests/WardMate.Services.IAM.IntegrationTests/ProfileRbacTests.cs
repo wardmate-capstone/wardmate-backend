@@ -146,6 +146,8 @@ public sealed class ProfileRbacTests(IamFixture fixture) : IClassFixture<IamFixt
     [Fact]
     public async Task StaleTokenIssuanceCannotSurviveAccountDisable()
     {
+        var admin = await Account(true);
+        using var adminClient = admin.Client;
         var account = await Account();
         using var client = account.Client;
         using var pending = fixture.Factory.Services.CreateScope();
@@ -155,7 +157,7 @@ public sealed class ProfileRbacTests(IamFixture fixture) : IClassFixture<IamFixt
         using (var scope = fixture.Factory.Services.CreateScope())
         {
             var accounts = scope.ServiceProvider.GetRequiredService<WardMate.Services.IAM.Application.Accounts.IAccountStore>();
-            Assert.True(await accounts.SetActive(account.Id, false, default));
+            Assert.True((await accounts.SetActive(admin.Id, account.Id, false, default)).IsSuccess);
         }
         Assert.Equal(SaveOutcome.ConcurrentUpdate, await store.SaveChanges(default));
     }
