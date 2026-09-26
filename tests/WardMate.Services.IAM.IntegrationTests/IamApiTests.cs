@@ -41,8 +41,8 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         Assert.Equal(5, await db.Roles.CountAsync());
         Assert.Equal(3, await db.Permissions.CountAsync());
         Assert.Equal(11, await db.RolePermissions.CountAsync());
-        Assert.Equal(7, db.Model.GetEntityTypes().Count());
-        Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(8, db.Model.GetEntityTypes().Count());
+        Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync()).Count());
         await db.Database.MigrateAsync();
         Assert.Equal(5, await db.Roles.CountAsync());
     }
