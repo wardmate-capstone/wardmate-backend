@@ -146,3 +146,51 @@ Lỗi bất ngờ trả 500 ProblemDetails đã loại bỏ thông tin nội b�
 - Kiểm thử: Release solution build **0 errors, 0 warnings**; **61/61 tests PASS**, 0 failed, 0 skipped (41 IAM unit, 3 SharedKernel, 17 integration PostgreSQL). Thêm 4 integration cases kiểm tra body lỗi và thông báo xác thực tiếng Việt; bổ sung assertion tiếng Việt vào test validation hiện có. Không thêm unit case mới.
 - Frontend: hiển thị `title` và `errors` tiếng Việt; vẫn phân nhánh theo HTTP status và `code`, không so sánh nội dung thông báo. Tên trường DTO, token handling và cơ chế bỏ trường null giữ nguyên.
 - Bàn giao: các thay đổi đã được commit riêng từng file theo quy ước, kiểm thử toàn bộ giải pháp 61/61 tests PASS, merge theo chuỗi kha-feat-iam-vietnamese-messages → kha → main → deploy và push lên origin.
+
+## IAM-004 — JWT, refresh token, CRUD hồ sơ và RBAC/quản lý tài khoản
+
+- Hoàn thành: **2026-09-26 08:56 (Asia/Saigon, UTC+07:00)**.
+- REGISTERED_CITIZEN CRUD hồ sơ của mình; IT_ADMIN CRUD mọi hồ sơ, xem danh sách/chi tiết tài khoản và khóa/mở khóa tài khoản. Xóa hồ sơ không xóa tài khoản. PUT thay toàn bộ hồ sơ; POST tạo lại sau khi xóa.
+- Authorization middleware dùng policy và quyền hiện tại trong database. Từ chối JWT của tài khoản bị khóa; thu hồi refresh token trong cùng transaction khóa tài khoản. Cấp token được tuần tự hóa bằng khóa hàng user để tránh race với thao tác khóa. Không thêm API công khai sửa/đọc trực tiếp refresh_tokens.
+- Migration mới `20260926014941_ProfileWritePermission` thêm quyền ghi hồ sơ và seed cho 5 vai trò, tổng cộng 3 permissions/11 role-permission assignments. Đã chạy migration thật trên PostgreSQL tạm khi integration tests khởi động; chưa áp dụng vào Local Dev database hoặc Azure trong task này.
+- Endpoint mới (đều yêu cầu Bearer):
+  - GET/POST/PUT/DELETE `/api/v1/users/me/profile`: quyền đọc/ghi hồ sơ cá nhân; GET 200/401/403/404; POST 201/400/401/403/404/409; PUT 200/400/401/403/404/409; DELETE 204/401/403/404/409.
+  - GET/POST/PUT/DELETE `/api/v1/users/{userId}/profile`: `iam.manage`; body/status tương tự route cá nhân.
+  - POST/PUT hồ sơ nhận `{ fullName, identityNumber?, phoneNumber?, dateOfBirth?, gender?, permanentAddress?, temporaryAddress? }`; GET/DELETE không body.
+  - GET `/api/v1/accounts?page=1&pageSize=20`: `iam.manage`, không body; 200/400/401/403; phân trang tối đa 100 items.
+  - GET `/api/v1/accounts/{userId}`: `iam.manage`, không body; 200/401/403/404.
+  - PUT `/api/v1/accounts/{userId}/status`: `iam.manage`, body `{ "isActive": false }` khóa, true mở; 204/400/401/403/404/409. Không cho tự khóa tài khoản quản trị đang dùng.
+- Kiểm thử cuối: Release solution build **0 errors, 0 warnings**; **81/81 tests PASS**, 0 failed/skipped: 54 IAM unit, 3 SharedKernel, 24 integration PostgreSQL. Thêm 13 unit cases và 7 integration cases (CRUD, IDOR, quản trị, quyền thay đổi, validation/trùng số định danh, race khóa/cấp token, Swagger); cập nhật test migration hiện có. Build trung gian phát hiện nullable assertion/overload test và đã sửa trước lượt kiểm tra cuối.
+- Frontend: thông báo tiếng Việt; giữ error codes cũ, bổ sung `iam.forbidden`, `iam.profile_not_found`, `iam.user_not_found`, `iam.profile_exists`, `iam.profile_conflict`, `iam.profile_changed`, `iam.self_disable`. Sau xóa hồ sơ, `/users/me` không có thuộc tính profile; 401 yêu cầu đăng nhập lại, 403 thiếu quyền. Refresh token bị thu hồi không phục hồi khi mở khóa; JWT còn hạn có thể hoạt động trở lại khi tài khoản được mở khóa. Xem `docs/iam-profiles-rbac.md` cho DTO, validation, migration và ví dụ đầy đủ.
+- Gateway thêm route accounts; đường dẫn users hiện có bao phủ hồ sơ. Chưa kiểm thử runtime Gateway hoặc xác nhận triển khai Azure; test API dùng WebApplicationFactory và PostgreSQL thật.
+- Bàn giao: đã commit tách riêng 29 commit cho từng file theo quy ước, kiểm thử toàn bộ giải pháp 81/81 tests PASS, merge theo chuỗi kha-feat-iam-profiles-rbac → kha → main → deploy và push lên origin.
+- Các file tạo mới/thay đổi:
+- `docs/iam-auth.md`
+- `docs/iam-profiles-rbac.md`
+- `PROGRESS.md`
+- `src/Gateways/WardMate.YarpGateway/appsettings.json`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Authorization/PermissionAuthorization.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Controllers/AccountsController.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Controllers/AdminProfilesController.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Controllers/ProfilesController.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Controllers/UsersController.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Program.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Accounts/AccountRequests.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/DTOs/IdentityDtos.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Interfaces/IProfileStore.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Profiles/ProfileHandlers.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Profiles/ProfileRequests.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Profiles/ProfileValidators.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Domain/PermissionCodes.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/DependencyInjection.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/AccountStore.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Configurations/IdentityConfigurations.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/IdentityStore.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20260926014941_ProfileWritePermission.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20260926014941_ProfileWritePermission.Designer.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/IamDbContextModelSnapshot.cs`
+- `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/ProfileStore.cs`
+- `tests/WardMate.Services.IAM.IntegrationTests/IamApiTests.cs`
+- `tests/WardMate.Services.IAM.IntegrationTests/ProfileRbacTests.cs`
+- `tests/WardMate.Services.IAM.Tests/AuthFlowTests.cs`
+- `tests/WardMate.Services.IAM.Tests/ProfileValidationTests.cs`
