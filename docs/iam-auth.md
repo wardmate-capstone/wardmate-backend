@@ -101,3 +101,7 @@ Thông báo validation và lỗi nghiệp vụ IAM trả về bằng tiếng Vi�
 ## Hồ sơ và RBAC (IAM-004)
 
 Xem [API hồ sơ, RBAC và khóa/mở khóa tài khoản](iam-profiles-rbac.md) cho các endpoint mới. IAM hiện kiểm tra quyền từ database trên mỗi yêu cầu có policy; migration mới bổ sung `iam.profile.write`. Sau khi xóa hồ sơ, `/users/me` vẫn trả tài khoản nhưng bỏ thuộc tính `profile`.
+
+## API quản trị RBAC (IAM-005)
+
+Nhóm **Rbac** trong Swagger có CRUD vai trò nghiệp vụ, xem/gán/thu hồi quyền, gán/thu hồi vai trò người dùng và nhật ký thay đổi. Xem [hướng dẫn API RBAC](iam-rbac-admin.md). Chỉ IT_ADMIN hoạt động có quyền iam.manage được quản trị RBAC; account/profile management vẫn dùng policy iam.manage hiện có.
