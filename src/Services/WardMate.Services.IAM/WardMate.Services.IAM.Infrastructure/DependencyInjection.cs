@@ -24,6 +24,8 @@ public static class DependencyInjection
             .ValidateOnStart();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IIdentityStore, IdentityStore>();
+        services.AddScoped<IProfileStore, ProfileStore>();
+        services.AddScoped<WardMate.Services.IAM.Application.Accounts.IAccountStore, AccountStore>();
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
@@ -34,10 +36,16 @@ public static class DependencyInjection
                 bearer.TokenValidationParameters = jwt.Value.ValidationParameters();
                 bearer.Events = new JwtBearerEvents
                 {
-                    OnTokenValidated = context =>
+                    OnTokenValidated = async context =>
                     {
-                        if (!Guid.TryParse(context.Principal?.FindFirst("sub")?.Value, out _)) context.Fail("Invalid subject.");
-                        return Task.CompletedTask;
+                        if (!Guid.TryParse(context.Principal?.FindFirst("sub")?.Value, out var userId))
+                        {
+                            context.Fail("Mã người dùng không hợp lệ.");
+                            return;
+                        }
+                        var store = context.HttpContext.RequestServices.GetRequiredService<IIdentityStore>();
+                        var user = await store.FindUser(userId, context.HttpContext.RequestAborted);
+                        if (user is null || !user.IsActive) context.Fail("Tài khoản không khả dụng.");
                     }
                 };
             });
