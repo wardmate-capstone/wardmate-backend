@@ -12,6 +12,7 @@ public sealed class IamDbContext(DbContextOptions<IamDbContext> options) : DbCon
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<RbacAuditLog> RbacAuditLogs => Set<RbacAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
         => modelBuilder.ApplyConfigurationsFromAssembly(typeof(IamDbContext).Assembly);
