@@ -44,10 +44,16 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.ProblemDetailsOptions>(opti
         _ => "Không thể xử lý yêu cầu."
     };
     context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
-    context.ProblemDetails.Extensions.TryAdd("code", context.HttpContext.Response.StatusCode == 401 ? "iam.unauthorized" : "http_error");
+    context.ProblemDetails.Extensions.TryAdd("code", context.HttpContext.Response.StatusCode switch
+    {
+        401 => "iam.unauthorized",
+        403 => "iam.forbidden",
+        _ => "http_error"
+    });
 });
 builder.Services.AddIamApplication();
 builder.Services.AddIamInfrastructure(builder.Configuration);
+WardMate.Services.IAM.API.Authorization.PermissionAuthorization.AddPermissionAuthorization(builder.Services);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
