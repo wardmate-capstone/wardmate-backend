@@ -68,7 +68,8 @@ public sealed class PermissionConfiguration : IEntityTypeConfiguration<Permissio
         b.Property(x => x.Module).HasMaxLength(50).IsRequired();
         b.HasData(
             new Permission { Id = 1, PermissionCode = "iam.profile.read", PermissionName = "Read own profile", Module = "IAM" },
-            new Permission { Id = 2, PermissionCode = "iam.manage", PermissionName = "Manage identities", Module = "IAM" });
+            new Permission { Id = 2, PermissionCode = "iam.manage", PermissionName = "Manage identities", Module = "IAM" },
+            new Permission { Id = 3, PermissionCode = PermissionCodes.ProfileWrite, PermissionName = "Quản lý hồ sơ cá nhân", Module = "IAM" });
     }
 }
 public sealed class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
@@ -91,6 +92,7 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
         b.HasOne(x => x.Permission).WithMany().HasForeignKey(x => x.PermissionId).OnDelete(DeleteBehavior.Cascade);
         b.HasData(Enumerable.Range(1, 5).Select(id => new RolePermission { RoleId = id, PermissionId = 1 }));
         b.HasData(new RolePermission { RoleId = 5, PermissionId = 2 });
+        b.HasData(Enumerable.Range(1, 5).Select(id => new RolePermission { RoleId = id, PermissionId = 3 }));
     }
 }
 public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
