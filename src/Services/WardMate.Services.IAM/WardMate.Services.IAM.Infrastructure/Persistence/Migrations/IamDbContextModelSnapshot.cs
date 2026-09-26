@@ -72,6 +72,13 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                             Module = "IAM",
                             PermissionCode = "iam.manage",
                             PermissionName = "Manage identities"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Module = "IAM",
+                            PermissionCode = "iam.profile.write",
+                            PermissionName = "Quản lý hồ sơ cá nhân"
                         });
                 });
 
@@ -229,6 +236,31 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         {
                             RoleId = 5,
                             PermissionId = 2
+                        },
+                        new
+                        {
+                            RoleId = 1,
+                            PermissionId = 3
+                        },
+                        new
+                        {
+                            RoleId = 2,
+                            PermissionId = 3
+                        },
+                        new
+                        {
+                            RoleId = 3,
+                            PermissionId = 3
+                        },
+                        new
+                        {
+                            RoleId = 4,
+                            PermissionId = 3
+                        },
+                        new
+                        {
+                            RoleId = 5,
+                            PermissionId = 3
                         });
                 });
 
