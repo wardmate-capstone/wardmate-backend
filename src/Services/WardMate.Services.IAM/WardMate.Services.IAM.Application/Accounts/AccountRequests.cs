@@ -17,7 +17,7 @@ public interface IAccountStore
 {
     Task<AccountPage> List(int page, int pageSize, CancellationToken ct);
     Task<AccountDto?> Get(Guid userId, CancellationToken ct);
-    Task<bool> SetActive(Guid userId, bool active, CancellationToken ct);
+    Task<Result<bool>> SetActive(Guid actorId, Guid userId, bool active, CancellationToken ct);
 }
 
 public sealed class AccountHandlers(IAccountStore store) : IRequestHandler<ListAccountsQuery, Result<AccountPage>>,
@@ -36,8 +36,7 @@ public sealed class AccountHandlers(IAccountStore store) : IRequestHandler<ListA
     {
         if (request.ActorId == request.UserId && !request.IsActive)
             return Result<bool>.Failure(new("iam.self_disable", "Bạn không thể tự khóa tài khoản của mình.", ErrorKind.Conflict));
-        return await store.SetActive(request.UserId, request.IsActive, ct) ? Result<bool>.Success(true)
-            : Result<bool>.Failure(ProfileErrors.UserNotFound);
+        return await store.SetActive(request.ActorId, request.UserId, request.IsActive, ct);
     }
 }
 
