@@ -196,7 +196,7 @@ public sealed class AuthFlowTests : IDisposable
         await Sender.Send(Registration());
         var result = await Sender.Send(new GetCurrentUserQuery(store.Users[0].Id));
         Assert.True(result.IsSuccess);
-        Assert.Equal("Nguyen Van A", result.Value!.Profile.FullName);
+        Assert.Equal("Nguyen Van A", result.Value!.Profile!.FullName);
         Assert.Contains("iam.profile.read", result.Value.Permissions);
     }
 }
