@@ -82,6 +82,53 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.RbacAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("action");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("details");
+
+                    b.Property<int?>("PermissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("permission_id");
+
+                    b.Property<int?>("RoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("role_id");
+
+                    b.Property<Guid?>("TargetUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_rbac_audit_logs");
+
+                    b.HasIndex("CreatedAt", "Id")
+                        .HasDatabaseName("ix_rbac_audit_logs_created_at_id");
+
+                    b.ToTable("rbac_audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
