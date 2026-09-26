@@ -71,3 +71,7 @@ Giữ cơ chế hiện có: JWT HS256 xác minh issuer/audience/signature/expiry
 - Migration `20260926014941_ProfileWritePermission` thêm quyền ghi hồ sơ và gán cho 5 vai trò; không xóa dữ liệu. AutoMigrate áp dụng khi IAM khởi động nếu được bật.
 - Gateway đã cấu hình `/api/v1/accounts/{**catch-all}`; route users hiện có bao phủ API hồ sơ. Local: Gateway cổng 5000, IAM cổng 5001, Swagger tại `http://localhost:5001/swagger` khi chạy Development.
 - Migration đã được kiểm thử trong PostgreSQL tạm của test suite. Chưa áp dụng riêng vào database Local Dev đang chạy hoặc triển khai Azure trong task này.
+
+## Bổ sung IAM-005
+
+API quản trị RBAC đã được triển khai tại `/api/v1/rbac/*`; xem [hướng dẫn đầy đủ](iam-rbac-admin.md). API đổi trạng thái tài khoản nay bảo vệ IT_ADMIN hoạt động cuối cùng và ghi audit trong cùng transaction; thay đổi bị chặn trả 409 `iam.last_admin`. Quyền quản lý tài khoản vẫn là iam.manage, còn quản trị RBAC yêu cầu vai trò IT_ADMIN hiện tại.
