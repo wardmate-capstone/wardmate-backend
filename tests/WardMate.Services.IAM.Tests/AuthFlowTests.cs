@@ -76,6 +76,42 @@ public sealed class AuthFlowTests : IDisposable
         Assert.Equal("iam.duplicate_account", (await Sender.Send(Registration())).Error?.Code);
     }
     [Theory]
+    [InlineData("Abcdef!", false)]
+    [InlineData("abcdefg!", false)]
+    [InlineData("Abcdefgh", false)]
+    [InlineData("Abcdefg ", false)]
+    [InlineData("Abcdefg!", true)]
+    [InlineData("ABCDEFG$", true)]
+    [InlineData(null, false)]
+    public async Task RegistrationEnforcesPasswordStrength(string? password, bool valid)
+    {
+        var command = Registration() with { Password = password! };
+        if (valid)
+        {
+            Assert.True((await Sender.Send(command)).IsSuccess);
+            Assert.Single(store.Users);
+        }
+        else
+        {
+            var error = await Assert.ThrowsAsync<ValidationException>(() => Sender.Send(command));
+            Assert.Contains(error.Errors, e => e.PropertyName == "Password");
+            Assert.Empty(store.Users);
+        }
+    }
+    [Theory]
+    [InlineData(35, true)]
+    [InlineData(36, false)]
+    public async Task RegistrationRespectsUtf8ByteLimit(int accentedCharacters, bool valid)
+    {
+        var command = Registration() with { Password = "A!" + new string('é', accentedCharacters) };
+        if (valid) Assert.True((await Sender.Send(command)).IsSuccess);
+        else
+        {
+            await Assert.ThrowsAsync<ValidationException>(() => Sender.Send(command));
+            Assert.Empty(store.Users);
+        }
+    }
+    [Theory]
     [InlineData("citizen")]
     [InlineData("CITIZEN@EXAMPLE.TEST")]
     public async Task LoginAcceptsUsernameOrEmail(string identity)
@@ -160,7 +196,7 @@ public sealed class AuthFlowTests : IDisposable
         await Sender.Send(Registration());
         var result = await Sender.Send(new GetCurrentUserQuery(store.Users[0].Id));
         Assert.True(result.IsSuccess);
-        Assert.Equal("Nguyen Van A", result.Value!.Profile.FullName);
+        Assert.Equal("Nguyen Van A", result.Value!.Profile!.FullName);
         Assert.Contains("iam.profile.read", result.Value.Permissions);
     }
 }

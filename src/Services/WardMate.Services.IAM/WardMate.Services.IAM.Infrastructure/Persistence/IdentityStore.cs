@@ -23,7 +23,26 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
     public void AddRefreshToken(RefreshToken token) => db.RefreshTokens.Add(token);
     public async Task<SaveOutcome> SaveChanges(CancellationToken ct)
     {
-        try { await db.SaveChangesAsync(ct); return SaveOutcome.Saved; }
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            // Serialize token issuance with account disabling so no usable token survives a ban.
+            var owners = db.ChangeTracker.Entries<RefreshToken>().Where(x => x.State == EntityState.Added)
+                .Select(x => x.Entity.UserId).Distinct().Order().ToArray();
+            foreach (var owner in owners)
+            {
+                var current = await db.Users.FromSqlInterpolated($"SELECT * FROM users WHERE id = {owner} FOR UPDATE")
+                    .AsNoTracking().SingleOrDefaultAsync(ct);
+                if (current is null || !current.IsActive)
+                {
+                    db.ChangeTracker.Clear();
+                    return SaveOutcome.ConcurrentUpdate;
+                }
+            }
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return SaveOutcome.Saved;
+        }
         catch (DbUpdateConcurrencyException) { db.ChangeTracker.Clear(); return SaveOutcome.ConcurrentUpdate; }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         { db.ChangeTracker.Clear(); return SaveOutcome.Duplicate; }

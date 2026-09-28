@@ -21,7 +21,7 @@ public sealed class GlobalExceptionHandler(
         var problem = new ProblemDetails
         {
             Status = StatusCodes.Status500InternalServerError,
-            Title = "An unexpected error occurred.",
+            Title = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
             Type = "https://www.rfc-editor.org/rfc/rfc9110#section-15.6.1",
             Instance = httpContext.Request.Path,
             Extensions = { ["traceId"] = traceId }

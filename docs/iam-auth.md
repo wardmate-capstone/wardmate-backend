@@ -26,7 +26,7 @@ dotnet run --project src/Gateways/WardMate.YarpGateway --launch-profile http
 
 API direct URL: `http://localhost:5001`. Gateway URL: `http://localhost:5000`. Both expose the same versioned IAM routes below. The previous `/api/iam` prefix remains available for the service's root/health routes. Swagger UI is at `http://localhost:5001/swagger` in Development. Click Authorize and paste the access token without a manually added Bearer prefix.
 
-`Database:AutoMigrate` defaults to true; IAM applies its own migrations before accepting traffic. Migrations seed five roles, two sample permissions (`iam.profile.read`, `iam.manage`) and six role-permission assignments. Every role receives `iam.profile.read`; only IT_ADMIN receives `iam.manage`. These are seed examples; this task does not add admin management endpoints or a full permission authorization policy. No sample user/password is seeded. Set `Database__AutoMigrate=false` when applying migrations separately as a deployment step.
+`Database:AutoMigrate` defaults to true; IAM applies its own migrations before accepting traffic. Migrations seed five roles, three permissions (`iam.profile.read`, `iam.profile.write`, `iam.manage`) and eleven role-permission assignments. Every role receives profile read/write; only IT_ADMIN receives `iam.manage`. IAM-004 adds permission policies and admin profile/account endpoints; see iam-profiles-rbac.md. No sample user/password is seeded. Set `Database__AutoMigrate=false` when applying migrations separately as a deployment step.
 
 ## Endpoints
 
@@ -62,13 +62,7 @@ CurrentUserDto:
   "username": "citizen",
   "email": "citizen@example.test",
   "profile": {
-    "fullName": "Nguyen Van A",
-    "identityNumber": null,
-    "phoneNumber": null,
-    "dateOfBirth": null,
-    "gender": null,
-    "permanentAddress": null,
-    "temporaryAddress": null
+    "fullName": "Nguyen Van A"
   },
   "roles": ["REGISTERED_CITIZEN"],
   "permissions": ["iam.profile.read"]
@@ -76,7 +70,8 @@ CurrentUserDto:
 ```
 
 - Register does not log in automatically; call login afterward. New users receive only REGISTERED_CITIZEN. Clients cannot request a privileged role through registration.
-- Usernames are ASCII letters, digits, `_`, `.` or `-`, maximum 100 characters; stored usernames/emails are lowercase. Passwords need at least 12 characters and at most 72 UTF-8 bytes (BCrypt limit). Full names cannot be blank and have a 255-character limit.
+- Controller JSON responses omit properties whose values are null, including optional profile fields. Frontend DTOs must allow missing optional properties; populated values and empty strings remain present.
+- Usernames are ASCII letters, digits, `_`, `.` or `-`, maximum 100 characters; stored usernames/emails are lowercase. Registration passwords need at least 8 characters, one uppercase letter and one special character (Unicode punctuation or symbol; whitespace does not count), and at most 72 UTF-8 bytes (BCrypt limit). No digit is required. Login continues to accept existing credentials without applying the new registration strength rules. Full names cannot be blank and have a 255-character limit.
 - Send `Authorization: Bearer <accessToken>` to authorized endpoints. Access token defaults to 15 minutes, refresh token to 7 days; timestamps are UTC, dates are `YYYY-MM-DD`.
 - JWT contains `sub`, `email`, `role` and `permissions`; role and permissions are arrays in the JWT payload. UI permission checks do not replace backend authorization. `/users/me` reloads the current profile/permissions from IAM storage.
 - Refresh accepts a correctly signed expired access token only when its subject matches a still-valid stored refresh token. API authorization itself rejects expired access tokens. Invalid signature, issuer, audience or future activation time fails refresh.
@@ -98,3 +93,15 @@ dotnet test WardMate.sln -c Release --no-build
 The complete suite requires Docker: integration tests use Testcontainers with a random-port, disposable PostgreSQL instance, never the developer database. Unit-only IAM tests: `dotnet test tests/WardMate.Services.IAM.Tests -c Release`. Schema uses snake_case, local foreign keys and UTC `timestamp with time zone`; nullable identity numbers can coexist. Refresh tokens are stored only as SHA-256 digests of 64 random bytes. BCrypt uses a random salt and work factor 12. The persisted `is_revoked` field is a concurrency token; an EF SaveChanges transaction atomically revokes the old token and inserts the replacement, rolling back a losing concurrent update.
 
 Git workflow is recorded in root `AGENTS.md`: feature → `kha` → `deploy`. GitHub Actions validates build and tests on these branches. This repository's workflow is CI validation; successful push does not by itself verify an external frontend deployment.
+
+## Ngôn ngữ thông báo API
+
+Thông báo validation và lỗi nghiệp vụ IAM trả về bằng tiếng Việt, không phụ thuộc `Accept-Language`. Tên trường JSON, HTTP status và mã lỗi (`validation_failed`, `iam.invalid_credentials`, ...) giữ nguyên để Frontend xử lý ổn định. Lỗi thiếu trường hoặc sai định dạng JSON dùng thông báo an toàn bằng tiếng Việt; không trả chi tiết exception của bộ đọc JSON. Lỗi hệ thống qua Global Exception Handler dùng thông báo tiếng Việt chung, chi tiết kỹ thuật chỉ ghi log nội bộ.
+
+## Hồ sơ và RBAC (IAM-004)
+
+Xem [API hồ sơ, RBAC và khóa/mở khóa tài khoản](iam-profiles-rbac.md) cho các endpoint mới. IAM hiện kiểm tra quyền từ database trên mỗi yêu cầu có policy; migration mới bổ sung `iam.profile.write`. Sau khi xóa hồ sơ, `/users/me` vẫn trả tài khoản nhưng bỏ thuộc tính `profile`.
+
+## API quản trị RBAC (IAM-005)
+
+Nhóm **Rbac** trong Swagger có CRUD vai trò nghiệp vụ, xem/gán/thu hồi quyền, gán/thu hồi vai trò người dùng và nhật ký thay đổi. Xem [hướng dẫn API RBAC](iam-rbac-admin.md). Chỉ IT_ADMIN hoạt động có quyền iam.manage được quản trị RBAC; account/profile management vẫn dùng policy iam.manage hiện có.

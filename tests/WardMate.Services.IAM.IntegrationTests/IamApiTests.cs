@@ -25,7 +25,10 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         var username = "citizen-" + Guid.NewGuid().ToString("N");
         using var register = await client.PostAsJsonAsync("/api/v1/auth/register", new { username, email = username + "@example.test", password = Password, fullName = "Nguyen Van A" });
         Assert.Equal(HttpStatusCode.Created, register.StatusCode);
-        var user = (await register.Content.ReadFromJsonAsync<CurrentUserDto>())!;
+        var registrationJson = await register.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Nguyen Van A", registrationJson.GetProperty("profile").GetProperty("fullName").GetString());
+        Assert.Single(registrationJson.GetProperty("profile").EnumerateObject());
+        var user = registrationJson.Deserialize<CurrentUserDto>(new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
         using var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { usernameOrEmail = username, password = Password });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         return (user, (await login.Content.ReadFromJsonAsync<AuthResponseDto>())!);
@@ -36,12 +39,58 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         using var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IamDbContext>();
         Assert.Equal(5, await db.Roles.CountAsync());
-        Assert.Equal(2, await db.Permissions.CountAsync());
-        Assert.Equal(6, await db.RolePermissions.CountAsync());
-        Assert.Equal(7, db.Model.GetEntityTypes().Count());
-        Assert.Single(await db.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(3, await db.Permissions.CountAsync());
+        Assert.Equal(11, await db.RolePermissions.CountAsync());
+        Assert.Equal(8, db.Model.GetEntityTypes().Count());
+        Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync()).Count());
         await db.Database.MigrateAsync();
         Assert.Equal(5, await db.Roles.CountAsync());
+    }
+    [Fact]
+    public async Task CurrentProfileOmitsNullFieldsAndPreservesPopulatedFields()
+    {
+        using var client = fixture.Factory.CreateClient();
+        var account = await RegisterAndLogin(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", account.Tokens.AccessToken);
+        var initial = await client.GetFromJsonAsync<JsonElement>("/api/v1/users/me");
+        Assert.Single(initial.GetProperty("profile").EnumerateObject());
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IamDbContext>();
+            var profile = await db.Set<UserProfile>().SingleAsync(x => x.UserId == account.User.Id);
+            profile.PhoneNumber = "0901234567";
+            profile.DateOfBirth = new DateOnly(2000, 1, 2);
+            profile.TemporaryAddress = "";
+            await db.SaveChangesAsync();
+        }
+        var updated = await client.GetFromJsonAsync<JsonElement>("/api/v1/users/me");
+        var json = updated.GetProperty("profile");
+        Assert.Equal(4, json.EnumerateObject().Count());
+        Assert.Equal("Nguyen Van A", json.GetProperty("fullName").GetString());
+        Assert.Equal("0901234567", json.GetProperty("phoneNumber").GetString());
+        Assert.Equal("2000-01-02", json.GetProperty("dateOfBirth").GetString());
+        Assert.Equal("", json.GetProperty("temporaryAddress").GetString());
+        Assert.False(json.TryGetProperty("identityNumber", out _));
+    }
+    [Theory]
+    [InlineData("Abcdef!", HttpStatusCode.BadRequest)]
+    [InlineData("abcdefg!", HttpStatusCode.BadRequest)]
+    [InlineData("Abcdefgh", HttpStatusCode.BadRequest)]
+    [InlineData("Abcdefg!", HttpStatusCode.Created)]
+    public async Task RegistrationPasswordPolicyIsExposedThroughApi(string password, HttpStatusCode expected)
+    {
+        using var client = fixture.Factory.CreateClient();
+        var username = "policy-" + Guid.NewGuid().ToString("N");
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/register", new { username, email = username + "@example.test", password, fullName = "Test citizen" });
+        Assert.Equal(expected, response.StatusCode);
+        if (expected == HttpStatusCode.BadRequest)
+        {
+            var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("validation_failed", problem.GetProperty("code").GetString());
+            Assert.True(problem.GetProperty("errors").TryGetProperty("password", out _));
+            using var scope = fixture.Factory.Services.CreateScope();
+            Assert.False(await scope.ServiceProvider.GetRequiredService<IamDbContext>().Users.AnyAsync(x => x.Username == username));
+        }
     }
     [Fact]
     public async Task CompleteAuthLifecycleAndOwnershipChecks()
@@ -87,6 +136,8 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         var problem = await invalid.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("validation_failed", problem.GetProperty("code").GetString());
+        Assert.Equal("Dữ liệu không hợp lệ.", problem.GetProperty("title").GetString());
+        Assert.Contains("Mật khẩu phải có ít nhất 8 ký tự.", problem.GetProperty("errors").GetProperty("password").EnumerateArray().Select(x => x.GetString()));
         Assert.True(problem.GetProperty("errors").TryGetProperty("password", out _));
         Assert.True(problem.TryGetProperty("traceId", out _));
         var account = await RegisterAndLogin(client);
@@ -184,5 +235,33 @@ public sealed class IamApiTests(IamFixture fixture) : IClassFixture<IamFixture>
         Assert.Equal("bearer", swagger.GetProperty("components").GetProperty("securitySchemes").GetProperty("Bearer").GetProperty("scheme").GetString());
         Assert.True(swagger.GetProperty("paths").GetProperty("/api/v1/users/me").GetProperty("get").TryGetProperty("security", out _));
         Assert.False(swagger.GetProperty("paths").GetProperty("/api/v1/auth/login").GetProperty("post").TryGetProperty("security", out _));
+    }
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"username\":123}")]
+    [InlineData("{broken")]
+    public async Task InvalidRequestBodiesReturnVietnameseMessages(string body)
+    {
+        using var client = fixture.Factory.CreateClient();
+        using var response = await client.PostAsync("/api/v1/auth/register", new StringContent(body, Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Dữ liệu không hợp lệ.", problem.GetProperty("title").GetString());
+        Assert.Equal("validation_failed", problem.GetProperty("code").GetString());
+        Assert.All(problem.GetProperty("errors").EnumerateObject(), field =>
+            Assert.All(field.Value.EnumerateArray(), message =>
+                Assert.Equal("Trường dữ liệu bị thiếu hoặc không đúng định dạng.", message.GetString())));
+    }
+    [Fact]
+    public async Task AuthenticationFailuresReturnVietnameseMessages()
+    {
+        using var client = fixture.Factory.CreateClient();
+        using var anonymous = await client.GetAsync("/api/v1/users/me");
+        var unauthorized = await anonymous.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Vui lòng đăng nhập để tiếp tục.", unauthorized.GetProperty("title").GetString());
+        using var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { usernameOrEmail = "missing", password = "WrongPassword!" });
+        var problem = await login.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("iam.invalid_credentials", problem.GetProperty("code").GetString());
+        Assert.Equal("Thông tin đăng nhập không đúng hoặc tài khoản chưa được kích hoạt.", problem.GetProperty("title").GetString());
     }
 }
