@@ -28,7 +28,7 @@ public sealed class CreateFormTemplateVersionCommandHandler : ICommandHandler<Cr
         var validateSchemaResult = _schemaEngine.ParseAndValidateSchema(request.SchemaDefinition);
         if (!validateSchemaResult.IsSuccess)
         {
-            return Result<FormTemplateVersionDto>.Failure(validateSchemaResult.Error);
+            return validateSchemaResult.Error;
         }
 
         var template = await _dbContext.FormTemplates
@@ -37,7 +37,7 @@ public sealed class CreateFormTemplateVersionCommandHandler : ICommandHandler<Cr
 
         if (template is null)
         {
-            return Result<FormTemplateVersionDto>.Failure(DocumentFormErrors.TemplateNotFound(request.TemplateId));
+            return DocumentFormErrors.TemplateNotFound(request.TemplateId);
         }
 
         var newVersion = template.AddVersion(request.SchemaDefinition, request.CreatedBy);
@@ -53,6 +53,6 @@ public sealed class CreateFormTemplateVersionCommandHandler : ICommandHandler<Cr
             UpdatedAtUtc = newVersion.UpdatedAtUtc
         };
 
-        return Result<FormTemplateVersionDto>.Success(dto);
+        return dto;
     }
 }
