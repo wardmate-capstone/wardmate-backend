@@ -30,7 +30,7 @@ public sealed class GeneratedDocument : BaseEntity
         DocumentType = documentType.Trim().ToUpperInvariant();
         PdfBlobUrl = pdfBlobUrl.Trim();
         CreatedBy = createdBy;
-        SetCreated();
+        SetCreated(DateTime.UtcNow);
     }
 
     public Guid ApplicationId { get; private set; }
@@ -44,6 +44,6 @@ public sealed class GeneratedDocument : BaseEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(pdfBlobUrl);
         PdfBlobUrl = pdfBlobUrl.Trim();
         UpdatedBy = updatedBy;
-        SetUpdated();
+        SetUpdated(DateTime.UtcNow);
     }
 }
