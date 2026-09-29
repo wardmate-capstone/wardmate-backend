@@ -27,7 +27,7 @@ public sealed class ApplicationForm : BaseEntity
         ApplicationId = applicationId;
         FormData = formData;
         CreatedBy = createdBy;
-        SetCreated();
+        SetCreated(DateTime.UtcNow);
     }
 
     public Guid ApplicationId { get; private set; }
@@ -40,6 +40,6 @@ public sealed class ApplicationForm : BaseEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(formData);
         FormData = formData;
         UpdatedBy = updatedBy;
-        SetUpdated();
+        SetUpdated(DateTime.UtcNow);
     }
 }
