@@ -81,12 +81,12 @@ public sealed class FormSchemaEngineTests
 
         Assert.True(result.IsSuccess);
         var schema = result.Value;
-        Assert.Equal("1.0", schema.SchemaVersion);
+        Assert.Equal(1, schema.Version);
         Assert.Equal("Tờ khai đăng ký khai sinh", schema.Title);
         Assert.Equal(2, schema.Sections.Count);
 
         var allFields = schema.GetAllFields().ToList();
-        Assert.Equal(5, allFields.Count);
+        Assert.Equal(6, allFields.Count);
         Assert.Contains(allFields, f => f.FieldId == "ho_ten_nguoi_yeu_cau");
         Assert.Contains(allFields, f => f.FieldId == "gioi_tinh" && f.Options.Count == 2);
     }
@@ -98,7 +98,7 @@ public sealed class FormSchemaEngineTests
     {
         var result = _engine.ParseAndValidateSchema(invalidJson);
         Assert.True(result.IsFailure);
-        Assert.Equal("schema.invalid_format", result.Error.Code);
+        Assert.Equal("document.invalid_schema", result.Error.Code);
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public sealed class FormSchemaEngineTests
     {
         var result = _engine.ParseAndValidateSchema("{ not valid json: 123 }");
         Assert.True(result.IsFailure);
-        Assert.Equal("schema.invalid_format", result.Error.Code);
+        Assert.Equal("document.invalid_schema", result.Error.Code);
     }
 
     [Fact]
