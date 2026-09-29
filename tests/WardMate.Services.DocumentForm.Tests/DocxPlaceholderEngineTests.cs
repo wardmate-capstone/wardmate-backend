@@ -88,14 +88,14 @@ public sealed class DocxPlaceholderEngineTests
 
         var matchResult = _engine.MatchPlaceholdersWithSchema(placeholders, schema);
 
-        Assert.False(matchResult.IsPerfectMatch);
-        Assert.Equal(2, matchResult.MatchedCount);
+        Assert.False(matchResult.IsValid);
+        Assert.Equal(2, matchResult.MatchedFields.Count);
         Assert.Contains("placeholder_only", matchResult.MissingInSchema);
-        Assert.Contains("schema_only", matchResult.MissingInDocx);
+        Assert.Contains("schema_only", matchResult.UnusedInDocx);
     }
 
     [Fact]
-    public void GenerateDraftSchemaFromPlaceholders_InfersFieldTypesCorrectly()
+    public void GenerateDraftSchema_InfersFieldTypesCorrectly()
     {
         var placeholders = new List<DocxPlaceholder>
         {
@@ -108,15 +108,19 @@ public sealed class DocxPlaceholderEngineTests
             new() { Name = "so_luong_ban_sao", RawTag = "{{so_luong_ban_sao}}" }
         };
 
-        var draftJson = _engine.GenerateDraftSchemaFromPlaceholders(placeholders, "Biểu mẫu mẫu");
+        var draftSchema = _engine.GenerateDraftSchema(placeholders, "Biểu mẫu mẫu");
 
-        Assert.False(string.IsNullOrWhiteSpace(draftJson));
-        Assert.Contains("ho_va_ten", draftJson);
-        Assert.Contains("date", draftJson);
-        Assert.Contains("email", draftJson);
-        Assert.Contains("phone_number", draftJson);
-        Assert.Contains("national_id", draftJson);
-        Assert.Contains("currency", draftJson);
-        Assert.Contains("number", draftJson);
+        Assert.NotNull(draftSchema);
+        Assert.Equal("Biểu mẫu mẫu", draftSchema.Title);
+
+        var allFields = draftSchema.GetAllFields().ToList();
+        Assert.Equal(7, allFields.Count);
+        Assert.Contains(allFields, f => f.FieldId == "ngay_sinh" && f.Type == FormFieldType.Date);
+        Assert.Contains(allFields, f => f.FieldId == "email_lien_he" && f.Type == FormFieldType.Email);
+        Assert.Contains(allFields, f => f.FieldId == "so_dien_thoai" && f.Type == FormFieldType.PhoneNumber);
+        Assert.Contains(allFields, f => f.FieldId == "so_cccd" && f.Type == FormFieldType.NationalId);
+        Assert.Contains(allFields, f => f.FieldId == "le_phi" && f.Type == FormFieldType.Currency);
+        Assert.Contains(allFields, f => f.FieldId == "so_luong_ban_sao" && f.Type == FormFieldType.Number);
+        Assert.Contains(allFields, f => f.FieldId == "ho_va_ten" && f.Type == FormFieldType.Text);
     }
 }
