@@ -1,16 +1,111 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using WardMate.Services.DocumentForm.Application;
+using WardMate.Services.DocumentForm.Infrastructure;
+using WardMate.Services.DocumentForm.Infrastructure.Persistence;
+using WardMate.SharedKernel.Logging;
 using WardMate.SharedKernel.Web;
 
-var builder = WebApplication.CreateBuilder(args);
+// ── Bootstrap Serilog immediately so startup errors are captured ────────────
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-builder.Services.AddControllers();
-builder.Services.AddHealthChecks();
-builder.Services.AddGlobalExceptionHandling();
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
 
-var app = builder.Build();
+    // ── Centralised Serilog (Console + File, JSON in Prod) ───────────────────
+    builder.AddWardMateLogging();
 
-app.UseGlobalExceptionHandling();
-app.MapControllers();
-app.MapHealthChecks("/health");
-app.MapGet("/", () => Results.Ok(new { service = "WardMate.Services.DocumentForm" }));
+    // ── MVC / API ────────────────────────────────────────────────────────────
+    builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context => new BadRequestObjectResult(new ValidationProblemDetails(context.ModelState)
+        {
+            Status = 400,
+            Title = "Validation failed.",
+            Instance = context.HttpContext.Request.Path,
+            Extensions = { ["code"] = "validation_failed", ["traceId"] = context.HttpContext.TraceIdentifier }
+        });
+    });
 
-app.Run();
+    // ── Health / Exception handling ──────────────────────────────────────────
+    builder.Services.AddHealthChecks();
+    builder.Services.AddGlobalExceptionHandling();
+    builder.Services.Configure<ProblemDetailsOptions>(options =>
+        options.CustomizeProblemDetails = context =>
+        {
+            context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
+        });
+
+    // ── Application / Infrastructure ─────────────────────────────────────────
+    builder.Services.AddDocumentFormApplication();
+    builder.Services.AddDocumentFormInfrastructure(builder.Configuration);
+
+    // ── Swagger ──────────────────────────────────────────────────────────────
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(options =>
+    {
+        options.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "WardMate Document & Form Service API",
+            Version = "v1",
+            Description = "APIs for dynamic e-form schema definition, DOCX template placeholder extraction, and form generation."
+        });
+    });
+
+    var app = builder.Build();
+
+    // ── EF migrations ────────────────────────────────────────────────────────
+    if (builder.Configuration.GetValue("Database:AutoMigrate", true))
+    {
+        try
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<DocumentDbContext>();
+            await dbContext.Database.MigrateAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to apply database migrations automatically on startup.");
+        }
+    }
+
+    // ── Middleware pipeline ──────────────────────────────────────────────────
+    app.UseWardMateRequestLogging();
+    app.UseWardMateRequestLoggingMiddleware();
+    app.UseGlobalExceptionHandling();
+    app.UseStatusCodePages();
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "WardMate Document & Form API v1");
+        });
+    }
+
+    app.MapControllers();
+    app.MapHealthChecks("/health");
+    app.MapGet("/", () => Results.Ok(new
+    {
+        service = "WardMate.Services.DocumentForm",
+        version = "v1",
+        status = "Healthy"
+    }));
+
+    Log.Information("WardMate.Services.DocumentForm started successfully.");
+    app.Run();
+}
+catch (Exception ex) when (ex is not HostAbortedException)
+{
+    Log.Fatal(ex, "WardMate.Services.DocumentForm terminated unexpectedly.");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
