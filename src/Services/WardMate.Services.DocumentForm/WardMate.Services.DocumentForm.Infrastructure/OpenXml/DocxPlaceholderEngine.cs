@@ -30,8 +30,7 @@ public sealed class DocxPlaceholderEngine : IDocxPlaceholderEngine
         }
         catch (Exception ex)
         {
-            return Result<IReadOnlyList<DocxPlaceholder>>.Failure(
-                DocumentFormErrors.InvalidDocxFile($"Failed to read DOCX stream: {ex.Message}"));
+            return DocumentFormErrors.InvalidDocxFile($"Failed to read DOCX stream: {ex.Message}");
         }
     }
 
@@ -39,7 +38,7 @@ public sealed class DocxPlaceholderEngine : IDocxPlaceholderEngine
     {
         if (docxBytes.Length == 0)
         {
-            return Result<IReadOnlyList<DocxPlaceholder>>.Failure(DocumentFormErrors.EmptyFile);
+            return DocumentFormErrors.EmptyFile;
         }
 
         try
@@ -50,8 +49,7 @@ public sealed class DocxPlaceholderEngine : IDocxPlaceholderEngine
             var body = wordDoc.MainDocumentPart?.Document?.Body;
             if (body is null)
             {
-                return Result<IReadOnlyList<DocxPlaceholder>>.Failure(
-                    DocumentFormErrors.InvalidDocxFile("Cannot read document body. The file may be corrupted or password-protected."));
+                return DocumentFormErrors.InvalidDocxFile("Cannot read document body. The file may be corrupted or password-protected.");
             }
 
             // Ghép toàn bộ văn bản trong document body (kể cả text bị phân mảnh bởi định dạng)
@@ -63,12 +61,11 @@ public sealed class DocxPlaceholderEngine : IDocxPlaceholderEngine
             var combined = allText + "\n" + headersFootersText;
             var result = ParsePlaceholders(combined);
 
-            return Result<IReadOnlyList<DocxPlaceholder>>.Success(result);
+            return Result.Success(result);
         }
         catch (Exception ex)
         {
-            return Result<IReadOnlyList<DocxPlaceholder>>.Failure(
-                DocumentFormErrors.InvalidDocxFile($"Cannot parse DOCX file: {ex.Message}"));
+            return DocumentFormErrors.InvalidDocxFile($"Cannot parse DOCX file: {ex.Message}");
         }
     }
 
