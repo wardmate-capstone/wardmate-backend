@@ -27,7 +27,7 @@ public sealed class GetFormTemplateByIdQueryHandler : IQueryHandler<GetFormTempl
 
         if (template is null)
         {
-            return Result<FormTemplateDetailDto>.Failure(DocumentFormErrors.TemplateNotFound(request.TemplateId));
+            return DocumentFormErrors.TemplateNotFound(request.TemplateId);
         }
 
         var dto = new FormTemplateDetailDto
@@ -52,6 +52,6 @@ public sealed class GetFormTemplateByIdQueryHandler : IQueryHandler<GetFormTempl
                 }).ToList()
         };
 
-        return Result<FormTemplateDetailDto>.Success(dto);
+        return dto;
     }
 }
