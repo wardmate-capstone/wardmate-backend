@@ -36,7 +36,7 @@ public sealed class SupportingDocument : BaseEntity
         FileSizeBytes = fileSizeBytes;
         ContentType = contentType?.Trim();
         CreatedBy = createdBy;
-        SetCreated();
+        SetCreated(DateTime.UtcNow);
     }
 
     public Guid ApplicationId { get; private set; }
@@ -58,6 +58,6 @@ public sealed class SupportingDocument : BaseEntity
         FileSizeBytes = fileSizeBytes;
         ContentType = contentType?.Trim();
         UpdatedBy = updatedBy;
-        SetUpdated();
+        SetUpdated(DateTime.UtcNow);
     }
 }
