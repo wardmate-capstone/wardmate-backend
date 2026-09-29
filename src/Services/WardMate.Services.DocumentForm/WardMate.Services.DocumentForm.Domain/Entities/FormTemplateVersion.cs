@@ -34,7 +34,7 @@ public sealed class FormTemplateVersion : BaseEntity
         VersionNumber = versionNumber;
         SchemaDefinition = schemaDefinition;
         CreatedBy = createdBy;
-        SetCreated();
+        SetCreated(DateTime.UtcNow);
     }
 
     public Guid TemplateId { get; private set; }
@@ -50,6 +50,6 @@ public sealed class FormTemplateVersion : BaseEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(schemaDefinition);
         SchemaDefinition = schemaDefinition;
         UpdatedBy = updatedBy;
-        SetUpdated();
+        SetUpdated(DateTime.UtcNow);
     }
 }
