@@ -25,8 +25,7 @@ public sealed class ExtractDocxPlaceholdersQueryHandler : IQueryHandler<ExtractD
         var extension = Path.GetExtension(request.FileName);
         if (!string.Equals(extension, ".docx", StringComparison.OrdinalIgnoreCase))
         {
-            return Result<IReadOnlyList<DocxPlaceholder>>.Failure(
-                DocumentFormErrors.InvalidDocxFile("Only .docx files are supported for placeholder extraction."));
+            return DocumentFormErrors.InvalidDocxFile("Only .docx files are supported for placeholder extraction.");
         }
 
         using var ms = new MemoryStream();
@@ -35,7 +34,7 @@ public sealed class ExtractDocxPlaceholdersQueryHandler : IQueryHandler<ExtractD
 
         if (bytes.Length == 0)
         {
-            return Result<IReadOnlyList<DocxPlaceholder>>.Failure(DocumentFormErrors.EmptyFile);
+            return DocumentFormErrors.EmptyFile;
         }
 
         return _placeholderEngine.ExtractPlaceholders(bytes);
