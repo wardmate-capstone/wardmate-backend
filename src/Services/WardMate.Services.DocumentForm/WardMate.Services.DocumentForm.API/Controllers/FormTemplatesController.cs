@@ -34,7 +34,7 @@ public sealed class FormTemplatesController : ControllerBase
 
         return result.IsSuccess
             ? Ok(result.Value)
-            : Problem(result.Error.Description, statusCode: StatusCodes.Status400BadRequest, extensions: new Dictionary<string, object?> { ["code"] = result.Error.Code });
+            : BadRequest(new { code = result.Error.Code, message = result.Error.Description });
     }
 
     /// <summary>Lấy chi tiết biểu mẫu điện tử kèm tất cả phiên bản schema.</summary>
