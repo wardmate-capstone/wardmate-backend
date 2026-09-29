@@ -62,7 +62,6 @@ public sealed class GetFormTemplatesQueryHandler : IQueryHandler<GetFormTemplate
             UpdatedAtUtc = t.UpdatedAtUtc
         }).ToList();
 
-        return Result<PagedResult<FormTemplateDto>>.Success(
-            PagedResult<FormTemplateDto>.Create(dtos, totalCount, page, pageSize));
+        return PagedResult<FormTemplateDto>.Create(dtos, totalCount, page, pageSize);
     }
 }
