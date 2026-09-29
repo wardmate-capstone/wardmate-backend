@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using WardMate.Services.DocumentForm.Application.Interfaces;
 using WardMate.Services.DocumentForm.Application.Models;
@@ -16,7 +17,11 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        Converters =
+        {
+            new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower)
+        }
     };
 
     private static readonly Regex FieldIdRegex = new(@"^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
