@@ -49,18 +49,18 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
     {
         if (request.FileSizeBytes <= 0 || request.FileStream.Length == 0)
         {
-            return Result<UploadDocxResultDto>.Failure(DocumentFormErrors.EmptyFile);
+            return DocumentFormErrors.EmptyFile;
         }
 
         if (request.FileSizeBytes > MaxDocxSizeBytes)
         {
-            return Result<UploadDocxResultDto>.Failure(DocumentFormErrors.FileTooLarge(MaxDocxSizeBytes));
+            return DocumentFormErrors.FileTooLarge(MaxDocxSizeBytes);
         }
 
         var extension = Path.GetExtension(request.FileName);
         if (!string.Equals(extension, ".docx", StringComparison.OrdinalIgnoreCase))
         {
-            return Result<UploadDocxResultDto>.Failure(DocumentFormErrors.InvalidDocxFile("Only .docx Word template files are accepted."));
+            return DocumentFormErrors.InvalidDocxFile("Only .docx Word template files are accepted.");
         }
 
         var template = await _dbContext.FormTemplates
@@ -69,7 +69,7 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
 
         if (template is null)
         {
-            return Result<UploadDocxResultDto>.Failure(DocumentFormErrors.TemplateNotFound(request.TemplateId));
+            return DocumentFormErrors.TemplateNotFound(request.TemplateId);
         }
 
         // 1. Bóc tách placeholders từ luồng DOCX
@@ -80,17 +80,17 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
         var extractResult = _placeholderEngine.ExtractPlaceholders(docxBytes);
         if (!extractResult.IsSuccess)
         {
-            return Result<UploadDocxResultDto>.Failure(extractResult.Error);
+            return extractResult.Error;
         }
 
         // 2. Upload file lên Azure Blob Storage
         using var uploadStream = new MemoryStream(docxBytes);
         var blobPath = $"form-templates/{template.Code.ToLowerInvariant()}/{Guid.NewGuid():N}_{Path.GetFileName(request.FileName)}";
         var blobUrl = await _blobClient.UploadAsync(
-            blobPath,
             uploadStream,
+            blobPath,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            cancellationToken);
+            ct: cancellationToken);
 
         // 3. Cập nhật URL file phôi mẫu vào Template
         template.UpdateDocxUrl(blobUrl, request.UpdatedBy);
@@ -116,6 +116,6 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
             SchemaMatchResult = matchResult
         };
 
-        return Result<UploadDocxResultDto>.Success(resultDto);
+        return resultDto;
     }
 }
