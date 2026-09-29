@@ -1,2 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\WardMate.SharedKernel\WardMate.SharedKernel.csproj" />
+  </ItemGroup>
 </Project>

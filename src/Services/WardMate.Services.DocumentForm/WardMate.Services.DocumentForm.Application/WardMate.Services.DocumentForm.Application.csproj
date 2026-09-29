@@ -1,5 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="../WardMate.Services.DocumentForm.Domain/WardMate.Services.DocumentForm.Domain.csproj" />
+    <ProjectReference Include="..\WardMate.Services.DocumentForm.Domain\WardMate.Services.DocumentForm.Domain.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\WardMate.SharedKernel\WardMate.SharedKernel.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
   </ItemGroup>
 </Project>
