@@ -34,7 +34,7 @@ public sealed class CreateFormTemplateCommandHandler : ICommandHandler<CreateFor
 
         if (existing)
         {
-            return Result<FormTemplateDetailDto>.Failure(DocumentFormErrors.TemplateCodeAlreadyExists(normalizedCode));
+            return DocumentFormErrors.TemplateCodeAlreadyExists(normalizedCode);
         }
 
         var template = new FormTemplate(normalizedCode, request.Title, createdBy: request.CreatedBy);
@@ -44,7 +44,7 @@ public sealed class CreateFormTemplateCommandHandler : ICommandHandler<CreateFor
             var validateSchemaResult = _schemaEngine.ParseAndValidateSchema(request.InitialSchemaDefinition);
             if (!validateSchemaResult.IsSuccess)
             {
-                return Result<FormTemplateDetailDto>.Failure(validateSchemaResult.Error);
+                return validateSchemaResult.Error;
             }
 
             template.AddVersion(request.InitialSchemaDefinition, request.CreatedBy);
@@ -73,6 +73,6 @@ public sealed class CreateFormTemplateCommandHandler : ICommandHandler<CreateFor
             }).ToList()
         };
 
-        return Result<FormTemplateDetailDto>.Success(dto);
+        return dto;
     }
 }
