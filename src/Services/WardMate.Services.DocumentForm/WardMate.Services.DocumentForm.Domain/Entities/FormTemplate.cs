@@ -28,7 +28,7 @@ public sealed class FormTemplate : BaseEntity
         FileDocxUrl = string.IsNullOrWhiteSpace(fileDocxUrl) ? null : fileDocxUrl.Trim();
         IsActive = true;
         CreatedBy = createdBy;
-        SetCreated();
+        SetCreated(DateTime.UtcNow);
     }
 
     public string Code { get; private set; } = string.Empty;
@@ -45,7 +45,7 @@ public sealed class FormTemplate : BaseEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         Title = title.Trim();
         UpdatedBy = updatedBy;
-        SetUpdated();
+        SetUpdated(DateTime.UtcNow);
     }
 
     public void UpdateDocxUrl(string docxUrl, string? updatedBy = null)
@@ -53,21 +53,21 @@ public sealed class FormTemplate : BaseEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(docxUrl);
         FileDocxUrl = docxUrl.Trim();
         UpdatedBy = updatedBy;
-        SetUpdated();
+        SetUpdated(DateTime.UtcNow);
     }
 
     public void Activate(string? updatedBy = null)
     {
         IsActive = true;
         UpdatedBy = updatedBy;
-        SetUpdated();
+        SetUpdated(DateTime.UtcNow);
     }
 
     public void Deactivate(string? updatedBy = null)
     {
         IsActive = false;
         UpdatedBy = updatedBy;
-        SetUpdated();
+        SetUpdated(DateTime.UtcNow);
     }
 
     public FormTemplateVersion AddVersion(string schemaDefinition, string? createdBy = null)
@@ -78,7 +78,7 @@ public sealed class FormTemplate : BaseEntity
 
         var version = new FormTemplateVersion(Id, nextVersionNumber, schemaDefinition, createdBy);
         _versions.Add(version);
-        SetUpdated();
+        SetUpdated(DateTime.UtcNow);
         return version;
     }
 }
