@@ -28,7 +28,7 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
     {
         if (string.IsNullOrWhiteSpace(schemaDefinitionJson))
         {
-            return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema("Schema definition JSON cannot be empty."));
+            return DocumentFormErrors.InvalidSchema("Schema definition JSON cannot be empty.");
         }
 
         FormSchemaDefinition? schema;
@@ -38,22 +38,22 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
         }
         catch (JsonException ex)
         {
-            return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Invalid JSON format: {ex.Message}"));
+            return DocumentFormErrors.InvalidSchema($"Invalid JSON format: {ex.Message}");
         }
 
         if (schema is null)
         {
-            return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema("Deserialized schema definition is null."));
+            return DocumentFormErrors.InvalidSchema("Deserialized schema definition is null.");
         }
 
         if (string.IsNullOrWhiteSpace(schema.Title))
         {
-            return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema("Schema title is required."));
+            return DocumentFormErrors.InvalidSchema("Schema title is required.");
         }
 
         if (schema.Sections.Count == 0)
         {
-            return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema("Schema must contain at least one section."));
+            return DocumentFormErrors.InvalidSchema("Schema must contain at least one section.");
         }
 
         var sectionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -63,46 +63,46 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
         {
             if (string.IsNullOrWhiteSpace(section.SectionId))
             {
-                return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema("Section ID is required for all sections."));
+                return DocumentFormErrors.InvalidSchema("Section ID is required for all sections.");
             }
 
             if (!sectionIds.Add(section.SectionId))
             {
-                return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Duplicate section ID '{section.SectionId}'."));
+                return DocumentFormErrors.InvalidSchema($"Duplicate section ID '{section.SectionId}'.");
             }
 
             if (string.IsNullOrWhiteSpace(section.Title))
             {
-                return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Section '{section.SectionId}' must have a title."));
+                return DocumentFormErrors.InvalidSchema($"Section '{section.SectionId}' must have a title.");
             }
 
             foreach (var field in section.Fields)
             {
                 if (string.IsNullOrWhiteSpace(field.FieldId))
                 {
-                    return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Field ID is required in section '{section.SectionId}'."));
+                    return DocumentFormErrors.InvalidSchema($"Field ID is required in section '{section.SectionId}'.");
                 }
 
                 if (!FieldIdRegex.IsMatch(field.FieldId))
                 {
-                    return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Field ID '{field.FieldId}' must contain only alphanumeric characters and underscores."));
+                    return DocumentFormErrors.InvalidSchema($"Field ID '{field.FieldId}' must contain only alphanumeric characters and underscores.");
                 }
 
                 if (!fieldIds.Add(field.FieldId))
                 {
-                    return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Duplicate field ID '{field.FieldId}' detected across form sections."));
+                    return DocumentFormErrors.InvalidSchema($"Duplicate field ID '{field.FieldId}' detected across form sections.");
                 }
 
                 if (string.IsNullOrWhiteSpace(field.Label))
                 {
-                    return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Field '{field.FieldId}' must have a label."));
+                    return DocumentFormErrors.InvalidSchema($"Field '{field.FieldId}' must have a label.");
                 }
 
                 if (field.Type is FormFieldType.Select or FormFieldType.Radio)
                 {
                     if (field.Options.Count == 0)
                     {
-                        return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Field '{field.FieldId}' of type '{field.Type}' must have at least one option."));
+                        return DocumentFormErrors.InvalidSchema($"Field '{field.FieldId}' of type '{field.Type}' must have at least one option.");
                     }
 
                     var optionValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -110,12 +110,12 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
                     {
                         if (string.IsNullOrWhiteSpace(option.Label) || string.IsNullOrWhiteSpace(option.Value))
                         {
-                            return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Options for field '{field.FieldId}' must have non-empty label and value."));
+                            return DocumentFormErrors.InvalidSchema($"Options for field '{field.FieldId}' must have non-empty label and value.");
                         }
 
                         if (!optionValues.Add(option.Value))
                         {
-                            return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Duplicate option value '{option.Value}' in field '{field.FieldId}'."));
+                            return DocumentFormErrors.InvalidSchema($"Duplicate option value '{option.Value}' in field '{field.FieldId}'.");
                         }
                     }
                 }
@@ -128,13 +128,13 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
                     }
                     catch (ArgumentException)
                     {
-                        return Result<FormSchemaDefinition>.Failure(DocumentFormErrors.InvalidSchema($"Invalid regular expression pattern in field '{field.FieldId}'."));
+                        return DocumentFormErrors.InvalidSchema($"Invalid regular expression pattern in field '{field.FieldId}'.");
                     }
                 }
             }
         }
 
-        return Result<FormSchemaDefinition>.Success(schema);
+        return schema;
     }
 
     public Result<IReadOnlyList<FormDataValidationError>> ValidateFormData(FormSchemaDefinition schema, string formDataJson)
@@ -143,7 +143,7 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
 
         if (string.IsNullOrWhiteSpace(formDataJson))
         {
-            return Result<IReadOnlyList<FormDataValidationError>>.Failure(DocumentFormErrors.InvalidFormData("Form data payload cannot be empty."));
+            return DocumentFormErrors.InvalidFormData("Form data payload cannot be empty.");
         }
 
         JsonDocument jsonDoc;
@@ -153,14 +153,14 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
         }
         catch (JsonException ex)
         {
-            return Result<IReadOnlyList<FormDataValidationError>>.Failure(DocumentFormErrors.InvalidFormData($"Malformed form data JSON: {ex.Message}"));
+            return DocumentFormErrors.InvalidFormData($"Malformed form data JSON: {ex.Message}");
         }
 
         using (jsonDoc)
         {
             if (jsonDoc.RootElement.ValueKind != JsonValueKind.Object)
             {
-                return Result<IReadOnlyList<FormDataValidationError>>.Failure(DocumentFormErrors.InvalidFormData("Form data must be a JSON object."));
+                return DocumentFormErrors.InvalidFormData("Form data must be a JSON object.");
             }
 
             var root = jsonDoc.RootElement;
@@ -340,7 +340,7 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
                 }
             }
 
-            return Result<IReadOnlyList<FormDataValidationError>>.Success(errors.AsReadOnly());
+            return errors;
         }
     }
 }
