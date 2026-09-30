@@ -7,3 +7,4 @@
 *.suo
 TestResults/
 appsettings.Development.json
+!src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/appsettings.Development.json
