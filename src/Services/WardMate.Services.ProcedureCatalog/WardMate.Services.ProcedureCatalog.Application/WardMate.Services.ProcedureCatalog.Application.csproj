@@ -2,4 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../WardMate.Services.ProcedureCatalog.Domain/WardMate.Services.ProcedureCatalog.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
+  </ItemGroup>
 </Project>
