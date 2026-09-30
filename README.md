@@ -1,6 +1,6 @@
 # WardMate Backend
 
-Microservices .NET 8: sáu API độc lập, YARP Gateway và Global Exception Handler dùng chung. Core IAM đã có PostgreSQL, JWT và các API xác thực; năm service còn lại vẫn là bộ khung.
+Microservices .NET 8: sáu API độc lập, YARP Gateway và Global Exception Handler dùng chung. Core IAM đã có PostgreSQL, JWT và các API xác thực. Procedure Catalog đã có entities, JSONB, migration, seed và query chi tiết; xem [TASK-07](docs/procedure-catalog.md).
 
 Hướng dẫn cấu hình/chạy IAM, DTO, lỗi và token: [Core IAM authentication](docs/iam-auth.md). Nhật ký task và kiểm thử: [PROGRESS.md](PROGRESS.md). Quy trình feature → `kha` → `deploy`: [AGENTS.md](AGENTS.md).
 
@@ -22,15 +22,16 @@ src/
     └── WardMate.Services.AnalyticsSystem/
 ```
 
-Mỗi service chứa bốn project `.Domain`, `.Application`, `.Infrastructure`, `.API`. Tham chiếu: Application → Domain; Infrastructure → Application; API → Application + Infrastructure. IAM triển khai CQRS qua MediatR và FluentValidation; các service khác chỉ có endpoint nhận diện `/` và liveness `/health`. SharedKernel/Web được tham chiếu ở API và gateway để xử lý lỗi HTTP thống nhất; các lớp Domain không phụ thuộc ASP.NET Core. EventBus chưa tích hợp RabbitMQ.
+Mỗi service chứa bốn project `.Domain`, `.Application`, `.Infrastructure`, `.API`. Tham chiếu: Application → Domain; Infrastructure → Application; API → Application + Infrastructure. IAM triển khai CQRS qua MediatR và FluentValidation; Procedure Catalog có query MediatR đọc chi tiết thủ tục. SharedKernel/Web được tham chiếu ở API và gateway để xử lý lỗi HTTP thống nhất; các lớp Domain không phụ thuộc ASP.NET Core. EventBus chưa tích hợp RabbitMQ.
 
 ## Build
 
-Yêu cầu .NET SDK 8.0.4xx. Các project kiểm thử đã được gỡ theo yêu cầu chủ dự án; CI hiện chỉ restore và build Release.
+Yêu cầu .NET SDK 8.0.4xx. TASK-07 bổ sung lại integration tests riêng cho Procedure Catalog theo yêu cầu mới; các test IAM/SharedKernel đã xóa không được khôi phục. Test mới cần Docker Linux containers và dùng PostgreSQL 16 tạm, độc lập database local. CI restore, build Release và chạy test suite hiện có.
 
 ```powershell
 dotnet restore WardMate.sln
 dotnet build WardMate.sln -c Release --no-restore
+dotnet test WardMate.sln -c Release --no-build
 ```
 
 ## Chạy local
