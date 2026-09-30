@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\WardMate.Services.DocumentForm.Application\WardMate.Services.DocumentForm.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\WardMate.SharedKernel\WardMate.SharedKernel.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
