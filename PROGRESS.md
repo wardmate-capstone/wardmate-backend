@@ -430,3 +430,64 @@ Lỗi bất ngờ trả 500 ProblemDetails đã loại bỏ thông tin nội b�
   - Hoàn tất merge vào `kha` và push `origin kha`.
   - Merge `kha` vào `main` và push `origin main`.
   - Merge `main` vào `deploy` và push `origin deploy` để kích hoạt Azure CI/CD.
+
+## TASK-07 — Procedure Catalog entities và ánh xạ EF Core JSONB
+
+- Hoàn thành triển khai/xác minh: **2026-09-30 16:18 (Asia/Saigon, UTC+07:00)**.
+- Nhánh feature: `kha-feat-procedure-catalog-entities`, tạo sau fetch origin và pull --ff-only nhánh kha sạch.
+- Thêm PostgreSQL 16 độc lập: service procedure-db, database wardmate_procedure_db, user wardmate_procedure, localhost:5434, volume procedure-data, password riêng qua PROCEDURE_DB_PASSWORD. Không dùng/chỉnh sửa script database dùng chung docker/init-db. Mật khẩu local được thêm vào docker/.env ignored, không commit.
+- Domain: ProcedureCategory, Procedure, ProcedureVersion và đầy đủ strongly typed JSON models cho content, cases/steps, submission methods, legal references, checklist và form definitions. FormTemplateId là external ID, không có FK xuyên service.
+- Infrastructure: ProcedureDbContext, Fluent API đầy đủ kiểu/độ dài/default/nullability, B-tree unique code, composite unique procedure/version, GIN content/checklist. ValueConverter JSONB + ValueComparer clone sâu theo dõi sửa POCO lồng nhau. UTC timestamps, DateOnly date, UUID default gen_random_uuid().
+- Migration `20260930091232_Initial_Procedure_Catalog_Schema`: 3 bảng nghiệp vụ, 4 cột JSONB; seed 3 danh mục và 1 thủ tục minh họa Đăng ký kết hôn (DEMO-KET-HON), đầy đủ content/checklist/forms. Snapshot version serialize độc lập, không bị sửa theo Procedure đang hoạt động.
+- Application: IProcedureRepository, implementation EF, GetProcedureByIdQuery (MediatR), ProcedureDetailDto. Bổ sung Swagger API công khai GET `/api/v1/procedures/{id}`, không request body; 200 DTO đầy đủ scalar/category/JSON; 404 ProblemDetails tiếng Việt với code procedure.not_found khi không tồn tại/inactive. Gateway chuyển nguyên route này. Swagger trực tiếp cổng 5002.
+- Frontend: JSON camelCase, null properties bị bỏ, mảng rỗng giữ []; DateOnly YYYY-MM-DD, UTC datetime, decimal cho phí/số ngày; không cần Bearer cho query này. Seed là dữ liệu giả để kiểm thử, không phải nội dung pháp lý chính thức. Giới hạn/giá trị nghiệp vụ bên trong JSON cần validation ở command ghi khi triển khai CRUD; không có API ghi trong task này.
+- Kiểm thử theo yêu cầu mới (không khôi phục test IAM/SharedKernel đã xóa): **11/11 integration cases PASS**, 0 failed/skipped; kiểm tra migration/schema/index/seed, complex JSON roundtrip repository/MediatR/HTTP, nested mutation, null vs empty, constraints code/version, snapshot frozen, defaults/identity và inactive/missing. Testcontainers dùng PostgreSQL tạm, không chạm Local Dev database.
+- Release toàn solution: **0 errors, 0 warnings**. `dotnet ef migrations has-pending-model-changes --configuration Release --no-build`: không có pending model changes. Compose config --quiet PASS; git diff --check PASS. Restore NuGet cần chạy ngoài sandbox vì hạn chế network, sau đó thành công.
+- Cập nhật CI chạy test suite Procedure Catalog; README và docs/procedure-catalog.md có hướng dẫn chạy, DTO, migration và giới hạn JSON query converter.
+- Chưa build Docker image/khởi động stack ứng dụng hoặc migrate database Local Dev/Azure. Migration được kiểm thử thực tế trên PostgreSQL tạm.
+- Git cho riêng TASK-07 theo yêu cầu mới: commit từng file, không squash; merge/push feature → kha → deploy, không thay đổi main. Kết quả push được xác nhận trong báo cáo bàn giao cuối, không suy diễn push thành triển khai Azure thành công.
+- File/thư mục đã tạo hoặc thay đổi:
+- `.github/workflows/iam-ci.yml`
+- `.gitignore`
+- `docker/.env.example`
+- `docker/docker-compose.yml`
+- `docs/procedure-catalog.md`
+- `PROGRESS.md`
+- `README.md`
+- `src/Gateways/WardMate.YarpGateway/appsettings.json`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/appsettings.Development.json`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProceduresController.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Program.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/WardMate.Services.ProcedureCatalog.API.csproj`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/DependencyInjection.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/DTOs/ProcedureDetailDto.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Interfaces/IProcedureRepository.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Queries/GetProcedureByIdQuery.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/WardMate.Services.ProcedureCatalog.Application.csproj`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/Entities/Procedure.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/Entities/ProcedureCategory.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/Entities/ProcedureVersion.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/JsonModels/ChecklistItemSchema.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/JsonModels/FormDefinitionSchema.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/JsonModels/LegalReferenceDetail.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/JsonModels/ProcedureCaseDetail.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/JsonModels/ProcedureContentPayload.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/JsonModels/ProcedureStepDetail.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/JsonModels/SubmissionMethodDetail.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/DependencyInjection.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Configurations/ProcedureCategoryConfiguration.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Configurations/ProcedureConfiguration.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Configurations/ProcedureVersionConfiguration.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/JsonbMapping.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20260930091232_Initial_Procedure_Catalog_Schema.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20260930091232_Initial_Procedure_Catalog_Schema.Designer.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/ProcedureDbContextModelSnapshot.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureDbContext.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureDbContextFactory.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureRepository.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureSeed.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/WardMate.Services.ProcedureCatalog.Infrastructure.csproj`
+- `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureFixture.cs`
+- `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedurePersistenceTests.cs`
+- `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/WardMate.Services.ProcedureCatalog.IntegrationTests.csproj`
+- `WardMate.sln`
