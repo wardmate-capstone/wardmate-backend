@@ -4,4 +4,7 @@
     <ProjectReference Include="../WardMate.Services.DocumentForm.Infrastructure/WardMate.Services.DocumentForm.Infrastructure.csproj" />
     <ProjectReference Include="../../../BuildingBlocks/WardMate.SharedKernel/WardMate.SharedKernel.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
 </Project>

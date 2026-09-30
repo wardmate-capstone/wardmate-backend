@@ -4,4 +4,6 @@
 .idea/
 .env
 *.user
+*.suo
 TestResults/
+appsettings.Development.json

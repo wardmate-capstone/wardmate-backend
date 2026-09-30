@@ -1,6 +1,127 @@
 # WardMate — Nhật ký phát triển
 
+**Trạng thái Document & Form Service (TASK-10, TASK-11, TASK-12): HOÀN THÀNH** — đã triển khai thực thể Document, E-Forms dynamic schema engine, OpenXML DOCX placeholder extraction, Azure Blob upload, FormTemplates API và 22 unit tests. Xác minh ngày 29/09/2026 lúc 11:15 (Asia/Saigon).
 **Trạng thái Core IAM: HOÀN THÀNH** — đã bàn giao lịch sử commit tách theo file lên `kha` và `deploy`; PostgreSQL Local Dev đã migrate và Swagger IAM đang chạy. Xác minh ngày 25/09/2026 lúc 10:13 (Asia/Saigon).
+**Trạng thái Shared Kernel & Central Logging (TASK-05, TASK-06): HOÀN THÀNH** — đã triển khai đầy đủ Domain primitives, CQRS MediatR abstractions, Azure Blob Storage client wrapper, Serilog tập trung, RequestLoggingMiddleware và 39 unit tests cho SharedKernel. Xác minh ngày 26/09/2026 lúc 18:10 (Asia/Saigon).
+
+## DOC-001 (TASK-10, TASK-11, TASK-12) — Thực thể Document, Engine E-Forms Schema & OpenXML Docx Placeholder
+
+- Hoàn thành triển khai và kiểm thử: **29/09/2026, 11:15 (Asia/Saigon, UTC+07:00)**.
+- Người phụ trách: **Nghĩa**.
+- Nhánh tính năng: `nghia-feat-document-form`.
+- Tổng số commit chi tiết: **35+ commit granular theo từng file/tính năng độc lập**.
+
+### Chức năng hoàn thiện
+
+1. **Thực thể Document & Form Service và Azure Storage (TASK-10)**:
+   - Các thực thể Domain: `FormTemplate` (Aggregate Root), `FormTemplateVersion`, `ApplicationForm`, `SupportingDocument`, `GeneratedDocument` kế thừa `BaseEntity` chuẩn Clean Architecture.
+   - Quản lý phiên bản schema `FormTemplateVersion` gắn với `FormTemplate`, hỗ trợ kích hoạt/vô hiệu hóa, cập nhật thông tin và URL phôi mẫu.
+   - Upload file DOCX phôi mẫu lên Azure Blob Storage qua `IBlobStorageClient` (container `form-templates`) và lưu liên kết trong `form_templates`.
+   - Cấu hình EF Core Fluent API đầy đủ ánh xạ tới schema `document` (`document.form_templates`, `document.form_template_versions`, `document.application_forms`, `document.supporting_documents`, `document.generated_documents`), cấu hình cột JSONB `schema_definition` và `form_data`.
+
+2. **Engine Schema Định nghĩa Biểu mẫu động E-Forms (TASK-11)**:
+   - Domain models: `FormSchemaDefinition`, `FormSection`, `FormField`, `FormFieldOption`, `FieldValidationRule`, `FormFieldType` (hỗ trợ 12 loại trường: Text, Number, Date, DateTime, Select, Radio, Checkbox, Textarea, NationalId/CCCD, PhoneNumber, Email, Currency).
+   - `FormSchemaEngine`:
+     - Phân tích và thẩm định cấu trúc Schema JSON: kiểm tra tính hợp lệ cú pháp, bắt buộc tiêu đề, section, chống trùng lặp `section_id` và `field_id`, kiểm tra quy tắc đặt tên trường `^[a-zA-Z0-9_]+$`, thẩm định trường select/radio phải có options không rỗng, kiểm tra biểu thức chính quy Regex tùy biến.
+     - Kiểm tra dữ liệu biểu mẫu động nhập liệu (`ValidateFormData`): thẩm định bắt buộc (required), kiểm tra định dạng email chuẩn RFC, kiểm tra số điện thoại Việt Nam (đầu 0 hoặc +84), kiểm tra số định danh cá nhân / CCCD (9 hoặc 12 chữ số), kiểm tra giới hạn min/max độ dài chuỗi và giá trị số, kiểm tra giá trị chọn thuộc options cho phép, báo cáo danh sách lỗi chi tiết theo trường (`field_id`, `error_code`, `error_message`).
+
+3. **Engine Bóc tách Placeholder từ File Word DOCX (TASK-12)**:
+   - `DocxPlaceholderEngine` (sử dụng OpenXML SDK):
+     - Bóc tách toàn bộ biến giữ chỗ dạng `{{ten_bien}}` từ Word document body, header và footer, xử lý triệt để hiện tượng phân mảnh văn bản XML (fragmented Run/Text elements) do kiểm tra chính tả/định dạng trong Word.
+     - Chuẩn hóa tên placeholder (chữ thường, loại bỏ khoảng trắng), đếm số lần xuất hiện và xác định vị trí trong tài liệu.
+     - So khớp danh sách placeholders bóc tách được với `FormSchemaDefinition` (`MatchPlaceholdersWithSchema`): tự động phát hiện các trường khớp hoàn toàn, các trường có trong DOCX nhưng thiếu trong Schema, và các trường có trong Schema nhưng không được sử dụng trong DOCX.
+     - Tự động sinh cấu trúc Schema biểu mẫu dự thảo (`GenerateDraftSchema`): suy luận kiểu trường thông minh dựa trên tên biến (ví dụ `ngay_sinh` -> `Date`, `email` -> `Email`, `dien_thoai` -> `PhoneNumber`, `cccd`/`so_dinh_danh` -> `NationalId`, `so_tien`/`le_phi` -> `Currency`, `so_luong` -> `Number`) và tạo nhãn hiển thị trực quan.
+
+4. **API Endpoints (Controllers & CQRS)**:
+   - `GET /api/v1/form-templates`: Lấy danh sách biểu mẫu có phân trang (`page`, `pageSize`, `isActive`, `searchCode`).
+   - `GET /api/v1/form-templates/{templateId}`: Xem chi tiết biểu mẫu kèm toàn bộ lịch sử các phiên bản schema.
+   - `POST /api/v1/form-templates`: Tạo mới biểu mẫu (tùy chọn kèm schema phiên bản đầu tiên).
+   - `POST /api/v1/form-templates/{templateId}/versions`: Tạo phiên bản schema mới cho biểu mẫu.
+   - `POST /api/v1/form-templates/{templateId}/upload-docx`: Upload file phôi mẫu DOCX lên Azure Blob Storage, tự động bóc tách placeholder và so khớp với schema hiện tại.
+   - `POST /api/v1/form-templates/extract-placeholders`: Bóc tách danh sách placeholder từ file DOCX tải lên mà không cần lưu.
+
+5. **Tích hợp Infrastructure, DI & Swagger**:
+   - Tích hợp `AddDocumentFormApplication()` và `AddDocumentFormInfrastructure()` vào `Program.cs`.
+   - Tích hợp Serilog tập trung, RequestLoggingMiddleware, ExceptionHandling, OpenAPI SwaggerGen.
+   - `appsettings.json` cấu hình kết nối PostgreSQL `wardmate_db` (schema `document`) và Azure Blob Storage.
+
+### File/thư mục tạo mới hoặc thay đổi
+
+| Nhóm | Đường dẫn |
+|---|---|
+| Domain Models & Entities (TASK-10, 11) | `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Domain/Entities/` (`FormTemplate.cs`, `FormTemplateVersion.cs`, `ApplicationForm.cs`, `SupportingDocument.cs`, `GeneratedDocument.cs`), `Models/` (`FormFieldType.cs`, `FormFieldOption.cs`, `FieldValidationRule.cs`, `FormField.cs`, `FormSection.cs`, `FormSchemaDefinition.cs`), `Errors/DocumentFormErrors.cs` |
+| Application Layer (TASK-10, 11, 12) | `WardMate.Services.DocumentForm.Application/Commands/` (`CreateFormTemplateCommand.cs`, `CreateFormTemplateVersionCommand.cs`, `UploadFormTemplateDocxCommand.cs`), `Queries/` (`GetFormTemplatesQuery.cs`, `GetFormTemplateByIdQuery.cs`, `ExtractDocxPlaceholdersQuery.cs`), `DTOs/` (`FormTemplateDto.cs`, `FormTemplateDetailDto.cs`, `FormTemplateVersionDto.cs`), `Models/` (`DocxPlaceholder.cs`, `PlaceholderValidationResult.cs`, `FormDataValidationError.cs`), `Interfaces/` (`IDocumentDbContext.cs`, `IFormSchemaEngine.cs`, `IDocxPlaceholderEngine.cs`), `Services/FormSchemaEngine.cs`, `DependencyInjection.cs`, `.csproj` |
+| Infrastructure Layer (TASK-10, 12) | `WardMate.Services.DocumentForm.Infrastructure/Persistence/` (`DocumentDbContext.cs`, `DocumentDbContextFactory.cs`, `Configurations/` cho 5 entities), `OpenXml/DocxPlaceholderEngine.cs`, `DependencyInjection.cs`, `.csproj` |
+| API Layer | `WardMate.Services.DocumentForm.API/Controllers/FormTemplatesController.cs`, `Program.cs`, `appsettings.json`, `.csproj` |
+| Unit Tests Mới | `tests/WardMate.Services.DocumentForm.Tests/` — `FormTemplateEntityTests.cs`, `FormSchemaEngineTests.cs`, `DocxPlaceholderEngineTests.cs`, `WardMate.Services.DocumentForm.Tests.csproj` |
+| Solution | `WardMate.sln`, `PROGRESS.md` |
+
+### Kết quả kiểm thử
+
+- `dotnet build -c Release`: **0 errors, 0 warnings** trên toàn bộ 16 projects trong solution.
+- **22 unit tests mới cho DocumentForm Service — 100% PASS**: kiểm thử đầy đủ Entity lifecycle & soft delete, schema validation, form data validation, regex constraints, OpenXML placeholder extraction, schema matching, và draft schema generation.
+- **39 unit tests SharedKernel — 100% PASS**.
+- **78 unit tests IAM — 100% PASS**.
+- Tổng số unit tests pass: **139 passed, 0 failed, 0 skipped**.
+
+
+## SHARED-001 (TASK-05 & TASK-06) — Xây dựng Shared Kernel, Azure Blob Client & Logging tập trung
+
+- Hoàn thành triển khai và kiểm thử: **26/09/2026, 18:10 (Asia/Saigon, UTC+07:00)**.
+- Người phụ trách: **Nghĩa**.
+- Nhánh tính năng: `nghia-feat-shared-kernel-logging`.
+- Tổng số commit chi tiết: **35+ commit theo từng file/chức năng độc lập**.
+
+### Chức năng hoàn thiện
+
+1. **Domain Primitives (TASK-05)**:
+   - `IDomainEvent`: Marker interface cho domain events với `EventId` và `OccurredOnUtc`.
+   - `BaseEntity`: Base class cho entity với UUID `Id`, `CreatedAtUtc`, `UpdatedAtUtc`, `IsDeleted`, `DeletedAtUtc`, quản lý pending domain events (`RaiseDomainEvent`, `ClearDomainEvents`) và helper methods `SetCreated`, `SetUpdated`, `SoftDelete`.
+   - `AggregateRoot`: Kế thừa `BaseEntity`, hỗ trợ optimistic concurrency qua thuộc tính `uint Version`.
+   - `ValueObject`: Base class cho immutable value objects với structural equality (`GetEqualityComponents`, `Equals`, `GetHashCode`, `==`, `!=`).
+
+2. **Common Railway-Oriented Programming & Pagination (TASK-05)**:
+   - `Result` và `Result<TValue>`: Discriminated-union result type giúp tránh throw exception cho predictable business failures, hỗ trợ implicit conversion từ `Error` hoặc `TValue`.
+   - `Error` & `ErrorType`: Structured error record gồm `Code`, `Description`, `ErrorType` (`Failure`, `NotFound`, `Validation`, `Conflict`, `Unauthorized`) và các static factory helper methods.
+   - `PagedResult<T>`: Hỗ trợ pagination metadata (`Items`, `Page`, `PageSize`, `TotalCount`, `TotalPages`, `HasNextPage`, `HasPreviousPage`) và factory `Create`, `Empty`.
+
+3. **CQRS & MediatR Markers (TASK-05)**:
+   - `ICommand` (trả về `Result`) & `ICommand<TResponse>` (trả về `Result<TResponse>`).
+   - `ICommandHandler<TCommand>` & `ICommandHandler<TCommand, TResponse>`.
+   - `IQuery<TResponse>` & `IQueryHandler<TQuery, TResponse>`.
+
+4. **Azure Blob Storage Wrapper (TASK-05)**:
+   - `BlobStorageOptions`: Cấu hình Azure Blob (`ConnectionString`, `ContainerName`, `MaxFileSizeBytes`).
+   - `IBlobStorageClient`: Interface cho blob operations (`UploadAsync`, `DownloadAsync`, `DeleteAsync`, `ExistsAsync`, `GenerateSasUri`).
+   - `AzureBlobStorageClient`: Triển khai với Azure.Storage.Blobs SDK, tự động khởi tạo container nếu chưa có, hỗ trợ content-type detection và SAS token generation.
+   - `BlobServiceExtensions.AddAzureBlobStorage`: Extension method đăng ký `BlobServiceClient` (Singleton) và `IBlobStorageClient` (Scoped) vào DI container.
+
+5. **Logging tập trung & Request Tracking Middleware (TASK-06)**:
+   - `SerilogOptions`: Cấu hình Serilog từ appsettings (`MinimumLevel`, `EnableConsoleSink`, `EnableFileSink`, `LogFilePath`, `FileSizeLimitMb`, `RetainedFileCountLimit`, `ApplicationName`).
+   - `SerilogExtensions`:
+     - `AddWardMateLogging`: Bootstrap Serilog với Console sink (Compact JSON trong Production, readable console trong Development), Rolling File sink với 50MB limit và 7 ngày retention, tự động enrich `Application`, `Environment`, `ThreadId`, `ProcessId`.
+     - `UseWardMateRequestLogging`: Tích hợp HTTP request logging của Serilog.
+   - `RequestLoggingMiddleware`: Custom middleware ghi log chi tiết HTTP request/response (`Method`, `Path`, `QueryString`, `StatusCode`, `ElapsedMs`, `ClientIp`, `TraceId`), tự động phân loại LogLevel theo HTTP status (2xx/3xx -> Info, 4xx -> Warning, 5xx -> Error) và bỏ qua các đường dẫn nội bộ (`/health`, `/favicon.ico`).
+   - Tích hợp Bootstrap Serilog và RequestLoggingMiddleware vào IAM Service `Program.cs` và cấu hình mẫu trong `appsettings.json`.
+
+### File/thư mục tạo mới hoặc thay đổi
+
+| Nhóm | Đường dẫn |
+|---|---|
+| Domain Primitives | `src/BuildingBlocks/WardMate.SharedKernel/Domain/IDomainEvent.cs`, `BaseEntity.cs`, `AggregateRoot.cs`, `ValueObject.cs` |
+| Common & CQRS | `src/BuildingBlocks/WardMate.SharedKernel/Common/Result.cs`, `Error.cs`, `PagedResult.cs`, `CQRS/ICommand.cs`, `ICommandHandler.cs`, `IQuery.cs`, `IQueryHandler.cs` |
+| Azure Blob Storage | `src/BuildingBlocks/WardMate.SharedKernel/Blob/BlobStorageOptions.cs`, `IBlobStorageClient.cs`, `AzureBlobStorageClient.cs`, `BlobServiceExtensions.cs` |
+| Central Logging | `src/BuildingBlocks/WardMate.SharedKernel/Logging/SerilogOptions.cs`, `SerilogExtensions.cs`, `RequestLoggingMiddleware.cs` |
+| Project Configuration | `src/BuildingBlocks/WardMate.SharedKernel/WardMate.SharedKernel.csproj`, `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Program.cs`, `appsettings.json`, `global.json` |
+| Unit Tests mới | `tests/WardMate.SharedKernel.Tests/` — `ResultTests.cs`, `ErrorTests.cs`, `PagedResultTests.cs`, `BaseEntityTests.cs`, `ValueObjectTests.cs`, `BlobStorageOptionsTests.cs`, `SerilogOptionsTests.cs`, `RequestLoggingMiddlewareTests.cs`, `AggregateRootTests.cs`, `CqrsMarkerTests.cs`, `BlobServiceExtensionsTests.cs` |
+
+### Kết quả kiểm thử
+
+- `dotnet build -c Release`: **0 errors, 0 warnings** trên toàn bộ 15 project trong solution.
+- **39 unit tests mới cho SharedKernel — 100% PASS**: kiểm thử đầy đủ Result pattern, Error, PagedResult calculation, BaseEntity domain events & soft delete, ValueObject equality, Serilog options, Blob options, MediatR pipeline integration, DI registration, và TestServer middleware execution.
+- **32 unit tests IAM hiện có — 100% PASS**.
+- Tổng số unit test pass: **71 passed, 0 failed, 0 skipped**.
+
 
 ## IAM-001 — Core IAM Service & API xác thực
 
@@ -290,3 +411,22 @@ Lỗi bất ngờ trả 500 ProblemDetails đã loại bỏ thông tin nội b�
 - D	tests/WardMate.Services.IAM.Tests/WardMate.Services.IAM.Tests.csproj
 - D	tests/WardMate.SharedKernel.Tests/GlobalExceptionHandlerTests.cs
 - D	tests/WardMate.SharedKernel.Tests/WardMate.SharedKernel.Tests.csproj
+
+## SYNC-001 — Đồng bộ nhánh main (DocumentForm Service & Serilog SharedKernel) và dọn dẹp kiểm thử
+
+- Hoàn thành: **2026-09-30 15:20 (Asia/Saigon, UTC+07:00)**.
+- Kiểm tra nhánh `main` và tích hợp toàn bộ code mới từ `origin/main` (commit `12f5e84`):
+  - Service mới: `WardMate.Services.DocumentForm` (API, Application, Domain, Infrastructure).
+  - BuildingBlocks mới: `WardMate.SharedKernel` (Domain primitives, CQRS MediatR markers, Azure Blob Storage client, Serilog centralized logging).
+  - Khởi tạo database: `docker/init-db/01-init-schemas-and-tables.sql` và cấu hình `docker-compose.yml`.
+- Xử lý xung đột và đồng bộ dọn dẹp kiểm thử (CLEANUP-001):
+  - Gỡ bỏ toàn bộ test projects và files vừa được kéo về từ `main` (`WardMate.Services.DocumentForm.Tests`, `WardMate.SharedKernel.Tests`), đảm bảo tuân thủ nghiêm ngặt quy định của chủ dự án (xóa bỏ test suites, solution có 0 test projects).
+  - Cập nhật `WardMate.sln`: chứa đầy đủ 27 project ứng dụng và 0 project test.
+  - Cập nhật `WardMate.Services.IAM.API/Program.cs`: giữ nguyên cấu hình Serilog tập trung, đồng thời khôi phục `PermissionAuthorization.AddPermissionAuthorization()`, `JsonIgnoreCondition.WhenWritingNull`, và định dạng ProblemDetails tiếng Việt.
+- Kiểm tra giải pháp:
+  - `dotnet restore WardMate.sln --disable-parallel`: thành công (exit code 0).
+  - `dotnet build WardMate.sln -c Release --no-restore -warnaserror`: **0 Warning(s), 0 Error(s)** trên toàn bộ 27 projects.
+- Chuỗi merge và triển khai Git:
+  - Hoàn tất merge vào `kha` và push `origin kha`.
+  - Merge `kha` vào `main` và push `origin main`.
+  - Merge `main` vào `deploy` và push `origin deploy` để kích hoạt Azure CI/CD.

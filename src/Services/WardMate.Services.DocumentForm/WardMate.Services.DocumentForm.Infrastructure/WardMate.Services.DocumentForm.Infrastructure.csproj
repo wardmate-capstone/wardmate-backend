@@ -1,5 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="../WardMate.Services.DocumentForm.Application/WardMate.Services.DocumentForm.Application.csproj" />
+    <ProjectReference Include="..\WardMate.Services.DocumentForm.Application\WardMate.Services.DocumentForm.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11" PrivateAssets="all" />
+    <PackageReference Include="EFCore.NamingConventions" Version="8.0.3" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.1" />
   </ItemGroup>
 </Project>

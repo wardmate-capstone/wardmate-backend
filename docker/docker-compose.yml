@@ -1,12 +1,13 @@
-# Local Dev: PostgreSQL, IAM API, YARP Gateway and pgAdmin.
 name: wardmate
+
 services:
+  # IAM database (port 5433)
   iam-db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: wardmate_iam_db
       POSTGRES_USER: wardmate
-      POSTGRES_PASSWORD: ${IAM_DB_PASSWORD:?Set IAM_DB_PASSWORD in docker/.env}
+      POSTGRES_PASSWORD: ${IAM_DB_PASSWORD:-wardmate_secret}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
@@ -17,50 +18,63 @@ services:
       timeout: 3s
       retries: 10
 
-  iam-api:
-    image: wardmate-iam:local
-    build:
-      context: ..
-      dockerfile: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Dockerfile
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Database: "Host=iam-db;Port=5432;Database=wardmate_iam_db;Username=wardmate;Password=${IAM_DB_PASSWORD:?Set IAM_DB_PASSWORD in docker/.env}"
-      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in docker/.env}
-      Database__AutoMigrate: "true"
-    ports:
-      - "127.0.0.1:5001:8080"
-    depends_on:
-      iam-db:
-        condition: service_healthy
-
-  gateway:
-    image: wardmate-gateway:local
-    build:
-      context: ..
-      dockerfile: src/Gateways/WardMate.YarpGateway/Dockerfile
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-      ReverseProxy__Clusters__iam__Destinations__primary__Address: http://iam-api:8080/
-    ports:
-      - "127.0.0.1:5000:8080"
-    depends_on:
-      iam-api:
-        condition: service_started
-
+  # pgAdmin 4 - Quản lý giao diện Web PostgreSQL (port 5050)
   pgadmin:
     image: dpage/pgadmin4
     container_name: wardmate_pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@wardmate.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?Set PGADMIN_DEFAULT_PASSWORD in docker/.env}
+      PGADMIN_DEFAULT_EMAIL: admin@wardmate.com
+      PGADMIN_DEFAULT_PASSWORD: Password123!
     ports:
-      - "127.0.0.1:5050:80"
+      - "5050:80"
     depends_on:
       iam-db:
         condition: service_healthy
 
+  # 1. PostgreSQL 16 tích hợp pgvector & 35 bảng schema khởi tạo (port 5432)
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: wardmate_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wardmate_db
+      POSTGRES_USER: wardmate_admin
+      POSTGRES_PASSWORD: wardmate_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d # Tự chạy script SQL khi init
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wardmate_admin -d wardmate_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis 7 Caching (port 6379)
+  redis:
+    image: redis:7-alpine
+    container_name: wardmate_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # 3. RabbitMQ Message Broker (kèm Management Dashboard - port 5672, 15672)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: wardmate_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: wardmate_admin
+      RABBITMQ_DEFAULT_PASS: wardmate_secret
+    ports:
+      - "5672:5672"   # Cổng kết nối AMQP
+      - "15672:15672" # Cổng Dashboard Web (user/pass: wardmate_admin / wardmate_secret)
+
 volumes:
   iam-data:
+  postgres_data:
+  redis_data:
