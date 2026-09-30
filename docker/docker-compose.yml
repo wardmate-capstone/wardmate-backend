@@ -1,6 +1,23 @@
 name: wardmate
 
 services:
+  # Independent database for Procedure Catalog; no shared initialization scripts.
+  procedure-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: wardmate_procedure_db
+      POSTGRES_USER: wardmate_procedure
+      POSTGRES_PASSWORD: ${PROCEDURE_DB_PASSWORD:?Set PROCEDURE_DB_PASSWORD in docker/.env}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - procedure-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wardmate_procedure -d wardmate_procedure_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # IAM database (port 5433)
   iam-db:
     image: postgres:16-alpine
@@ -75,6 +92,7 @@ services:
       - "15672:15672" # Cổng Dashboard Web (user/pass: wardmate_admin / wardmate_secret)
 
 volumes:
+  procedure-data:
   iam-data:
   postgres_data:
   redis_data:
