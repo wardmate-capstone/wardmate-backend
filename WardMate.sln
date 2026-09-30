@@ -77,14 +77,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WardMate.Services.Procedure
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WardMate.Services.ProcedureCatalog.Infrastructure", "src\Services\WardMate.Services.ProcedureCatalog\WardMate.Services.ProcedureCatalog.Infrastructure\WardMate.Services.ProcedureCatalog.Infrastructure.csproj", "{94613E68-E21C-4151-86C4-A2D03D130F41}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5B3D529E-780E-4830-9046-9A6B04FCE9E9}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WardMate.SharedKernel.Tests", "tests\WardMate.SharedKernel.Tests\WardMate.SharedKernel.Tests.csproj", "{C2356AAC-8E30-41E4-BCDF-B8383E79DDF4}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WardMate.Services.IAM.Tests", "tests\WardMate.Services.IAM.Tests\WardMate.Services.IAM.Tests.csproj", "{9B62F586-4AE7-4482-8930-CC61FA8B195A}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WardMate.Services.IAM.IntegrationTests", "tests\WardMate.Services.IAM.IntegrationTests\WardMate.Services.IAM.IntegrationTests.csproj", "{AD67CF70-0346-4AF8-9076-701F4E66B6FB}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -202,18 +194,6 @@ Global
 		{94613E68-E21C-4151-86C4-A2D03D130F41}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{94613E68-E21C-4151-86C4-A2D03D130F41}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{94613E68-E21C-4151-86C4-A2D03D130F41}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C2356AAC-8E30-41E4-BCDF-B8383E79DDF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C2356AAC-8E30-41E4-BCDF-B8383E79DDF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C2356AAC-8E30-41E4-BCDF-B8383E79DDF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C2356AAC-8E30-41E4-BCDF-B8383E79DDF4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9B62F586-4AE7-4482-8930-CC61FA8B195A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9B62F586-4AE7-4482-8930-CC61FA8B195A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9B62F586-4AE7-4482-8930-CC61FA8B195A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9B62F586-4AE7-4482-8930-CC61FA8B195A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AD67CF70-0346-4AF8-9076-701F4E66B6FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AD67CF70-0346-4AF8-9076-701F4E66B6FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AD67CF70-0346-4AF8-9076-701F4E66B6FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AD67CF70-0346-4AF8-9076-701F4E66B6FB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{ADF684C2-5EF2-4A70-962E-A7BF38E59C4E} = {93D9AC64-59C9-4AF9-B992-F2ED6FF0CD79}
@@ -252,8 +232,5 @@ Global
 		{6682CC9A-7B04-4DD5-93AE-6FF7D0CEB1D1} = {FA6FD595-23AA-4D69-B80E-665A5322BAC1}
 		{590C5F7E-BBF7-40D6-B39D-623D00F909C7} = {FA6FD595-23AA-4D69-B80E-665A5322BAC1}
 		{94613E68-E21C-4151-86C4-A2D03D130F41} = {FA6FD595-23AA-4D69-B80E-665A5322BAC1}
-		{C2356AAC-8E30-41E4-BCDF-B8383E79DDF4} = {5B3D529E-780E-4830-9046-9A6B04FCE9E9}
-		{9B62F586-4AE7-4482-8930-CC61FA8B195A} = {5B3D529E-780E-4830-9046-9A6B04FCE9E9}
-		{AD67CF70-0346-4AF8-9076-701F4E66B6FB} = {5B3D529E-780E-4830-9046-9A6B04FCE9E9}
 	EndGlobalSection
 EndGlobal

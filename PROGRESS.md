@@ -259,3 +259,34 @@ Lỗi bất ngờ trả 500 ProblemDetails đã loại bỏ thông tin nội b�
 - `tests/WardMate.Services.IAM.IntegrationTests/ProfileRbacTests.cs`
 - `tests/WardMate.Services.IAM.IntegrationTests/RbacAdministrationTests.cs`
 - `tests/WardMate.Services.IAM.Tests/RbacValidationTests.cs`
+
+## CLEANUP-001 — Gỡ mã nguồn và dữ liệu kiểm thử theo yêu cầu chủ dự án
+
+- Hoàn thành: **2026-09-30 15:05 (Asia/Saigon, UTC+07:00)**.
+- Xóa toàn bộ `tests/` gồm 3 project (IAM unit, IAM integration, SharedKernel unit) và 13 file được Git theo dõi; xóa cả build outputs bên trong tests và thư mục kết quả `TestResults/` local.
+- Gỡ 3 project và solution folder tests khỏi `WardMate.sln`; solution còn 27 project ứng dụng/building blocks/gateway.
+- Sửa `.github/workflows/iam-ci.yml`: chỉ restore và build Release với warnings-as-errors, bỏ bước chạy test; job hiện tên `build`.
+- Cập nhật `AGENTS.md`, `README.md`, `docs/iam-auth.md` để phản ánh việc không còn test suite. Giữ tài liệu vận hành, migration, cấu hình build/triển khai và các kết quả lịch sử trong PROGRESS.md. Giữ ignore rules cho TestResults để tránh commit nhầm artifacts nếu phát sinh sau này.
+- Code trong src, database, endpoints, DTO, ProblemDetails và token handling không thay đổi. Không có endpoint mới.
+- Kiểm tra: `dotnet build WardMate.sln -c Release --no-restore --verbosity quiet` PASS, **0 errors, 0 warnings**; `git diff --check` PASS; solution và hướng dẫn chạy hiện hành không còn tham chiếu project/lệnh test đã xóa. Không chạy unit/integration tests vì suite đã được gỡ; không coi build pass là kiểm thử hành vi API.
+- Không build Docker, không chạy container hoặc migration; không commit/push. Antigravity sẽ gom toàn bộ hành động dọn dẹp này vào **một commit duy nhất** theo chỉ định riêng của người dùng (ngoại lệ với quy tắc mỗi file một commit).
+- Danh sách file thay đổi/xóa được Git theo dõi:
+- M	.github/workflows/iam-ci.yml
+- M	AGENTS.md
+- M	PROGRESS.md
+- M	README.md
+- M	WardMate.sln
+- M	docs/iam-auth.md
+- D	tests/WardMate.Services.IAM.IntegrationTests/IamApiTests.cs
+- D	tests/WardMate.Services.IAM.IntegrationTests/IamFixture.cs
+- D	tests/WardMate.Services.IAM.IntegrationTests/ProfileRbacTests.cs
+- D	tests/WardMate.Services.IAM.IntegrationTests/RbacAdministrationTests.cs
+- D	tests/WardMate.Services.IAM.IntegrationTests/WardMate.Services.IAM.IntegrationTests.csproj
+- D	tests/WardMate.Services.IAM.Tests/AuthFlowTests.cs
+- D	tests/WardMate.Services.IAM.Tests/ProfileValidationTests.cs
+- D	tests/WardMate.Services.IAM.Tests/RbacValidationTests.cs
+- D	tests/WardMate.Services.IAM.Tests/SecurityTests.cs
+- D	tests/WardMate.Services.IAM.Tests/TestIdentityStore.cs
+- D	tests/WardMate.Services.IAM.Tests/WardMate.Services.IAM.Tests.csproj
+- D	tests/WardMate.SharedKernel.Tests/GlobalExceptionHandlerTests.cs
+- D	tests/WardMate.SharedKernel.Tests/WardMate.SharedKernel.Tests.csproj

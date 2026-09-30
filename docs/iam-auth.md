@@ -81,18 +81,17 @@ CurrentUserDto:
 
 ProblemDetails carries a stable `code` and `traceId`. Validation adds an `errors` dictionary keyed by field name, without passwords/tokens. Codes: `validation_failed`, `iam.duplicate_account`, `iam.invalid_credentials`, `iam.invalid_token`, `iam.user_unavailable`, `iam.unauthorized`. Branch on the code/status, not English display text. On refresh 401, clear the session and require login.
 
-## Maintenance and tests
+## Maintenance and build
 
 ```powershell
 dotnet tool restore
 dotnet ef migrations add YourIamChange --project src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure --output-dir Persistence/Migrations
 dotnet build WardMate.sln -c Release
-dotnet test WardMate.sln -c Release --no-build
 ```
 
-The complete suite requires Docker: integration tests use Testcontainers with a random-port, disposable PostgreSQL instance, never the developer database. Unit-only IAM tests: `dotnet test tests/WardMate.Services.IAM.Tests -c Release`. Schema uses snake_case, local foreign keys and UTC `timestamp with time zone`; nullable identity numbers can coexist. Refresh tokens are stored only as SHA-256 digests of 64 random bytes. BCrypt uses a random salt and work factor 12. The persisted `is_revoked` field is a concurrency token; an EF SaveChanges transaction atomically revokes the old token and inserts the replacement, rolling back a losing concurrent update.
+Test projects were removed at the owner's request on 2026-09-30; CI now restores and builds the application solution only. Earlier test results in PROGRESS.md are historical. Schema uses snake_case, local foreign keys and UTC `timestamp with time zone`; nullable identity numbers can coexist. Refresh tokens are stored only as SHA-256 digests of 64 random bytes. BCrypt uses a random salt and work factor 12. The persisted `is_revoked` field is a concurrency token; an EF SaveChanges transaction atomically revokes the old token and inserts the replacement, rolling back a losing concurrent update.
 
-Git workflow is recorded in root `AGENTS.md`: feature → `kha` → `deploy`. GitHub Actions validates build and tests on these branches. This repository's workflow is CI validation; successful push does not by itself verify an external frontend deployment.
+Git workflow is recorded in root `AGENTS.md`: feature → `kha` → `deploy`. GitHub Actions validates the Release build on its configured branches. This repository's workflow is CI validation; successful push does not by itself verify an external frontend deployment.
 
 ## Ngôn ngữ thông báo API
 

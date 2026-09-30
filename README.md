@@ -24,14 +24,13 @@ src/
 
 Mỗi service chứa bốn project `.Domain`, `.Application`, `.Infrastructure`, `.API`. Tham chiếu: Application → Domain; Infrastructure → Application; API → Application + Infrastructure. IAM triển khai CQRS qua MediatR và FluentValidation; các service khác chỉ có endpoint nhận diện `/` và liveness `/health`. SharedKernel/Web được tham chiếu ở API và gateway để xử lý lỗi HTTP thống nhất; các lớp Domain không phụ thuộc ASP.NET Core. EventBus chưa tích hợp RabbitMQ.
 
-## Build và test
+## Build
 
-Yêu cầu .NET SDK 8.0.4xx. Toàn bộ suite kiểm thử cần Docker chạy Linux containers; integration tests tự tạo và dọn PostgreSQL riêng.
+Yêu cầu .NET SDK 8.0.4xx. Các project kiểm thử đã được gỡ theo yêu cầu chủ dự án; CI hiện chỉ restore và build Release.
 
 ```powershell
 dotnet restore WardMate.sln
 dotnet build WardMate.sln -c Release --no-restore
-dotnet test WardMate.sln -c Release --no-build
 ```
 
 ## Chạy local
@@ -58,6 +57,6 @@ Gateway chạy tại `http://localhost:5000`. YARP loại bỏ prefix khi chuy�
 
 `WardMate.SharedKernel/Web/GlobalExceptionHandler.cs` sử dụng `IExceptionHandler`, đăng ký qua `AddGlobalExceptionHandling()` và kích hoạt bằng `UseGlobalExceptionHandling()` ở cả bảy host. Exception chưa xử lý trả HTTP 500, `application/problem+json`, thông báo chung và `traceId`; chi tiết exception chỉ ghi trong log máy chủ. Cơ chế này áp dụng trong cả Development và Production. Các mã lỗi nghiệp vụ sẽ được bổ sung khi triển khai từng use case.
 
-Test tạo endpoint gây lỗi trong test host để kiểm tra status, content type, trace ID và không lộ thông tin nội bộ. Không có endpoint cố tình gây lỗi trong các API thật.
+Không có endpoint cố tình gây lỗi trong các API thật.
 
 `docker/docker-compose.yml` cung cấp PostgreSQL 16 cho IAM tại localhost:5433. API và gateway hiện chạy bằng .NET local. Các endpoint `/api/v1/auth/*` và `/api/v1/users/me` được gateway chuyển nguyên đường dẫn sang IAM.
