@@ -1,5 +1,7 @@
 # IAM-001 — Core IAM authentication
 
+**IAM-006 (2026-10-01): breaking change cho FE** — Refresh Token chỉ đi qua cookie HttpOnly. Xem [hợp đồng cookie và ví dụ FE](iam-httponly.md). Tất cả POST auth cần header `X-CSRF-Protection: 1`.
+
 ## Run locally
 
 Requires .NET SDK 8 and Docker Desktop (Linux containers). The only database introduced by this task is IAM's PostgreSQL 16 database.
@@ -33,22 +35,21 @@ API direct URL: `http://localhost:5001`. Gateway URL: `http://localhost:5000`. B
 | Method | Route | Authentication | Request body | Responses |
 |---|---|---|---|---|
 | POST | `/api/v1/auth/register` | Public | `{ "username": "citizen", "email": "citizen@example.test", "password": "StrongPassword123!", "fullName": "Nguyen Van A" }` | 201 CurrentUserDto; 400 validation; 409 duplicate |
-| POST | `/api/v1/auth/login` | Public | `{ "usernameOrEmail": "citizen", "password": "StrongPassword123!" }` | 200 AuthResponseDto; 400 validation; 401 invalid credentials/inactive |
-| POST | `/api/v1/auth/refresh-token` | Public | `{ "accessToken": "...", "refreshToken": "..." }` | 200 AuthResponseDto; 400 validation; 401 invalid/expired/revoked/mismatched token |
-| POST | `/api/v1/auth/revoke-token` | Bearer | `{ "refreshToken": "..." }` | 204; 400 validation; 401 unauthenticated/invalid token/wrong owner |
+| POST | `/api/v1/auth/login` | Public | `{ "usernameOrEmail": "citizen", "password": "StrongPassword123!" }` | 200 BrowserAuthResponse + Set-Cookie; 400; 401; 403 CSRF |
+| POST | `/api/v1/auth/refresh-token` | Refresh cookie | None | 200 BrowserAuthResponse + rotated Set-Cookie; 400 malformed cookie; 401 invalid/expired/revoked token; 403 CSRF |
+| POST | `/api/v1/auth/revoke-token` | Bearer + refresh cookie | None | 204 + deleted cookie; 400 malformed cookie; 401 unauthenticated/invalid token/wrong owner; 403 CSRF |
 | GET | `/api/v1/users/me` | Bearer | None | 200 CurrentUserDto; 401 unauthenticated/inactive/missing account |
 
 Unexpected server exceptions use the existing sanitized HTTP 500 ProblemDetails handler. Requests with malformed JSON or missing required values return 400.
 
 ## DTOs and frontend integration
 
-JSON properties use camelCase. AuthResponseDto:
+JSON properties use camelCase. BrowserAuthResponse (login and refresh):
 
 ```json
 {
   "accessToken": "<JWT>",
   "accessTokenExpiresAt": "2026-09-25T10:15:00Z",
-  "refreshToken": "<opaque-random-token>",
   "refreshTokenExpiresAt": "2026-10-02T10:00:00Z",
   "tokenType": "Bearer"
 }
@@ -74,12 +75,12 @@ CurrentUserDto:
 - Usernames are ASCII letters, digits, `_`, `.` or `-`, maximum 100 characters; stored usernames/emails are lowercase. Registration passwords need at least 8 characters, one uppercase letter and one special character (Unicode punctuation or symbol; whitespace does not count), and at most 72 UTF-8 bytes (BCrypt limit). No digit is required. Login continues to accept existing credentials without applying the new registration strength rules. Full names cannot be blank and have a 255-character limit.
 - Send `Authorization: Bearer <accessToken>` to authorized endpoints. Access token defaults to 15 minutes, refresh token to 7 days; timestamps are UTC, dates are `YYYY-MM-DD`.
 - JWT contains `sub`, `email`, `role` and `permissions`; role and permissions are arrays in the JWT payload. UI permission checks do not replace backend authorization. `/users/me` reloads the current profile/permissions from IAM storage.
-- Refresh accepts a correctly signed expired access token only when its subject matches a still-valid stored refresh token. API authorization itself rejects expired access tokens. Invalid signature, issuer, audience or future activation time fails refresh.
-- Replace **both** tokens after successful refresh. Serialize refresh requests in the frontend (one in-flight request per session): the previous token becomes unusable after the first successful rotation, including concurrent calls.
+- Refresh identifies the user from the stored digest of the refresh cookie; no access token is needed, including after F5. Expired/revoked cookies and inactive accounts are rejected.
+- Replace the in-memory access token after refresh; the browser replaces the refresh cookie automatically. Serialize refresh requests across requests/tabs sharing the cookie: the previous token becomes unusable after successful rotation. A failed refresh does not delete the cookie to avoid clearing a newer cookie issued by a concurrent successful refresh.
 - Logout revokes only the supplied refresh token and is idempotent for that user's already-revoked token. Existing access tokens remain valid until their short expiry; this implementation does not provide immediate JWT blacklisting or revoke-all-sessions.
-- Refresh tokens are returned as JSON; this task does not issue authentication cookies. Keep tokens out of URLs/logs. Gateway CORS is not configured by this task: use a same-origin frontend proxy or configure allowed frontend origins in a separate deployment change.
+- Refresh tokens are never returned as JSON or accepted from request bodies. Use canonical `/api/v1/auth/*` paths on one consistent host. FE uses credentials: include and X-CSRF-Protection: 1 for auth. IAM and Gateway allow credentialed CORS for exact configured origins; Development defaults to localhost:5173 and localhost:3000. Keep access tokens only in memory, not web storage or URLs/logs.
 
-ProblemDetails carries a stable `code` and `traceId`. Validation adds an `errors` dictionary keyed by field name, without passwords/tokens. Codes: `validation_failed`, `iam.duplicate_account`, `iam.invalid_credentials`, `iam.invalid_token`, `iam.user_unavailable`, `iam.unauthorized`. Branch on the code/status, not English display text. On refresh 401, clear the session and require login.
+ProblemDetails carries a stable `code` and `traceId`. Validation adds an `errors` dictionary keyed by field name, without passwords/tokens. Codes: `validation_failed`, `iam.duplicate_account`, `iam.invalid_credentials`, `iam.invalid_token`, `iam.user_unavailable`, `iam.unauthorized`, `iam.csrf_rejected`. Branch on code/status. On refresh 401, clear in-memory session and require login; do not loop the interceptor.
 
 ## Maintenance and build
 
@@ -91,7 +92,7 @@ dotnet build WardMate.sln -c Release
 
 Test projects were removed at the owner's request on 2026-09-30; CI now restores and builds the application solution only. Earlier test results in PROGRESS.md are historical. Schema uses snake_case, local foreign keys and UTC `timestamp with time zone`; nullable identity numbers can coexist. Refresh tokens are stored only as SHA-256 digests of 64 random bytes. BCrypt uses a random salt and work factor 12. The persisted `is_revoked` field is a concurrency token; an EF SaveChanges transaction atomically revokes the old token and inserts the replacement, rolling back a losing concurrent update.
 
-Git workflow is recorded in root `AGENTS.md`: feature → `kha` → `deploy`. GitHub Actions validates the Release build on its configured branches. This repository's workflow is CI validation; successful push does not by itself verify an external frontend deployment.
+Git is exclusively managed by Antigravity; Codex does not run Git commands. See root AGENTS.md.
 
 ## Ngôn ngữ thông báo API
 

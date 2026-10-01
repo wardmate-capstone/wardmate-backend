@@ -563,3 +563,58 @@ Lỗi bất ngờ trả 500 ProblemDetails đã loại bỏ thông tin nội b�
 - `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedurePersistenceTests.cs`
 
 Gợi ý commit cho Antigravity: `feat(procedure-catalog): add manager APIs with automatic versioning`.
+
+## IAM-006 — Refresh Token qua HttpOnly Cookie cho Frontend
+
+- Hoàn thành: **2026-10-01 10:01 (Asia/Saigon, UTC+07:00)**.
+- Theo đề xuất MD của FE: Access Token giữ trong RAM; Refresh Token chỉ qua cookie HttpOnly, không trả JSON và không nhận fallback từ body. Chưa có domain deploy; local hỗ trợ http://localhost:5173 và http://localhost:3000 theo xác nhận của chủ sở hữu.
+- Cookie host-only refreshToken, Path=/api/v1/auth, SameSite=Strict, Expires theo hạn refresh token. Ngoài Development luôn Secure; Development localhost cho phép HTTP, có cấu hình bật Secure. Không cần migration DB.
+- Refresh xác định user từ refresh-token digest trong database, không cần access token cũ để khôi phục phiên sau F5. Giữ rotation nguyên tử, kiểm tra expiry/revoked/account active, hash SHA-256. Logout vẫn Authorized, kiểm tra quyền sở hữu token, revoke trong DB rồi xóa cookie cùng path.
+- Header X-CSRF-Protection: 1 bắt buộc trên 4 POST auth; kiểm tra Origin; CORS credentialed exact-origin ở IAM/Gateway; Cache-Control no-store; Swagger thêm header và loại secret khỏi response schema.
+- Không chạy Git. Không build Docker image. Kiểm thử dùng container database và process ứng dụng tạm riêng, đã dọn sau khi chạy; không thay đổi database Local Dev.
+
+### API / hợp đồng FE thay đổi
+
+| Method | Route | Request | Response |
+|---|---|---|---|
+| POST | /api/v1/auth/register | JSON {username,email,password,fullName}; header CSRF | 201 CurrentUserDto; 400; 403 CSRF; 409 |
+| POST | /api/v1/auth/login | JSON {usernameOrEmail,password}; header CSRF | 200 BrowserAuthResponse + Set-Cookie; 400; 401; 403 |
+| POST | /api/v1/auth/refresh-token | Không body, cookie tự gửi; header CSRF | 200 BrowserAuthResponse + cookie mới; 400 malformed cookie; 401; 403 |
+| POST | /api/v1/auth/revoke-token | Không body, cookie tự gửi; Bearer + header CSRF | 204 + xóa cookie; 400 malformed cookie; 401; 403 |
+
+- BrowserAuthResponse gồm accessToken, accessTokenExpiresAt, refreshTokenExpiresAt, tokenType; không có refreshToken.
+- FE dùng credentials: include / withCredentials: true, lưu access token trong RAM, bỏ localStorage/sessionStorage token fallback. Khi F5 gọi refresh rồi /api/v1/users/me. Single-flight refresh kể cả nhiều tab dùng chung cookie; không lặp refresh khi endpoint refresh trả 401.
+- Lỗi mới 403 iam.csrf_rejected; các lỗi tiếng Việt/ProblemDetails cũ giữ nguyên. Refresh thất bại không gửi xóa cookie để tránh response đến chậm xóa cookie mới từ request đồng thời. Logout cần Bearer còn hạn (refresh trước nếu cần); JWT đã phát vẫn có hiệu lực tới hạn, chưa có blacklist.
+- Dùng route chuẩn /api/v1/auth qua Gateway localhost:5000 hoặc IAM localhost:5001 nhất quán; không dùng alias /api/iam vì cookie path không khớp. Swagger localhost:5001/swagger sau khi chủ sở hữu chạy lại IAM.
+- Tài liệu FE đầy đủ: docs/iam-httponly.md, cập nhật docs/iam-auth.md. Domain deploy/CORS production chưa cấu hình vì chưa có thông tin. Nếu khác site, cần xem lại SameSite và hạn chế third-party cookie; HttpOnly không bảo vệ tuyệt đối trước XSS.
+
+### File tạo mới
+
+- src/BuildingBlocks/WardMate.SharedKernel/Web/BrowserCorsExtensions.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Security/RefreshTokenCookie.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Security/BrowserAuthProtectionAttribute.cs
+- scripts/verify-iam-cookie.ps1
+- docs/iam-httponly.md
+
+### File chỉnh sửa
+
+- src/Gateways/WardMate.YarpGateway/Program.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Controllers/AuthController.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Program.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/appsettings.json
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/OpenApi/BearerSecurityOperationFilter.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Commands/AuthCommands.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Commands/RefreshTokenHandler.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Validation/AuthValidators.cs
+- docs/iam-auth.md
+- PROGRESS.md
+
+### Kết quả xác minh
+
+- dotnet build WardMate.sln -c Release --no-restore --verbosity quiet: **0 errors, 0 warnings**.
+- dotnet test WardMate.sln -c Release --no-build --verbosity quiet: **32 passed, 0 failed, 0 skipped** (ProcedureCatalog suite hiện có; không phải test IAM).
+- scripts/verify-iam-cookie.ps1: **22/22 HTTP checks passed** với PostgreSQL 16 thật, IAM/Gateway processes riêng: register/login, JSON không chứa refresh secret, cookie HttpOnly/path/SameSite/host-only, local HTTP, no-store, credentialed CORS, refresh cookie-only/F5, rotation, replay 401, không nhận body fallback, CSRF/Origin, logout/revoked, preflight, Swagger, Secure Production.
+- Unit tests mới: **0**; không tái tạo test project IAM đã gỡ. Có script kiểm thử HTTP có thể chạy lại. Chưa chạy FE/browser E2E; FE cần kiểm tra trên trình duyệt thật.
+
+Gợi ý commit cho Antigravity: feat(iam)!: move refresh tokens to HttpOnly cookies with CSRF protection
+Breaking change: refresh/logout không nhận token trong JSON; mọi POST auth yêu cầu X-CSRF-Protection: 1 và credentials; response login/refresh bỏ refreshToken.
