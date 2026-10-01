@@ -9,12 +9,15 @@ namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 public sealed class ProceduresController(ISender sender) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType<ProcedureListDto>(200)]
+    [ProducesResponseType<PagedResult<ProcedureSummaryDto>>(200)]
     [ProducesResponseType<ProblemDetails>(400)]
-    public async Task<IActionResult> List(CancellationToken ct, [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20, [FromQuery] string? search = null, [FromQuery] int? categoryId = null)
+    public async Task<IActionResult> List(CancellationToken ct, [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] int? categoryId = null,
+        [FromQuery] string? levelOfImplementation = null, [FromQuery] string sortBy = "Title", [FromQuery] bool isAscending = true,
+        [FromQuery] int? page = null, [FromQuery] string? search = null)
     {
-        var result = await sender.Send(new GetProceduresQuery(page, pageSize, search, categoryId, IsActive: true), ct);
+        var result = await sender.Send(new GetPublicProceduresPagedQuery(keyword ?? search, categoryId, levelOfImplementation,
+            page ?? pageNumber, pageSize, sortBy, isAscending), ct);
         if (result.IsSuccess) return Ok(result.Value);
         var error = result.Error!;
         return new ObjectResult(new ProblemDetails

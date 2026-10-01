@@ -5,6 +5,7 @@ using WardMate.Services.ProcedureCatalog.Application.DTOs;
 using WardMate.Services.ProcedureCatalog.Application.Management;
 using WardMate.Services.ProcedureCatalog.Application.Queries;
 
+
 namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 
 [ApiController]
@@ -14,13 +15,23 @@ namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
 public sealed class ProcedureManagerController(ISender sender) : ControllerBase
 {
-    [HttpGet]
-    [ProducesResponseType(typeof(ProcedureListDto), StatusCodes.Status200OK)]
+    [HttpPost("publish")]
+    [ProducesResponseType(typeof(ProcedureDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> List(CancellationToken ct, [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20, [FromQuery] string? search = null, [FromQuery] int? categoryId = null,
-        [FromQuery] bool? isActive = null) =>
-        Respond(await sender.Send(new GetProceduresQuery(page, pageSize, search, categoryId, isActive), ct));
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Publish(ReviewedProcedureInput input, CancellationToken ct) =>
+        Respond(await sender.Send(new PublishReviewedProcedureCommand(input), ct));
+
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<ProcedureManagerSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> List(CancellationToken ct, [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] int? categoryId = null,
+        [FromQuery] bool? isActive = null, [FromQuery] string? levelOfImplementation = null,
+        [FromQuery] string sortBy = "Title", [FromQuery] bool isAscending = true,
+        [FromQuery] int? page = null, [FromQuery] string? search = null) =>
+        Respond(await sender.Send(new GetManagerProceduresPagedQuery(keyword ?? search, categoryId, isActive,
+            page ?? pageNumber, pageSize, levelOfImplementation, sortBy, isAscending), ct));
 
     [HttpPost]
     [ProducesResponseType(typeof(ProcedureDetailDto), StatusCodes.Status201Created)]
@@ -73,3 +84,4 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
 }
 
 public sealed record ToggleStatusRequest(bool? IsActive, string? Reason);
+
