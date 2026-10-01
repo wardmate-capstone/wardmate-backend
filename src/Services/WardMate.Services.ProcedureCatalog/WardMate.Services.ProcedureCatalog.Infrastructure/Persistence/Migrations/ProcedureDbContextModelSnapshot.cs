@@ -20,6 +20,7 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                 .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "unaccent");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("WardMate.Services.ProcedureCatalog.Domain.Entities.Procedure", b =>
@@ -83,6 +84,16 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("Cấp Xã")
                         .HasColumnName("level_of_implementation");
+
+                    b.Property<string>("OriginalPdfUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("original_pdf_url");
+
+                    b.Property<string>("PdfFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("pdf_file_name");
 
                     b.Property<string>("ProcedureCode")
                         .IsRequired()
@@ -235,6 +246,16 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                     b.Property<DateOnly>("EffectiveDate")
                         .HasColumnType("date")
                         .HasColumnName("effective_date");
+
+                    b.Property<string>("OriginalPdfUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("original_pdf_url");
+
+                    b.Property<string>("PdfFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("pdf_file_name");
 
                     b.Property<Guid>("ProcedureId")
                         .HasColumnType("uuid")
