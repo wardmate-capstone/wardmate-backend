@@ -18,6 +18,27 @@ services:
       timeout: 3s
       retries: 10
 
+  # Procedure Catalog API Microservice (port 5002)
+  procedure-catalog:
+    build:
+      context: ..
+      dockerfile: src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Dockerfile
+    image: wardmate-procedure-catalog:local
+    container_name: wardmate_procedure_catalog
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__ProcedureDatabase: Host=procedure-db;Port=5432;Database=wardmate_procedure_db;Username=wardmate_procedure;Password=${PROCEDURE_DB_PASSWORD}
+      Database__AutoMigrate: "true"
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: wardmate
+      Jwt__Audience: wardmate-client
+    ports:
+      - "5002:8080"
+    depends_on:
+      procedure-db:
+        condition: service_healthy
+
   # IAM database (port 5433)
   iam-db:
     image: postgres:16-alpine
