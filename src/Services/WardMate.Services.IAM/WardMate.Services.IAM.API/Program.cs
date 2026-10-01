@@ -8,6 +8,7 @@ using WardMate.Services.IAM.API.Errors;
 using WardMate.Services.IAM.Application;
 using WardMate.Services.IAM.Infrastructure;
 using WardMate.Services.IAM.Infrastructure.Persistence;
+using WardMate.Services.IAM.API.Security;
 
 // ── Bootstrap Serilog immediately so startup errors are captured ────────────
 Log.Logger = new LoggerConfiguration()
@@ -71,6 +72,18 @@ try
     // ── Application / Infrastructure ─────────────────────────────────────────
     builder.Services.AddIamApplication();
     builder.Services.AddIamInfrastructure(builder.Configuration);
+    builder.Services.AddWardMateBrowserCors(builder.Configuration, builder.Environment);
+    builder.Services.AddOptions<RefreshCookieOptions>()
+        .Configure(options => options.AllowInsecureLocalhost = builder.Environment.IsDevelopment())
+        .Bind(builder.Configuration.GetSection("AuthCookie"))
+        .Validate(options => options.SameSite is SameSiteMode.Strict or SameSiteMode.Lax or SameSiteMode.None,
+            "SameSite phải là Strict, Lax hoặc None.")
+        .Validate(options => !options.AllowInsecureLocalhost || builder.Environment.IsDevelopment(),
+            "Chỉ được cho phép cookie HTTP localhost trong Development.")
+        .Validate(options => !options.AllowInsecureLocalhost || options.SameSite != SameSiteMode.None,
+            "SameSite=None yêu cầu cookie Secure.")
+        .ValidateOnStart();
+    builder.Services.AddScoped<RefreshTokenCookie>();
     WardMate.Services.IAM.API.Authorization.PermissionAuthorization.AddPermissionAuthorization(builder.Services);
 
     // ── Swagger ──────────────────────────────────────────────────────────────
@@ -102,6 +115,7 @@ try
     app.UseWardMateRequestLoggingMiddleware(); // Custom detailed middleware
     app.UseGlobalExceptionHandling();
     app.UseStatusCodePages();
+    app.UseCors(BrowserCorsExtensions.PolicyName);
     if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
     app.UseAuthentication();
     app.UseAuthorization();

@@ -40,7 +40,7 @@ public sealed class ProcedurePersistenceTests(ProcedureFixture fixture) : IClass
         Assert.Contains(indexes, x => x.Contains("UNIQUE", StringComparison.Ordinal) && x.Contains("USING btree (procedure_code)", StringComparison.Ordinal));
         Assert.Contains(indexes, x => x.Contains("UNIQUE", StringComparison.Ordinal) && x.Contains("(procedure_id, version_number)", StringComparison.Ordinal));
         await db.Database.MigrateAsync();
-        Assert.Single(await db.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
         var categories = await db.ProcedureCategories.Where(x => x.Id <= 3).OrderBy(x => x.Id).Select(x => x.CategoryName).ToArrayAsync();
         Assert.Equal(new[] { "Hộ tịch", "Đất đai", "Quản lý công sản" }, categories);
         var seed = await db.Procedures.SingleAsync(x => x.Id == ProcedureSeed.SampleProcedureId);
