@@ -37,8 +37,6 @@ public sealed class RefreshTokenValidator : AbstractValidator<RefreshTokenComman
 {
     public RefreshTokenValidator()
     {
-        RuleFor(x => x.AccessToken).NotEmpty().WithMessage("Mã truy cập không được để trống.")
-            .MaximumLength(16384).WithMessage("Mã truy cập không được vượt quá 16384 ký tự.");
         RuleFor(x => x.RefreshToken).NotEmpty().WithMessage("Mã làm mới không được để trống.")
             .MaximumLength(500).WithMessage("Mã làm mới không được vượt quá 500 ký tự.");
     }

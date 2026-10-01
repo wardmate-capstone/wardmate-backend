@@ -10,12 +10,10 @@ public sealed class RefreshTokenHandler(IIdentityStore store, ITokenService toke
 {
     public async Task<Result<AuthResponseDto>> Handle(RefreshTokenCommand request, CancellationToken ct)
     {
-        var subject = tokens.ValidateAccessTokenForRefresh(request.AccessToken);
-        if (subject is null) return Result<AuthResponseDto>.Failure(AuthErrors.InvalidToken);
         var previous = await store.FindRefreshToken(tokens.HashRefreshToken(request.RefreshToken), ct);
-        if (previous is null || previous.IsRevoked || previous.ExpiresAt <= clock.GetUtcNow().UtcDateTime || previous.UserId != subject)
+        if (previous is null || previous.IsRevoked || previous.ExpiresAt <= clock.GetUtcNow().UtcDateTime)
             return Result<AuthResponseDto>.Failure(AuthErrors.InvalidToken);
-        var user = await store.FindUser(subject.Value, ct);
+        var user = await store.FindUser(previous.UserId, ct);
         if (user is null || !user.IsActive) return Result<AuthResponseDto>.Failure(AuthErrors.InvalidToken);
         previous.IsRevoked = true;
         var response = TokenIssuer.Issue(user, store, tokens, clock);
