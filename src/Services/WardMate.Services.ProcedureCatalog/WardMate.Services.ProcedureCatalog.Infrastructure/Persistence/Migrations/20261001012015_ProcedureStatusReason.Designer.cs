@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WardMate.Services.ProcedureCatalog.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using WardMate.Services.ProcedureCatalog.Infrastructure.Persistence;
 namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ProcedureDbContext))]
-    partial class ProcedureDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001012015_ProcedureStatusReason")]
+    partial class ProcedureStatusReason
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

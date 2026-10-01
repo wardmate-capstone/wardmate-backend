@@ -15,6 +15,7 @@ public sealed class Procedure
     public string FeeSummary { get; set; } = "Miễn phí";
     public string ProcessingTimeSummary { get; set; } = "1 ngày";
     public bool IsActive { get; set; } = true;
+    public string? StatusChangeReason { get; set; }
     public ProcedureContentPayload ContentPayload { get; set; } = new();
     public List<ChecklistItemSchema>? ChecklistSchema { get; set; }
     public List<FormDefinitionSchema>? FormDefinitions { get; set; }
