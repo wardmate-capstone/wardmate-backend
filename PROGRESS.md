@@ -491,3 +491,75 @@ Lỗi bất ngờ trả 500 ProblemDetails đã loại bỏ thông tin nội b�
 - `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedurePersistenceTests.cs`
 - `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/WardMate.Services.ProcedureCatalog.IntegrationTests.csproj`
 - `WardMate.sln`
+
+## TASK-08 — API quản lý thủ tục, versioning tự động và trạng thái
+
+- Hoàn thành: **2026-10-01 08:22 (Asia/Saigon, UTC+07:00)**.
+- Trạng thái: **Hoàn thành code và xác minh local**. Không chạy bất kỳ lệnh Git nào; Antigravity chịu trách nhiệm commit/merge/push. AGENTS.md đã cập nhật để thu hồi workflow Git tự động cũ.
+- Application: CreateProcedureCommand tạo active procedure + snapshot version 1 atomically; UpdateProcedureCommand chụp trạng thái trước thay đổi và cấp version tiếp theo; ToggleProcedureStatusCommand lưu trạng thái/lý do; GetProcedureVersionsQuery trả lịch sử giảm dần. MediatR, FluentValidation và Result Pattern; validation tiếng Việt.
+- Infrastructure: transaction PostgreSQL, khóa hàng FOR UPDATE để tuần tự hóa update/status và số version; unique code conflict trả 409 kể cả request đồng thời. Migration `20261001012015_ProcedureStatusReason` thêm nullable text `status_change_reason`; snapshot bao gồm trường này.
+- API: JWT HS256 issuer/audience/lifetime, role PROCEDURE_MANAGER hoặc IT_ADMIN; Swagger Bearer; gateway chuyển tiếp nguyên đường dẫn manager. ProblemDetails tiếng Việt, JSON DTO bỏ null.
+
+### API mới / hướng dẫn Frontend
+
+| Method | Route | Request body | Response codes |
+|---|---|---|---|
+| POST | `/api/v1/procedure-manager/procedures` | categoryId, procedureCode, title, issuingAuthority?, executingAgency?, levelOfImplementation, targetAudience, feeSummary, processingTimeSummary, contentPayload, checklistSchema?, formDefinitions? | 201 ProcedureDetailDto + Location; 400; 401; 403; 409 |
+| PUT | `/api/v1/procedure-manager/procedures/{id}` | Toàn bộ trường POST + decisionNumber, effectiveDate (YYYY-MM-DD) | 200 ProcedureDetailDto; 400; 401; 403; 404; 409 |
+| PATCH | `/api/v1/procedure-manager/procedures/{id}/status` | `{ "isActive": false, "reason": "Tạm ngưng tiếp nhận" }` (reason tùy chọn) | 200 {id,isActive,reason?,updatedAt}; 400; 401; 403; 404 |
+| GET | `/api/v1/procedure-manager/procedures/{id}/versions` | Không | 200 array {id,versionNumber,decisionNumber?,effectiveDate,snapshotData,createdAt}; 401; 403; 404 |
+
+- Cấu hình `Jwt__Key` giống IAM (không ghi secret vào source); issuer/audience mặc định wardmate/wardmate-client. Gửi `Authorization: Bearer <accessToken>`. Token phải có role PROCEDURE_MANAGER hoặc IT_ADMIN. Role được xác minh từ JWT, không tra IAM realtime; token cũ giữ quyền đến hết hạn khi IAM đổi role/disable account.
+- Swagger Development trực tiếp: http://localhost:5002/swagger. Qua Gateway: http://localhost:5000/api/v1/procedure-manager/procedures. Không tự khởi động lại ứng dụng local trong phiên này.
+- PUT thay thế toàn bộ input, giữ nguyên trạng thái active; effectiveDate là metadata, không hẹn giờ áp dụng. Snapshot lưu dữ liệu CŨ: version 1 lúc tạo, version 2 ở lần cập nhật đầu cùng nội dung ban đầu. Seed TASK-07 chưa có version nên lần update seed đầu tiên sinh version 1.
+- `snapshotData` trả object JSON, không phải JSON string; null bên trong snapshot được giữ để phản ánh lịch sử. PATCH không tạo version; lý do trạng thái được lưu DB. Chặn tiếp nhận hồ sơ mới cần ApplicationWorkflow kiểm tra IsActive khi tích hợp; không tác động hồ sơ đã nộp.
+- ProblemDetails: code, title, status, traceId, instance; errors khi validation. Codes: validation.failed, procedure.category_not_found, procedure.code_exists, procedure.not_found, auth.unauthorized, auth.forbidden.
+- Request mẫu và hướng dẫn cấu hình: `docs/procedure-manager.md`.
+
+### Kết quả xác minh
+
+- `dotnet build WardMate.sln -c Release --no-restore --verbosity quiet`: **0 errors, 0 warnings**.
+- `dotnet test WardMate.sln -c Release --no-build --verbosity quiet --logger trx --results-directory TestResults`: **32 passed / 0 failed / 0 skipped**. Gồm 11 test integration TASK-07 và **21 test integration mới** TASK-08; không thêm unit test riêng (0).
+- PostgreSQL 16 thật qua Testcontainers: complex JSONB + version 1, snapshot trước cập nhật, trạng thái/lý do, cập nhật khi đóng, concurrent update giữ chuỗi snapshot, concurrent duplicate create, validation rollback, 401/403/token hết hạn/chữ ký sai, IT_ADMIN và Swagger.
+- EF `has-pending-model-changes`: không có thay đổi model thiếu migration.
+- Migration được áp dụng trong database kiểm thử tạm. Chưa áp dụng vào database Local Dev đang dùng; Development sẽ migrate khi chủ sở hữu chạy lại service với đúng connection string/JWT. Không build Docker image và không khởi động stack ứng dụng.
+- TRX local (generated, không bàn giao commit): `TestResults/LAPTOP_KHA_KHANGUYEN_2026-10-01_08_21_09.trx`.
+
+### File tạo mới
+
+- `docs/procedure-manager.md`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureManagerController.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Security/ProcedureAuthentication.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Security/ManagerSecurityOperationFilter.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Interfaces/IProcedureManagementStore.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureResult.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureInput.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureInputValidator.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/UpdateProcedureInputValidator.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureCommands.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureCommandHandlers.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/GetProcedureVersionsQuery.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureManagementStore.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20261001012015_ProcedureStatusReason.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20261001012015_ProcedureStatusReason.Designer.cs`
+- `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureManagerTests.cs`
+
+### File cập nhật
+
+- `AGENTS.md`
+- `PROGRESS.md`
+- `docs/procedure-catalog.md`
+- `src/Gateways/WardMate.YarpGateway/appsettings.json`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Program.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/WardMate.Services.ProcedureCatalog.API.csproj`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/DependencyInjection.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/WardMate.Services.ProcedureCatalog.Application.csproj`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/Entities/Procedure.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/Entities/ProcedureVersion.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/DependencyInjection.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Configurations/ProcedureConfiguration.cs`
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/ProcedureDbContextModelSnapshot.cs`
+- `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureFixture.cs`
+- `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedurePersistenceTests.cs`
+
+Gợi ý commit cho Antigravity: `feat(procedure-catalog): add manager APIs with automatic versioning`.

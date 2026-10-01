@@ -58,6 +58,7 @@ docker compose --env-file docker/.env -f docker/docker-compose.yml up -d procedu
 ```powershell
 $procedurePassword = Read-Host 'Mật khẩu PostgreSQL của Procedure Catalog' -MaskInput
 $env:ConnectionStrings__ProcedureDatabase = "Host=localhost;Port=5434;Database=wardmate_procedure_db;Username=wardmate_procedure;Password=$procedurePassword"
+$env:Jwt__Key = Read-Host 'Khóa JWT giống IAM (tối thiểu 32 byte UTF-8)' -MaskInput
 dotnet run --project src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API --launch-profile http
 ```
 
@@ -75,3 +76,5 @@ dotnet ef migrations has-pending-model-changes --project src/Services/WardMate.S
 ```
 
 11 integration cases chạy PostgreSQL 16 tạm: ba bảng/bốn cột JSONB/index/seed, complex JSON roundtrip qua repository/MediatR/HTTP, sửa JSON lồng nhau, NULL so với array rỗng, unique code và version pair, snapshot độc lập, SQL defaults/category identity, required JSON và 404 cho inactive/missing. Không tái tạo test IAM/SharedKernel đã gỡ.
+
+TASK-08 bổ sung API ghi, kiểm tra dữ liệu lồng nhau, JWT/RBAC và migration lý do trạng thái. Xem [hướng dẫn Procedure Manager](procedure-manager.md) để biết request, versioning và cấu hình token bắt buộc mới. Số lượng test TASK-08 được ghi tại PROGRESS.md.
