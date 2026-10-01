@@ -4,6 +4,7 @@ using WardMate.Services.DocumentForm.Application.Interfaces;
 using WardMate.Services.DocumentForm.Domain.Errors;
 using WardMate.SharedKernel.Common;
 using WardMate.SharedKernel.CQRS;
+using WardMate.Services.DocumentForm.Domain.Entities;
 
 namespace WardMate.Services.DocumentForm.Application.Commands;
 
@@ -40,7 +41,16 @@ public sealed class CreateFormTemplateVersionCommandHandler : ICommandHandler<Cr
             return DocumentFormErrors.TemplateNotFound(request.TemplateId);
         }
 
-        var newVersion = template.AddVersion(request.SchemaDefinition, request.CreatedBy);
+        // Calculate version locally
+        var nextVersionNumber = template.Versions.Count == 0 ? 1 : template.Versions.Max(v => v.VersionNumber) + 1;
+        var newVersion = new FormTemplateVersion(template.Id, nextVersionNumber, request.SchemaDefinition, request.CreatedBy);
+        
+        // 1. Update template
+        template.SetUpdated(DateTime.UtcNow);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        
+        // 2. Insert version
+        _dbContext.FormTemplateVersions.Add(newVersion);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var dto = new FormTemplateVersionDto
