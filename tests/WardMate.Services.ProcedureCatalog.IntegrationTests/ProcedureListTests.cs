@@ -13,6 +13,39 @@ public sealed class ProcedureListTests(ProcedureFixture fixture) : IClassFixture
     private const string Public = "/api/v1/procedures";
     private const string Manager = "/api/v1/procedure-manager/procedures";
 
+    [Fact]
+    public async Task AccentInsensitiveKeywordLevelFilterAndDescendingSortReturnCorrectMetadata()
+    {
+        var prefix = await Seed();
+        using var client = fixture.ManagerClient();
+        var keyword = Uri.EscapeDataString(prefix + " dang ky thu nghiem");
+        var result = (await client.GetFromJsonAsync<PagedResult<ProcedureManagerSummaryDto>>(
+            $"{Manager}?keyword={keyword}&levelOfImplementation=cap%20xa&pageNumber=2&pageSize=2&sortBy=ProcedureCode&isAscending=false"))!;
+        Assert.Equal(5, result.TotalCount);
+        Assert.Equal(3, result.TotalPages);
+        Assert.Equal(2, result.CurrentPage);
+        Assert.True(result.HasPrevious);
+        Assert.True(result.HasNext);
+        Assert.Equal(new[] { prefix + "-3", prefix + "-2" }, result.Items.Select(x => x.ProcedureCode));
+        var publicResult = (await client.GetFromJsonAsync<PagedResult<ProcedureSummaryDto>>(
+            $"{Public}?keyword={keyword}&isActive=false&pageSize=50"))!;
+        Assert.Equal(4, publicResult.TotalCount);
+        Assert.DoesNotContain(publicResult.Items, x => x.ProcedureCode == prefix + "-4");
+        Assert.False(publicResult.HasPrevious);
+        Assert.False(publicResult.HasNext);
+    }
+
+    [Theory]
+    [InlineData("sortBy=DROP%20TABLE")]
+    [InlineData("pageNumber=0")]
+    [InlineData("isAscending=invalid")]
+    public async Task AdvancedQueryValidationRejectsInvalidParameters(string query)
+    {
+        using var client = fixture.ManagerClient();
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync($"{Public}?{query}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync($"{Manager}?{query}")).StatusCode);
+    }
+
     private async Task<string> Seed()
     {
         var prefix = Guid.NewGuid().ToString("N");
@@ -37,17 +70,17 @@ public sealed class ProcedureListTests(ProcedureFixture fixture) : IClassFixture
     {
         var prefix = await Seed();
         using var client = fixture.Factory.CreateClient();
-        var first = (await client.GetFromJsonAsync<ProcedureListDto>($"{Public}?search={prefix}&pageSize=2&isActive=false"))!;
-        var second = (await client.GetFromJsonAsync<ProcedureListDto>($"{Public}?search={prefix}&pageSize=2&page=2"))!;
+        var first = (await client.GetFromJsonAsync<PagedResult<ProcedureSummaryDto>>($"{Public}?search={prefix}&pageSize=2&isActive=false"))!;
+        var second = (await client.GetFromJsonAsync<PagedResult<ProcedureSummaryDto>>($"{Public}?search={prefix}&pageSize=2&page=2"))!;
         Assert.Equal(4, first.TotalCount);
         Assert.Equal(2, first.TotalPages);
-        Assert.Equal(1, first.Page);
+        Assert.Equal(1, first.CurrentPage);
         Assert.Equal(new[] { $"{prefix}-1", $"{prefix}-2", $"{prefix}-3", $"{prefix}-5" }, first.Items.Concat(second.Items).Select(x => x.ProcedureCode));
-        Assert.All(first.Items.Concat(second.Items), x => Assert.True(x.IsActive));
+        Assert.DoesNotContain(first.Items.Concat(second.Items), x => x.ProcedureCode == prefix + "-4");
         Assert.Equal("Hộ tịch", first.Items[0].CategoryName);
         var raw = await client.GetFromJsonAsync<JsonElement>($"{Public}?search={prefix}");
         Assert.False(raw.GetProperty("items")[0].TryGetProperty("contentPayload", out _));
-        var beyond = (await client.GetFromJsonAsync<ProcedureListDto>($"{Public}?search={prefix}&page=99"))!;
+        var beyond = (await client.GetFromJsonAsync<PagedResult<ProcedureSummaryDto>>($"{Public}?search={prefix}&page=99"))!;
         Assert.Empty(beyond.Items);
         Assert.Equal(4, beyond.TotalCount);
     }
@@ -57,17 +90,17 @@ public sealed class ProcedureListTests(ProcedureFixture fixture) : IClassFixture
     {
         var prefix = await Seed();
         using var client = fixture.ManagerClient();
-        var all = (await client.GetFromJsonAsync<ProcedureListDto>($"{Manager}?search={prefix.ToUpperInvariant()}"))!;
+        var all = (await client.GetFromJsonAsync<PagedResult<ProcedureManagerSummaryDto>>($"{Manager}?search={prefix.ToUpperInvariant()}"))!;
         Assert.Equal(5, all.TotalCount);
-        Assert.Equal(20, all.PageSize);
-        var inactive = (await client.GetFromJsonAsync<ProcedureListDto>($"{Manager}?search={prefix}&categoryId=1&isActive=false"))!;
+        Assert.Equal(10, all.PageSize);
+        var inactive = (await client.GetFromJsonAsync<PagedResult<ProcedureManagerSummaryDto>>($"{Manager}?search={prefix}&categoryId=1&isActive=false"))!;
         Assert.Equal($"{prefix}-4", Assert.Single(inactive.Items).ProcedureCode);
-        var active = (await client.GetFromJsonAsync<ProcedureListDto>($"{Manager}?search={prefix}&categoryId=1&isActive=true"))!;
+        var active = (await client.GetFromJsonAsync<PagedResult<ProcedureManagerSummaryDto>>($"{Manager}?search={prefix}&categoryId=1&isActive=true"))!;
         Assert.Equal(3, active.TotalCount);
         var title = Uri.EscapeDataString($"  {prefix} ĐĂNG KÝ THỬ NGHIỆM 5  ");
-        var byTitle = (await client.GetFromJsonAsync<ProcedureListDto>($"{Public}?search={title}&categoryId=2"))!;
+        var byTitle = (await client.GetFromJsonAsync<PagedResult<ProcedureSummaryDto>>($"{Public}?search={title}&categoryId=2"))!;
         Assert.Equal("Đất đai", Assert.Single(byTitle.Items).CategoryName);
-        var empty = (await client.GetFromJsonAsync<ProcedureListDto>($"{Public}?search={prefix}&categoryId=2147483647"))!;
+        var empty = (await client.GetFromJsonAsync<PagedResult<ProcedureSummaryDto>>($"{Public}?search={prefix}&categoryId=2147483647"))!;
         Assert.Empty(empty.Items);
         Assert.Equal(0, empty.TotalPages);
     }
@@ -88,7 +121,7 @@ public sealed class ProcedureListTests(ProcedureFixture fixture) : IClassFixture
             await db.SaveChangesAsync();
         }
         using var client = fixture.Factory.CreateClient();
-        var result = (await client.GetFromJsonAsync<ProcedureListDto>($"{Public}?search={Uri.EscapeDataString(prefix + symbol)}"))!;
+        var result = (await client.GetFromJsonAsync<PagedResult<ProcedureSummaryDto>>($"{Public}?search={Uri.EscapeDataString(prefix + symbol)}"))!;
         Assert.Equal(prefix + symbol, Assert.Single(result.Items).ProcedureCode);
     }
 
@@ -125,3 +158,5 @@ public sealed class ProcedureListTests(ProcedureFixture fixture) : IClassFixture
         Assert.Equal(HttpStatusCode.OK, (await anonymous.GetAsync(Public)).StatusCode);
     }
 }
+
+
