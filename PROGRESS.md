@@ -1,5 +1,6 @@
 # WardMate — Nhật ký phát triển
 
+**Trạng thái IAM Ingress CSRF (IAM-007): HOÀN THÀNH** — đã cấu hình ForwardedHeadersOptions xử lý X-Forwarded-For, X-Forwarded-Proto và X-Forwarded-Host trong middleware pipeline IAM, hỗ trợ Swagger Azure và ingress proxy tin cậy. 27/27 HTTP checks passed, 131/131 solution tests passed. Xác minh ngày 02/10/2026 lúc 01:45 (Asia/Saigon).
 **Trạng thái Procedure Catalog (TASK-09 điều chỉnh): HOÀN THÀNH** — đã triển khai xuất bản thủ tục đã đối soát kèm lịch sử phiên bản PDF, phân trang danh sách Public/Manager, tìm kiếm unaccent, hoàn thiện 11 integration tests, build Docker image và migrate database Local Dev. Xác minh ngày 01/10/2026 lúc 14:15 (Asia/Saigon).
 **Trạng thái Fix AddVersion Concurrency: HOÀN THÀNH** — đã fix `DbUpdateConcurrencyException` trên endpoint `POST /api/v1/form-templates/{id}/versions`. Xác minh ngày 01/10/2026 lúc 11:30 (Asia/Saigon).
 **Trạng thái Document & Form Service (TASK-10, TASK-11, TASK-12): HOÀN THÀNH** — đã triển khai thực thể Document, E-Forms dynamic schema engine, OpenXML DOCX placeholder extraction, Azure Blob upload, FormTemplates API và 22 unit tests. Xác minh ngày 29/09/2026 lúc 11:15 (Asia/Saigon).
@@ -838,3 +839,34 @@ Các đường dẫn Application/Infrastructure/API trên thuộc src/Services/W
 - src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Import/ProcedureCsvImporter.cs
 
 Gợi ý commit cho Antigravity: feat(procedure-catalog): publish reviewed procedures with PDF version history
+
+## IAM-007 — Sửa CSRF trên Swagger sau Azure ingress bằng Forwarded Headers
+
+- Hoàn thành: 2026-10-02 01:44:58 Asia/Saigon (UTC+07:00).
+- Phạm vi: cấu hình IAM API nhận X-Forwarded-For, X-Forwarded-Proto và X-Forwarded-Host; xóa KnownNetworks/KnownProxies theo yêu cầu. Middleware chạy ngay sau UseGlobalExceptionHandling, trước logging, CORS, Swagger và authentication/authorization. Giữ ForwardLimit mặc định 1.
+- Đã kiểm tra BrowserAuthProtectionAttribute: sameOrigin sử dụng Request.Scheme/Host sau chuẩn hóa; không cần sửa attribute. Vẫn bắt buộc X-CSRF-Protection: 1 và từ chối origin không cùng domain, không thuộc CORS allowlist.
+
+### File thay đổi
+
+| File | Nội dung |
+| --- | --- |
+| src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Program.cs | Cấu hình và thứ tự middleware Forwarded Headers |
+| scripts/verify-iam-cookie.ps1 | Thêm 5 kiểm tra HTTP cho forwarded origin và bảo toàn CSRF/CORS |
+| docs/iam-httponly.md | Hướng dẫn ingress, trust boundary và giới hạn proxy nhiều hop |
+| PROGRESS.md | Nhật ký IAM-007 và kết quả kiểm chứng |
+
+### API / Frontend
+
+- Không thêm endpoint hay thay đổi DTO/request body/token contract.
+- POST /api/v1/auth/login vẫn nhận UsernameOrEmail và Password, trả 200 với access token và cookie refresh HttpOnly khi hợp lệ; CSRF không hợp lệ trả 403 ProblemDetails với code iam.csrf_rejected.
+- Swagger cùng public domain không cần thêm domain đó vào CORS allowlist nếu ingress chuyển đúng Host/Proto. FE khác domain vẫn phải nằm trong AllowedOrigins và gửi credentials cùng X-CSRF-Protection: 1.
+- Container phải chỉ nhận traffic từ ingress/proxy được kiểm soát; proxy phải làm sạch/ghi đè forwarded headers. Với nhiều hop, proxy gần IAM nhất phải chuyển đúng public host/proto.
+
+### Kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: PASS, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release: PASS 131/131, 0 failed, 0 skipped (DocumentForm 72, ProcedureCatalog 59). Không tạo mới unit test project.
+- pwsh -NoProfile -File scripts/verify-iam-cookie.ps1: PASS 27/27 HTTP checks trên PostgreSQL tạm và IAM/Gateway local, gồm 5 checks mới. Origin HTTPS của Swagger Azure được chấp nhận với forwarded host/proto dù không nằm trong CORS allowlist; thiếu forwarding, thiếu CSRF header hoặc origin lạ bị từ chối; CORS cho FE được phép vẫn hoạt động.
+- Không chạy Git. Chưa deploy hoặc kiểm tra trực tiếp trên Azure; cần Antigravity triển khai và kiểm tra lại ingress thực tế.
+
+Gợi ý commit: fix(iam): honor forwarded headers before CSRF validation
