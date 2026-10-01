@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WardMate.Services.ProcedureCatalog.Application.DTOs;
 using WardMate.Services.ProcedureCatalog.Application.Management;
+using WardMate.Services.ProcedureCatalog.Application.Queries;
 
 namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 
@@ -13,6 +14,14 @@ namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
 public sealed class ProcedureManagerController(ISender sender) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType(typeof(ProcedureListDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> List(CancellationToken ct, [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20, [FromQuery] string? search = null, [FromQuery] int? categoryId = null,
+        [FromQuery] bool? isActive = null) =>
+        Respond(await sender.Send(new GetProceduresQuery(page, pageSize, search, categoryId, isActive), ct));
+
     [HttpPost]
     [ProducesResponseType(typeof(ProcedureDetailDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

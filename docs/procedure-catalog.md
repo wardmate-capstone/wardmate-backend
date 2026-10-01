@@ -78,3 +78,15 @@ dotnet ef migrations has-pending-model-changes --project src/Services/WardMate.S
 11 integration cases chạy PostgreSQL 16 tạm: ba bảng/bốn cột JSONB/index/seed, complex JSON roundtrip qua repository/MediatR/HTTP, sửa JSON lồng nhau, NULL so với array rỗng, unique code và version pair, snapshot độc lập, SQL defaults/category identity, required JSON và 404 cho inactive/missing. Không tái tạo test IAM/SharedKernel đã gỡ.
 
 TASK-08 bổ sung API ghi, kiểm tra dữ liệu lồng nhau, JWT/RBAC và migration lý do trạng thái. Xem [hướng dẫn Procedure Manager](procedure-manager.md) để biết request, versioning và cấu hình token bắt buộc mới. Số lượng test TASK-08 được ghi tại PROGRESS.md.
+
+## TASK-08-LIST — Danh sách thủ tục (bổ sung)
+
+`GET /api/v1/procedures` là API công khai, luôn lọc `isActive=true`, kể cả client cố gửi `isActive=false`.
+
+Query string: `page` (mặc định 1, >=1), `pageSize` (mặc định 20, từ 1 đến 100), `search` (tối đa 255 ký tự, tìm chứa trong mã hoặc tên, không phân biệt hoa/thường, có phân biệt dấu), `categoryId` (số nguyên dương, tùy chọn). Search được trim; chuỗi trắng không lọc; %, _ và backslash được hiểu là ký tự thường. Thứ tự cố định `procedureCode ASC, id ASC`.
+
+Ví dụ: `GET /api/v1/procedures?page=1&pageSize=20&search=đăng&categoryId=1`.
+
+Response 200: `{ "items": [...], "page": 1, "pageSize": 20, "totalCount": 45, "totalPages": 3 }`. Item gồm id, categoryId, categoryName, procedureCode, title, issuingAuthority?, executingAgency?, levelOfImplementation, targetAudience, feeSummary, processingTimeSummary, isActive, createdAt, updatedAt. Không tải contentPayload/checklistSchema/formDefinitions/versions trong danh sách; dùng GET chi tiết để lấy nội dung JSONB.
+
+Trang vượt số lượng hoặc bộ lọc không có kết quả trả 200 với items rỗng; danh mục không tồn tại cũng trả danh sách rỗng. totalPages=0 nếu không có kết quả. Query sai trả 400 ProblemDetails tiếng Việt (`validation.failed`, errors, traceId). Count và items được đọc bằng hai câu SQL; dữ liệu có thể thay đổi giữa hai lần đọc khi có request ghi đồng thời. Không có migration database mới.

@@ -66,3 +66,13 @@ PUT là thay thế toàn bộ các trường cấu hình, không phải partial 
 ## Kiểm thử
 
 Chạy `dotnet build WardMate.sln -c Release`, sau đó `dotnet test WardMate.sln -c Release --no-build`. Testcontainers cần Docker đang chạy để khởi tạo PostgreSQL 16 tạm; không build image hoặc khởi động stack ứng dụng. Test bao gồm JSONB/version ban đầu, snapshot trước cập nhật, trạng thái, concurrency, validation, unique code, JWT và Swagger.
+
+## TASK-08-LIST — Danh sách cho người quản lý
+
+`GET /api/v1/procedure-manager/procedures` yêu cầu Bearer có role PROCEDURE_MANAGER hoặc IT_ADMIN. Không có request body.
+
+Query: page=1, pageSize=20 (tối đa 100), search (tìm mã/tên, không phân biệt hoa/thường, tối đa 255 ký tự), categoryId (số nguyên dương), isActive (tùy chọn). Bỏ isActive để lấy cả đang hoạt động và đã đóng; true/false để lọc riêng. Các bộ lọc kết hợp AND. Sắp xếp procedureCode ASC rồi id ASC.
+
+Ví dụ: `/api/v1/procedure-manager/procedures?page=1&pageSize=20&categoryId=1&isActive=false`.
+
+200 trả ProcedureListDto `{items,page,pageSize,totalCount,totalPages}` giống API công khai (xem procedure-catalog.md). Item chỉ chứa thông tin tóm tắt, không có các khối JSONB. 400 nếu query sai; 401 token không hợp lệ; 403 thiếu quyền. Trang vượt giới hạn dữ liệu trả items rỗng. Route Gateway hiện có hỗ trợ cả hai API danh sách, không cần thay cấu hình.
