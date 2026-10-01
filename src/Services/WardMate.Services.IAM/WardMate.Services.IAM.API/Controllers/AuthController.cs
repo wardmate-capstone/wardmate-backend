@@ -5,11 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 using WardMate.Services.IAM.API.Errors;
 using WardMate.Services.IAM.Application.Commands;
 using WardMate.Services.IAM.Application.DTOs;
+using WardMate.Services.IAM.Application.Common;
+using WardMate.Services.IAM.API.Security;
 
 namespace WardMate.Services.IAM.API.Controllers;
 
 [ApiController, Route("api/v1/auth")]
-public sealed class AuthController(ISender sender) : ControllerBase
+[BrowserAuthProtection]
+public sealed class AuthController(ISender sender, RefreshTokenCookie cookie) : ControllerBase
 {
     [HttpPost("register"), AllowAnonymous]
     [ProducesResponseType<CurrentUserDto>(201)]
@@ -22,34 +25,47 @@ public sealed class AuthController(ISender sender) : ControllerBase
     }
 
     [HttpPost("login"), AllowAnonymous]
-    [ProducesResponseType<AuthResponseDto>(200)]
+    [ProducesResponseType<BrowserAuthResponse>(200)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
     [ProducesResponseType<ProblemDetails>(401)]
     public async Task<IActionResult> Login(LoginCommand request, CancellationToken ct)
     {
         var result = await sender.Send(request, ct);
-        return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
+        if (!result.IsSuccess) return result.ToProblem(HttpContext);
+        cookie.Write(HttpContext, result.Value!);
+        return Ok(BrowserAuthResponse.From(result.Value!));
     }
 
     [HttpPost("refresh-token"), AllowAnonymous]
-    [ProducesResponseType<AuthResponseDto>(200)]
+    [ProducesResponseType<BrowserAuthResponse>(200)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
     [ProducesResponseType<ProblemDetails>(401)]
-    public async Task<IActionResult> Refresh(RefreshTokenCommand request, CancellationToken ct)
+    public async Task<IActionResult> Refresh(CancellationToken ct)
     {
-        var result = await sender.Send(request, ct);
-        return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
+        var refresh = cookie.Read(HttpContext);
+        if (string.IsNullOrWhiteSpace(refresh)) return Result<AuthResponseDto>.Failure(AuthErrors.InvalidToken).ToProblem(HttpContext);
+        var result = await sender.Send(new RefreshTokenCommand(refresh), ct);
+        if (!result.IsSuccess) return result.ToProblem(HttpContext);
+        cookie.Write(HttpContext, result.Value!);
+        return Ok(BrowserAuthResponse.From(result.Value!));
     }
 
-    public sealed record RevokeTokenRequest(string RefreshToken);
     [HttpPost("revoke-token"), Authorize]
     [ProducesResponseType(204)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
     [ProducesResponseType<ProblemDetails>(401)]
-    public async Task<IActionResult> Revoke(RevokeTokenRequest request, CancellationToken ct)
+    public async Task<IActionResult> Revoke(CancellationToken ct)
     {
+        var refresh = cookie.Read(HttpContext);
+        if (string.IsNullOrWhiteSpace(refresh))
+        {
+            cookie.Delete(HttpContext);
+            return NoContent();
+        }
         var userId = Guid.Parse(User.FindFirstValue("sub")!);
-        var result = await sender.Send(new RevokeTokenCommand(userId, request.RefreshToken), ct);
-        return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
+        var result = await sender.Send(new RevokeTokenCommand(userId, refresh), ct);
+        if (!result.IsSuccess) return result.ToProblem(HttpContext);
+        cookie.Delete(HttpContext);
+        return NoContent();
     }
 }
