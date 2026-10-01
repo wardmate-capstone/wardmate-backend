@@ -15,6 +15,7 @@ public static class DependencyInjection
                 ?? throw new InvalidOperationException("Chưa cấu hình kết nối database của Procedure Catalog."))
             .UseSnakeCaseNamingConvention());
         services.AddScoped<IProcedureRepository, ProcedureRepository>();
+        services.AddScoped<IProcedureManagementStore, ProcedureManagementStore>();
         return services;
     }
 }
