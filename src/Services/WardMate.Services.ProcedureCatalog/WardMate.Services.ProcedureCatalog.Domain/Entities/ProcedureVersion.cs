@@ -8,6 +8,8 @@ public sealed class ProcedureVersion
     public Guid ProcedureId { get; set; }
     public int VersionNumber { get; set; }
     public string? DecisionNumber { get; set; }
+    public string? OriginalPdfUrl { get; set; }
+    public string? PdfFileName { get; set; }
     public DateOnly EffectiveDate { get; set; }
     public string SnapshotData { get; set; } = "{}";
     public DateTime CreatedAt { get; set; }
@@ -24,9 +26,11 @@ public sealed class ProcedureVersion
         {
             ProcedureId = procedure.Id, VersionNumber = versionNumber, EffectiveDate = effectiveDate,
             DecisionNumber = decisionNumber, CreatedAt = createdAt,
+            OriginalPdfUrl = procedure.OriginalPdfUrl, PdfFileName = procedure.PdfFileName,
             SnapshotData = JsonSerializer.Serialize(new
             {
                 procedure.Id, procedure.CategoryId, procedure.ProcedureCode, procedure.Title,
+                procedure.OriginalPdfUrl, procedure.PdfFileName,
                 procedure.IssuingAuthority, procedure.ExecutingAgency, procedure.LevelOfImplementation,
                 procedure.TargetAudience, procedure.FeeSummary, procedure.ProcessingTimeSummary,
                 procedure.IsActive, procedure.StatusChangeReason, procedure.ContentPayload, procedure.ChecklistSchema, procedure.FormDefinitions,
