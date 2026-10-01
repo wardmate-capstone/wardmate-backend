@@ -90,3 +90,19 @@ Ví dụ: `GET /api/v1/procedures?page=1&pageSize=20&search=đăng&categoryId=1`
 Response 200: `{ "items": [...], "page": 1, "pageSize": 20, "totalCount": 45, "totalPages": 3 }`. Item gồm id, categoryId, categoryName, procedureCode, title, issuingAuthority?, executingAgency?, levelOfImplementation, targetAudience, feeSummary, processingTimeSummary, isActive, createdAt, updatedAt. Không tải contentPayload/checklistSchema/formDefinitions/versions trong danh sách; dùng GET chi tiết để lấy nội dung JSONB.
 
 Trang vượt số lượng hoặc bộ lọc không có kết quả trả 200 với items rỗng; danh mục không tồn tại cũng trả danh sách rỗng. totalPages=0 nếu không có kết quả. Query sai trả 400 ProblemDetails tiếng Việt (`validation.failed`, errors, traceId). Count và items được đọc bằng hai câu SQL; dữ liệu có thể thay đổi giữa hai lần đọc khi có request ghi đồng thời. Không có migration database mới.
+
+## TASK-09 — Hợp đồng tìm kiếm nâng cao (thay thế TASK-08-LIST)
+
+Hai API GET giữ nguyên URL và phạm vi truy cập. Public ép isActive=true; Manager mặc định lấy tất cả trạng thái và yêu cầu PROCEDURE_MANAGER hoặc IT_ADMIN.
+
+- Query chuẩn: keyword?, categoryId?, levelOfImplementation?, pageNumber=1, pageSize=10 (1..100), sortBy=Title, isAscending=true. Manager thêm isActive?.
+- Keyword tìm chứa theo mã/tên, không dấu và không phân biệt hoa/thường bằng PostgreSQL unaccent + ILIKE, không phải tìm kiếm ngữ nghĩa. %, _ và backslash là ký tự thường. LevelOfImplementation so khớp toàn bộ chuỗi sau bỏ dấu/không phân biệt hoa thường (ví dụ cap xa).
+- sortBy cho phép Title, ProcedureCode, UpdatedAt, CreatedAt, LevelOfImplementation. Id làm khóa phụ để ổn định phân trang. Khi sort theo Title và không lọc cấp, ưu tiên Cấp Xã/Cấp Phường trước các cấp khác; không loại bỏ cấp khác.
+- Alias cũ: search được dùng khi không có keyword; page ghi đè pageNumber nếu cả hai cùng được truyền. FE nên chuyển sang tên chuẩn.
+- Response đổi thành PagedResult<ProcedureSummaryDto>: items, currentPage, totalPages, totalCount, pageSize, hasPrevious, hasNext. Không còn trường page. Item chỉ có id, procedureCode, title, categoryName, levelOfImplementation, feeSummary, processingTimeSummary, isActive, updatedAt.
+- Migration ProcedureUnaccentSearch cài extension unaccent. Tài khoản chạy migration phải có quyền cài extension; môi trường managed PostgreSQL cần cho phép extension trước. Không thay dữ liệu IAM.
+- 400 validation.failed cho tham số sai; trang không có dữ liệu trả 200 items rỗng. Metadata count/items vẫn là hai query riêng.
+
+Tham khảo: https://www.postgresql.org/docs/16/unaccent.html
+
+**TASK-09 điều chỉnh:** Hợp đồng chính thức hiện tại nằm tại [Tìm kiếm & xuất bản bản nháp đã đối soát](procedure-reviewed-publishing.md). Query Public/Manager đã tách riêng; public pageSize tối đa 50 và không trả isActive, manager tối đa 100 và có versionCount/createdAt. Hai DTO có originalPdfUrl. Thay phần import CSV bằng POST publish nhận JSON đã duyệt. API chi tiết/lịch sử bổ sung originalPdfUrl/pdfFileName. Các mô tả TASK-09 trước phần này là lịch sử và được thay thế theo tài liệu mới.

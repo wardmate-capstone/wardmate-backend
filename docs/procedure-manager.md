@@ -76,3 +76,7 @@ Query: page=1, pageSize=20 (tối đa 100), search (tìm mã/tên, không phân 
 Ví dụ: `/api/v1/procedure-manager/procedures?page=1&pageSize=20&categoryId=1&isActive=false`.
 
 200 trả ProcedureListDto `{items,page,pageSize,totalCount,totalPages}` giống API công khai (xem procedure-catalog.md). Item chỉ chứa thông tin tóm tắt, không có các khối JSONB. 400 nếu query sai; 401 token không hợp lệ; 403 thiếu quyền. Trang vượt giới hạn dữ liệu trả items rỗng. Route Gateway hiện có hỗ trợ cả hai API danh sách, không cần thay cấu hình.
+
+TASK-09 nâng cấp hợp đồng hai GET danh sách: dùng keyword, pageNumber (mặc định 1), pageSize (mặc định 10), levelOfImplementation, sortBy, isAscending; manager vẫn hỗ trợ isActive nullable. Response metadata dùng currentPage/hasPrevious/hasNext, DTO tóm tắt mới. Chi tiết và migration unaccent xem mục TASK-09 trong procedure-catalog.md.
+
+**TASK-09 điều chỉnh:** Xem [hợp đồng xuất bản đã đối soát](procedure-reviewed-publishing.md). POST /api/v1/procedure-manager/procedures/publish nhận JSON đã duyệt, upsert theo mã trong transaction và giữ snapshot/PDF gốc. GET quản lý trả ProcedureManagerSummaryDto có versionCount, isActive, createdAt/updatedAt. Không còn endpoint/importer CSV. CRUD cũ cũng hỗ trợ originalPdfUrl/pdfFileName; PUT phải gửi lại hai trường này để giữ liên kết PDF.
