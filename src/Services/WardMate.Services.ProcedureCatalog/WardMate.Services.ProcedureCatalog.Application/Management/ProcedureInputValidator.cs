@@ -7,6 +7,10 @@ public sealed class ProcedureInputValidator : AbstractValidator<ProcedureInput>
 {
     public ProcedureInputValidator()
     {
+        RuleFor(x => x.OriginalPdfUrl).MaximumLength(500).WithMessage("URL PDF không được vượt quá 500 ký tự.")
+            .Must(x => x is null || (Uri.TryCreate(x, UriKind.Absolute, out var uri) && uri.Scheme == "https" && string.IsNullOrEmpty(uri.UserInfo)))
+            .WithMessage("URL PDF phải là đường dẫn HTTPS tuyệt đối hoặc null.");
+        RuleFor(x => x.PdfFileName).MaximumLength(255).WithMessage("Tên file PDF không được vượt quá 255 ký tự.");
         RuleFor(x => x.CategoryId).GreaterThan(0).WithMessage("Danh mục phải là số nguyên lớn hơn 0.");
         RuleFor(x => x.ProcedureCode).NotEmpty().WithMessage("Mã thủ tục không được để trống.")
             .MaximumLength(50).WithMessage("Mã thủ tục không được vượt quá 50 ký tự.");

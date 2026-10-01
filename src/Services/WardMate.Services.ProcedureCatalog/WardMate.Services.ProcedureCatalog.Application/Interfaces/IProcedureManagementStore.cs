@@ -8,6 +8,7 @@ public interface IProcedureManagementStore
     Task<ProcedureCategory?> FindCategory(int id, CancellationToken ct);
     Task<bool> CodeExists(string code, Guid? excludingId, CancellationToken ct);
     Task<Procedure?> LockProcedure(Guid id, CancellationToken ct);
+    Task<Procedure?> LockProcedureByCode(string code, CancellationToken ct);
     Task<int> NextVersion(Guid id, CancellationToken ct);
     void Add(Procedure procedure);
     void AddVersion(ProcedureVersion version);
