@@ -1,8 +1,42 @@
 # WardMate — Nhật ký phát triển
 
+**Trạng thái Fix AddVersion Concurrency: HOÀN THÀNH** — đã fix `DbUpdateConcurrencyException` trên endpoint `POST /api/v1/form-templates/{id}/versions`. Xác minh ngày 01/10/2026 lúc 11:30 (Asia/Saigon).
 **Trạng thái Document & Form Service (TASK-10, TASK-11, TASK-12): HOÀN THÀNH** — đã triển khai thực thể Document, E-Forms dynamic schema engine, OpenXML DOCX placeholder extraction, Azure Blob upload, FormTemplates API và 22 unit tests. Xác minh ngày 29/09/2026 lúc 11:15 (Asia/Saigon).
 **Trạng thái Core IAM: HOÀN THÀNH** — đã bàn giao lịch sử commit tách theo file lên `kha` và `deploy`; PostgreSQL Local Dev đã migrate và Swagger IAM đang chạy. Xác minh ngày 25/09/2026 lúc 10:13 (Asia/Saigon).
 **Trạng thái Shared Kernel & Central Logging (TASK-05, TASK-06): HOÀN THÀNH** — đã triển khai đầy đủ Domain primitives, CQRS MediatR abstractions, Azure Blob Storage client wrapper, Serilog tập trung, RequestLoggingMiddleware và 39 unit tests cho SharedKernel. Xác minh ngày 26/09/2026 lúc 18:10 (Asia/Saigon).
+
+---
+
+## FIX-001 — Fix DbUpdateConcurrencyException trên AddVersion endpoint
+
+- Hoàn thành: **01/10/2026, 11:30 (Asia/Saigon, UTC+07:00)**
+- Nhánh: `kha-feat-fix-addversion-concurrency` → merge vào `kha` → `main` → `deploy`
+
+### Endpoint bị ảnh hưởng
+- `POST /api/v1/form-templates/{templateId}/versions` → `201 Created`
+- Request body: `{ "schemaDefinition": "<JSON string>" }`
+- Response: `FormTemplateVersionDto` (id, templateId, versionNumber, schemaDefinition, createdAtUtc, updatedAtUtc)
+
+### Root cause
+EF Core với `.HasDefaultValue(true/false)` tự động đặt các property boolean (`IsActive`, `IsDeleted`) là `ValueGeneratedOnAdd`. Khi EF Core thực thi batch gồm UPDATE trên `FormTemplate` và INSERT trên `FormTemplateVersion`, nó chờ đọc lại giá trị từ database nhưng nhận 0 rows affected → `DbUpdateConcurrencyException`.
+
+### Các thay đổi
+| File | Thay đổi |
+|------|---------|
+| [`CreateFormTemplateVersionCommand.cs`](src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/CreateFormTemplateVersionCommand.cs) | Thay `template.AddVersion()` bằng 2 bước Save riêng: update FormTemplate → insert FormTemplateVersion qua DbSet trực tiếp |
+| `FormTemplateConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsActive` và `IsDeleted` |
+| `FormTemplateVersionConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsDeleted` |
+| `SupportingDocumentConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsDeleted` |
+| `ApplicationFormConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsDeleted` |
+| `GeneratedDocumentConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsDeleted` |
+| Migrations/ | Thêm migration `AddSoftDeleteToDocumentForm` |
+
+### Build & Test
+- `dotnet build WardMate.sln -c Release`: **0 errors, 0 warnings**
+- Manual test `POST .../versions` với schemaDefinition hợp lệ: **HTTP 201** ✅
+
+---
+
 
 ## DOC-001 (TASK-10, TASK-11, TASK-12) — Thực thể Document, Engine E-Forms Schema & OpenXML Docx Placeholder
 
