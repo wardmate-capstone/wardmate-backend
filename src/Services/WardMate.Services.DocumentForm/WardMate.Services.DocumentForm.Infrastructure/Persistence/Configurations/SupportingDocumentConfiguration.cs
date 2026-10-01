@@ -12,8 +12,7 @@ public sealed class SupportingDocumentConfiguration : IEntityTypeConfiguration<S
         builder.HasKey(d => d.Id);
 
         builder.Property(d => d.Id)
-            .HasColumnName("id")
-            .HasDefaultValueSql("uuid_generate_v4()");
+            .HasColumnName("id");
 
         builder.Property(d => d.ApplicationId)
             .HasColumnName("application_id")
@@ -48,7 +47,8 @@ public sealed class SupportingDocumentConfiguration : IEntityTypeConfiguration<S
 
         builder.Property(d => d.IsDeleted)
             .HasColumnName("is_deleted")
-            .HasDefaultValue(false);
+            .HasDefaultValue(false)
+            .ValueGeneratedNever();
 
         builder.Property(d => d.DeletedAtUtc)
             .HasColumnName("deleted_at")
