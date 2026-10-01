@@ -21,6 +21,7 @@ public sealed class ProcedureConfiguration : IEntityTypeConfiguration<Procedure>
         builder.Property(x => x.FeeSummary).HasMaxLength(255).HasDefaultValue("Miễn phí").IsRequired();
         builder.Property(x => x.ProcessingTimeSummary).HasMaxLength(255).HasDefaultValue("1 ngày").IsRequired();
         builder.Property(x => x.IsActive).HasDefaultValue(true);
+        builder.Property(x => x.StatusChangeReason).HasColumnType("text");
         builder.Property(x => x.ContentPayload).AsJsonb().IsRequired();
         builder.Property(x => x.ChecklistSchema).AsJsonb().IsRequired(false);
         builder.Property(x => x.FormDefinitions).AsJsonb().IsRequired(false);

@@ -12,8 +12,7 @@ public sealed class FormTemplateConfiguration : IEntityTypeConfiguration<FormTem
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.Id)
-            .HasColumnName("id")
-            .HasDefaultValueSql("uuid_generate_v4()");
+            .HasColumnName("id");
 
         builder.Property(t => t.Code)
             .HasColumnName("code")
@@ -32,7 +31,8 @@ public sealed class FormTemplateConfiguration : IEntityTypeConfiguration<FormTem
 
         builder.Property(t => t.IsActive)
             .HasColumnName("is_active")
-            .HasDefaultValue(true);
+            .HasDefaultValue(true)
+            .ValueGeneratedNever();
 
         builder.Property(t => t.CreatedAtUtc)
             .HasColumnName("created_at")
@@ -44,7 +44,8 @@ public sealed class FormTemplateConfiguration : IEntityTypeConfiguration<FormTem
 
         builder.Property(t => t.IsDeleted)
             .HasColumnName("is_deleted")
-            .HasDefaultValue(false);
+            .HasDefaultValue(false)
+            .ValueGeneratedNever();
 
         builder.Property(t => t.DeletedAtUtc)
             .HasColumnName("deleted_at")

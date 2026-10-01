@@ -12,8 +12,7 @@ public sealed class FormTemplateVersionConfiguration : IEntityTypeConfiguration<
         builder.HasKey(v => v.Id);
 
         builder.Property(v => v.Id)
-            .HasColumnName("id")
-            .HasDefaultValueSql("uuid_generate_v4()");
+            .HasColumnName("id");
 
         builder.Property(v => v.TemplateId)
             .HasColumnName("template_id")
@@ -40,7 +39,8 @@ public sealed class FormTemplateVersionConfiguration : IEntityTypeConfiguration<
 
         builder.Property(v => v.IsDeleted)
             .HasColumnName("is_deleted")
-            .HasDefaultValue(false);
+            .HasDefaultValue(false)
+            .ValueGeneratedNever();
 
         builder.Property(v => v.DeletedAtUtc)
             .HasColumnName("deleted_at")

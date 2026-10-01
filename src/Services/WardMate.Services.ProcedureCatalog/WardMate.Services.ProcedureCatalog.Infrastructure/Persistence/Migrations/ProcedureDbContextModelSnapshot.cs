@@ -98,6 +98,10 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasDefaultValue("1 ngày")
                         .HasColumnName("processing_time_summary");
 
+                    b.Property<string>("StatusChangeReason")
+                        .HasColumnType("text")
+                        .HasColumnName("status_change_reason");
+
                     b.Property<string>("TargetAudience")
                         .IsRequired()
                         .ValueGeneratedOnAdd()

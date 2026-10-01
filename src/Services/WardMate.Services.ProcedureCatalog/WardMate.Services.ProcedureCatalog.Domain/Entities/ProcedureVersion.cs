@@ -29,7 +29,7 @@ public sealed class ProcedureVersion
                 procedure.Id, procedure.CategoryId, procedure.ProcedureCode, procedure.Title,
                 procedure.IssuingAuthority, procedure.ExecutingAgency, procedure.LevelOfImplementation,
                 procedure.TargetAudience, procedure.FeeSummary, procedure.ProcessingTimeSummary,
-                procedure.IsActive, procedure.ContentPayload, procedure.ChecklistSchema, procedure.FormDefinitions,
+                procedure.IsActive, procedure.StatusChangeReason, procedure.ContentPayload, procedure.ChecklistSchema, procedure.FormDefinitions,
                 procedure.CreatedAt, procedure.UpdatedAt
             }, new JsonSerializerOptions(JsonSerializerDefaults.Web))
         };

@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using WardMate.Services.ProcedureCatalog.Application;
 using WardMate.Services.ProcedureCatalog.Infrastructure;
 using WardMate.Services.ProcedureCatalog.Infrastructure.Persistence;
+using WardMate.Services.ProcedureCatalog.API.Security;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +12,20 @@ builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializ
     System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull);
 builder.Services.AddProcedureApplication();
 builder.Services.AddProcedureInfrastructure(builder.Configuration);
+builder.Services.AddProcedureAuthentication(builder.Configuration);
+builder.Services.Configure<ApiBehaviorOptions>(options => options.InvalidModelStateResponseFactory = context =>
+{
+    var errors = context.ModelState.Where(x => x.Value?.Errors.Count > 0).ToDictionary(x => x.Key,
+        x => new[] { "Giá trị không hợp lệ, thiếu trường bắt buộc hoặc không đúng định dạng JSON." });
+    var problem = new ValidationProblemDetails(errors)
+    {
+        Status = 400, Title = "Dữ liệu không hợp lệ.", Instance = context.HttpContext.Request.Path,
+        Extensions = { ["code"] = "validation.failed", ["traceId"] = context.HttpContext.TraceIdentifier }
+    };
+    var response = new BadRequestObjectResult(problem);
+    response.ContentTypes.Add("application/problem+json");
+    return response;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
@@ -25,6 +41,8 @@ if (builder.Configuration.GetValue("Database:AutoMigrate", false))
 
 app.UseGlobalExceptionHandling();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Ok(new { service = "WardMate.Services.ProcedureCatalog" }));

@@ -34,7 +34,8 @@ public sealed class ApplicationFormConfiguration : IEntityTypeConfiguration<Appl
 
         builder.Property(f => f.IsDeleted)
             .HasColumnName("is_deleted")
-            .HasDefaultValue(false);
+            .HasDefaultValue(false)
+            .ValueGeneratedNever();
 
         builder.Property(f => f.DeletedAtUtc)
             .HasColumnName("deleted_at")
