@@ -38,7 +38,8 @@ public sealed class GeneratedDocumentConfiguration : IEntityTypeConfiguration<Ge
 
         builder.Property(d => d.IsDeleted)
             .HasColumnName("is_deleted")
-            .HasDefaultValue(false);
+            .HasDefaultValue(false)
+            .ValueGeneratedNever();
 
         builder.Property(d => d.DeletedAtUtc)
             .HasColumnName("deleted_at")
