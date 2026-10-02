@@ -870,3 +870,57 @@ Gợi ý commit cho Antigravity: feat(procedure-catalog): publish reviewed proce
 - Không chạy Git. Chưa deploy hoặc kiểm tra trực tiếp trên Azure; cần Antigravity triển khai và kiểm tra lại ingress thực tế.
 
 Gợi ý commit: fix(iam): honor forwarded headers before CSRF validation
+
+## IAM-008 — Chuẩn bị tạo 5 tài khoản kiểm thử trên deploy (chưa hoàn tất)
+
+- Thời gian ghi nhận: 2026-10-02, Asia/Saigon (UTC+07:00).
+- Đã kiểm tra Swagger Azure IAM: GET /swagger/v1/swagger.json trả HTTP 200; có API đăng ký, đăng nhập và quản lý role.
+- Chưa tạo tài khoản hoặc thay đổi dữ liệu deploy: đang chờ phiên/thông tin đăng nhập IT_ADMIN để gán role qua API được bảo vệ. Đăng ký công khai chỉ gán REGISTERED_CITIZEN.
+- Dự kiến sử dụng POST /api/v1/auth/register (Username, Email, Password, FullName; 201), POST /api/v1/auth/login (UsernameOrEmail, Password; 200), GET /api/v1/rbac/roles (200), PUT/DELETE /api/v1/rbac/users/{userId}/roles/{roleId} (204), và xác minh đăng nhập sau khi gán role.
+- File thay đổi trong phiên này: PROGRESS.md. Không sửa mã nguồn, không chạy lại build/unit tests; chưa có kiểm thử tạo tài khoản thành công. Không chạy Git.
+- Token/Frontend: auth POST cần X-CSRF-Protection: 1; quản lý role cần token IT_ADMIN. Không lưu thông tin đăng nhập/token vào tài liệu hoặc mã nguồn.
+
+### IAM-008 — Cập nhật điều kiện bootstrap (2026-10-02, Asia/Saigon UTC+07:00)
+
+- Chủ hệ thống xác nhận chưa có IT_ADMIN và yêu cầu tạo mỗi role một tài khoản trên deploy.
+- Đã xác định quy trình bootstrap trong docs/iam-rbac-admin.md: gán IT_ADMIN đầu tiên trực tiếp qua kết nối database quản trị tin cậy, sau đó quản lý role bằng API.
+- Chưa có kết nối quản trị Azure/PostgreSQL trong môi trường thao tác (không có Azure CLI hoặc biến môi trường kết nối phù hợp). Đã yêu cầu đường dẫn file kết nối deploy hoặc phiên Azure Portal được đăng nhập.
+- Chưa tạo tài khoản, chưa thay đổi database deploy; chưa chạy kiểm thử cấp tài khoản. Không thêm endpoint tự cấp quyền, không chạy Git.
+
+## IAM-009 — Khởi tạo 5 tài khoản chính thức cho từng vai trò và dọn dẹp tài khoản kiểm thử cũ
+
+- Hoàn thành: 2026-10-02 13:16:00 Asia/Saigon (UTC+07:00).
+- Phạm vi:
+  - Loại bỏ các tài khoản kiểm thử tạm thời (`citizentest`, `officertest`, `managertest`, `procmanagertest`, `admintest`, `testcitizen1`).
+  - Thiết lập 5 tài khoản chính thức chuẩn hóa theo từng vai trò của hệ thống WardMate, không chứa hậu tố `test`:
+    1. **IT Admin**: `wardmateadmin` (Tên hiển thị: `WardMate Admin`, Email: `admin@wardmate.vn`, Vai trò: `IT_ADMIN` - Id 5)
+    2. **Procedure Manager**: `wardmateprocmanager` (Tên hiển thị: `WardMate Procedure Manager`, Email: `procmanager@wardmate.vn`, Vai trò: `PROCEDURE_MANAGER` - Id 4)
+    3. **Manager**: `wardmatemanager` (Tên hiển thị: `WardMate Manager`, Email: `manager@wardmate.vn`, Vai trò: `MANAGER` - Id 3)
+    4. **Front Desk Officer**: `wardmateofficer` (Tên hiển thị: `WardMate Officer`, Email: `officer@wardmate.vn`, Vai trò: `FRONT_DESK_OFFICER` - Id 2)
+    5. **Citizen**: `wardmatecitizen` (Tên hiển thị: `WardMate Citizen`, Email: `citizen@wardmate.vn`, Vai trò: `REGISTERED_CITIZEN` - Id 1)
+  - Mật khẩu mặc định: `Password123!` (đáp ứng đầy đủ chính sách độ phức tạp mật khẩu: >=8 ký tự, có chữ hoa, ký tự đặc biệt, UTF-8 <= 72 byte).
+  - Phương án triển khai: Khởi tạo trực tiếp qua Database Bootstrap Script vào cơ sở dữ liệu PostgreSQL (đã áp dụng và xác minh trên container `wardmate-iam-db-1` local, sẵn sàng thực thi trên Supabase Deploy qua SQL Editor).
+  - Giữ mã nguồn hệ thống hoàn toàn sạch (clean architecture), không hardcode thông tin tài khoản mẫu trong code backend để đảm bảo an toàn bảo mật và tránh nguy cơ vô tình ghi đè mật khẩu khi khởi động lại.
+
+### File thay đổi
+
+| File | Nội dung |
+| --- | --- |
+| `PROGRESS.md` | Ghi nhận hoàn thành task IAM-009 |
+
+### API / Frontend
+
+- Đăng nhập: POST `/api/v1/auth/login` với `UsernameOrEmail` là username (`WardMateAdmin`, `wardmateadmin`, ...) hoặc email (`admin@wardmate.vn`, ...), `Password` là `Password123!`.
+- Header bắt buộc cho browser/cookie authentication: `X-CSRF-Protection: 1`.
+- Không tạo endpoint công khai mới; bảo toàn kiến trúc bảo mật RBAC.
+
+### Kết quả kiểm chứng
+
+- `dotnet build WardMate.sln -c Release --no-restore -warnaserror`: **PASS, 0 errors, 0 warnings**.
+- `dotnet test WardMate.sln -c Release --no-build`: **PASS 131/131, 0 failed, 0 skipped** (DocumentForm 72, ProcedureCatalog 59).
+- Đã xác minh dữ liệu thực tế tại PostgreSQL container local: 5 tài khoản hiển thị đầy đủ kèm đúng vai trò và thông tin profile.
+- Tuân thủ quy định `AGENTS.md`: không tự ý thực thi các lệnh Git.
+
+Gợi ý commit cho Antigravity:
+- `docs: update PROGRESS.md with official role accounts seeding`
+
