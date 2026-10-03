@@ -1009,3 +1009,51 @@ Manager endpoints yêu cầu Bearer role PROCEDURE_MANAGER hoặc IT_ADMIN (401/
 - PROGRESS.md
 
 Gợi ý Conventional Commit theo chức năng để Antigravity tách từng file theo quy định: feat(procedure-catalog): add PDF drafts and reviewed publication; feat(aiocr): add configurable Azure procedure extraction; test(procedure-catalog): verify PDF draft lifecycle and extraction; docs: document PDF review workflow and configuration.
+
+## PDF-002 — Ưu tiên đọc văn bản PDF trực tiếp và API đọc thử
+
+- Hoàn thành: 2026-10-03 08:43:28 Asia/Saigon (UTC+07:00).
+- Thực hiện theo yêu cầu đọc PDF có lớp văn bản, không bắt buộc OCR. Giữ nguyên dữ liệu và các thay đổi khác trong workspace; không chạy Git.
+
+### Chức năng / API / hướng dẫn FE
+
+- AIOCR dùng PdfPig 0.1.16 + ContentOrderTextExtractor để đọc từng trang, chuẩn hóa Unicode NFC; giữ dấu phân trang trong extractedText. Không cần OCR hoặc AI credentials để lấy chữ.
+- Hai cờ riêng: Extraction:UseAI=false và Extraction:OcrFallbackEnabled=false mặc định. Khi bật UseAI và có AzureOpenAI config, văn bản đi trực tiếp sang bước map JSON; không gọi Document Intelligence cho PDF đủ chữ theo kiểm tra sơ bộ.
+- Trang ít chữ, có ký tự hỏng/control được cảnh báo; không gọi AI trên văn bản thiếu trang khi OCR fallback tắt. Trang có ảnh luôn được cảnh báo vì reader không đọc chữ trong ảnh. Đây là heuristic, không đảm bảo chính xác/đầy đủ tuyệt đối; cán bộ vẫn đối soát.
+- Khi AI tắt/lỗi: giữ extractedText, trả khung payload chưa điền và warnings để nhập tay; không giả lập dữ liệu thủ tục. OCR chỉ gọi khi bật fallback riêng. PDF quá 20 MiB/100 trang/100.000 ký tự bị từ chối thay vì âm thầm cắt; file hỏng/khóa có lỗi có kiểm soát.
+- API mới: POST /api/v1/procedure-manager/drafts/extract-preview, multipart/form-data trường file; 200 {payload,extractedText,warnings}, Cache-Control no-store. Manager/IT_ADMIN Bearer bắt buộc (401/403). Không lưu Blob hoặc tạo bản nháp/ghi DB. Lỗi: 400 file sai; 503 thiếu config AIOCR; 502 service/PDF lỗi; 504 timeout; request quá lớn có thể 413 từ server/ingress.
+- Không đổi endpoint AIOCR nội bộ, DTO lưu nháp hoặc token IAM; không thêm migration. Luồng lưu bản nháp vẫn cần Blob và ProcedureDrafts:ExtractionEnabled=true để worker gọi AIOCR. Preview gọi trực tiếp extractor, không phụ thuộc cờ hàng đợi này.
+- Script scripts/verify-pdf-text.ps1 nhận PdfPath và ExpectedText tùy chọn; chạy AIOCR tạm trên loopback bằng khóa ngẫu nhiên, ép AI/OCR tắt, kiểm tra HTTP rồi dừng process. Không gọi cloud/Blob/DB.
+- Hướng dẫn test Swagger, script, cấu hình service key và các giới hạn: docs/procedure-pdf-text.md. Chưa triển khai FE Split-view hoặc deploy Azure; không tự build Docker.
+
+### Kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: PASS, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: PASS 152/152 (DocumentForm72 + ProcedureCatalog/AIOCR80), 0 failed, 0 skipped.
+- Thêm 8 test cases trong project có sẵn: 7 test reader/adapter (PDF thật tạo trong bộ nhớ, không cần OCR/AI credentials/network, trang thiếu chữ, AI-only mapping, AI failure fallback, file hỏng, giới hạn trang); 1 test HTTP preview phân quyền và không cần Blob. Điều chỉnh test Azure cũ để bật UseAI rõ ràng. Không tạo test project mới.
+- Smoke test bằng PDF mẫu Đăng ký tạm trú người dùng đã cung cấp: 13 trang, PdfPig qua HTTP đọc 21.367 ký tự, kiểm tra tiêu đề có dấu Đăng ký tạm trú thành công; đoạn đầu có mã 1.116789. AI/OCR đều tắt, không truyền tài liệu ra cloud. Đối chiếu độc lập pypdf (13 trang, 20.917 ký tự) và ảnh render trang đầu bằng pypdfium2; khác số ký tự do cách xuống dòng/phân trang. Không khẳng định toàn bộ layout được giữ nguyên.
+- docker compose -f docker/docker-compose.yml --profile ai config --quiet: PASS; chỉ validate, không build/start.
+- PDF gốc không sao chép vào source; ảnh kiểm tra nằm trong TestResults đã được ignore. Chưa kiểm chứng mapping AI thật do chưa có nhà cung cấp/key.
+
+### File tạo mới
+
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/TextFirstProcedureExtractor.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/TextPdfExtractionTests.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/PdfPreviewTests.cs
+- scripts/verify-pdf-text.ps1
+- docs/procedure-pdf-text.md
+
+### File chỉnh sửa
+
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/WardMate.Services.AIOCR.Infrastructure.csproj
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/AzureProcedureDocumentExtractor.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/Program.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/appsettings.json
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureDraftsController.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/AzureExtractionAdapterTests.cs
+- docker/docker-compose.yml
+- docker/.env.example
+- docs/procedure-pdf-drafts.md
+- PROGRESS.md
+
+Gợi ý commit cho Antigravity (tách file theo quy định): feat(aiocr): extract PDF text before optional OCR and AI; feat(procedure-catalog): add PDF extraction preview; test(aiocr): cover native PDF extraction and preview authorization; docs: explain OCR-free PDF testing.
