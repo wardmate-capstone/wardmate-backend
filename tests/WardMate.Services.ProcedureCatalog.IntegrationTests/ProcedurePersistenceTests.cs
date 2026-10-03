@@ -26,21 +26,21 @@ public sealed class ProcedurePersistenceTests(ProcedureFixture fixture) : IClass
     }
 
     [Fact]
-    public async Task MigrationCreatesThreeTablesJsonbColumnsIndexesAndRepeatableSeed()
+    public async Task MigrationCreatesProcedureAndDraftTablesJsonbColumnsIndexesAndRepeatableSeed()
     {
         using var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ProcedureDbContext>();
         var tables = await db.Database.SqlQueryRaw<string>("SELECT table_name AS \"Value\" FROM information_schema.tables WHERE table_schema = 'public' AND table_name <> '__EFMigrationsHistory'").ToArrayAsync();
-        Assert.Equal(new[] { "procedure_categories", "procedure_versions", "procedures" }, tables.Order().ToArray());
+        Assert.Equal(new[] { "procedure_categories", "procedure_drafts", "procedure_versions", "procedures" }, tables.Order().ToArray());
         var columns = await db.Database.SqlQueryRaw<string>("SELECT table_name || '.' || column_name || ':' || is_nullable AS \"Value\" FROM information_schema.columns WHERE table_schema = 'public' AND udt_name = 'jsonb'").ToArrayAsync();
-        Assert.Equal(new[] { "procedure_versions.snapshot_data:NO", "procedures.checklist_schema:YES", "procedures.content_payload:NO", "procedures.form_definitions:YES" }, columns.Order().ToArray());
+        Assert.Equal(new[] { "procedure_drafts.payload_json:NO", "procedure_drafts.warnings_json:NO", "procedure_versions.snapshot_data:NO", "procedures.checklist_schema:YES", "procedures.content_payload:NO", "procedures.form_definitions:YES" }, columns.Order().ToArray());
         var indexes = await db.Database.SqlQueryRaw<string>("SELECT indexdef AS \"Value\" FROM pg_indexes WHERE schemaname = 'public'").ToArrayAsync();
         Assert.Contains(indexes, x => x.Contains("USING gin (content_payload)", StringComparison.Ordinal));
         Assert.Contains(indexes, x => x.Contains("USING gin (checklist_schema)", StringComparison.Ordinal));
         Assert.Contains(indexes, x => x.Contains("UNIQUE", StringComparison.Ordinal) && x.Contains("USING btree (procedure_code)", StringComparison.Ordinal));
         Assert.Contains(indexes, x => x.Contains("UNIQUE", StringComparison.Ordinal) && x.Contains("(procedure_id, version_number)", StringComparison.Ordinal));
         await db.Database.MigrateAsync();
-        Assert.Equal(4, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(5, (await db.Database.GetAppliedMigrationsAsync()).Count());
         var categories = await db.ProcedureCategories.Where(x => x.Id <= 3).OrderBy(x => x.Id).Select(x => x.CategoryName).ToArrayAsync();
         Assert.Equal(new[] { "Hộ tịch", "Đất đai", "Quản lý công sản" }, categories);
         var seed = await db.Procedures.SingleAsync(x => x.Id == ProcedureSeed.SampleProcedureId);
