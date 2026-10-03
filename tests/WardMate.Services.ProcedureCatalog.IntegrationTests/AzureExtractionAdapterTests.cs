@@ -10,6 +10,7 @@ public sealed class AzureExtractionAdapterTests
 {
     private static IConfiguration Config() => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
     {
+        ["Extraction:UseAI"] = "true",
         ["DocumentIntelligence:Endpoint"] = "https://ocr.example.test", ["DocumentIntelligence:Key"] = "test-ocr",
         ["AzureOpenAI:Endpoint"] = "https://ai.example.test", ["AzureOpenAI:Key"] = "test-ai", ["AzureOpenAI:Deployment"] = "test-model"
     }).Build();
