@@ -38,6 +38,8 @@ public sealed class ProcedureManagementStore(ProcedureDbContext db) : IProcedure
 
     public async Task<ProcedureResult<T>> Transaction<T>(Func<Task<ProcedureResult<T>>> action, CancellationToken ct)
     {
+        // Draft publication owns the outer transaction: publish and draft completion must commit together.
+        if (db.Database.CurrentTransaction is not null) return await action();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         try
         {
