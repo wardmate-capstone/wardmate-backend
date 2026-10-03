@@ -16,6 +16,19 @@ public static class DependencyInjection
             .UseSnakeCaseNamingConvention());
         services.AddScoped<IProcedureRepository, ProcedureRepository>();
         services.AddScoped<IProcedureManagementStore, ProcedureManagementStore>();
+        WardMate.SharedKernel.Blob.BlobServiceExtensions.AddAzureBlobStorage(services, configuration);
+        services.AddScoped(provider => new Lazy<WardMate.SharedKernel.Blob.IBlobStorageClient>(
+            provider.GetRequiredService<WardMate.SharedKernel.Blob.IBlobStorageClient>));
+        services.AddSingleton(new WardMate.Services.ProcedureCatalog.Application.Drafts.DraftProcessingOptions(configuration.GetValue<bool>("ProcedureDrafts:ExtractionEnabled")));
+        services.AddScoped<WardMate.Services.ProcedureCatalog.Application.Drafts.IDraftPersistence, Drafts.DraftPersistence>();
+        services.AddScoped<WardMate.Services.ProcedureCatalog.Application.Drafts.IDraftFileStorage, Drafts.DraftFileStorage>();
+        services.AddScoped<WardMate.Services.ProcedureCatalog.Application.Drafts.IProcedureDraftService, WardMate.Services.ProcedureCatalog.Application.Drafts.ProcedureDraftService>();
+        services.AddHttpClient<WardMate.Services.ProcedureCatalog.Application.Drafts.IProcedureExtractor, Drafts.AiOcrClient>(http =>
+        {
+            http.Timeout = TimeSpan.FromMinutes(10);
+            http.MaxResponseContentBufferSize = 4 * 1024 * 1024;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHostedService<Drafts.DraftExtractionWorker>();
         return services;
     }
 }
