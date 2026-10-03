@@ -8,6 +8,7 @@ public sealed class ProcedureDbContext(DbContextOptions<ProcedureDbContext> opti
     public DbSet<ProcedureCategory> ProcedureCategories => Set<ProcedureCategory>();
     public DbSet<Procedure> Procedures => Set<Procedure>();
     public DbSet<ProcedureVersion> ProcedureVersions => Set<ProcedureVersion>();
+    public DbSet<ProcedureDraft> ProcedureDrafts => Set<ProcedureDraft>();
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.HasPostgresExtension("unaccent");
