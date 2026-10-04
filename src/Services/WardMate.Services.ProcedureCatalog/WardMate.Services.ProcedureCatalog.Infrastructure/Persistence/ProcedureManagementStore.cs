@@ -20,6 +20,14 @@ public sealed class ProcedureManagementStore(ProcedureDbContext db) : IProcedure
         return rows.SingleOrDefault();
     }
 
+    public async Task<Procedure?> LockProcedureByCode(string code, CancellationToken ct)
+    {
+        // Serialize concurrent publish requests even when the code has no row to lock yet.
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({code}, 9009))", ct);
+        var rows = await db.Procedures.FromSqlInterpolated($"SELECT * FROM procedures WHERE procedure_code = {code} FOR UPDATE").ToListAsync(ct);
+        return rows.SingleOrDefault();
+    }
+
     public async Task<int> NextVersion(Guid id, CancellationToken ct) =>
         (await db.ProcedureVersions.Where(x => x.ProcedureId == id).MaxAsync(x => (int?)x.VersionNumber, ct) ?? 0) + 1;
     public void Add(Procedure procedure) => db.Procedures.Add(procedure);
@@ -30,6 +38,8 @@ public sealed class ProcedureManagementStore(ProcedureDbContext db) : IProcedure
 
     public async Task<ProcedureResult<T>> Transaction<T>(Func<Task<ProcedureResult<T>>> action, CancellationToken ct)
     {
+        // Draft publication owns the outer transaction: publish and draft completion must commit together.
+        if (db.Database.CurrentTransaction is not null) return await action();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         try
         {

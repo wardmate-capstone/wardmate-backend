@@ -18,6 +18,31 @@ services:
       timeout: 3s
       retries: 10
 
+  # Procedure Catalog API Microservice (port 5002)
+  procedure-catalog:
+    build:
+      context: ..
+      dockerfile: src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Dockerfile
+    image: wardmate-procedure-catalog:local
+    container_name: wardmate_procedure_catalog
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__ProcedureDatabase: Host=procedure-db;Port=5432;Database=wardmate_procedure_db;Username=wardmate_procedure;Password=${PROCEDURE_DB_PASSWORD}
+      Database__AutoMigrate: "true"
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: wardmate
+      Jwt__Audience: wardmate-client
+      AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-}
+      ProcedureDrafts__ExtractionEnabled: ${PROCEDURE_EXTRACTION_ENABLED:-false}
+      ProcedureDrafts__AiOcrUrl: http://ai-ocr:8080
+      ProcedureDrafts__ServiceKey: ${AIOCR_SERVICE_KEY:-}
+    ports:
+      - "5002:8080"
+    depends_on:
+      procedure-db:
+        condition: service_healthy
+
   # IAM database (port 5433)
   iam-db:
     image: postgres:16-alpine
@@ -90,6 +115,25 @@ services:
     ports:
       - "5672:5672"   # Cổng kết nối AMQP
       - "15672:15672" # Cổng Dashboard Web (user/pass: wardmate_admin / wardmate_secret)
+
+  ai-ocr:
+    profiles: ["ai"]
+    build:
+      context: ..
+      dockerfile: src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/Dockerfile
+    image: wardmate-aiocr:local
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Extraction__Enabled: ${PROCEDURE_EXTRACTION_ENABLED:-false}
+      ServiceAuthentication__Key: ${AIOCR_SERVICE_KEY:-}
+      DocumentIntelligence__Endpoint: ${DOCUMENT_INTELLIGENCE_ENDPOINT:-}
+      DocumentIntelligence__Key: ${DOCUMENT_INTELLIGENCE_KEY:-}
+      AzureOpenAI__Endpoint: ${AZURE_OPENAI_ENDPOINT:-}
+      AzureOpenAI__Key: ${AZURE_OPENAI_KEY:-}
+      AzureOpenAI__Deployment: ${AZURE_OPENAI_DEPLOYMENT:-}
+    expose:
+      - "8080"
 
 volumes:
   procedure-data:

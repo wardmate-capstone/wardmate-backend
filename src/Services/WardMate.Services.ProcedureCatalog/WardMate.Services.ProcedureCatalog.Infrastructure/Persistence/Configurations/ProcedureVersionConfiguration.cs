@@ -12,6 +12,8 @@ public sealed class ProcedureVersionConfiguration : IEntityTypeConfiguration<Pro
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
         builder.Property(x => x.DecisionNumber).HasMaxLength(100);
+        builder.Property(x => x.OriginalPdfUrl).HasMaxLength(500);
+        builder.Property(x => x.PdfFileName).HasMaxLength(255);
         builder.Property(x => x.EffectiveDate).HasColumnType("date");
         builder.Property(x => x.SnapshotData).HasColumnType("jsonb").IsRequired();
         builder.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");

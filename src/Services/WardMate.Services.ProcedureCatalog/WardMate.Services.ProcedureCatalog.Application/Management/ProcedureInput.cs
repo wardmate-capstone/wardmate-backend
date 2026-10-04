@@ -8,6 +8,8 @@ public class ProcedureInput
     public int CategoryId { get; set; }
     public string ProcedureCode { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
+    public string? OriginalPdfUrl { get; set; }
+    public string? PdfFileName { get; set; }
     public string? IssuingAuthority { get; set; }
     public string? ExecutingAgency { get; set; }
     public string LevelOfImplementation { get; set; } = "Cấp Xã";
@@ -23,6 +25,8 @@ public class ProcedureInput
         procedure.CategoryId = CategoryId;
         procedure.ProcedureCode = ProcedureCode.Trim();
         procedure.Title = Title.Trim();
+        procedure.OriginalPdfUrl = OriginalPdfUrl;
+        procedure.PdfFileName = PdfFileName;
         procedure.IssuingAuthority = IssuingAuthority;
         procedure.ExecutingAgency = ExecutingAgency;
         procedure.LevelOfImplementation = LevelOfImplementation;

@@ -20,6 +20,7 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                 .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "unaccent");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("WardMate.Services.ProcedureCatalog.Domain.Entities.Procedure", b =>
@@ -83,6 +84,16 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("Cấp Xã")
                         .HasColumnName("level_of_implementation");
+
+                    b.Property<string>("OriginalPdfUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("original_pdf_url");
+
+                    b.Property<string>("PdfFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("pdf_file_name");
 
                     b.Property<string>("ProcedureCode")
                         .IsRequired()
@@ -213,6 +224,106 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         });
                 });
 
+            modelBuilder.Entity("WardMate.Services.ProcedureCatalog.Domain.Entities.ProcedureDraft", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<string>("BlobName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("blob_name");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("ExtractedText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("extracted_text");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("failure_code");
+
+                    b.Property<Guid?>("LeaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lease_id");
+
+                    b.Property<DateTime?>("LeaseUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_until");
+
+                    b.Property<string>("OriginalPdfUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("original_pdf_url");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload_json");
+
+                    b.Property<string>("PdfFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("pdf_file_name");
+
+                    b.Property<Guid?>("PublishedProcedureId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("published_procedure_id");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid")
+                        .HasColumnName("revision");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("WarningsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("warnings_json");
+
+                    b.HasKey("Id")
+                        .HasName("pk_procedure_drafts");
+
+                    b.HasIndex("Status", "LeaseUntil")
+                        .HasDatabaseName("ix_procedure_drafts_status_lease_until");
+
+                    b.ToTable("procedure_drafts", (string)null);
+                });
+
             modelBuilder.Entity("WardMate.Services.ProcedureCatalog.Domain.Entities.ProcedureVersion", b =>
                 {
                     b.Property<Guid>("Id")
@@ -235,6 +346,16 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                     b.Property<DateOnly>("EffectiveDate")
                         .HasColumnType("date")
                         .HasColumnName("effective_date");
+
+                    b.Property<string>("OriginalPdfUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("original_pdf_url");
+
+                    b.Property<string>("PdfFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("pdf_file_name");
 
                     b.Property<Guid>("ProcedureId")
                         .HasColumnType("uuid")

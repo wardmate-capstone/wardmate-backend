@@ -8,6 +8,8 @@ public sealed class Procedure
     public int CategoryId { get; set; }
     public string ProcedureCode { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
+    public string? OriginalPdfUrl { get; set; }
+    public string? PdfFileName { get; set; }
     public string? IssuingAuthority { get; set; }
     public string? ExecutingAgency { get; set; }
     public string LevelOfImplementation { get; set; } = "Cấp Xã";
