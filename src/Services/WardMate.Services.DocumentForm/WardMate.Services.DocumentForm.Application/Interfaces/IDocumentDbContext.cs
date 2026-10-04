@@ -9,7 +9,6 @@ namespace WardMate.Services.DocumentForm.Application.Interfaces;
 public interface IDocumentDbContext
 {
     DbSet<FormTemplate> FormTemplates { get; }
-    DbSet<FormTemplateVersion> FormTemplateVersions { get; }
     DbSet<ApplicationForm> ApplicationForms { get; }
     DbSet<SupportingDocument> SupportingDocuments { get; }
     DbSet<GeneratedDocument> GeneratedDocuments { get; }

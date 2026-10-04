@@ -37,7 +37,7 @@ public sealed class FormTemplatesController : ControllerBase
             : BadRequest(new { code = result.Error.Code, message = result.Error.Description });
     }
 
-    /// <summary>Lấy chi tiết biểu mẫu điện tử kèm tất cả phiên bản schema.</summary>
+    /// <summary>Lấy chi tiết biểu mẫu điện tử.</summary>
     [HttpGet("{templateId:guid}")]
     [ProducesResponseType(typeof(FormTemplateDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -57,7 +57,7 @@ public sealed class FormTemplatesController : ControllerBase
         return Ok(result.Value);
     }
 
-    /// <summary>Tạo mới biểu mẫu điện tử (có thể kèm schema phiên bản đầu tiên).</summary>
+    /// <summary>Tạo mới biểu mẫu điện tử (chỉ tạo tên/mã, chưa có file).</summary>
     [HttpPost]
     [ProducesResponseType(typeof(FormTemplateDetailDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -69,7 +69,6 @@ public sealed class FormTemplatesController : ControllerBase
         var command = new CreateFormTemplateCommand(
             request.Code,
             request.Title,
-            request.InitialSchemaDefinition,
             CreatedBy: User.Identity?.Name);
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -87,37 +86,7 @@ public sealed class FormTemplatesController : ControllerBase
             result.Value);
     }
 
-    /// <summary>Thêm phiên bản schema mới cho biểu mẫu.</summary>
-    [HttpPost("{templateId:guid}/versions")]
-    [ProducesResponseType(typeof(FormTemplateVersionDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> AddVersion(
-        Guid templateId,
-        [FromBody] AddSchemaVersionRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var command = new CreateFormTemplateVersionCommand(
-            templateId,
-            request.SchemaDefinition,
-            CreatedBy: User.Identity?.Name);
-
-        var result = await _mediator.Send(command, cancellationToken);
-
-        if (!result.IsSuccess)
-        {
-            return result.Error.Type == ErrorType.NotFound
-                ? NotFound(new { code = result.Error.Code, message = result.Error.Description })
-                : BadRequest(new { code = result.Error.Code, message = result.Error.Description });
-        }
-
-        return CreatedAtAction(
-            nameof(GetById),
-            new { templateId },
-            result.Value);
-    }
-
-    /// <summary>Upload file Word DOCX phôi mẫu và bóc tách danh sách placeholder tự động.</summary>
+    /// <summary>Upload file Word DOCX phôi mẫu gốc của nhà nước (không cần chỉnh sửa).</summary>
     [HttpPost("{templateId:guid}/upload-docx")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(UploadDocxResultDto), StatusCodes.Status200OK)]
@@ -154,26 +123,61 @@ public sealed class FormTemplatesController : ControllerBase
         return Ok(result.Value);
     }
 
-    /// <summary>Bóc tách danh sách placeholder từ file Word DOCX (không lưu).</summary>
-    [HttpPost("extract-placeholders")]
-    [Consumes("multipart/form-data")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> ExtractPlaceholders(
-        IFormFile file,
+    /// <summary>
+    /// Tải file DOCX phôi mẫu về dưới dạng binary (FE dùng để load vào trình editor).
+    /// FE nhận được file .docx thực sự, load vào Syncfusion / OnlyOffice / EditDocx.
+    /// </summary>
+    [HttpGet("{templateId:guid}/download-docx")]
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadDocx(
+        Guid templateId,
         CancellationToken cancellationToken = default)
     {
-        if (file is null || file.Length == 0)
+        var result = await _mediator.Send(
+            new DownloadFormTemplateDocxQuery(templateId), cancellationToken);
+
+        if (!result.IsSuccess)
         {
-            return BadRequest(new { code = "document.empty_file", message = "No file was uploaded." });
+            return result.Error.Type == ErrorType.NotFound
+                ? NotFound(new { code = result.Error.Code, message = result.Error.Description })
+                : BadRequest(new { code = result.Error.Code, message = result.Error.Description });
         }
 
-        using var stream = file.OpenReadStream();
-        var result = await _mediator.Send(new ExtractDocxPlaceholdersQuery(stream, file.FileName), cancellationToken);
+        return File(
+            result.Value.FileStream,
+            result.Value.ContentType,
+            result.Value.FileName);
+    }
 
-        return result.IsSuccess
-            ? Ok(new { fileName = file.FileName, placeholders = result.Value })
-            : BadRequest(new { code = result.Error.Code, message = result.Error.Description });
+    /// <summary>
+    /// Lấy URL tạm thời (SAS URL) để FE nhúng trực tiếp vào trình soạn thảo Word Online.
+    /// URL hết hạn sau validForMinutes phút (mặc định 60 phút).
+    /// </summary>
+    [HttpGet("{templateId:guid}/docx-url")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetDocxUrl(
+        Guid templateId,
+        [FromQuery] int validForMinutes = 60,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(
+            new GetFormTemplateDocxSasUrlQuery(templateId, validForMinutes), cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            return result.Error.Type == ErrorType.NotFound
+                ? NotFound(new { code = result.Error.Code, message = result.Error.Description })
+                : BadRequest(new { code = result.Error.Code, message = result.Error.Description });
+        }
+
+        return Ok(new
+        {
+            templateId,
+            docxUrl = result.Value,
+            expiresInMinutes = validForMinutes
+        });
     }
 }
 
@@ -181,10 +185,4 @@ public sealed record CreateFormTemplateRequest
 {
     public string Code { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
-    public string? InitialSchemaDefinition { get; init; }
-}
-
-public sealed record AddSchemaVersionRequest
-{
-    public string SchemaDefinition { get; init; } = string.Empty;
 }

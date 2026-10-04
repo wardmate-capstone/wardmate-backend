@@ -33,4 +33,7 @@ public static class DocumentFormErrors
 
     public static Error PlaceholderMismatch(string details) =>
         Error.Validation("document.placeholder_mismatch", details);
+
+    public static Error FileNotUploaded =>
+        Error.NotFound("document.file_not_uploaded", "No DOCX file has been uploaded for this template yet.");
 }

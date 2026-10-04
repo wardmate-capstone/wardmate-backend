@@ -8,8 +8,6 @@ namespace WardMate.Services.DocumentForm.Domain.Entities;
 /// </summary>
 public sealed class FormTemplate : BaseEntity
 {
-    private readonly List<FormTemplateVersion> _versions = [];
-
     private FormTemplate()
     {
     }
@@ -37,8 +35,6 @@ public sealed class FormTemplate : BaseEntity
     public bool IsActive { get; private set; } = true;
     public string? CreatedBy { get; private set; }
     public string? UpdatedBy { get; private set; }
-
-    public IReadOnlyCollection<FormTemplateVersion> Versions => _versions.AsReadOnly();
 
     public void UpdateDetails(string title, string? updatedBy = null)
     {
@@ -68,17 +64,5 @@ public sealed class FormTemplate : BaseEntity
         IsActive = false;
         UpdatedBy = updatedBy;
         SetUpdated(DateTime.UtcNow);
-    }
-
-    public FormTemplateVersion AddVersion(string schemaDefinition, string? createdBy = null)
-    {
-        var nextVersionNumber = _versions.Count == 0
-            ? 1
-            : _versions.Max(v => v.VersionNumber) + 1;
-
-        var version = new FormTemplateVersion(Id, nextVersionNumber, schemaDefinition, createdBy);
-        _versions.Add(version);
-        SetUpdated(DateTime.UtcNow);
-        return version;
     }
 }
