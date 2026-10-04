@@ -7,6 +7,26 @@
 **Trạng thái Core IAM: HOÀN THÀNH** — đã bàn giao lịch sử commit tách theo file lên `kha` và `deploy`; PostgreSQL Local Dev đã migrate và Swagger IAM đang chạy. Xác minh ngày 25/09/2026 lúc 10:13 (Asia/Saigon).
 **Trạng thái Shared Kernel & Central Logging (TASK-05, TASK-06): HOÀN THÀNH** — đã triển khai đầy đủ Domain primitives, CQRS MediatR abstractions, Azure Blob Storage client wrapper, Serilog tập trung, RequestLoggingMiddleware và 39 unit tests cho SharedKernel. Xác minh ngày 26/09/2026 lúc 18:10 (Asia/Saigon).
 
+**Trạng thái User Submissions API: HOÀN THÀNH** — đã thêm entity UserSubmission, enum SubmissionStatus, các command/query và 7 endpoints quản lý vòng đời hồ sơ người dân (draft, submit, request-revision, approve). Đã commit từng lớp và push lên `main`, `nghia`, `deploy`. Xác minh ngày 04/10/2026 lúc 21:30 (Asia/Saigon).
+
+---
+
+## DOC-002 — User Submissions API (Hồ sơ người dân)
+
+- Hoàn thành: **04/10/2026, 21:30 (Asia/Saigon, UTC+07:00)**
+- Nhánh: `nghia`, `main`, `deploy`
+
+### Chức năng hoàn thiện
+- Thêm Entity `UserSubmission` và Enum `SubmissionStatus` (Draft, Submitted, RevisionRequested, Approved).
+- Cấu hình EF Core `UserSubmissionConfiguration` với bảng `document.user_submissions`.
+- Bổ sung Migration `AddUserSubmissions`.
+- Application layer: `SaveDraftSubmissionCommand`, `SubmitSubmissionCommand`, `RequestRevisionCommand`, `ApproveSubmissionCommand`.
+- Queries: `GetMySubmissionsQuery`, `GetSubmissionByIdQuery`, `DownloadSubmissionDocxQuery`.
+- Controllers: `UserSubmissionsController` với 7 endpoints (GET list, GET detail, POST draft, PUT draft, POST submit, GET download-docx, POST request-revision, POST approve).
+
+### Build & Test
+- `dotnet build`: **0 errors, 0 warnings**
+
 ---
 
 ## FIX-001 — Fix DbUpdateConcurrencyException trên AddVersion endpoint
