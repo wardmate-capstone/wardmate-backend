@@ -26,6 +26,9 @@ public sealed record Error(string Code, string Description, ErrorType Type = Err
 
     public static Error Unauthorized(string code, string description)
         => new(code, description, ErrorType.Unauthorized);
+
+    public static Error Forbidden(string code, string description)
+        => new(code, description, ErrorType.Forbidden);
 }
 
 /// <summary>Categorises an error to help infrastructure map it to HTTP status codes.</summary>
@@ -35,5 +38,6 @@ public enum ErrorType
     NotFound = 1,
     Validation = 2,
     Conflict = 3,
-    Unauthorized = 4
+    Unauthorized = 4,
+    Forbidden = 5
 }

@@ -36,4 +36,20 @@ public static class DocumentFormErrors
 
     public static Error FileNotUploaded =>
         Error.NotFound("document.file_not_uploaded", "No DOCX file has been uploaded for this template yet.");
+
+    // ── UserSubmission errors ────────────────────────────────────────
+
+    public static Error SubmissionNotFound(Guid submissionId) =>
+        Error.NotFound("document.submission_not_found", $"User submission with ID '{submissionId}' was not found.");
+
+    public static Error SubmissionNotOwnedByApplicant(Guid submissionId, Guid applicantId) =>
+        Error.Forbidden("document.submission_not_owned", $"Submission '{submissionId}' does not belong to applicant '{applicantId}'.");
+
+    public static Error SubmissionInvalidStatusTransition(string currentStatus, string action) =>
+        Error.Validation("document.submission_invalid_transition",
+            $"Cannot perform '{action}' on a submission with status '{currentStatus}'.");
+
+    public static Error SubmissionFileNotFound(Guid submissionId) =>
+        Error.NotFound("document.submission_file_not_found",
+            $"No DOCX file found for submission '{submissionId}'.");
 }
