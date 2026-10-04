@@ -5,7 +5,7 @@ using WardMate.Services.ProcedureCatalog.Application.Interfaces;
 namespace WardMate.Services.ProcedureCatalog.Application.Management;
 
 public sealed record ProcedureVersionDto(Guid Id, int VersionNumber, string? DecisionNumber,
-    DateOnly EffectiveDate, JsonElement SnapshotData, DateTime CreatedAt);
+    DateOnly EffectiveDate, JsonElement SnapshotData, DateTime CreatedAt, string? OriginalPdfUrl, string? PdfFileName);
 public sealed record GetProcedureVersionsQuery(Guid ProcedureId) : IRequest<ProcedureResult<IReadOnlyList<ProcedureVersionDto>>>;
 
 public sealed class GetProcedureVersionsQueryHandler(IProcedureManagementStore store)
@@ -16,6 +16,7 @@ public sealed class GetProcedureVersionsQueryHandler(IProcedureManagementStore s
         if (!await store.Exists(request.ProcedureId, ct)) return ProcedureResult<IReadOnlyList<ProcedureVersionDto>>.NotFound();
         var versions = await store.ListVersions(request.ProcedureId, ct);
         return ProcedureResult<IReadOnlyList<ProcedureVersionDto>>.Ok(versions.Select(x => new ProcedureVersionDto(
-            x.Id, x.VersionNumber, x.DecisionNumber, x.EffectiveDate, JsonSerializer.Deserialize<JsonElement>(x.SnapshotData), x.CreatedAt)).ToList());
+            x.Id, x.VersionNumber, x.DecisionNumber, x.EffectiveDate, JsonSerializer.Deserialize<JsonElement>(x.SnapshotData), x.CreatedAt,
+            x.OriginalPdfUrl, x.PdfFileName)).ToList());
     }
 }

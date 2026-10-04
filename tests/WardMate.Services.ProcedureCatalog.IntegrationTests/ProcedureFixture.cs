@@ -31,10 +31,14 @@ public sealed class ProcedureFixture : IAsyncLifetime
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Jwt:Key"] = signingKey, ["Jwt:Issuer"] = "wardmate", ["Jwt:Audience"] = "wardmate-client",
-                ["Database:AutoMigrate"] = "true"
+                ["Database:AutoMigrate"] = "true",
+                ["AzureBlob:ConnectionString"] = "test-storage-only",
+                ["ProcedureDrafts:ExtractionEnabled"] = "false"
             }));
             builder.ConfigureServices(services =>
             {
+                services.RemoveAll<WardMate.SharedKernel.Blob.IBlobStorageClient>();
+                services.AddSingleton<WardMate.SharedKernel.Blob.IBlobStorageClient, DraftTestBlobStorage>();
                 services.RemoveAll<DbContextOptions<ProcedureDbContext>>();
                 services.RemoveAll<ProcedureDbContext>();
                 services.AddDbContext<ProcedureDbContext>(options => options.UseNpgsql(postgres.GetConnectionString()).UseSnakeCaseNamingConvention());

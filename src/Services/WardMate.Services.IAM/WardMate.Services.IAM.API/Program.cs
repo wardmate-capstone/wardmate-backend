@@ -3,6 +3,7 @@ using WardMate.SharedKernel.Logging;
 using WardMate.SharedKernel.Web;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.OpenApi.Models;
 using WardMate.Services.IAM.API.Errors;
 using WardMate.Services.IAM.Application;
@@ -111,9 +112,18 @@ try
     }
 
     // ── Middleware pipeline ──────────────────────────────────────────────────
+    var forwardedHeadersOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
+    };
+    // Ingress addresses are dynamic in Azure/container networks. The ingress must sanitize these
+    // headers and be the only network path to this service. Keep the default one-hop limit.
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+    app.UseGlobalExceptionHandling();
+    app.UseForwardedHeaders(forwardedHeadersOptions);
     app.UseWardMateRequestLogging();          // Serilog HTTP request logging
     app.UseWardMateRequestLoggingMiddleware(); // Custom detailed middleware
-    app.UseGlobalExceptionHandling();
     app.UseStatusCodePages();
     app.UseCors(BrowserCorsExtensions.PolicyName);
     if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }

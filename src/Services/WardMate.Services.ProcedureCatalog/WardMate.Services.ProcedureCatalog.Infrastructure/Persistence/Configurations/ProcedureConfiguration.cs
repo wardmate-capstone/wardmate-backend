@@ -14,6 +14,8 @@ public sealed class ProcedureConfiguration : IEntityTypeConfiguration<Procedure>
         builder.Property(x => x.ProcedureCode).HasMaxLength(50).IsRequired();
         builder.HasIndex(x => x.ProcedureCode).IsUnique().HasMethod("btree");
         builder.Property(x => x.Title).HasMaxLength(500).IsRequired();
+        builder.Property(x => x.OriginalPdfUrl).HasMaxLength(500);
+        builder.Property(x => x.PdfFileName).HasMaxLength(255);
         builder.Property(x => x.IssuingAuthority).HasMaxLength(255);
         builder.Property(x => x.ExecutingAgency).HasColumnType("text");
         builder.Property(x => x.LevelOfImplementation).HasMaxLength(50).HasDefaultValue("Cấp Xã").IsRequired();
