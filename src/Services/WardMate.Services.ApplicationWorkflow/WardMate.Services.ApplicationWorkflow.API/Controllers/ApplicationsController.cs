@@ -33,6 +33,11 @@ public sealed class ApplicationsController(ISender sender) : ControllerBase
     public async Task<IActionResult> Get(Guid id, CancellationToken ct) =>
         Respond(await sender.Send(new GetApplicationQuery(Actor, id), ct));
 
+    [HttpPatch("{id:guid}/checklists/{checklistId:guid}"), RequestSizeLimit(128 * 1024)]
+    [ProducesResponseType<ApplicationDto>(200)]
+    public async Task<IActionResult> UpdateChecklist(Guid id, Guid checklistId, UpdateChecklistInput input, CancellationToken ct) =>
+        Respond(await sender.Send(new UpdateChecklistCommand(Actor, id, checklistId, input), ct));
+
     private IActionResult Respond(WorkflowResult<ApplicationDto> result)
     {
         if (result.Error is null) return Ok(result.Value);
