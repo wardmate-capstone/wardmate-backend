@@ -1231,3 +1231,89 @@ Kiểm thử và tài liệu:
 - Catalog là bộ lọc tự chọn; chưa có phân công/giới hạn lĩnh vực theo cán bộ, chưa có CRUD danh mục.
 - Không chạy lệnh Git, không build image Docker, không deploy. Antigravity xử lý commit từng file theo quy tắc hiện hành.
 - Gợi ý Conventional Commits theo phần thay đổi: feat(iam): scope account management by ward; feat(iam): let managers provision front desk accounts; feat(procedure-catalog): expose procedure category filters; test(procedure-catalog): verify category discovery and filtering; docs: describe ward scoped management APIs.
+
+## WORKFLOW-001 — Hồ sơ nháp, checklist động và nộp hồ sơ
+
+Hoàn thành: 2026-10-05 17:23:02 +07:00 (Asia/Saigon, UTC+07:00).
+
+### Phạm vi và kết quả
+
+- Triển khai ApplicationWorkflow theo .NET 8 Clean Architecture, database riêng wardmate_workflow_db.
+- Ba bảng applications, application_checklists, application_status_history; form_data JSONB, unique mã hồ sơ,
+  unique checklist theo hồ sơ, sequence cấp mã, migration InitialApplicationWorkflow.
+- UserId/ProcedureId là tham chiếu ngoài service, không tạo FK xuyên database. Procedure được đọc qua HTTP.
+- Tạo DRAFT cùng checklist PENDING và lịch sử trong một lần lưu nguyên tử. Chọn checklist dùng chung/case;
+  nhiều case bắt buộc chọn caseCode, schema nguồn sai không được âm thầm bỏ giấy tờ bắt buộc.
+- Chỉ chủ hồ sơ được xem/sửa/nộp; truy cập hồ sơ người khác trả 404, kể cả token Admin.
+- Submit khóa hàng trong transaction, kiểm tra DRAFT và mọi mục bắt buộc COMPLETED, cấp mã và thêm lịch sử.
+  Gọi đồng thời chỉ một lần thành công; thiếu mục trả 422, không đổi trạng thái/lịch sử.
+- Mã HS-YYYYMMDD-sequence dùng ngày Việt Nam, sequence toàn hệ thống không reset, có thể có khoảng trống.
+
+### File tạo mới/chỉnh sửa
+
+Các đường dẫn dưới đây tương đối với repository. Trong nhóm service, tên project nằm dưới
+src/Services/WardMate.Services.ApplicationWorkflow/.
+
+- WardMate.Services.ApplicationWorkflow.Domain/ApplicationRecord.cs (mới).
+- WardMate.Services.ApplicationWorkflow.Application: sửa csproj; tạo WorkflowContracts.cs,
+  WorkflowRequests.cs, WorkflowValidation.cs.
+- WardMate.Services.ApplicationWorkflow.Infrastructure: sửa csproj; tạo WorkflowDbContext.cs,
+  ApplicationStore.cs, ProcedureCatalogClient.cs; tạo Migrations/20261005085908_InitialApplicationWorkflow.cs,
+  file Designer.cs tương ứng và WorkflowDbContextModelSnapshot.cs.
+- WardMate.Services.ApplicationWorkflow.API: sửa csproj, Program.cs, appsettings.json;
+  tạo Controllers/ApplicationsController.cs, WorkflowSecurity.cs, Dockerfile.
+- src/Gateways/WardMate.YarpGateway/appsettings.json: thêm route /api/v1/applications.
+- docker/docker-compose.yml: DB/service Workflow, volume và địa chỉ Gateway nội bộ.
+- docker/.env.example: thêm WORKFLOW_DB_PASSWORD để chủ dự án tự cấu hình, không ghi secret.
+- tests/WardMate.Services.ApplicationWorkflow.Tests: tạo csproj, WorkflowFixture.cs,
+  WorkflowTests.cs, WorkflowUnitTests.cs theo yêu cầu kiểm thử mới trong task đính kèm.
+- WardMate.sln: thêm project test Workflow.
+- docs/api-guide.md: bổ sung 5 API, DTO, lỗi và hướng dẫn local; tổng 64 mục API nghiệp vụ.
+- PROGRESS.md: nhật ký phiên này.
+
+### API và hợp đồng FE
+
+- POST /api/v1/applications — JSON { procedureId, formData: object, caseCode? }.
+  201 ApplicationDto + Location; 400 đầu vào; 404 thủ tục không công khai/tồn tại; 409 thủ tục không hoạt động;
+  502 schema sai; 503/504 nguồn lỗi/timeout.
+- GET /api/v1/applications?page=1&pageSize=20 — không body; 200 {items,page,pageSize,total}; 400 phân trang sai.
+- GET /api/v1/applications/{id} — không body; 200 ApplicationDto; 404 không tìm thấy trong phạm vi chủ hồ sơ.
+- PATCH /api/v1/applications/{id}/checklists/{checklistId} — JSON {status,fileUrl?,note?};
+  200 ApplicationDto; 400 validation; 404 không thuộc hồ sơ/chủ; 409 không còn DRAFT.
+- POST /api/v1/applications/{id}/submit — không body; 200 ApplicationDto; 404 không thuộc chủ;
+  409 không còn DRAFT; 422 application.checklist_incomplete cùng missingItems[{id,code,title,status}].
+- Tất cả API dùng Bearer JWT từ IAM, 401 khi token sai/hết hạn. Không thay đổi cookie/CSRF của IAM.
+- Validation/ProblemDetails tiếng Việt, code/traceId và errors hoặc missingItems; FE không so sánh message.
+- formData tối đa 64 KiB JSON object; pageSize tối đa 100. Thời gian DTO UTC, FE đổi khi hiển thị.
+- Checklist status viết hoa PENDING/COMPLETED/REJECTED. PATCH bỏ qua/null URL/note giữ giá trị cũ,
+  chuỗi rỗng xóa giá trị. URL phải HTTPS tuyệt đối, không thông tin đăng nhập.
+
+### Kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: thành công, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: 171 passed, 0 failed, 0 skipped.
+  DocumentForm 71; ProcedureCatalog 81; ApplicationWorkflow 19 (8 unit, 11 integration cases).
+- Workflow kiểm tra migration trên PostgreSQL 16 tạm, JSONB/case/checklist, phân quyền chủ hồ sơ,
+  validation/JWT, thiếu mục bắt buộc, submit thành công/lặp/đồng thời và cập nhật checklist đồng thời submit.
+- Tích hợp Workflow dùng PostgreSQL thật trong container tạm và fake Procedure client; unit test kiểm tra
+  HTTP adapter/JSON contract. Chưa xác nhận end-to-end với IAM/Procedure trên deploy.
+- EF has-pending-model-changes: không có thay đổi model chưa được migration ghi nhận.
+- Container test tạm đã được dọn; không migrate database Local Dev/Azure đang dùng.
+
+### Bàn giao và giới hạn
+
+- Chưa build image Docker, chưa khởi động service lâu dài, chưa deploy và không chạy bất kỳ lệnh Git nào.
+- Khi tự chạy Compose cần đặt WORKFLOW_DB_PASSWORD, JWT_KEY; Swagger Development trực tiếp cổng 5003,
+  Gateway cổng 5000; PostgreSQL Workflow cổng 5435. Compose bật AutoMigrate; ngoài Compose mặc định tắt.
+- Checklist COMPLETED là khai báo người nộp, không chứng minh file đã upload/được thẩm định.
+  Task chưa thêm upload giấy tờ, sửa formData, hủy hồ sơ, nộp thay hoặc cán bộ tiếp nhận/phê duyệt/trả kết quả.
+- Checklist chụp lúc tạo; submit không tải lại cấu hình thủ tục. JWT xác thực chữ ký/hạn dùng, không truy vấn
+  trạng thái tài khoản IAM trực tiếp ở mỗi request.
+- Gợi ý nhóm thông điệp Conventional Commits cho Antigravity (vẫn tách từng file theo quy tắc):
+  feat(application-workflow): add draft checklist and submission lifecycle;
+  test(application-workflow): verify ownership and atomic submission;
+  chore(docker): configure application workflow service and database;
+  docs: describe application workflow APIs and validation results.
+
+- Kiểm tra bổ sung: Docker Compose config --quiet hợp lệ (biến mật khẩu tạm chỉ để kiểm tra cấu hình);
+  JSON cấu hình hợp lệ; tài liệu có đủ 64 mục API. Không build/start container bằng kiểm tra này.

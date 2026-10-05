@@ -1,6 +1,6 @@
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
-Đối chiếu mã nguồn ngày **05/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả 59
+Đối chiếu mã nguồn ngày **05/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả 64
 API nghiệp vụ hiện có, các endpoint hệ thống và đường dẫn Gateway. Không phải xác nhận tình trạng deploy.
 
 **Cách đọc:** Mỗi API có mục đích, quyền, cách dùng, kết quả và lỗi thường gặp trên các dòng riêng. Public
@@ -1206,12 +1206,155 @@ AI/OCR tắt vẫn có thể đọc được PDF có lớp chữ.
 - Payload trống nhưng có text khi AI tắt không phải bằng chứng trích xuất text thất bại.
 
 
-## 5. YARP Gateway & Endpoints hệ thống chung
+## 5. Application Workflow Service — Hồ sơ đăng ký thủ tục
+
+Luồng sử dụng: đăng nhập → chọn thủ tục/trường hợp → tạo nháp → hoàn tất checklist → nộp hồ sơ.
+Mọi API dùng `Authorization: Bearer <accessToken>` của IAM. Chỉ thao tác hồ sơ của chính người đăng nhập;
+kể cả Admin cũng không được xem/nộp thay người khác qua các API này.
+
+Swagger local khi service chạy ở Development: `http://localhost:5003/swagger`.
+Qua Gateway: `http://localhost:5000/api/v1/applications`. Đây là cấu hình, không xác nhận đã khởi động service.
+
+#### API 60 — Tạo hồ sơ nháp
+
+**Method & Đường dẫn:** `POST /api/v1/applications`
+
+**Mục đích:** Bắt đầu đăng ký thủ tục và tạo danh sách giấy tờ cần chuẩn bị từ Procedure Catalog.
+Backend lấy người nộp từ token, không nhận userId do FE chỉ định.
+
+**Cách dùng:** Lấy procedureId thật từ API thủ tục và gửi JSON (ID dưới đây chỉ minh họa):
+
+```json
+{
+  "procedureId": "11111111-1111-4111-8111-111111111111",
+  "caseCode": "TRUONG_HOP_1",
+  "formData": { "hoTen": "Nguyễn Văn A" }
+}
+```
+
+- formData phải là JSON object, tối đa 64 KiB; `{}` hợp lệ. Chưa kiểm tra theo schema DocumentForm.
+- Nhiều trường hợp thì phải chọn caseCode hợp lệ; chỉ có một thì có thể bỏ để tự chọn.
+- Checklist gồm mục dùng chung và mục thuộc trường hợp đã chọn, ban đầu đều PENDING.
+
+**Kết quả:** 201, header Location và ApplicationDto: id, applicationCode, userId, procedureId,
+procedureTitle, caseCode, status, formData, submittedAt, createdAt, updatedAt, checklists, history.
+Hồ sơ DRAFT, applicationCode/submittedAt null, có lịch sử khởi tạo.
+
+**Lỗi và cách xử lý:** 400 khi formData/caseCode sai → sửa đầu vào; 404 khi không tìm được thủ tục công khai
+→ tải lại danh sách; 409 khi nguồn trả thủ tục không hoạt động → chọn thủ tục đang mở. 502 khi schema nguồn
+sai → báo quản lý sửa checklist; 503/504 khi Procedure Catalog lỗi/timeout → thử lại khi service sẵn sàng.
+Gọi POST lần nữa tạo hồ sơ khác; không tự lặp request khi chưa rõ lần trước thành công chưa.
+
+#### API 61 — Danh sách hồ sơ của tôi
+
+**Method & Đường dẫn:** `GET /api/v1/applications?page=1&pageSize=20`
+
+**Mục đích:** Xem hồ sơ nháp và đã nộp của người đang đăng nhập, mới tạo trước.
+Đây không phải danh sách xử lý hồ sơ toàn phường của cán bộ.
+
+**Cách dùng:** Không body; page từ 1 đến 1.000.000, pageSize từ 1 đến 100; mặc định 1 và 20.
+
+**Kết quả:** 200 với items, page, pageSize, total. Item gồm id, applicationCode, procedureId,
+procedureTitle, status, createdAt, submittedAt; không tải toàn bộ form/checklist.
+
+**Lỗi và cách xử lý:** 400 khi phân trang sai → sửa query. Trang rỗng vẫn 200; kiểm tra trang/tài khoản.
+Truyền thêm userId không giúp xem dữ liệu người khác.
+
+#### API 62 — Xem chi tiết hồ sơ của tôi
+
+**Method & Đường dẫn:** `GET /api/v1/applications/{id}`
+
+**Mục đích:** Mở lại nháp hoặc xem trạng thái/lịch sử hồ sơ đã nộp.
+
+**Cách dùng:** Lấy id từ API tạo/danh sách; không body.
+
+**Kết quả:** 200 ApplicationDto. Checklist gồm id, code, title, isRequired, status, fileUrl, note,
+createdAt, updatedAt. History gồm id, fromStatus, toStatus, changedBy, reason, createdAt.
+Thời gian DTO là UTC; FE đổi múi giờ khi hiển thị.
+
+**Lỗi và cách xử lý:** 404 khi không tồn tại hoặc thuộc người khác → kiểm tra danh sách của mình.
+Checklist là bản sao lúc tạo, không tự đổi khi quản lý sửa thủ tục về sau.
+
+#### API 63 — Cập nhật mục checklist trong hồ sơ nháp
+
+**Method & Đường dẫn:** `PATCH /api/v1/applications/{id}/checklists/{checklistId}`
+
+**Mục đích:** Ghi nhận việc chuẩn bị giấy tờ, đường dẫn tài liệu và ghi chú của người nộp.
+Đây chưa phải kết quả cán bộ thẩm định giấy tờ.
+
+**Cách dùng:** Lấy checklistId từ chi tiết và gửi JSON:
+
+```json
+{
+  "status": "COMPLETED",
+  "fileUrl": "https://example.com/giay-to.pdf",
+  "note": "Đã chuẩn bị giấy tờ"
+}
+```
+
+- status bắt buộc: PENDING, COMPLETED hoặc REJECTED, viết hoa.
+- fileUrl tối đa 500 ký tự, HTTPS tuyệt đối, không thông tin đăng nhập; note tối đa 4.000 ký tự.
+- Bỏ qua/null cho fileUrl hoặc note giữ giá trị cũ; chuỗi rỗng xóa giá trị.
+- API không upload file hoặc kiểm tra file thật ở URL. URL trên chỉ minh họa.
+
+**Kết quả:** 200 với toàn bộ hồ sơ cập nhật. COMPLETED hiện không bắt buộc fileUrl; không hiểu trạng thái
+này là Backend đã đọc/kiểm duyệt tài liệu.
+
+**Lỗi và cách xử lý:** 400 khi status/URL/độ dài sai → sửa dữ liệu; 404 khi không có hồ sơ thuộc mình hoặc
+mục không thuộc hồ sơ; 409 khi đã nộp → tải lại chi tiết, không tiếp tục sửa checklist.
+
+#### API 64 — Nộp hồ sơ
+
+**Method & Đường dẫn:** `POST /api/v1/applications/{id}/submit`
+
+**Mục đích:** Chốt hồ sơ nháp sau khi hoàn tất giấy tờ bắt buộc.
+
+**Cách dùng:** Không body. Mọi mục isRequired=true phải COMPLETED. Mục tùy chọn chưa hoàn tất không chặn;
+hồ sơ không có checklist vẫn nộp được.
+
+**Kết quả:** 200 ApplicationDto có status SUBMITTED, submittedAt, mã duy nhất và lịch sử chuyển trạng thái.
+Mã dạng HS-YYYYMMDD-00000001, ngày Việt Nam; số chạy toàn hệ thống, ít nhất 8 chữ số, không reset theo ngày.
+Số có thể có khoảng trống. Trạng thái, mã và lịch sử được lưu trong cùng transaction.
+
+**Lỗi và cách xử lý:**
+
+- 404: không tìm thấy hồ sơ thuộc mình → kiểm tra ID/phiên đăng nhập.
+- 409: không còn DRAFT, kể cả bấm hai lần → tải lại trạng thái; không tạo lần nộp thứ hai.
+- 422: còn mục bắt buộc PENDING/REJECTED → hiển thị missingItems để người dùng bổ sung rồi gọi lại.
+  Hồ sơ vẫn DRAFT, không thêm lịch sử nộp thất bại.
+
+Ví dụ phần dữ liệu lỗi 422 (response còn có title, instance, traceId; ID minh họa):
+
+```json
+{
+  "status": 422,
+  "code": "application.checklist_incomplete",
+  "missingItems": [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "code": "GIAY_TO_1",
+      "title": "Giấy tờ cần chuẩn bị",
+      "status": "PENDING"
+    }
+  ]
+}
+```
+
+**Phạm vi:** Mới có DRAFT → SUBMITTED. Chưa có sửa formData, hủy, nộp thay, cán bộ tiếp nhận/phê duyệt/trả
+kết quả. Submit kiểm tra checklist đã chụp, không đọc lại thủ tục. Token sai/hết hạn trả 401: refresh qua IAM
+hoặc đăng nhập lại. Validation dùng ProblemDetails tiếng Việt, code và errors; FE không so sánh message.
+
+**Chạy local:** Cấu hình ConnectionStrings:WorkflowDatabase và Jwt:Key cùng issuer/audience với IAM;
+ProcedureCatalog:BaseUrl trỏ Procedure Catalog. Compose dùng DB riêng wardmate_workflow_db tại cổng 5435;
+đặt WORKFLOW_DB_PASSWORD trong docker/.env. Compose bật Database:AutoMigrate; ngoài Compose mặc định tắt,
+cần chủ động áp dụng migration hoặc bật tùy chọn. Không dùng mật khẩu database test cho môi trường thật.
+
+## 6. YARP Gateway & Endpoints hệ thống chung
 
 **Chịu trách nhiệm:** Gateway tiếp nhận và chuyển tiếp request đến service phù hợp; các service tự thực thi
 quyền nghiệp vụ. Health/root phục vụ nhận biết tiến trình, không phải API nghiệp vụ.
 
-### Nhóm 5.1 — Kiểm tra service và Swagger
+### Nhóm 6.1 — Kiểm tra service và Swagger
 
 - **Method & Đường dẫn:** `GET /health`
   - **Service:** Gateway và cả 6 service
@@ -1227,23 +1370,23 @@ quyền nghiệp vụ. Health/root phục vụ nhận biết tiến trình, khô
     endpoint này.
 
 - **Method & Đường dẫn:** `GET /swagger/index.html`
-  - **Service:** IAM, Procedure, DocumentForm khi Development
+  - **Service:** IAM, Procedure, DocumentForm, ApplicationWorkflow khi Development
   - **Mục đích & Cách sử dụng:** Giao diện thử API: Try it out → điền dữ liệu → Execute; Authorize nếu cần
     token.
   - **Lưu ý khi kết quả không như mong đợi:** 404 có thể vì sai service hoặc không bật Development, không nhất
     thiết lỗi đăng nhập.
 
 - **Method & Đường dẫn:** `GET /swagger/v1/swagger.json`
-  - **Service:** IAM, Procedure, DocumentForm khi Development
+  - **Service:** IAM, Procedure, DocumentForm, ApplicationWorkflow khi Development
   - **Mục đích & Cách sử dụng:** Bản mô tả OpenAPI để công cụ đọc hợp đồng API.
   - **Lưu ý khi kết quả không như mong đợi:** Không phải dữ liệu nghiệp vụ; các service còn lại chưa có
     Swagger tương ứng.
 
 
-ApplicationWorkflow và AnalyticsSystem mới có root/health, chưa có API nghiệp vụ. Tổng cộng có 6 root và 7
-health endpoint theo host, ngoài 59 API nghiệp vụ.
+AnalyticsSystem mới có root/health, chưa có API nghiệp vụ. Tổng cộng có 6 root và 7
+health endpoint theo host, ngoài 64 API nghiệp vụ.
 
-### Nhóm 5.2 — Các tuyến chuyển tiếp của Gateway (local: cổng 5000)
+### Nhóm 6.2 — Các tuyến chuyển tiếp của Gateway (local: cổng 5000)
 
 `ANY` nghĩa Gateway chuyển tiếp method của request; không có nghĩa service đích chấp nhận mọi method. `{**}`
 thể hiện phần đường dẫn còn lại.
@@ -1283,6 +1426,10 @@ thể hiện phần đường dẫn còn lại.
   - **Service đích:** AIOCR
   - **Mục đích & Cách sử dụng:** Bỏ prefix `/api/ai-ocr`; API nội bộ vẫn yêu cầu service key. Không đưa key
     vào FE.
+
+- **Method & Đường dẫn:** `ANY /api/v1/applications/{**}`
+  - **Service đích:** ApplicationWorkflow
+  - **Mục đích & Cách sử dụng:** Hồ sơ của người đăng nhập, giữ nguyên route.
 
 - **Method & Đường dẫn:** `ANY /api/application-workflow/{**}`
   - **Service đích:** ApplicationWorkflow
@@ -2164,11 +2311,11 @@ và payload cần hoàn thiện thủ công. Không coi HTTP 200 là cam kết p
 Có 6 root endpoint và 7 health endpoint theo host. Health hiện không chứng minh PostgreSQL/Blob/AI đều sẵn
 sàng vì chưa có kiểm tra dependency tương ứng được đăng ký. Gateway không có root endpoint nghiệp vụ.
 
-IAM, Procedure và DocumentForm bật Swagger trong Development: `GET /swagger/index.html` (giao diện),
+IAM, Procedure, DocumentForm và ApplicationWorkflow bật Swagger trong Development: `GET /swagger/index.html` (giao diện),
 `GET /swagger/v1/swagger.json` (OpenAPI). `/swagger` thường chuyển hướng vào giao diện. Không mặc định Swagger
 có trên Production.
 
-ApplicationWorkflow và AnalyticsSystem mới có root/health, chưa có controller nghiệp vụ. Không có endpoint
+AnalyticsSystem mới có root/health, chưa có controller nghiệp vụ. Không có endpoint
 import CSV trong danh mục này.
 
 ## 9. Xử lý lỗi và trình tự tích hợp FE
