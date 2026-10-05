@@ -18,6 +18,26 @@ services:
       timeout: 3s
       retries: 10
 
+  # Document Form API Microservice (port 5004)
+  document-form:
+    build:
+      context: ..
+      dockerfile: src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Dockerfile
+    image: wardmate-document-form:local
+    container_name: wardmate_document_form
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DocumentDb: Host=postgres;Port=5432;Database=wardmate_db;Username=wardmate_admin;Password=wardmate_secret
+      Database__AutoMigrate: "true"
+      AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-UseDevelopmentStorage=true}
+      AzureBlob__ContainerName: form-templates
+    ports:
+      - "5004:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # Procedure Catalog API Microservice (port 5002)
   procedure-catalog:
     build:
