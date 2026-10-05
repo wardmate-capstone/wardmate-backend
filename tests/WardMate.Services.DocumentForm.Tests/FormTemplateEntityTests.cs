@@ -83,36 +83,26 @@ public sealed class FormTemplateEntityTests
     }
 
     // ──────────────────────────────────────────────────────────────
-    // FormTemplate – thêm version
+    // FormTemplate – UpdateDetails
     // ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public void AddVersion_FirstVersion_VersionNumberIsOne()
+    public void UpdateDetails_ValidTitle_UpdatesSuccessfully()
     {
         var template = new FormTemplate("M05", "Mẫu C");
-        var version = template.AddVersion("{\"title\":\"v1\"}", "designer");
+        template.UpdateDetails("Mẫu C mới", "admin");
 
-        Assert.Equal(1, version.VersionNumber);
-        Assert.Single(template.Versions);
+        Assert.Equal("Mẫu C mới", template.Title);
+        Assert.Equal("admin", template.UpdatedBy);
     }
 
     [Fact]
-    public void AddVersion_SecondVersion_VersionNumberIncrements()
+    public void UpdateDetails_EmptyTitle_ThrowsArgumentException()
     {
-        var template = new FormTemplate("M06", "Mẫu D");
-        template.AddVersion("{\"title\":\"v1\"}");
-        var v2 = template.AddVersion("{\"title\":\"v2\"}");
-
-        Assert.Equal(2, v2.VersionNumber);
-        Assert.Equal(2, template.Versions.Count);
+        var template = new FormTemplate("M05", "Mẫu C");
+        Assert.Throws<ArgumentException>(() => template.UpdateDetails("   "));
     }
 
-    [Fact]
-    public void AddVersion_EmptySchema_ThrowsArgumentException()
-    {
-        var template = new FormTemplate("M07", "Mẫu E");
-        Assert.Throws<ArgumentException>(() => template.AddVersion("   "));
-    }
 
     // ──────────────────────────────────────────────────────────────
     // FormTemplateVersion – guard clauses
