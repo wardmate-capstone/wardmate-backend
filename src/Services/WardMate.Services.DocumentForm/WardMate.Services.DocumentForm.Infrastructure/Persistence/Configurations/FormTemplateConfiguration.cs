@@ -59,12 +59,5 @@ public sealed class FormTemplateConfiguration : IEntityTypeConfiguration<FormTem
             .HasColumnName("updated_by")
             .HasMaxLength(100);
 
-        builder.HasMany(t => t.Versions)
-            .WithOne(v => v.Template)
-            .HasForeignKey(v => v.TemplateId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Navigation(t => t.Versions)
-            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

@@ -28,7 +28,6 @@ public sealed class GetFormTemplatesQueryHandler : IQueryHandler<GetFormTemplate
 
         var query = _dbContext.FormTemplates
             .AsNoTracking()
-            .Include(t => t.Versions)
             .AsQueryable();
 
         if (request.IsActive.HasValue)
@@ -57,7 +56,6 @@ public sealed class GetFormTemplatesQueryHandler : IQueryHandler<GetFormTemplate
             Title = t.Title,
             FileDocxUrl = t.FileDocxUrl,
             IsActive = t.IsActive,
-            LatestVersion = t.Versions.Count == 0 ? 0 : t.Versions.Max(v => v.VersionNumber),
             CreatedAtUtc = t.CreatedAtUtc,
             UpdatedAtUtc = t.UpdatedAtUtc
         }).ToList();

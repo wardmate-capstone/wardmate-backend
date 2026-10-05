@@ -1,0 +1,172 @@
+### ============================================================
+### WardMate Document & Form Service — API Test File
+### Base URL: http://localhost:5004
+### Dùng VS Code extension: REST Client (humao.rest-client)
+### ============================================================
+
+@baseUrl = http://localhost:5004
+@contentType = application/json
+
+### ─────────────────────────────────────────────────────────────
+### [0] Health check — kiểm tra service đang chạy
+### Expected: 200 OK { service: "WardMate.Services.DocumentForm" }
+### ─────────────────────────────────────────────────────────────
+GET {{baseUrl}}/
+Accept: application/json
+
+###
+
+### [0b] Health endpoint
+### Expected: 200 OK "Healthy"
+GET {{baseUrl}}/health
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### [1] TẠO BIỂU MẪU MỚI (không kèm schema)
+### POST /api/v1/form-templates
+### Expected: 201 Created — trả FormTemplateDetailDto
+### ─────────────────────────────────────────────────────────────
+# @name createTemplate
+POST {{baseUrl}}/api/v1/form-templates
+Content-Type: {{contentType}}
+
+{
+  "code": "PHIEU-KHAI-SINH",
+  "title": "Phiếu Khai Sinh"
+}
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### [2] TẠO BIỂU MẪU KÈM SCHEMA PHIÊN BẢN ĐẦU TIÊN
+### POST /api/v1/form-templates
+### Expected: 201 Created — Versions sẽ có 1 phần tử với VersionNumber = 1
+### ─────────────────────────────────────────────────────────────
+# @name createTemplateWithSchema
+POST {{baseUrl}}/api/v1/form-templates
+Content-Type: {{contentType}}
+
+{
+  "code": "PHIEU-XIN-VIEC",
+  "title": "Phiếu Xin Việc",
+  "initialSchemaDefinition": "{\"title\":\"Phiếu Xin Việc\",\"version\":1,\"sections\":[{\"section_id\":\"sec_thong_tin\",\"title\":\"Thông tin cá nhân\",\"order\":1,\"fields\":[{\"field_id\":\"ho_ten\",\"label\":\"Họ và tên\",\"type\":\"text\",\"is_required\":true,\"order\":1},{\"field_id\":\"ngay_sinh\",\"label\":\"Ngày sinh\",\"type\":\"date\",\"is_required\":true,\"order\":2},{\"field_id\":\"so_cccd\",\"label\":\"Số CCCD\",\"type\":\"national_id\",\"is_required\":true,\"order\":3},{\"field_id\":\"so_dien_thoai\",\"label\":\"Số điện thoại\",\"type\":\"phone_number\",\"is_required\":true,\"order\":4},{\"field_id\":\"email\",\"label\":\"Địa chỉ email\",\"type\":\"email\",\"is_required\":false,\"order\":5}]}]}"
+}
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### [3] TẠO BIỂU MẪU BỊ TRÙNG CODE
+### Expected: 409 Conflict — code document.template_code_conflict
+### ─────────────────────────────────────────────────────────────
+POST {{baseUrl}}/api/v1/form-templates
+Content-Type: {{contentType}}
+
+{
+  "code": "PHIEU-XIN-VIEC",
+  "title": "Phiếu trùng code"
+}
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### [4] TẠO BIỂU MẪU VỚI SCHEMA SAI CẤU TRÚC
+### Expected: 400 Bad Request — code document.invalid_schema
+### ─────────────────────────────────────────────────────────────
+POST {{baseUrl}}/api/v1/form-templates
+Content-Type: {{contentType}}
+
+{
+  "code": "PHIEU-LOI",
+  "title": "Phiếu bị lỗi schema",
+  "initialSchemaDefinition": "{\"sections\":[]}"
+}
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### [5] LẤY DANH SÁCH BIỂU MẪU (phân trang)
+### GET /api/v1/form-templates
+### Expected: 200 OK — PagedResult<FormTemplateDto>
+### ─────────────────────────────────────────────────────────────
+GET {{baseUrl}}/api/v1/form-templates?page=1&pageSize=10
+Accept: {{contentType}}
+
+###
+
+### [5b] Lọc theo isActive = true
+GET {{baseUrl}}/api/v1/form-templates?isActive=true&page=1&pageSize=20
+Accept: {{contentType}}
+
+###
+
+### [5c] Tìm kiếm theo code
+GET {{baseUrl}}/api/v1/form-templates?searchCode=PHIEU&page=1&pageSize=10
+Accept: {{contentType}}
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### [6] LẤY CHI TIẾT 1 BIỂU MẪU THEO ID
+### GET /api/v1/form-templates/{templateId}
+### ⚠️ Thay {TEMPLATE_ID} bằng id thực từ response bước [1] hoặc [2]
+### Expected: 200 OK — FormTemplateDetailDto kèm Versions[]
+### ─────────────────────────────────────────────────────────────
+@templateId = 00000000-0000-0000-0000-000000000001
+
+GET {{baseUrl}}/api/v1/form-templates/{{templateId}}
+Accept: {{contentType}}
+
+###
+
+### [6b] ID không tồn tại
+### Expected: 404 Not Found
+GET {{baseUrl}}/api/v1/form-templates/99999999-9999-9999-9999-999999999999
+Accept: {{contentType}}
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### [7] THÊM PHIÊN BẢN SCHEMA MỚI CHO BIỂU MẪU
+### POST /api/v1/form-templates/{templateId}/versions
+### ⚠️ Thay {{templateId}} bằng id thực
+### Expected: 201 Created — FormTemplateVersionDto với VersionNumber tăng
+### ─────────────────────────────────────────────────────────────
+POST {{baseUrl}}/api/v1/form-templates/{{templateId}}/versions
+Content-Type: {{contentType}}
+
+{
+  "schemaDefinition": "{\"title\":\"Phiếu Khai Sinh v2\",\"version\":2,\"sections\":[{\"section_id\":\"sec_1\",\"title\":\"Thông tin trẻ\",\"order\":1,\"fields\":[{\"field_id\":\"ho_ten_tre\",\"label\":\"Họ tên trẻ\",\"type\":\"text\",\"is_required\":true,\"order\":1},{\"field_id\":\"ngay_sinh_tre\",\"label\":\"Ngày sinh\",\"type\":\"date\",\"is_required\":true,\"order\":2},{\"field_id\":\"gioi_tinh\",\"label\":\"Giới tính\",\"type\":\"select\",\"is_required\":true,\"order\":3,\"options\":[{\"label\":\"Nam\",\"value\":\"male\"},{\"label\":\"Nữ\",\"value\":\"female\"}]},{\"field_id\":\"ho_ten_cha\",\"label\":\"Họ tên cha\",\"type\":\"text\",\"is_required\":true,\"order\":4},{\"field_id\":\"ho_ten_me\",\"label\":\"Họ tên mẹ\",\"type\":\"text\",\"is_required\":true,\"order\":5}]}]}"
+}
+
+###
+
+### [7b] Schema sai → thêm version thất bại
+### Expected: 400 Bad Request
+POST {{baseUrl}}/api/v1/form-templates/{{templateId}}/versions
+Content-Type: {{contentType}}
+
+{
+  "schemaDefinition": "{ \"title\": \"\", \"sections\": [] }"
+}
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### [8] BOC TÁCH PLACEHOLDER TỪ DOCX (không lưu)
+### POST /api/v1/form-templates/extract-placeholders
+### ⚠️ Cần có file .docx thực để test
+### Dùng curl bên dưới — REST Client không hỗ trợ file upload tốt
+### ─────────────────────────────────────────────────────────────
+# Xem lệnh curl bên dưới — phần [8-curl]
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### [9] UPLOAD DOCX + EXTRACT PLACEHOLDER + GẮN VÀO TEMPLATE
+### POST /api/v1/form-templates/{templateId}/upload-docx
+### ⚠️ Cần file .docx thực, xem curl bên dưới
+### ─────────────────────────────────────────────────────────────
+# Xem lệnh curl bên dưới — phần [9-curl]
+
+###
