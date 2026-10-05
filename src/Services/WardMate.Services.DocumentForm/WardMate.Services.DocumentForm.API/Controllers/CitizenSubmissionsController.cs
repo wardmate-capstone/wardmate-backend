@@ -8,26 +8,31 @@ using WardMate.SharedKernel.Common;
 namespace WardMate.Services.DocumentForm.API.Controllers;
 
 /// <summary>
-/// Quản lý hồ sơ điện tử của người dân (UserSubmission).
-/// Hỗ trợ: lưu nháp nhiều lần, nộp hồ sơ, cán bộ comment và duyệt, xuất file sạch.
+/// [CITIZEN] Luồng người dân: quản lý hồ sơ điện tử của bản thân.
+/// Bao gồm: lưu nháp, cập nhật nháp, nộp hồ sơ chính thức, tải file về để điền tiếp.
+/// Base path: /api/v1/citizen/submissions
 /// </summary>
 [ApiController]
-[Route("api/v1/user-submissions")]
+[Route("api/v1/citizen/submissions")]
 [Produces("application/json")]
-public sealed class UserSubmissionsController : ControllerBase
+[Tags("Citizen — Hồ sơ người dân")]
+public sealed class CitizenSubmissionsController : ControllerBase
 {
     private readonly IMediator _mediator;
 
-    public UserSubmissionsController(IMediator mediator)
+    public CitizenSubmissionsController(IMediator mediator)
     {
         _mediator = mediator;
     }
 
-    // ── NGƯỜI DÂN ────────────────────────────────────────────────────────────
-
     /// <summary>
-    /// Lấy danh sách hồ sơ của người dân (theo applicantId).
+    /// Lấy danh sách tất cả hồ sơ của người dân theo applicantId (có phân trang, lọc theo trạng thái).
     /// </summary>
+    /// <remarks>
+    /// Ví dụ: GET /api/v1/citizen/submissions?applicantId=...&amp;status=Draft&amp;page=1&amp;pageSize=20
+    ///
+    /// Các trạng thái hợp lệ: Draft | Submitted | RevisionRequested | Approved
+    /// </remarks>
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<UserSubmissionSummaryDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMySubmissions(
@@ -46,7 +51,7 @@ public sealed class UserSubmissionsController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy chi tiết một hồ sơ theo ID.
+    /// Xem chi tiết một hồ sơ theo ID.
     /// </summary>
     [HttpGet("{submissionId:guid}")]
     [ProducesResponseType(typeof(UserSubmissionSummaryDto), StatusCodes.Status200OK)]
@@ -68,9 +73,18 @@ public sealed class UserSubmissionsController : ControllerBase
     }
 
     /// <summary>
-    /// Tạo mới bản nháp hồ sơ (lần đầu người dân upload file đã điền một phần).
-    /// FE gửi file .docx người dân đã điền + templateId + applicantId.
+    /// Tạo mới bản nháp hồ sơ (POST multipart/form-data).
+    /// Người dân chọn biểu mẫu, upload file .docx đã điền một phần và lưu tạm.
+    /// Có thể gọi lại nhiều lần để cập nhật file trước khi nộp chính thức.
     /// </summary>
+    /// <remarks>
+    /// Form fields:
+    /// - templateId (Guid): ID biểu mẫu gốc
+    /// - applicantId (Guid): ID người dân
+    /// - file (IFormFile): File .docx đã điền (một phần hoặc toàn bộ)
+    ///
+    /// Response: { submissionId, status: "Draft", blobUrl, ... }
+    /// </remarks>
     [HttpPost("draft")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status201Created)]
@@ -105,13 +119,22 @@ public sealed class UserSubmissionsController : ControllerBase
     }
 
     /// <summary>
-    /// Cập nhật bản nháp đã tồn tại (người dân điền tiếp, lưu lại).
-    /// FE gửi file .docx đã điền thêm để thay thế file nháp cũ.
+    /// Cập nhật bản nháp hiện có (PUT multipart/form-data).
+    /// Dùng khi người dân điền thêm và muốn lưu tiến độ trước khi nộp chính thức.
+    /// Cũng dùng sau khi cán bộ trả hồ sơ (RevisionRequested) để upload file đã sửa.
     /// </summary>
+    /// <remarks>
+    /// Form fields:
+    /// - applicantId (Guid): xác minh chủ sở hữu
+    /// - file (IFormFile): File .docx đã cập nhật
+    ///
+    /// Response: { submissionId, status: "Draft", blobUrl, ... }
+    /// </remarks>
     [HttpPut("{submissionId:guid}/draft")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateDraft(
         Guid submissionId,
@@ -125,7 +148,7 @@ public sealed class UserSubmissionsController : ControllerBase
         using var stream = file.OpenReadStream();
         var command = new SaveDraftSubmissionCommand(
             SubmissionId: submissionId,
-            TemplateId: Guid.Empty,          // không cần khi cập nhật
+            TemplateId: Guid.Empty,
             ApplicantId: applicantId,
             FileStream: stream,
             FileName: file.FileName,
@@ -147,15 +170,22 @@ public sealed class UserSubmissionsController : ControllerBase
     }
 
     /// <summary>
-    /// Nộp hồ sơ chính thức (Draft → Submitted). Chuyển cho cán bộ xét duyệt.
+    /// Nộp hồ sơ chính thức (Draft → Submitted).
+    /// Sau khi nộp, hồ sơ chuyển sang hàng đợi cán bộ xét duyệt.
     /// </summary>
+    /// <remarks>
+    /// Body: { "applicantId": "..." }
+    ///
+    /// Response: { submissionId, status: "Submitted", submittedAt, ... }
+    /// </remarks>
     [HttpPost("{submissionId:guid}/submit")]
     [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Submit(
         Guid submissionId,
-        [FromBody] SubmitSubmissionRequest request,
+        [FromBody] CitizenSubmitRequest request,
         CancellationToken cancellationToken = default)
     {
         var command = new SubmitSubmissionCommand(
@@ -178,7 +208,8 @@ public sealed class UserSubmissionsController : ControllerBase
     }
 
     /// <summary>
-    /// Tải file DOCX của hồ sơ về (để điền tiếp hoặc cán bộ xem nội dung).
+    /// Tải file DOCX của hồ sơ về máy.
+    /// Người dân dùng để mở lại trong Word/LibreOffice, điền thêm rồi upload lại.
     /// </summary>
     [HttpGet("{submissionId:guid}/download-docx")]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
@@ -198,83 +229,11 @@ public sealed class UserSubmissionsController : ControllerBase
 
         return File(result.Value.FileStream, result.Value.ContentType, result.Value.FileName);
     }
-
-    // ── CÁN BỘ ───────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Cán bộ yêu cầu sửa lại — trả về hồ sơ kèm comment hướng dẫn (Submitted → RevisionRequested).
-    /// </summary>
-    [HttpPost("{submissionId:guid}/request-revision")]
-    [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> RequestRevision(
-        Guid submissionId,
-        [FromBody] RequestRevisionRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var command = new RequestRevisionCommand(
-            submissionId,
-            request.OfficerId,
-            request.Comment,
-            User.Identity?.Name);
-
-        var result = await _mediator.Send(command, cancellationToken);
-
-        if (!result.IsSuccess)
-        {
-            return result.Error.Type == ErrorType.NotFound
-                ? NotFound(new { code = result.Error.Code, message = result.Error.Description })
-                : BadRequest(new { code = result.Error.Code, message = result.Error.Description });
-        }
-
-        return Ok(result.Value);
-    }
-
-    /// <summary>
-    /// Cán bộ duyệt hồ sơ (Submitted → Approved). Người dân có thể xuất file sạch để in.
-    /// </summary>
-    [HttpPost("{submissionId:guid}/approve")]
-    [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Approve(
-        Guid submissionId,
-        [FromBody] ApproveSubmissionRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var command = new ApproveSubmissionCommand(
-            submissionId,
-            request.OfficerId,
-            User.Identity?.Name);
-
-        var result = await _mediator.Send(command, cancellationToken);
-
-        if (!result.IsSuccess)
-        {
-            return result.Error.Type == ErrorType.NotFound
-                ? NotFound(new { code = result.Error.Code, message = result.Error.Description })
-                : BadRequest(new { code = result.Error.Code, message = result.Error.Description });
-        }
-
-        return Ok(result.Value);
-    }
 }
 
 // ─── Request Models ───────────────────────────────────────────────────────────
 
-public sealed record SubmitSubmissionRequest
+public sealed record CitizenSubmitRequest
 {
     public Guid ApplicantId { get; init; }
-}
-
-public sealed record RequestRevisionRequest
-{
-    public Guid OfficerId { get; init; }
-    public string Comment { get; init; } = string.Empty;
-}
-
-public sealed record ApproveSubmissionRequest
-{
-    public Guid OfficerId { get; init; }
 }

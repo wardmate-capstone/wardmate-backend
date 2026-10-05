@@ -32,9 +32,11 @@ public sealed class GetMySubmissionsQueryHandler
     public async Task<Result<PagedResult<UserSubmissionSummaryDto>>> Handle(
         GetMySubmissionsQuery request, CancellationToken cancellationToken)
     {
+        // Nếu ApplicantId = Guid.Empty → officer xem tất cả hồ sơ, không lọc theo người dùng
         var query = _dbContext.UserSubmissions
             .AsNoTracking()
-            .Where(s => s.ApplicantId == request.ApplicantId && !s.IsDeleted);
+            .Where(s => (request.ApplicantId == Guid.Empty || s.ApplicantId == request.ApplicantId)
+                        && !s.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(request.Status))
             query = query.Where(s => EF.Property<string>(s, "Status") == request.Status);
