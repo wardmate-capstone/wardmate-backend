@@ -23,6 +23,11 @@ public sealed class ApplicationsController(ISender sender) : ControllerBase
         return result.Error is null ? CreatedAtAction("Get", new { id = result.Value!.Id }, result.Value) : Respond(result);
     }
 
+    [HttpGet]
+    [ProducesResponseType<ApplicationPage>(200)]
+    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default) =>
+        Ok(await sender.Send(new ListApplicationsQuery(Actor, page, pageSize), ct));
+
     private IActionResult Respond(WorkflowResult<ApplicationDto> result)
     {
         if (result.Error is null) return Ok(result.Value);
