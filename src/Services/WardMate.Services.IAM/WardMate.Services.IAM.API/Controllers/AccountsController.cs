@@ -1,3 +1,4 @@
+using WardMate.Services.IAM.API.Authorization;
 using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +9,7 @@ using WardMate.Services.IAM.Domain;
 
 namespace WardMate.Services.IAM.API.Controllers;
 
-[ApiController, Authorize(Policy = PermissionCodes.Manage), Route("api/v1/accounts")]
+[ApiController, Authorize(Policy = AccountManagementRequirement.Policy), Route("api/v1/accounts")]
 [ProducesResponseType<ProblemDetails>(400)]
 [ProducesResponseType<ProblemDetails>(401)]
 [ProducesResponseType<ProblemDetails>(403)]
@@ -19,7 +20,7 @@ public sealed class AccountsController(ISender sender) : ControllerBase
     [HttpGet, ProducesResponseType<AccountPage>(200)]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
     {
-        var result = await sender.Send(new ListAccountsQuery(page, pageSize), ct);
+        var result = await sender.Send(new ListAccountsQuery(Guid.Parse(User.FindFirstValue("sub")!), page, pageSize), ct);
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
@@ -27,7 +28,7 @@ public sealed class AccountsController(ISender sender) : ControllerBase
     [ProducesResponseType<AccountDto>(200)]
     public async Task<IActionResult> Get(Guid userId, CancellationToken ct)
     {
-        var result = await sender.Send(new GetAccountQuery(userId), ct);
+        var result = await sender.Send(new GetAccountQuery(Guid.Parse(User.FindFirstValue("sub")!), userId), ct);
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
