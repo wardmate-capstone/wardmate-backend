@@ -2,6 +2,15 @@ using FluentValidation;
 
 namespace WardMate.Services.IAM.Application.Profiles;
 
+public sealed class ListProfilesValidator : AbstractValidator<ListProfilesQuery>
+{
+    public ListProfilesValidator()
+    {
+        RuleFor(x => x.Page).InclusiveBetween(1, 1000000).WithMessage("Số trang phải từ 1 đến 1000000.");
+        RuleFor(x => x.PageSize).InclusiveBetween(1, 100).WithMessage("Số hồ sơ mỗi trang phải từ 1 đến 100.");
+    }
+}
+
 public sealed class ProfileInputValidator : AbstractValidator<ProfileInput>
 {
     public ProfileInputValidator(TimeProvider clock)
