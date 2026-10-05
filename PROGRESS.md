@@ -1317,3 +1317,38 @@ src/Services/WardMate.Services.ApplicationWorkflow/.
 
 - Kiểm tra bổ sung: Docker Compose config --quiet hợp lệ (biến mật khẩu tạm chỉ để kiểm tra cấu hình);
   JSON cấu hình hợp lệ; tài liệu có đủ 64 mục API. Không build/start container bằng kiểm tra này.
+
+## IAM-PROFILES-001 — API danh sách hồ sơ người dùng
+
+Hoàn thành: 2026-10-05 21:44:37 +07:00 (Asia/Saigon, UTC+07:00).
+
+- Thêm GET /api/v1/users/profiles?page=1&pageSize=20, không request body, Bearer JWT của IAM.
+- 200 ProfilePage {items,page,pageSize,total}; item có userId, fullName, identityNumber, phoneNumber,
+  dateOfBirth, gender, permanentAddress, temporaryAddress, updatedAt. Null bị bỏ theo cấu hình IAM.
+- Chỉ lấy profile tồn tại; bao gồm profile tài khoản bị khóa trong phạm vi. Sắp xếp FullName, UserId.
+- Admin theo policy quản trị hiện tại xem toàn hệ thống; Manager chỉ Front Desk cùng phường, loại tài khoản
+  có role đặc quyền khác. Tái sử dụng ManagementScope, lọc trước Count/Skip/Take. Không nhận wardId từ FE.
+- 400 query sai (page 1..1000000, pageSize 1..100, validation tiếng Việt); 401 token sai/hết hạn;
+  403 thiếu quyền/phường hoặc actor bị khóa. Trang không có hồ sơ trả 200 items rỗng.
+- FE lấy userId để mở API profile chi tiết; gọi các trang liên tiếp nếu cần lấy toàn bộ phạm vi.
+  Không đổi cookie/CSRF hoặc database schema, không cần migration.
+
+File thay đổi (đường dẫn trong src/Services/WardMate.Services.IAM/):
+
+- WardMate.Services.IAM.API/Controllers/AdminProfilesController.cs
+- WardMate.Services.IAM.Application/Profiles/ProfileRequests.cs
+- WardMate.Services.IAM.Application/Profiles/ProfileHandlers.cs
+- WardMate.Services.IAM.Application/Profiles/ProfileValidators.cs
+- WardMate.Services.IAM.Application/Interfaces/IProfileStore.cs
+- WardMate.Services.IAM.Infrastructure/Persistence/ProfileStore.cs
+- docs/api-guide.md và PROGRESS.md tại repository (hướng dẫn có 65 mục API).
+
+Kiểm chứng:
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: 171 passed, 0 failed, 0 skipped
+  (DocumentForm 71; ProcedureCatalog 81; ApplicationWorkflow 19).
+- Số test IAM mới: 0; không tạo lại project test theo AGENTS.md. Bộ test hiện có không bao phủ API IAM mới;
+  đã rà soát route, DTO, validation, DI và tái sử dụng scope quản lý. Chưa kiểm thử HTTP API mới trên DB thật.
+- Không chạy Git, không build Docker hoặc deploy.
+- Gợi ý Conventional Commit: feat(iam): add paginated profiles within management scope.
