@@ -1,6 +1,6 @@
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
-Đối chiếu mã nguồn ngày **05/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả 59
+Đối chiếu mã nguồn ngày **05/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả 60
 API nghiệp vụ hiện có, các endpoint hệ thống và đường dẫn Gateway. Không phải xác nhận tình trạng deploy.
 
 **Cách đọc:** Mỗi API có mục đích, quyền, cách dùng, kết quả và lỗi thường gặp trên các dòng riêng. Public
@@ -262,6 +262,34 @@ mới.
 - Bỏ isActive → 400; tài khoản không có → 404; tự khóa mình hoặc khóa IT_ADMIN hoạt động cuối cùng → 409.
 - Không dùng thao tác này thay cho xóa hồ sơ; và không khẳng định JWT đã cấp mất hiệu lực ngay ở mọi service
   chỉ kiểm tra JWT.
+
+#### API 60 — Danh sách hồ sơ người dùng
+
+**Method & Đường dẫn:** `GET /api/v1/users/profiles?page=1&pageSize=20`
+
+**Mục đích:** Hiển thị danh sách thông tin cá nhân để quản lý mở/xem/sửa hồ sơ theo userId.
+Khác danh sách tài khoản, API này chỉ trả hồ sơ đang tồn tại; người chưa có/đã xóa profile không xuất hiện.
+
+**Ai sử dụng:** IT_ADMIN có quyền iam.manage xem toàn hệ thống. Manager đã được gán phường chỉ xem
+Front Desk cùng phường theo phạm vi quản lý hiện hành; không xem công dân hoặc cán bộ phường khác.
+Front Desk có role đặc quyền khác ngoài FRONT_DESK_OFFICER/REGISTERED_CITIZEN không thuộc phạm vi Manager.
+
+**Cách gọi:** Gửi `Authorization: Bearer <accessToken>`, không body. page mặc định 1 (tối đa 1.000.000),
+pageSize mặc định 20 (tối đa 100). Muốn lấy hết thì gọi lần lượt các trang đến khi đủ total.
+Không truyền wardId/userId để tự mở rộng quyền. Gateway dùng cùng route tại cổng 5000; IAM local cổng 5001.
+
+**Kết quả:** 200 với `{items, page, pageSize, total}`, sắp xếp fullName rồi userId để phân trang ổn định.
+Mỗi item gồm userId, fullName, identityNumber, phoneNumber, dateOfBirth, gender, permanentAddress,
+temporaryAddress, updatedAt. Trường null bị bỏ theo cấu hình JSON của IAM. updatedAt là UTC.
+Lấy userId để gọi `GET /api/v1/users/{userId}/profile`; không nhầm profile với tài khoản đăng nhập.
+Hồ sơ tài khoản bị khóa vẫn xuất hiện nếu thuộc phạm vi; total là số profile được phép xem, không phải số user.
+
+**Lỗi và cách xử lý:**
+
+- 400 khi page/pageSize sai hoặc không phải số → sửa query theo errors tiếng Việt.
+- 401 khi token sai/hết hạn → refresh qua IAM hoặc đăng nhập lại.
+- 403 khi không có quyền, Manager chưa có phường hoặc tài khoản quản lý bị khóa → nhờ Admin kiểm tra.
+- items rỗng vẫn trả 200; kiểm tra trang và hồ sơ trong phạm vi, không xem đây là lỗi hệ thống.
 
 #### API 10 — Quản trị xem hồ sơ một người
 
@@ -1241,7 +1269,7 @@ quyền nghiệp vụ. Health/root phục vụ nhận biết tiến trình, khô
 
 
 ApplicationWorkflow và AnalyticsSystem mới có root/health, chưa có API nghiệp vụ. Tổng cộng có 6 root và 7
-health endpoint theo host, ngoài 59 API nghiệp vụ.
+health endpoint theo host, ngoài 60 API nghiệp vụ.
 
 ### Nhóm 5.2 — Các tuyến chuyển tiếp của Gateway (local: cổng 5000)
 
