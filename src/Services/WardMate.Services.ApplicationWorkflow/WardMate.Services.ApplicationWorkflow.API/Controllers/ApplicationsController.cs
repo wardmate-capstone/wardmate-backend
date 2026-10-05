@@ -20,13 +20,18 @@ public sealed class ApplicationsController(ISender sender) : ControllerBase
     public async Task<IActionResult> Create(CreateApplicationInput input, CancellationToken ct)
     {
         var result = await sender.Send(new CreateApplicationCommand(Actor, input), ct);
-        return result.Error is null ? CreatedAtAction("Get", new { id = result.Value!.Id }, result.Value) : Respond(result);
+        return result.Error is null ? CreatedAtAction(nameof(Get), new { id = result.Value!.Id }, result.Value) : Respond(result);
     }
 
     [HttpGet]
     [ProducesResponseType<ApplicationPage>(200)]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default) =>
         Ok(await sender.Send(new ListApplicationsQuery(Actor, page, pageSize), ct));
+
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType<ApplicationDto>(200)]
+    public async Task<IActionResult> Get(Guid id, CancellationToken ct) =>
+        Respond(await sender.Send(new GetApplicationQuery(Actor, id), ct));
 
     private IActionResult Respond(WorkflowResult<ApplicationDto> result)
     {
