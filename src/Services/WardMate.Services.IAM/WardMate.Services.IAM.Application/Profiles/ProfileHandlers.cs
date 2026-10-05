@@ -7,11 +7,15 @@ using WardMate.Services.IAM.Domain.Entities;
 namespace WardMate.Services.IAM.Application.Profiles;
 
 public sealed class ProfileHandlers(IProfileStore store, TimeProvider clock) :
+    IRequestHandler<ListProfilesQuery, Result<ProfilePage>>,
     IRequestHandler<GetProfileQuery, Result<UserProfileDto>>,
     IRequestHandler<CreateProfileCommand, Result<UserProfileDto>>,
     IRequestHandler<UpdateProfileCommand, Result<UserProfileDto>>,
     IRequestHandler<DeleteProfileCommand, Result<bool>>
 {
+    public Task<Result<ProfilePage>> Handle(ListProfilesQuery request, CancellationToken ct) =>
+        store.List(request.ActorId, request.Page, request.PageSize, ct);
+
     public async Task<Result<UserProfileDto>> Handle(GetProfileQuery request, CancellationToken ct)
     {
         var profile = await store.Find(request.UserId, ct);

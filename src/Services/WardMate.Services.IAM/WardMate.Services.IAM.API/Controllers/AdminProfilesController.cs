@@ -19,6 +19,14 @@ namespace WardMate.Services.IAM.API.Controllers;
 [ProducesResponseType<ProblemDetails>(409)]
 public sealed class AdminProfilesController(ISender sender, IManagementScope scope) : ControllerBase
 {
+    [HttpGet("/api/v1/users/profiles")]
+    [ProducesResponseType<ProfilePage>(200)]
+    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+    {
+        var result = await sender.Send(new ListProfilesQuery(Guid.Parse(User.FindFirstValue("sub")!), page, pageSize), ct);
+        return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
+    }
+
     [HttpGet]
     [ProducesResponseType<UserProfileDto>(200)]
     public async Task<IActionResult> Get(Guid userId, CancellationToken ct)
