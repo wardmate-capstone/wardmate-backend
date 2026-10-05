@@ -8,6 +8,7 @@
 **Trạng thái Shared Kernel & Central Logging (TASK-05, TASK-06): HOÀN THÀNH** — đã triển khai đầy đủ Domain primitives, CQRS MediatR abstractions, Azure Blob Storage client wrapper, Serilog tập trung, RequestLoggingMiddleware và 39 unit tests cho SharedKernel. Xác minh ngày 26/09/2026 lúc 18:10 (Asia/Saigon).
 
 **Trạng thái User Submissions API: HOÀN THÀNH** — đã thêm entity UserSubmission, enum SubmissionStatus, các command/query và 7 endpoints quản lý vòng đời hồ sơ người dân (draft, submit, request-revision, approve). Đã commit từng lớp và push lên `main`, `nghia`, `deploy`. Xác minh ngày 04/10/2026 lúc 21:30 (Asia/Saigon).
+**Trạng thái DOC-003 Citizen/Officer API split + Dockerfile: HOÀN THÀNH** — đã tách UserSubmissionsController thành CitizenSubmissionsController (/api/v1/citizen/submissions) và OfficerSubmissionsController (/api/v1/officer/submissions), cập nhật Dockerfile Alpine + non-root user + HEALTHCHECK, thêm service document-form vào docker-compose.yml. Docker image `wardmate-document-form:local` 196MB, 0 errors. Xác minh ngày 05/10/2026 lúc 08:21 (Asia/Saigon).
 
 ---
 
