@@ -14,6 +14,22 @@ public sealed class ProcedureListTests(ProcedureFixture fixture) : IClassFixture
     private const string Manager = "/api/v1/procedure-manager/procedures";
 
     [Fact]
+    public async Task PublicCategoriesSupplyIdsForUnassignedFrontDeskFiltering()
+    {
+        var prefix = await Seed();
+        using var client = fixture.Factory.CreateClient();
+        var categories = await client.GetFromJsonAsync<ProcedureCategoryDto[]>($"{Public}/categories");
+        Assert.NotNull(categories);
+        Assert.Contains(categories, x => x.Id == 1 && !string.IsNullOrWhiteSpace(x.CategoryName));
+        Assert.Contains(categories, x => x.Id == 2);
+        var first = await client.GetFromJsonAsync<PagedResult<ProcedureSummaryDto>>($"{Public}?categoryId=1&keyword={prefix}");
+        var second = await client.GetFromJsonAsync<PagedResult<ProcedureSummaryDto>>($"{Public}?categoryId=2&keyword={prefix}");
+        Assert.Equal(3, first!.TotalCount);
+        Assert.Equal(1, second!.TotalCount);
+        Assert.All(first.Items, x => Assert.Equal(categories.Single(c => c.Id == 1).CategoryName, x.CategoryName));
+    }
+
+    [Fact]
     public async Task AccentInsensitiveKeywordLevelFilterAndDescendingSortReturnCorrectMetadata()
     {
         var prefix = await Seed();
