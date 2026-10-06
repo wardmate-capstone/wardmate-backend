@@ -7,6 +7,10 @@ namespace WardMate.Services.IAM.Application.Profiles;
 public sealed record ProfileInput(string FullName, string? IdentityNumber, string? PhoneNumber,
     DateOnly? DateOfBirth, string? Gender, string? PermanentAddress, string? TemporaryAddress);
 public sealed record GetProfileQuery(Guid UserId) : IRequest<Result<UserProfileDto>>;
+public sealed record ListProfilesQuery(Guid ActorId, int Page = 1, int PageSize = 20) : IRequest<Result<ProfilePage>>;
+public sealed record ProfileListItemDto(Guid UserId, string FullName, string? IdentityNumber, string? PhoneNumber,
+    DateOnly? DateOfBirth, string? Gender, string? PermanentAddress, string? TemporaryAddress, DateTime UpdatedAt);
+public sealed record ProfilePage(ProfileListItemDto[] Items, int Page, int PageSize, int Total);
 public sealed record CreateProfileCommand(Guid UserId, ProfileInput Profile) : IRequest<Result<UserProfileDto>>;
 public sealed record UpdateProfileCommand(Guid UserId, ProfileInput Profile) : IRequest<Result<UserProfileDto>>;
 public sealed record DeleteProfileCommand(Guid UserId) : IRequest<Result<bool>>;

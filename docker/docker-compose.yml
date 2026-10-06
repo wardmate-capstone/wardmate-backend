@@ -146,6 +146,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       Extraction__Enabled: ${PROCEDURE_EXTRACTION_ENABLED:-false}
+      Extraction__UseAI: ${PROCEDURE_USE_AI:-false}
+      Extraction__OcrFallbackEnabled: ${PROCEDURE_OCR_FALLBACK_ENABLED:-false}
       ServiceAuthentication__Key: ${AIOCR_SERVICE_KEY:-}
       DocumentIntelligence__Endpoint: ${DOCUMENT_INTELLIGENCE_ENDPOINT:-}
       DocumentIntelligence__Key: ${DOCUMENT_INTELLIGENCE_KEY:-}

@@ -6,6 +6,7 @@ namespace WardMate.Services.ProcedureCatalog.Application.Interfaces;
 
 public interface IProcedureRepository
 {
+    Task<IReadOnlyList<ProcedureCategoryDto>> ListCategories(CancellationToken ct = default);
     Task<Procedure?> GetById(Guid id, CancellationToken ct = default);
     Task<PagedResult<ProcedureSummaryDto>> ListPublic(ProcedureSearchOptions query, CancellationToken ct = default);
     Task<PagedResult<ProcedureManagerSummaryDto>> ListManager(ProcedureSearchOptions query, CancellationToken ct = default);

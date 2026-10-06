@@ -1030,3 +1030,239 @@ Manager endpoints yêu cầu Bearer role PROCEDURE_MANAGER hoặc IT_ADMIN (401/
 - PROGRESS.md
 
 Gợi ý Conventional Commit theo chức năng để Antigravity tách từng file theo quy định: feat(procedure-catalog): add PDF drafts and reviewed publication; feat(aiocr): add configurable Azure procedure extraction; test(procedure-catalog): verify PDF draft lifecycle and extraction; docs: document PDF review workflow and configuration.
+
+## PDF-002 — Ưu tiên đọc văn bản PDF trực tiếp và API đọc thử
+
+- Hoàn thành: 2026-10-03 08:43:28 Asia/Saigon (UTC+07:00).
+- Thực hiện theo yêu cầu đọc PDF có lớp văn bản, không bắt buộc OCR. Giữ nguyên dữ liệu và các thay đổi khác trong workspace; không chạy Git.
+
+### Chức năng / API / hướng dẫn FE
+
+- AIOCR dùng PdfPig 0.1.16 + ContentOrderTextExtractor để đọc từng trang, chuẩn hóa Unicode NFC; giữ dấu phân trang trong extractedText. Không cần OCR hoặc AI credentials để lấy chữ.
+- Hai cờ riêng: Extraction:UseAI=false và Extraction:OcrFallbackEnabled=false mặc định. Khi bật UseAI và có AzureOpenAI config, văn bản đi trực tiếp sang bước map JSON; không gọi Document Intelligence cho PDF đủ chữ theo kiểm tra sơ bộ.
+- Trang ít chữ, có ký tự hỏng/control được cảnh báo; không gọi AI trên văn bản thiếu trang khi OCR fallback tắt. Trang có ảnh luôn được cảnh báo vì reader không đọc chữ trong ảnh. Đây là heuristic, không đảm bảo chính xác/đầy đủ tuyệt đối; cán bộ vẫn đối soát.
+- Khi AI tắt/lỗi: giữ extractedText, trả khung payload chưa điền và warnings để nhập tay; không giả lập dữ liệu thủ tục. OCR chỉ gọi khi bật fallback riêng. PDF quá 20 MiB/100 trang/100.000 ký tự bị từ chối thay vì âm thầm cắt; file hỏng/khóa có lỗi có kiểm soát.
+- API mới: POST /api/v1/procedure-manager/drafts/extract-preview, multipart/form-data trường file; 200 {payload,extractedText,warnings}, Cache-Control no-store. Manager/IT_ADMIN Bearer bắt buộc (401/403). Không lưu Blob hoặc tạo bản nháp/ghi DB. Lỗi: 400 file sai; 503 thiếu config AIOCR; 502 service/PDF lỗi; 504 timeout; request quá lớn có thể 413 từ server/ingress.
+- Không đổi endpoint AIOCR nội bộ, DTO lưu nháp hoặc token IAM; không thêm migration. Luồng lưu bản nháp vẫn cần Blob và ProcedureDrafts:ExtractionEnabled=true để worker gọi AIOCR. Preview gọi trực tiếp extractor, không phụ thuộc cờ hàng đợi này.
+- Script scripts/verify-pdf-text.ps1 nhận PdfPath và ExpectedText tùy chọn; chạy AIOCR tạm trên loopback bằng khóa ngẫu nhiên, ép AI/OCR tắt, kiểm tra HTTP rồi dừng process. Không gọi cloud/Blob/DB.
+- Hướng dẫn test Swagger, script, cấu hình service key và các giới hạn: docs/procedure-pdf-text.md. Chưa triển khai FE Split-view hoặc deploy Azure; không tự build Docker.
+
+### Kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: PASS, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: PASS 152/152 (DocumentForm72 + ProcedureCatalog/AIOCR80), 0 failed, 0 skipped.
+- Thêm 8 test cases trong project có sẵn: 7 test reader/adapter (PDF thật tạo trong bộ nhớ, không cần OCR/AI credentials/network, trang thiếu chữ, AI-only mapping, AI failure fallback, file hỏng, giới hạn trang); 1 test HTTP preview phân quyền và không cần Blob. Điều chỉnh test Azure cũ để bật UseAI rõ ràng. Không tạo test project mới.
+- Smoke test bằng PDF mẫu Đăng ký tạm trú người dùng đã cung cấp: 13 trang, PdfPig qua HTTP đọc 21.367 ký tự, kiểm tra tiêu đề có dấu Đăng ký tạm trú thành công; đoạn đầu có mã 1.116789. AI/OCR đều tắt, không truyền tài liệu ra cloud. Đối chiếu độc lập pypdf (13 trang, 20.917 ký tự) và ảnh render trang đầu bằng pypdfium2; khác số ký tự do cách xuống dòng/phân trang. Không khẳng định toàn bộ layout được giữ nguyên.
+- docker compose -f docker/docker-compose.yml --profile ai config --quiet: PASS; chỉ validate, không build/start.
+- PDF gốc không sao chép vào source; ảnh kiểm tra nằm trong TestResults đã được ignore. Chưa kiểm chứng mapping AI thật do chưa có nhà cung cấp/key.
+
+### File tạo mới
+
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/TextFirstProcedureExtractor.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/TextPdfExtractionTests.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/PdfPreviewTests.cs
+- scripts/verify-pdf-text.ps1
+- docs/procedure-pdf-text.md
+
+### File chỉnh sửa
+
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/WardMate.Services.AIOCR.Infrastructure.csproj
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/AzureProcedureDocumentExtractor.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/Program.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/appsettings.json
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureDraftsController.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/AzureExtractionAdapterTests.cs
+- docker/docker-compose.yml
+- docker/.env.example
+- docs/procedure-pdf-drafts.md
+- PROGRESS.md
+
+Gợi ý commit cho Antigravity (tách file theo quy định): feat(aiocr): extract PDF text before optional OCR and AI; feat(procedure-catalog): add PDF extraction preview; test(aiocr): cover native PDF extraction and preview authorization; docs: explain OCR-free PDF testing.
+
+## DOC-PDF-003 — Tài liệu sử dụng API đọc thử PDF trong hệ thống
+
+- Hoàn thành: 2026-10-04 21:47:13 Asia/Saigon (UTC+07:00).
+- Tạo docs/api-pdf-extract-preview.md: mô tả mục đích, endpoint, role, cấu hình Procedure/AIOCR, multipart file, response, Swagger/Postman/curl, ví dụ FE fetch, ProblemDetails và liên kết luồng lưu bản nháp/xuất bản.
+- File thay đổi: docs/api-pdf-extract-preview.md (mới), PROGRESS.md (cập nhật).
+- Không thêm/sửa API: tài liệu cho POST /api/v1/procedure-manager/drafts/extract-preview, request multipart file, 200 ExtractionResult; 400/401/403/413/502/503/504 và lỗi hệ thống 500. Preview không lưu Blob/DB.
+- FE: Bearer PROCEDURE_MANAGER hoặc IT_ADMIN; không truyền service key, không tự đặt multipart boundary, hiển thị warnings; payload trống khi AI tắt là bình thường. Không đổi token IAM.
+- Kiểm chứng: đối chiếu controller và tài liệu triển khai hiện tại; kiểm tra file Markdown và liên kết nội bộ. Không chạy build/test vì chỉ thêm tài liệu; số test mới 0. Không dùng kết quả 152 tests của phiên trước như kết quả chạy lại phiên này.
+- Không chạy Git, không build Docker, không deploy.
+- Gợi ý commit: docs: add PDF extraction preview API usage guide
+
+## DOC-API-001 — Danh mục và hướng dẫn sử dụng toàn bộ API
+
+- Hoàn thành: 2026-10-04 22:00:20 Asia/Saigon (UTC+07:00).
+- File mới: docs/api-guide.md. File cập nhật: PROGRESS.md. Không sửa mã nguồn hoặc cấu hình hệ thống.
+- Tài liệu bao phủ 53 thao tác controller: IAM 29, Procedure Catalog 17, Document Form 6, AIOCR 1; thêm 6 endpoint root, 7 health endpoint và Swagger theo môi trường.
+- Không tạo endpoint mới. Mỗi endpoint hiện có được ghi HTTP method, route, quyền, request/body/query, response DTO và status; có ví dụ cho login/HttpOnly, hồ sơ, RBAC, tìm kiếm/phân trang, version/publish, PDF draft/review và DOCX/schema.
+- FE: phân biệt route trực tiếp/Gateway, CSRF header/cookie refresh không có JSON token, policy ProcedureManager, revision draft, thời hạn SAS, các kiểu metadata phân trang và lỗi khác nhau. Ghi đúng hiện trạng DocumentForm chưa gắn xác thực, AIOCR nội bộ dùng service key, Workflow/Analytics chưa có API nghiệp vụ.
+- Kiểm chứng: đối chiếu tự động đủ 53/53 controller operations với bảng tài liệu; 4/4 ví dụ JSON parse thành công. Đối chiếu DTO, validators và cấu hình route trong source.
+- Build: dotnet build WardMate.sln -c Release --no-restore -warnaserror — thành công, 0 errors, 0 warnings.
+- Tests: 0 test mới; không chạy dotnet test vì thay đổi chỉ là tài liệu. Không tuyên bố kết quả test từ phiên trước là kết quả của phiên này.
+- Không chạy Git, không build Docker, không deploy.
+- Gợi ý commit tách file cho Antigravity: docs: add complete API reference and usage guide (docs/api-guide.md); docs: record API documentation completion (PROGRESS.md).
+
+## DOC-API-002 — Giải thích từng API theo tình huống sử dụng
+
+- Hoàn thành: 2026-10-04 22:11:00 Asia/Saigon (UTC+07:00).
+- File thay đổi: docs/api-guide.md, AGENTS.md, PROGRESS.md.
+- Bổ sung 53 mục riêng cho 53 API controller: mục đích, cách gọi/quyền, kết quả, lỗi sử dụng và hướng xử lý bằng tiếng Việt dễ hiểu; hướng dẫn root/health/Swagger. Giữ phần DTO/request/status chi tiết làm tài liệu tra cứu phía sau.
+- AGENTS.md: yêu cầu cập nhật chính docs/api-guide.md khi thêm hoặc thay đổi API, bao gồm tình huống sử dụng sai và cách khắc phục.
+- Endpoint mới/thay đổi: không có. Không sửa hành vi API, request body hoặc response code.
+- FE: làm rõ 401/403, cookie và refresh, khác nhau giữa tài khoản/hồ sơ, role/quyền, preview/draft/publish, revision và cập nhật version, xử lý schema dưới dạng chuỗi JSON.
+- Kiểm chứng: đối chiếu 53/53 route controller có mục giải thích riêng; Release build với --no-restore -warnaserror thành công, 0 lỗi, 0 cảnh báo.
+- Tests: 0 test mới; không chạy dotnet test vì chỉ sửa tài liệu/quy tắc tài liệu. Không khẳng định coverage kiểm thử nghiệp vụ từ kiểm tra tài liệu.
+- Không chạy Git, Docker hoặc deploy.
+- Commit gợi ý theo file: docs: explain each API with usage scenarios and troubleshooting; docs: require ongoing API guide updates; docs: record API guide clarification.
+
+## DOC-API-003 — Trình bày API theo mẫu Service / Nhóm chức năng / Bảng
+
+- Hoàn thành: 2026-10-05 12:42:00 Asia/Saigon (UTC+07:00).
+- File thay đổi: docs/api-guide.md, PROGRESS.md.
+- Sắp xếp lại theo mẫu chủ dự án: trách nhiệm từng service, các nhóm chức năng, bảng Method & Đường dẫn / Quyền / Mục đích-cách dùng-kết quả / Trường hợp sai-cách xử lý. Giữ phụ lục DTO và ví dụ kỹ thuật để tra cứu.
+- Bổ sung đầy đủ nhóm draft/PDF, publish, AIOCR và tuyến Gateway còn thiếu trong mẫu. Giữ thông tin đúng code: REGISTERED_CITIZEN, reason tùy chọn, DocumentForm chưa gắn xác thực, route Gateway DocumentForm có prefix, thời hạn token lấy từ cấu hình/response.
+- API mới/thay đổi: không có; không thay request, response hoặc quyền. Nội dung mô tả 53 API nghiệp vụ cùng root/health/Swagger và reverse proxy.
+- Kiểm chứng: đối chiếu 53/53 endpoint controller có trong bảng nhóm; dotnet build WardMate.sln -c Release --no-restore -warnaserror thành công, 0 lỗi, 0 cảnh báo.
+- Tests: 0 test mới; không chạy dotnet test vì chỉ thay đổi tài liệu. Không dùng kết quả build để tuyên bố tests đã pass.
+- FE: giữ hướng dẫn cookie/CSRF, quyền, revision, trạng thái draft, DTO và tình huống lỗi theo từng API; tiếp tục cập nhật chính docs/api-guide.md khi API thay đổi.
+- Không chạy Git, không build Docker, không deploy.
+- Gợi ý commit: docs: organize API guide by service and feature group; docs: record API guide reorganization.
+
+## DOC-API-004 — Markdown dễ đọc trực tiếp trong IDE
+
+- Hoàn thành: 2026-10-05 12:45:30 Asia/Saigon (UTC+07:00).
+- File thay đổi: docs/api-guide.md, PROGRESS.md.
+- Giữ nhóm service/chức năng; chuyển bảng dài thành 53 mục API với quyền, mục đích, cách dùng, kết quả và lỗi riêng dòng. Loại bỏ HTML br và bảng rộng; ngắt dòng văn xuôi khoảng 110 ký tự, giữ code block và nội dung kỹ thuật.
+- Không thay endpoint, request, response, quyền hoặc hành vi token. FE tiếp tục dùng các DTO/ProblemDetails và hướng dẫn hiện có.
+- Kiểm tra: đủ 53 mục API, 4 ví dụ JSON hợp lệ, không còn HTML br/bảng rộng. Release build --no-restore -warnaserror: 0 lỗi, 0 cảnh báo.
+- Tests: 0 test mới; không chạy dotnet test vì chỉ sửa tài liệu. Không chạy Git/Docker/deploy.
+- Gợi ý commit: docs: make API guide readable in source editors; docs: record Markdown readability update.
+
+## IAM-WARD-001 — Quản lý tài khoản theo phường và danh mục để Front Desk tự lọc
+
+- Hoàn thành: 2026-10-05 15:00:00 Asia/Saigon (UTC+07:00).
+- Yêu cầu đã chốt: IT_ADMIN quản lý toàn hệ thống; MANAGER quản lý Front Desk cùng phường, được tạo tài khoản và cấp/gỡ riêng role FRONT_DESK_OFFICER. Mỗi Manager có một phường; một phường có nhiều Front Desk. Catalog chỉ cung cấp lĩnh vực/bộ lọc, chưa gán cứng lĩnh vực cho cán bộ.
+
+### Thay đổi nghiệp vụ và bảo vệ phạm vi
+
+- Thêm Ward và User.WardId nullable, FK/index; tài khoản cũ chưa gán phường giữ null. Manager không có phường bị từ chối quản lý (403).
+- Scope dựa trên DB hiện tại, không nhận phường từ JWT/request để quyết định quyền. Lọc trước count/paging và bảo vệ lookup/update/delete theo ID.
+- Admin = IT_ADMIN có iam.manage đang hoạt động. Manager chỉ quản lý tài khoản Front Desk cùng phường, không phải chính mình; loại các tài khoản kiêm role quản trị/role tùy chỉnh khỏi phạm vi Manager để tránh tác động tài khoản đặc quyền.
+- Không cấp iam.manage toàn cục cho Manager. Các API RBAC tạo/sửa/xóa role, gán quyền, audit vẫn Admin-only. PUT/DELETE user-role mở riêng FRONT_DESK_OFFICER cùng phường cho Manager; người nhận không được có role khác ngoài Front Desk/Citizen.
+- Tạo Front Desk tạo user/profile/role/phường trong một transaction. Admin phải chọn phường; Manager dùng phường DB của mình, truyền phường khác bị 403. Mật khẩu dùng BCrypt và validator đăng ký hiện có.
+- Kiểm tra scope và mutation cùng transaction/advisory lock với RBAC/đổi phường/khóa tài khoản. Sửa IdentityStore để dùng transaction có sẵn khi quản trị ghi profile, tránh transaction lồng nhau.
+- Đổi phường chỉ Admin; cập nhật DB và thu hồi refresh token. GET users/me bổ sung wardId; access token cũ không vượt scope IAM mới.
+
+### Endpoints
+
+- Mới GET /api/v1/users?page=1&pageSize=20: không body; 200 {items,page,pageSize,total}; items có id/username/email/isActive/wardId?/wardName?/profile?/roles[{id,roleName}]; 400 phân trang, 401/403 quyền. Không trả hash/token; pageSize tối đa 100.
+- Mới POST /api/v1/accounts/front-desk: JSON {username,email,password,fullName,wardId?}; 201 ManagedUserDto; 400 dữ liệu, 403 phường/quyền, 404 phường không hợp lệ, 409 trùng tài khoản. Không cấp token đăng nhập.
+- Mới GET /api/v1/accounts/wards: không body; 200 WardDto[] {id,code,name}; Admin tất cả, Manager phường mình; 401/403.
+- Mới POST /api/v1/accounts/wards: Admin; JSON {code,name}; 201 WardDto, 400 validation, 401/403, 409 mã trùng.
+- Mới PUT /api/v1/accounts/{userId}/ward: Admin; JSON {wardId:Guid|null}; 204, 401/403, 404 user/phường. Null gỡ phường; body {} cũng có wardId null theo DTO, FE phải gửi rõ lựa chọn.
+- Mới GET /api/v1/procedures/categories: public, không body; 200 [{id,categoryName,description?}], dùng id với categoryId của API thủ tục hiện có; không gán lĩnh vực vào tài khoản. Gateway route procedures hiện có đã bao phủ endpoint.
+- Đổi quyền GET /api/v1/accounts, GET /api/v1/accounts/{userId}, PUT /api/v1/accounts/{userId}/status và GET/POST/PUT/DELETE /api/v1/users/{userId}/profile: Admin toàn hệ thống hoặc Manager trong scope. User ngoài scope trả 404 ở nhóm này.
+- Đổi quyền PUT/DELETE /api/v1/rbac/users/{userId}/roles/{roleId}: Manager chỉ cấp/gỡ FRONT_DESK_OFFICER cùng phường, ngoài phạm vi/quyền trả 403; Admin giữ chức năng hiện có.
+
+### File tạo mới hoặc sửa
+
+IAM Domain (src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Domain/):
+- Entities/Ward.cs (mới)
+- Entities/User.cs
+
+IAM Application (src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/):
+- Accounts/IManagementScope.cs (mới)
+- Accounts/StaffRequests.cs (mới)
+- Accounts/AccountRequests.cs
+- DTOs/IdentityDtos.cs
+- Rbac/RbacCommandHandlers.cs
+
+IAM Infrastructure (src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/):
+- DependencyInjection.cs
+- Persistence/ManagementScope.cs (mới)
+- Persistence/StaffAdministration.cs (mới)
+- Persistence/AccountStore.cs
+- Persistence/IdentityStore.cs
+- Persistence/IamDbContext.cs
+- Persistence/Configurations/IdentityConfigurations.cs
+- Persistence/Configurations/WardConfiguration.cs (mới)
+- Persistence/Migrations/20261005074640_WardScopedAccountManagement.cs (mới)
+- Persistence/Migrations/20261005074640_WardScopedAccountManagement.Designer.cs (mới)
+- Persistence/Migrations/IamDbContextModelSnapshot.cs
+
+IAM API (src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/):
+- Authorization/AccountManagementAuthorization.cs (mới)
+- Authorization/PermissionAuthorization.cs
+- Controllers/StaffAdministrationController.cs (mới)
+- Controllers/AccountsController.cs
+- Controllers/AdminProfilesController.cs
+- Controllers/UsersController.cs
+- Controllers/RbacController.cs
+
+Procedure Catalog (src/Services/WardMate.Services.ProcedureCatalog/):
+- WardMate.Services.ProcedureCatalog.Application/DTOs/ProcedureCategoryDto.cs (mới)
+- WardMate.Services.ProcedureCatalog.Application/Queries/GetProcedureCategoriesQuery.cs (mới)
+- WardMate.Services.ProcedureCatalog.Application/Interfaces/IProcedureRepository.cs
+- WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureRepository.cs
+- WardMate.Services.ProcedureCatalog.API/Controllers/ProceduresController.cs
+
+Kiểm thử và tài liệu:
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureListTests.cs (thêm 1 test vào project đã có, không tạo lại project test IAM)
+- docs/api-guide.md (59 API được đối chiếu; hướng dẫn mới, cập nhật scope/role/DTO)
+- PROGRESS.md
+
+### Kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: thành công, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: 153/153 passed, 0 failed, 0 skipped (DocumentForm 72; ProcedureCatalog 81).
+- Thêm 1 integration test vào test project hiện hữu: danh mục public cung cấp ID và lọc được nhiều lĩnh vực khác nhau mà không gán tài khoản.
+- Smoke test IAM độc lập: 52 HTTP checks PASS trên database PostgreSQL tạm mới, cùng assertions count/paging/profile/phường. Bao gồm migration DB sạch, Manager chưa có phường, tạo Front Desk, dữ liệu sai/trùng, chặn khác phường, bảo vệ account nhiều role, không cấp Admin, cấp/gỡ Front Desk, CRUD profile, khóa/mở, scope đổi ngay với token cũ, Manager bị khóa.
+- Smoke script nằm trong thư mục tạm, không tạo project test mới. Database tạm và tiến trình IAM cổng 5198 đã dọn sau chạy. Không dùng DB deploy để seed hoặc kiểm thử.
+- EF has-pending-model-changes: không còn thay đổi model chưa có migration.
+- Đối chiếu tài liệu đủ 59/59 controller operations.
+
+### Hướng dẫn bàn giao
+
+- Migration mới chỉ được áp dụng/kiểm chứng trên DB tạm. Chưa migrate DB Local Dev đang dùng hoặc Azure. Runtime AutoMigrate hiện có sẽ áp dụng khi bản mới được triển khai với cấu hình tương ứng.
+- Admin tạo phường, gán role MANAGER và wardId cho quản lý hiện có; Manager sau đó tự tạo Front Desk trong phường. Không tự gán phường giả cho tài khoản thật.
+- FE dùng GET users cho màn hình nhân sự, AccountPage cho danh sách gọn; CurrentUserDto thêm wardId nullable; ManagedUserDto.roles có id/roleName, khác roles:string[] trong users/me. Cookie/CSRF/token handling giữ nguyên.
+- FE không dựa riêng JWT role để quyết định phạm vi; xử lý 403 thiếu phường/quyền, 404 đối tượng ngoài phạm vi và 409 xung đột. Mọi message validation mới là tiếng Việt.
+- Catalog là bộ lọc tự chọn; chưa có phân công/giới hạn lĩnh vực theo cán bộ, chưa có CRUD danh mục.
+- Không chạy lệnh Git, không build image Docker, không deploy. Antigravity xử lý commit từng file theo quy tắc hiện hành.
+- Gợi ý Conventional Commits theo phần thay đổi: feat(iam): scope account management by ward; feat(iam): let managers provision front desk accounts; feat(procedure-catalog): expose procedure category filters; test(procedure-catalog): verify category discovery and filtering; docs: describe ward scoped management APIs.
+
+## IAM-PROFILES-001 — API danh sách hồ sơ người dùng
+
+Hoàn thành: 2026-10-05 21:44:37 +07:00 (Asia/Saigon, UTC+07:00).
+
+- Thêm GET /api/v1/users/profiles?page=1&pageSize=20, không request body, Bearer JWT của IAM.
+- 200 ProfilePage {items,page,pageSize,total}; item có userId, fullName, identityNumber, phoneNumber,
+  dateOfBirth, gender, permanentAddress, temporaryAddress, updatedAt. Null bị bỏ theo cấu hình IAM.
+- Chỉ lấy profile tồn tại; bao gồm profile tài khoản bị khóa trong phạm vi. Sắp xếp FullName, UserId.
+- Admin theo policy quản trị hiện tại xem toàn hệ thống; Manager chỉ Front Desk cùng phường, loại tài khoản
+  có role đặc quyền khác. Tái sử dụng ManagementScope, lọc trước Count/Skip/Take. Không nhận wardId từ FE.
+- 400 query sai (page 1..1000000, pageSize 1..100, validation tiếng Việt); 401 token sai/hết hạn;
+  403 thiếu quyền/phường hoặc actor bị khóa. Trang không có hồ sơ trả 200 items rỗng.
+- FE lấy userId để mở API profile chi tiết; gọi các trang liên tiếp nếu cần lấy toàn bộ phạm vi.
+  Không đổi cookie/CSRF hoặc database schema, không cần migration.
+
+File thay đổi (đường dẫn trong src/Services/WardMate.Services.IAM/):
+
+- WardMate.Services.IAM.API/Controllers/AdminProfilesController.cs
+- WardMate.Services.IAM.Application/Profiles/ProfileRequests.cs
+- WardMate.Services.IAM.Application/Profiles/ProfileHandlers.cs
+- WardMate.Services.IAM.Application/Profiles/ProfileValidators.cs
+- WardMate.Services.IAM.Application/Interfaces/IProfileStore.cs
+- WardMate.Services.IAM.Infrastructure/Persistence/ProfileStore.cs
+- docs/api-guide.md và PROGRESS.md tại repository (hướng dẫn có 60 mục API).
+
+Kiểm chứng:
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: 152 passed, 0 failed, 0 skipped
+  (DocumentForm 71; ProcedureCatalog 81).
+- Số test IAM mới: 0; không tạo lại project test theo AGENTS.md. Bộ test hiện có không bao phủ API IAM mới;
+  đã rà soát route, DTO, validation, DI và tái sử dụng scope quản lý. Chưa kiểm thử HTTP API mới trên DB thật.
+- Gợi ý Conventional Commit: feat(iam): add paginated profiles within management scope.
+

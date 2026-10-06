@@ -1,3 +1,4 @@
+using WardMate.Services.IAM.Application.Accounts;
 using System.Text.Json;
 using MediatR;
 using WardMate.Services.IAM.Application.Common;
@@ -6,7 +7,7 @@ using WardMate.Services.IAM.Domain.Entities;
 
 namespace WardMate.Services.IAM.Application.Rbac;
 
-public sealed class RbacCommandHandlers(IRbacStore store) : IRequestHandler<CreateRoleCommand, Result<RoleDto>>,
+public sealed class RbacCommandHandlers(IRbacStore store, IManagementScope scope) : IRequestHandler<CreateRoleCommand, Result<RoleDto>>,
     IRequestHandler<UpdateRoleCommand, Result<RoleDto>>, IRequestHandler<DeleteRoleCommand, Result<bool>>,
     IRequestHandler<SetRolePermissionCommand, Result<bool>>, IRequestHandler<SetUserRoleCommand, Result<bool>>
 {
@@ -64,10 +65,13 @@ public sealed class RbacCommandHandlers(IRbacStore store) : IRequestHandler<Crea
         return Result<bool>.Success(true);
     }, ct);
 
-    public Task<Result<bool>> Handle(SetUserRoleCommand request, CancellationToken ct) => Run(request.ActorId, async () =>
+    public Task<Result<bool>> Handle(SetUserRoleCommand request, CancellationToken ct) => store.Exclusive(async () =>
     {
         var role = await store.FindRole(request.RoleId, ct);
         if (role is null) return Result<bool>.Failure(RbacErrors.RoleNotFound);
+        if (!await store.IsAdministrator(request.ActorId, ct)
+            && (role.RoleName != RoleNames.FrontDeskOfficer || !await scope.CanAssignFrontDesk(request.ActorId, request.UserId, ct)))
+            return Result<bool>.Failure(RbacErrors.Forbidden);
         if (!await store.UserExists(request.UserId, ct)) return Result<bool>.Failure(RbacErrors.UserNotFound);
         var link = await store.FindAssignment(request.UserId, request.RoleId, ct);
         if (!request.Grant && link is not null && role.RoleName == RoleNames.ItAdmin && await store.IsLastActiveAdministrator(request.UserId, ct))
