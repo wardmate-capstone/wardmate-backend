@@ -1030,3 +1030,51 @@ Manager endpoints yêu cầu Bearer role PROCEDURE_MANAGER hoặc IT_ADMIN (401/
 - PROGRESS.md
 
 Gợi ý Conventional Commit theo chức năng để Antigravity tách từng file theo quy định: feat(procedure-catalog): add PDF drafts and reviewed publication; feat(aiocr): add configurable Azure procedure extraction; test(procedure-catalog): verify PDF draft lifecycle and extraction; docs: document PDF review workflow and configuration.
+
+## DF-DEPLOY-LOCAL-20261006 — Docker recovery and Azure deployment preparation
+
+Completion time: 2026-10-06 17:13:48 +07:00 (Asia/Saigon). Local checkpoint complete; Azure deployment incomplete pending actual resource names/access. No Git commands or remote writes performed.
+
+Changed paths:
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Dockerfile — fix malformed UseAppHost publish argument.
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/UserSubmissionQueries.cs — fix enum status filtering that caused PostgreSQL-backed Officer GET to return 500; unknown status now returns 400.
+- docs/documentform-deployment.md (new) — local restart instructions, actual API contracts, Azure checkpoints and verified gaps.
+- PROGRESS.md — this entry.
+
+Runtime work: restarted existing wardmate_postgres, wardmate_pgadmin, wardmate_azurite without deleting volumes. Created separate UTF8 wardmate_documentform_db; old wardmate_db preserved. Built wardmate-documentform:v1, started wardmate_documentform on 127.0.0.1:5004 with PostgreSQL host postgres and Azurite proxy URI http://azurite. Docker health is healthy. Both EF migrations applied: 20261002151540_InitialDocumentFormSchema, 20261004142021_AddUserSubmissions; five document schema tables verified.
+
+Validation:
+- Final dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1: PASS, 0 warnings, 0 errors. Initial default parallel build returned exit 1 without diagnostics; serial build succeeded, and was repeated successfully after the filter fix.
+- Docker build and publish: PASS, 0 compiler warnings/errors.
+- Automated test runner: 0 tests run; no test projects added or recreated. Existing test csproj files were present in checkout and were compiled by solution build; no automated coverage claim.
+- 13 HTTP smoke checks passed (includes pgAdmin login, health, template listing, status variants/invalid statuses, create template/draft, populated filtering and DOCX download). Initial Officer status check reproduced 500 before fix; subsequent checks passed.
+- Synthetic local data retained for inspection only: template 9a8ffa13-4f51-44a1-a9fd-ce216caa6d3a and draft d532741b-b92b-4ed7-85e0-a86af0f6c212; generated temporary DOCX removed. No real citizen data used.
+
+Endpoints/request bodies/status codes:
+- GET localhost:5050/login: 200.
+- GET /health: 200 Healthy (liveness only).
+- GET /api/v1/form-templates: 200 paginated DTO (items array).
+- POST /api/v1/form-templates: JSON {code,title}, 201.
+- POST /api/v1/citizen/submissions/draft: multipart templateId, applicantId, file (.docx), 201. JSON from proposed deployment plan is not the current contract.
+- GET /api/v1/officer/submissions?status=Submitted, Draft, submitted: 200; invalid and 999: 400 {code:document.invalid_submission_status,message}. Populated check: Draft count 1, Submitted count 0.
+- GET /api/v1/citizen/submissions/{submissionId}/download-docx: 200, 829-byte synthetic DOCX downloaded from Azurite.
+
+Frontend/ProblemDetails/token notes: no DTO or token shape changes. Status filter now validates enum values; business errors use code/message, while model validation/global errors use ProblemDetails. DocumentForm and Gateway source currently lack JWT/role enforcement on these routes. Public access to real records requires authorization/ownership work before release. Draft storage currently uses configured form-templates container with user-submissions prefix; separate submissions container is not used automatically.
+
+Outstanding Azure checkpoints: verify PostgreSQL FQDN/admin, ACR name/login server/image, Storage account, Gateway URL/environment; configure secrets, private ingress, database/Blob network access; verify revision/logs and gateway APIs, then CI/CD. Screenshot establishes IAM in managedEnvironment-rgwardmateprod-bd51, Japan East, not planned cae-wardmate-prod. No Azure deployment/CI/CD success claimed. User chose Azure Container Apps, not VM.
+
+Antigravity commit suggestions (separate functional updates/new files; no squash): fix(documentform): correct Docker publish argument; fix(documentform): filter submissions using mapped status enum; docs(documentform): add local recovery and Azure deployment checklist; docs(progress): record DocumentForm deployment preparation.
+
+## DF-SWAGGER-ACR-20261006 — Production Swagger and registry image
+
+Completed local preparation at 2026-10-06 18:19:55 +07:00 (Asia/Saigon); cloud deployment still pending.
+Changed: src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Program.cs; docs/documentform-deployment.md; PROGRESS.md.
+Swagger:Enabled enables Swagger outside Development. Relative ./v1/swagger.json supports Gateway prefix /api/document-form/swagger/; OpenAPI server / targets the existing gateway /api/v1 routes. No business DTO, ProblemDetails or token changes.
+Validation: solution Release build --no-restore -warnaserror -m:1 PASS (0 warnings/errors); Docker build/publish PASS. Production container with Swagger__Enabled=true and Database__AutoMigrate=false: GET /swagger/index.html 200; GET /swagger/v1/swagger.json 200 with server /. Temporary container removed. No database accessed. Two HTTP checks; 0 automated tests run, no test project created. Gateway end-to-end Swagger not yet verified.
+Local image: acrwardmate2026.azurecr.io/wardmate-documentform:demo-20261006. Not pushed. Azure CLI unavailable on PATH; user authentication pending. Registry hostname and separate Supabase project connection fields supplied by user; no password stored. Supabase migration, cloud Blob and Azure revision remain unverified.
+Suggested commits: feat(documentform): enable configurable Swagger behind gateway; docs(documentform): record registry and Swagger deployment configuration; docs(progress): record Swagger preparation. Antigravity handles Git; none executed.
+
+
+## DF-GATEWAY-V2-DIAG — 2026-10-06 22:11:04 +07:00 (Asia/Saigon)
+Changed path: PROGRESS.md only. Read-only cloud registry access: refreshed local ACR login and pulled Gateway v2; no cloud resource mutation or Git. Image digest sha256:d596e2d292a79649f39a13500b175255e2b1231ace30adc7cf1b3dc9cf7b83c5. Image appsettings confirms document-form / primary identifiers, but lacks direct DocumentForm /api/v1 routes. Local temporary Gateway with environment override targeted http://127.0.0.1:15099/health as expected. One HTTP smoke request GET /api/document-form/health (no body) returned expected 502 because synthetic destination had no listener; log proves override applied. Temporary container removed. 0 automated tests run; build not rerun for documentation-only diagnosis (previous Release build 0 warnings/errors). Azure user-supplied template contains correct override but runtime logs still show localhost:5004; runtime environment/deployed image identity remains to verify. No DTO/ProblemDetails/token changes. Azure deployment remains incomplete. Suggested commit: docs(progress): record Gateway v2 override diagnosis.
+

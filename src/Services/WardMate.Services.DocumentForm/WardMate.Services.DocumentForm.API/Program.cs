@@ -80,12 +80,16 @@ try
     app.UseGlobalExceptionHandling();
     app.UseStatusCodePages();
 
-    if (app.Environment.IsDevelopment())
+    if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Swagger:Enabled"))
     {
-        app.UseSwagger();
+        app.UseSwagger(options => options.PreSerializeFilters.Add((document, _) =>
+        {
+            // Gateway exposes the /api/v1 routes at its origin root.
+            document.Servers = new List<OpenApiServer> { new() { Url = "/" } };
+        }));
         app.UseSwaggerUI(c =>
         {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "WardMate Document & Form API v1");
+            c.SwaggerEndpoint("./v1/swagger.json", "WardMate Document & Form API v1");
         });
     }
 
