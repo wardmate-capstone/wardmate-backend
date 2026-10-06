@@ -11,6 +11,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
     {
         b.ToTable("users");
         b.HasKey(x => x.Id);
+        b.HasOne(x => x.Ward).WithMany().HasForeignKey(x => x.WardId).OnDelete(DeleteBehavior.Restrict);
         b.Property(x => x.Username).HasMaxLength(100).IsRequired();
         b.HasIndex(x => x.Username).IsUnique();
         b.Property(x => x.Email).HasMaxLength(255).IsRequired();

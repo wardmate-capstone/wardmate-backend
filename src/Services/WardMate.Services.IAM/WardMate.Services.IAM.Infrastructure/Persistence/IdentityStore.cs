@@ -23,7 +23,9 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
     public void AddRefreshToken(RefreshToken token) => db.RefreshTokens.Add(token);
     public async Task<SaveOutcome> SaveChanges(CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Managed profile writes already run inside the scope-check transaction.
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct) : null;
         try
         {
             // Serialize token issuance with account disabling so no usable token survives a ban.
@@ -40,7 +42,7 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
                 }
             }
             await db.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
+            if (transaction is not null) await transaction.CommitAsync(ct);
             return SaveOutcome.Saved;
         }
         catch (DbUpdateConcurrencyException) { db.ChangeTracker.Clear(); return SaveOutcome.ConcurrentUpdate; }

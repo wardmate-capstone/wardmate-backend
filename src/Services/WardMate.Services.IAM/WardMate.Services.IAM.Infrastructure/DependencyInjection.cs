@@ -25,6 +25,9 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IIdentityStore, IdentityStore>();
         services.AddScoped<IProfileStore, ProfileStore>();
+        services.AddScoped<ManagementScope>();
+        services.AddScoped<WardMate.Services.IAM.Application.Accounts.IManagementScope>(sp => sp.GetRequiredService<ManagementScope>());
+        services.AddScoped<WardMate.Services.IAM.Application.Accounts.IStaffAdministration, StaffAdministration>();
         services.AddScoped<WardMate.Services.IAM.Application.Rbac.IRbacStore, RbacStore>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.IAccountStore, AccountStore>();
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();

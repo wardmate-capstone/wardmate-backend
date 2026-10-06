@@ -7,9 +7,31 @@ using WardMate.Services.ProcedureCatalog.Application.Management;
 namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 
 [ApiController, Route("api/v1/procedure-manager/drafts"), Authorize(Policy = "ProcedureManager")]
-public sealed class ProcedureDraftsController(IProcedureDraftService drafts) : ControllerBase
+public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IProcedureExtractor extractor) : ControllerBase
 {
     private string Actor => User.FindFirstValue("sub") ?? User.Identity!.Name ?? "unknown";
+
+    [HttpPost("extract-preview"), Consumes("multipart/form-data"), RequestSizeLimit(21 * 1024 * 1024)]
+    [ProducesResponseType<ExtractionResult>(200)]
+    public async Task<IActionResult> Preview([FromForm] UploadPdfInput input, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        if (input.File is null || input.File.Length is < 5 or > 20971520 || !input.File.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            return Reply(ProcedureResult<ExtractionResult>.Fail("draft.invalid_pdf", "Cần file PDF dung lượng tối đa 20 MB.", 400));
+        await using var stream = input.File.OpenReadStream();
+        var signature = new byte[5];
+        await stream.ReadExactlyAsync(signature, ct);
+        if (!signature.AsSpan().SequenceEqual("%PDF-"u8))
+            return Reply(ProcedureResult<ExtractionResult>.Fail("draft.invalid_pdf", "File không có định dạng PDF.", 400));
+        stream.Position = 0;
+        try { return Ok(await extractor.Extract(stream, ct)); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        { return Reply(ProcedureResult<ExtractionResult>.Fail("draft.extraction_timeout", "Đọc PDF quá thời gian cho phép.", 504)); }
+        catch (InvalidOperationException)
+        { return Reply(ProcedureResult<ExtractionResult>.Fail("draft.extraction_not_configured", "Cần cấu hình địa chỉ và khóa kết nối AIOCR.", 503)); }
+        catch (Exception e) when (e is HttpRequestException or System.Text.Json.JsonException or InvalidDataException)
+        { return Reply(ProcedureResult<ExtractionResult>.Fail("draft.extraction_failed", "Không đọc được PDF. Kiểm tra dịch vụ AIOCR và file PDF không khóa, tối đa 100 trang/100.000 ký tự.", 502)); }
+    }
 
     [HttpPost, Consumes("multipart/form-data"), RequestSizeLimit(21 * 1024 * 1024)]
     [ProducesResponseType<DraftDto>(202)]

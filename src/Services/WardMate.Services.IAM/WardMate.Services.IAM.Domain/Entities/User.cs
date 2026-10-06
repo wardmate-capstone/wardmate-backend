@@ -7,6 +7,8 @@ public sealed class User
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
+    public Guid? WardId { get; set; }
+    public Ward? Ward { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public UserProfile Profile { get; set; } = null!;

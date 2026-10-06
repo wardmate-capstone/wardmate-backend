@@ -1,5 +1,7 @@
 # PDF-001 — PDF nguồn, bóc tách và đối soát bản nháp thủ tục
 
+**Cập nhật PDF-002:** ưu tiên đọc lớp văn bản PDF bằng PdfPig, không cần OCR. AI và OCR có hai cờ bật riêng, mặc định tắt. Có API extract-preview không cần Blob. Xem [hướng dẫn test PDF trực tiếp](procedure-pdf-text.md); phần adapter Azure bên dưới mô tả nhánh tùy chọn, không còn là bước bắt buộc cho mọi PDF.
+
 ## Phạm vi và trạng thái
 
 Backend đã có luồng lưu PDF → bản nháp → sửa/đối soát → xác nhận xuất bản. Procedure Catalog quản lý dữ liệu nghiệp vụ và hàng đợi PostgreSQL; AIOCR chỉ đọc PDF và đề xuất JSON qua HTTP, không truy cập database của Procedure. Nghiệp vụ bản nháp nằm ở Application, EF/Blob/HTTP/worker nằm ở Infrastructure.

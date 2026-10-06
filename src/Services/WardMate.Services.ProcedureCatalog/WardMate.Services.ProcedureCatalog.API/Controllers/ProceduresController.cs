@@ -8,6 +8,11 @@ namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 [ApiController, Route("api/v1/procedures")]
 public sealed class ProceduresController(ISender sender) : ControllerBase
 {
+    [HttpGet("categories")]
+    [ProducesResponseType<IReadOnlyList<ProcedureCategoryDto>>(200)]
+    public async Task<IActionResult> Categories(CancellationToken ct) =>
+        Ok(await sender.Send(new GetProcedureCategoriesQuery(), ct));
+
     [HttpGet]
     [ProducesResponseType<PagedResult<ProcedureSummaryDto>>(200)]
     [ProducesResponseType<ProblemDetails>(400)]

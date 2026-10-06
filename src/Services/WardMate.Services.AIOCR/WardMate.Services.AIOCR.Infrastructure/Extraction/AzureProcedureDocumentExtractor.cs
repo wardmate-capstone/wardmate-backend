@@ -10,10 +10,7 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
     public async Task<ProcedureExtraction> Extract(Stream pdf, CancellationToken ct)
     {
         var docEndpoint = Endpoint("DocumentIntelligence:Endpoint");
-        var aiEndpoint = Endpoint("AzureOpenAI:Endpoint");
         var docKey = Required("DocumentIntelligence:Key");
-        var aiKey = Required("AzureOpenAI:Key");
-        var deployment = Required("AzureOpenAI:Deployment");
         using var analyze = new HttpRequestMessage(HttpMethod.Post,
             docEndpoint + "/documentintelligence/documentModels/prebuilt-layout:analyze?api-version=2024-11-30&outputContentFormat=markdown");
         analyze.Headers.Add("Ocp-Apim-Subscription-Key", docKey);
@@ -42,6 +39,18 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         }
         if (string.IsNullOrWhiteSpace(content)) throw new InvalidDataException("PDF không có nội dung đọc được hoặc OCR hết thời gian xử lý.");
         if (content.Length > 100_000) throw new InvalidDataException("PDF quá dài; hãy tách thành từng thủ tục trước khi bóc tách.");
+        if (!configuration.GetValue<bool>("Extraction:UseAI"))
+            return TextFirstProcedureExtractor.Manual(content, ["Đã nhận dạng bằng OCR; chưa bật AI. Vui lòng nhập thông tin thủ tục từ văn bản đã đọc."]);
+        return await MapText(content, ct);
+    }
+
+    public async Task<ProcedureExtraction> MapText(string content, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(content) || content.Length > 100_000)
+            throw new InvalidDataException("Văn bản trống hoặc vượt quá 100.000 ký tự.");
+        var aiEndpoint = Endpoint("AzureOpenAI:Endpoint");
+        var aiKey = Required("AzureOpenAI:Key");
+        var deployment = Required("AzureOpenAI:Deployment");
         using var completion = new HttpRequestMessage(HttpMethod.Post, aiEndpoint + "/openai/v1/chat/completions");
         completion.Headers.Add("api-key", aiKey);
         completion.Content = JsonContent.Create(new
