@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using WardMate.Services.DocumentForm.Application.DTOs;
 using WardMate.Services.DocumentForm.Application.Interfaces;
 using WardMate.Services.DocumentForm.Domain.Errors;
+using WardMate.Services.DocumentForm.Domain.Models;
 using WardMate.SharedKernel.Blob;
 using WardMate.SharedKernel.Common;
 using WardMate.SharedKernel.CQRS;
@@ -39,7 +40,13 @@ public sealed class GetMySubmissionsQueryHandler
                         && !s.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(request.Status))
-            query = query.Where(s => EF.Property<string>(s, "Status") == request.Status);
+        {
+            if (!Enum.TryParse<SubmissionStatus>(request.Status, ignoreCase: true, out var status)
+                || !Enum.IsDefined(status))
+                return Error.Validation("document.invalid_submission_status", "Unknown submission status.");
+
+            query = query.Where(s => s.Status == status);
+        }
 
         var total = await query.CountAsync(cancellationToken);
 
@@ -160,7 +167,13 @@ public sealed class DownloadSubmissionDocxQueryHandler
     private static string ExtractBlobName(string blobUrl)
     {
         var uri = new Uri(blobUrl);
-        var segments = uri.AbsolutePath.TrimStart('/').Split('/', 3);
-        return segments.Length >= 3 ? segments[2] : uri.AbsolutePath.TrimStart('/');
+        var path = uri.AbsolutePath.TrimStart('/');
+        if (path.StartsWith("devstoreaccount1/", StringComparison.OrdinalIgnoreCase))
+        {
+            path = path["devstoreaccount1/".Length..];
+        }
+        var firstSlashIndex = path.IndexOf('/');
+        return firstSlashIndex >= 0 ? path[(firstSlashIndex + 1)..] : path;
     }
 }
+

@@ -43,8 +43,13 @@ public sealed class DownloadFormTemplateDocxQueryHandler : IQueryHandler<Downloa
     private static string ExtractBlobName(string blobUrl)
     {
         var uri = new Uri(blobUrl);
-        var segments = uri.AbsolutePath.TrimStart('/').Split('/', 3);
-        return segments.Length >= 3 ? segments[2] : uri.AbsolutePath.TrimStart('/');
+        var path = uri.AbsolutePath.TrimStart('/');
+        if (path.StartsWith("devstoreaccount1/", StringComparison.OrdinalIgnoreCase))
+        {
+            path = path["devstoreaccount1/".Length..];
+        }
+        var firstSlashIndex = path.IndexOf('/');
+        return firstSlashIndex >= 0 ? path[(firstSlashIndex + 1)..] : path;
     }
 }
 
@@ -77,7 +82,13 @@ public sealed class GetFormTemplateDocxSasUrlQueryHandler : IQueryHandler<GetFor
     private static string ExtractBlobName(string blobUrl)
     {
         var uri = new Uri(blobUrl);
-        var segments = uri.AbsolutePath.TrimStart('/').Split('/', 3);
-        return segments.Length >= 3 ? segments[2] : uri.AbsolutePath.TrimStart('/');
+        var path = uri.AbsolutePath.TrimStart('/');
+        if (path.StartsWith("devstoreaccount1/", StringComparison.OrdinalIgnoreCase))
+        {
+            path = path["devstoreaccount1/".Length..];
+        }
+        var firstSlashIndex = path.IndexOf('/');
+        return firstSlashIndex >= 0 ? path[(firstSlashIndex + 1)..] : path;
     }
 }
+
