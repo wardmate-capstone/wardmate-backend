@@ -53,7 +53,7 @@ try
         {
             Title = "WardMate Document & Form Service API",
             Version = "v1",
-            Description = "APIs for dynamic e-form schema definition, DOCX template placeholder extraction, and form generation."
+            Description = "Original DOCX templates and citizen DOCX editor drafts. Download binary, edit in FE, upload edited DOCX, then finalize."
         });
     });
 
