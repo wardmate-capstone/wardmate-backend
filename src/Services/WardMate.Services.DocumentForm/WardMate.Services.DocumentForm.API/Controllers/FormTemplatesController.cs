@@ -124,8 +124,8 @@ public sealed class FormTemplatesController : ControllerBase
     }
 
     /// <summary>
-    /// Tải file DOCX phôi mẫu về dưới dạng binary (FE dùng để load vào trình editor).
-    /// FE nhận được file .docx thực sự, load vào Syncfusion / OnlyOffice / EditDocx.
+    /// Tải nguyên bản DOCX đã upload để quản trị đối chiếu hoặc lưu trữ.
+    /// Luồng điền online sử dụng schemaDefinition, không yêu cầu người dân mở Word.
     /// </summary>
     [HttpGet("{templateId:guid}/download-docx")]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
@@ -150,37 +150,45 @@ public sealed class FormTemplatesController : ControllerBase
             result.Value.FileName);
     }
 
-    /// <summary>
-    /// Lấy URL tạm thời (SAS URL) để FE nhúng trực tiếp vào trình soạn thảo Word Online.
-    /// URL hết hạn sau validForMinutes phút (mặc định 60 phút).
-    /// </summary>
-    [HttpGet("{templateId:guid}/docx-url")]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetDocxUrl(
-        Guid templateId,
-        [FromQuery] int validForMinutes = 60,
-        CancellationToken cancellationToken = default)
+    /// <summary>Quản trị: đọc vị trí văn bản trong DOCX gốc để cấu hình ánh xạ, không chỉnh sửa file.</summary>
+    [HttpGet("{templateId:guid}/docx-structure")]
+    public async Task<IActionResult> Structure(Guid templateId, CancellationToken ct)
     {
-        var result = await _mediator.Send(
-            new GetFormTemplateDocxSasUrlQuery(templateId, validForMinutes), cancellationToken);
+        var result = await _mediator.Send(new GetDocxStructureQuery(templateId), ct);
+        return result.IsSuccess ? Ok(result.Value) : OnlineFailure(result.Error);
+    }
 
-        if (!result.IsSuccess)
+    /// <summary>Quản trị: xuất bản schema và ánh xạ riêng cho file DOCX nguyên bản.</summary>
+    [HttpPut("{templateId:guid}/online-config")]
+    public async Task<IActionResult> Configure(Guid templateId, [FromBody] OnlineConfigRequest request, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new ConfigureOnlineFormCommand(templateId, request.SchemaDefinition,
+            request.Mappings, request.OriginalSha256, User.Identity?.Name), ct);
+        return result.IsSuccess ? Ok(new { templateVersionId = result.Value }) : OnlineFailure(result.Error);
+    }
+
+    private ObjectResult OnlineFailure(Error error)
+    {
+        var status = error.Type switch
         {
-            return result.Error.Type == ErrorType.NotFound
-                ? NotFound(new { code = result.Error.Code, message = result.Error.Description })
-                : BadRequest(new { code = result.Error.Code, message = result.Error.Description });
+            ErrorType.NotFound => 404, ErrorType.Forbidden => 403,
+            ErrorType.Conflict => 409, ErrorType.Failure => 503, _ => 400
+        };
+        var problem = new ProblemDetails { Status = status, Title = error.Code,
+            Detail = error.Description, Instance = HttpContext.Request.Path };
+        problem.Extensions["code"] = error.Code;
+        problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+        if (error.Code == "document.invalid_form_data" && error.Description.StartsWith("[", StringComparison.Ordinal))
+        {
+            problem.Detail = "Form data validation failed.";
+            problem.Extensions["fieldErrors"] = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(error.Description);
         }
-
-        return Ok(new
-        {
-            templateId,
-            docxUrl = result.Value,
-            expiresInMinutes = validForMinutes
-        });
+        return new ObjectResult(problem) { StatusCode = status, ContentTypes = { "application/problem+json" } };
     }
 }
 
+public sealed record OnlineConfigRequest(System.Text.Json.JsonElement SchemaDefinition,
+    IReadOnlyList<WardMate.Services.DocumentForm.Domain.Models.DocxFieldMapping> Mappings, string OriginalSha256);
 public sealed record CreateFormTemplateRequest
 {
     public string Code { get; init; } = string.Empty;
