@@ -23,7 +23,6 @@ public sealed record UploadFormTemplateDocxCommand(
 
 public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<UploadFormTemplateDocxCommand, UploadDocxResultDto>
 {
-    private const long MaxDocxSizeBytes = 20 * 1024 * 1024; // 20 MB
 
     private readonly IDocumentDbContext _dbContext;
     private readonly IBlobStorageClient _blobClient;
@@ -38,22 +37,9 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
 
     public async Task<Result<UploadDocxResultDto>> Handle(UploadFormTemplateDocxCommand request, CancellationToken cancellationToken)
     {
-        if (request.FileSizeBytes <= 0 || request.FileStream.Length == 0)
-        {
-            return DocumentFormErrors.EmptyFile;
-        }
-
-        if (request.FileSizeBytes > MaxDocxSizeBytes)
-        {
-            return DocumentFormErrors.FileTooLarge(MaxDocxSizeBytes);
-        }
-
-        var extension = Path.GetExtension(request.FileName);
-        if (!string.Equals(extension, ".docx", StringComparison.OrdinalIgnoreCase))
-        {
-            return DocumentFormErrors.InvalidDocxFile("Only .docx Word template files are accepted.");
-        }
-
+        var file = await WardMate.Services.DocumentForm.Application.Services.DocxUpload.ReadAsync(
+            request.FileStream, request.FileName, request.FileSizeBytes, cancellationToken);
+        if (!file.IsSuccess) return file.Error;
         var template = await _dbContext.FormTemplates
             .FirstOrDefaultAsync(t => t.Id == request.TemplateId, cancellationToken);
 
@@ -62,20 +48,7 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
             return DocumentFormErrors.TemplateNotFound(request.TemplateId);
         }
 
-        using var memoryStream = new MemoryStream();
-        await request.FileStream.CopyToAsync(memoryStream, cancellationToken);
-        var docxBytes = memoryStream.ToArray();
-        if (docxBytes.Length > MaxDocxSizeBytes) return DocumentFormErrors.FileTooLarge(MaxDocxSizeBytes);
-        try
-        {
-            using var stream = new MemoryStream(docxBytes, false);
-            using var doc = DocumentFormat.OpenXml.Packaging.WordprocessingDocument.Open(stream, false);
-            var body = doc.MainDocumentPart?.Document.Body;
-            if (body == null) throw new InvalidDataException();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        { return DocumentFormErrors.InvalidDocxFile("Invalid or unsupported Word document."); }
-
+        var docxBytes = file.Value;
         using var uploadStream = new MemoryStream(docxBytes);
         var blobPath = $"form-templates/{template.Code.ToLowerInvariant()}/{Guid.NewGuid():N}_{Path.GetFileName(request.FileName)}";
         var blobUrl = await _blobClient.UploadAsync(
