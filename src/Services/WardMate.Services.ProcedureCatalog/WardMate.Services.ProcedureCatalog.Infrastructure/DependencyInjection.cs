@@ -16,6 +16,12 @@ public static class DependencyInjection
             .UseSnakeCaseNamingConvention());
         services.AddScoped<IProcedureRepository, ProcedureRepository>();
         services.AddScoped<IProcedureManagementStore, ProcedureManagementStore>();
+        services.AddScoped<WardMate.Services.ProcedureCatalog.Application.Management.IProcedureAdministration, ProcedureAdministration>();
+        services.AddHttpClient<WardMate.Services.ProcedureCatalog.Application.Management.IDocumentFormsClient, DocumentFormsClient>(http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(15);
+            http.MaxResponseContentBufferSize = 2 * 1024 * 1024;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         WardMate.SharedKernel.Blob.BlobServiceExtensions.AddAzureBlobStorage(services, configuration);
         services.AddScoped(provider => new Lazy<WardMate.SharedKernel.Blob.IBlobStorageClient>(
             provider.GetRequiredService<WardMate.SharedKernel.Blob.IBlobStorageClient>));
