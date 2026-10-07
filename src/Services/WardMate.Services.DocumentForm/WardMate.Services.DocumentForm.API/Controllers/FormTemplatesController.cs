@@ -125,7 +125,7 @@ public sealed class FormTemplatesController : ControllerBase
 
     /// <summary>
     /// Tải nguyên bản DOCX đã upload để quản trị đối chiếu hoặc lưu trữ.
-    /// Luồng điền online sử dụng schemaDefinition, không yêu cầu người dân mở Word.
+    /// FE nhận binary DOCX và import vào editor web để chỉnh sửa.
     /// </summary>
     [HttpGet("{templateId:guid}/download-docx")]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
@@ -150,35 +150,8 @@ public sealed class FormTemplatesController : ControllerBase
             result.Value.FileName);
     }
 
-    /// <summary>Quản trị: xuất bản schema để FE render form.</summary>
-    [HttpPut("{templateId:guid}/online-config")]
-    public async Task<IActionResult> Configure(Guid templateId, [FromBody] OnlineConfigRequest request, CancellationToken ct)
-    {
-        var result = await _mediator.Send(new ConfigureOnlineFormCommand(templateId, request.SchemaDefinition, User.Identity?.Name), ct);
-        return result.IsSuccess ? Ok(new { templateVersionId = result.Value }) : OnlineFailure(result.Error);
-    }
-
-    private ObjectResult OnlineFailure(Error error)
-    {
-        var status = error.Type switch
-        {
-            ErrorType.NotFound => 404, ErrorType.Forbidden => 403,
-            ErrorType.Conflict => 409, ErrorType.Failure => 503, _ => 400
-        };
-        var problem = new ProblemDetails { Status = status, Title = error.Code,
-            Detail = error.Description, Instance = HttpContext.Request.Path };
-        problem.Extensions["code"] = error.Code;
-        problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
-        if (error.Code == "document.invalid_form_data" && error.Description.StartsWith("[", StringComparison.Ordinal))
-        {
-            problem.Detail = "Form data validation failed.";
-            problem.Extensions["fieldErrors"] = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(error.Description);
-        }
-        return new ObjectResult(problem) { StatusCode = status, ContentTypes = { "application/problem+json" } };
-    }
 }
 
-public sealed record OnlineConfigRequest(System.Text.Json.JsonElement SchemaDefinition);
 public sealed record CreateFormTemplateRequest
 {
     public string Code { get; init; } = string.Empty;
