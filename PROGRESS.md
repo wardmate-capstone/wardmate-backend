@@ -1384,3 +1384,23 @@ API changes:
 - "GET /api/v1/form-templates/{id}/docx-structure": Removed entirely.
 
 This replaces the strict positional replacement engine with an automated append-to-end engine. Build and Tests succeeded (75/75 passed). Committed as eeab7626a64670c775485d6dbc07f13372e5540c. Waiting for user to confirm Docker execution.
+
+## DF-ONLINE-DOCX-APPEND — 2026-10-07 08:52 +07:00 (Asia/Saigon)
+
+Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI BÁO TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
+
+Paths changed:
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/SaveDraftSubmissionCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/UploadFormTemplateDocxCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Interfaces/IDocxFormEngine.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Services/OnlineFormSupport.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/OpenXml/DocxFormEngine.cs
+- tests/WardMate.Services.DocumentForm.Tests/OnlineFormTests.cs
+- docs/api-guide.md
+
+API changes:
+- "PUT /api/v1/form-templates/{id}/online-config": Removed mappings from the required JSON payload. It now only takes schemaDefinition.
+- "GET /api/v1/form-templates/{id}/docx-structure": Removed entirely.
+
+This replaces the strict positional replacement engine with an automated append-to-end engine. Build and Tests succeeded (75/75 passed). Committed as eeab7626a64670c775485d6dbc07f13372e5540c. Waiting for user to confirm Docker execution.
