@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -69,6 +70,22 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
     public async Task<IActionResult> Versions(Guid id, CancellationToken ct) =>
         Respond(await sender.Send(new GetProcedureVersionsQuery(id), ct));
 
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType<ProcedureDetailDto>(200)]
+    public async Task<IActionResult> Detail(Guid id, CancellationToken ct) => Respond(await sender.Send(new ManagerDetailQuery(id), ct));
+
+    [HttpPost("{id:guid}/versions/{versionNumber:int}/rollback")]
+    [ProducesResponseType<ProcedureDetailDto>(200)]
+    public async Task<IActionResult> Rollback(Guid id, int versionNumber, RollbackInput input, CancellationToken ct) =>
+        Respond(await sender.Send(new RollbackProcedureCommand(id, versionNumber, input, User.FindFirstValue("sub") ?? "unknown"), ct));
+    [HttpGet("{id:guid}/versions/{versionId:guid}/source")]
+    [ProducesResponseType<SourceLinkDto>(200)]
+    [ProducesResponseType<ProblemDetails>(503)]
+    public async Task<IActionResult> Source(Guid id, Guid versionId, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return Respond(await sender.Send(new VersionSourceQuery(id, versionId), ct));
+    }
     private IActionResult Respond<T>(ProcedureResult<T> result) => result.IsSuccess ? Ok(result.Value) : Failure(result.Error!);
 
     private ObjectResult Failure(ProcedureError error)
