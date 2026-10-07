@@ -60,9 +60,9 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DocumentDb: Host=postgres;Port=5432;Database=wardmate_db;Username=wardmate_admin;Password=wardmate_secret
+      ConnectionStrings__DocumentDb: Host=postgres;Port=5432;Database=wardmate_documentform_db;Username=wardmate_admin;Password=wardmate_secret
       Database__AutoMigrate: "true"
-      AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-UseDevelopmentStorage=true}
+      AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://host.docker.internal}
       AzureBlob__ContainerName: form-templates
     ports:
       - "5004:8080"
