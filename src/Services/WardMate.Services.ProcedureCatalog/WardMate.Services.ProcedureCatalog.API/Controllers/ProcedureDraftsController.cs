@@ -1,3 +1,4 @@
+using MediatR;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ using WardMate.Services.ProcedureCatalog.Application.Management;
 namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 
 [ApiController, Route("api/v1/procedure-manager/drafts"), Authorize(Policy = "ProcedureManager")]
-public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IProcedureExtractor extractor) : ControllerBase
+public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IProcedureExtractor extractor, ISender sender) : ControllerBase
 {
     private string Actor => User.FindFirstValue("sub") ?? User.Identity!.Name ?? "unknown";
 
@@ -64,6 +65,14 @@ public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IPr
         Response.Headers.CacheControl = "no-store";
         var result = await drafts.ReadUrl(id, ct);
         return result.IsSuccess ? Ok(new { url = result.Value, expiresInSeconds = 600 }) : Reply(result);
+    }
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType<ProblemDetails>(503)]
+    public async Task<IActionResult> Discard(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new DiscardDraftCommand(id), ct);
+        return result.IsSuccess ? NoContent() : Reply(result);
     }
     private IActionResult Reply<T>(ProcedureResult<T> result)
     {

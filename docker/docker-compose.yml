@@ -88,6 +88,7 @@ services:
       AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-}
       ProcedureDrafts__ExtractionEnabled: ${PROCEDURE_EXTRACTION_ENABLED:-false}
       ProcedureDrafts__AiOcrUrl: http://ai-ocr:8080
+      DocumentForm__BaseUrl: http://document-form:8080/
       ProcedureDrafts__ServiceKey: ${AIOCR_SERVICE_KEY:-}
     ports:
       - "5002:8080"

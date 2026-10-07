@@ -1,6 +1,6 @@
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
-Đối chiếu mã nguồn ngày **05/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả các
+Cập nhật ngày **07/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả các
 API nghiệp vụ hiện có, các endpoint hệ thống và đường dẫn Gateway. Không phải xác nhận tình trạng deploy.
 
 **Cách đọc:** Mỗi API có mục đích, quyền, cách dùng, kết quả và lỗi thường gặp trên các dòng riêng. Public
@@ -1079,6 +1079,166 @@ transaction.
   vĩnh viễn.
 
 
+### Nhóm 2.3 — Hoàn thiện quản trị thủ tục theo yêu cầu FE (06/10/2026)
+
+Tám API dưới đây yêu cầu Bearer token có role PROCEDURE_MANAGER hoặc IT_ADMIN theo policy ProcedureManager.
+Role MANAGER quản lý phường không tự có quyền quản lý thủ tục. Token sai/hết hạn trả 401; thiếu role trả 403.
+Các lỗi nghiệp vụ trả ProblemDetails tiếng Việt với code, traceId và errors khi có lỗi trường dữ liệu.
+Đây là API đã triển khai trong source; cần build/deploy bản mới để xuất hiện trên Swagger Azure.
+
+#### API 66 — Quản lý xem chi tiết cả thủ tục đã tắt
+
+**Method & Đường dẫn:** `GET /api/v1/procedure-manager/procedures/{id}`
+
+**Mục đích:** Cán bộ mở form chỉnh sửa thủ tục, kể cả isActive=false, không cần bật công khai trước.
+
+**Cách dùng:** Lấy id từ danh sách quản trị, không body. FE quản trị chuyển sang endpoint này thay vì
+GET public `/api/v1/procedures/{id}`.
+
+**Kết quả:** 200 ProcedureDetailDto đầy đủ contentPayload, checklistSchema, formDefinitions, trạng thái,
+OriginalPdfUrl/PdfFileName nếu có. API public vẫn 404 với thủ tục đã tắt.
+
+**Lỗi và xử lý:** 404 khi không có thủ tục → tải lại danh sách. Không dùng URL PDF thô để đọc private Blob;
+dùng API source thích hợp. API này không thay đổi trạng thái công khai.
+
+#### API 67 — Xóa bản nháp PDF không dùng nữa
+
+**Method & Đường dẫn:** `DELETE /api/v1/procedure-manager/drafts/{id}`
+
+**Mục đích:** Loại bỏ file tải nhầm hoặc bản nháp không sử dụng, đồng thời dọn PDF trên Blob.
+
+**Cách dùng:** Không body. Cho phép NeedsReview, Failed, Queued; trạng thái Deleting được phép thử xóa lại.
+FE nên yêu cầu người dùng xác nhận vì thao tác thành công không khôi phục bản nháp được.
+
+**Kết quả:** 204, không body; PDF và bản ghi đã xóa. FE bỏ dòng khỏi danh sách.
+Backend ghi nhận Deleting trước khi xóa Blob; trạng thái này ngăn sửa, publish và worker lấy lại bản nháp.
+
+**Lỗi và xử lý:**
+
+- 404: bản nháp không còn tồn tại, kể cả đã xóa trước đó → tải lại danh sách.
+- 409 draft.delete_conflict: đang Processing, đã Published hoặc PDF còn được thủ tục/lịch sử tham chiếu.
+  Không xóa PDF của thủ tục đã xuất bản; với Processing chờ xử lý kết thúc rồi thử lại nếu cần.
+- 503 draft.storage_unavailable: Blob chưa cấu hình hoặc thao tác Blob lỗi → sửa cấu hình/kết nối rồi gọi
+  DELETE lại. Nếu đã chuyển Deleting thì bản ghi vẫn tồn tại để retry, không cho sửa/xuất bản.
+- Database lỗi sau khi Blob đã xóa: lần gọi DELETE tiếp theo có thể hoàn tất dọn bản ghi; chưa có worker
+  tự retry xóa, FE/cán bộ phải gọi lại. Không có transaction phân tán giữa PostgreSQL và Blob.
+
+#### API 68 — Thêm danh mục thủ tục
+
+**Method & Đường dẫn:** `POST /api/v1/procedure-manager/categories`
+
+**Mục đích:** Thêm lĩnh vực để chọn khi tạo/sửa thủ tục hoặc lọc danh sách.
+
+**Cách dùng:** Gửi JSON:
+
+```json
+{ "categoryName": "Môi trường", "description": "Thủ tục thuộc lĩnh vực môi trường" }
+```
+
+Tên bắt buộc, tối đa 255 ký tự; description tùy chọn, tối đa 4000 ký tự. Backend bỏ khoảng trắng đầu/cuối.
+
+**Kết quả:** 201 ProcedureCategoryDto `{id, categoryName, description}`; description null được bỏ khỏi JSON.
+Dùng id mới cho categoryId. Tải lại danh sách bằng GET `/api/v1/procedures/categories`.
+
+**Lỗi và xử lý:** 400 khi thiếu tên/quá dài; 409 category.name_exists khi trùng tên (không phân biệt hoa/thường)
+→ chọn danh mục đã có hoặc nhập tên khác. Migration AlignCategoryIdentitySequence cần được áp dụng trước
+để ID sinh tự động không trùng các danh mục seed 1–3.
+
+#### API 69 — Sửa tên/mô tả danh mục
+
+**Method & Đường dẫn:** `PUT /api/v1/procedure-manager/categories/{id}`
+
+**Mục đích:** Chỉnh thông tin lĩnh vực; giữ nguyên id và liên kết với các thủ tục hiện có.
+
+**Cách dùng:** Body giống API 68, gửi đầy đủ tên/mô tả mong muốn. Bỏ description hoặc gửi null/rỗng sẽ xóa mô tả.
+
+**Kết quả:** 200 ProcedureCategoryDto. FE cập nhật nhãn danh mục trong dropdown và tải lại danh sách cần thiết.
+
+**Lỗi và xử lý:** 400 dữ liệu sai, 404 category.not_found khi danh mục không còn tồn tại,
+409 category.name_exists nếu tên đã thuộc danh mục khác. Sửa tên không tạo version thủ tục.
+
+#### API 70 — Xóa danh mục trống
+
+**Method & Đường dẫn:** `DELETE /api/v1/procedure-manager/categories/{id}`
+
+**Mục đích:** Dọn lĩnh vực không còn dùng.
+
+**Cách dùng:** Không body. Phải chuyển mọi thủ tục đang liên kết sang danh mục khác trước, kể cả thủ tục inactive.
+
+**Kết quả:** 204 không body. FE bỏ danh mục khỏi danh sách.
+
+**Lỗi và xử lý:** 404 nếu không tồn tại; 409 category.in_use kèm thông báo không thể xóa danh mục đang có
+thủ tục liên kết. Lịch sử snapshot vẫn giữ categoryId cũ: nếu chỉ còn tham chiếu lịch sử thì được xóa,
+nhưng rollback về danh mục đã xóa sẽ bị chặn 409 và cần đối soát/cập nhật thủ công.
+
+#### API 71 — Khôi phục nội dung từ phiên bản lịch sử
+
+**Method & Đường dẫn:** `POST /api/v1/procedure-manager/procedures/{id}/versions/{versionNumber}/rollback`
+
+**Mục đích:** Khôi phục nội dung sai mà không phải nhập lại từng trường và không mất lịch sử.
+
+**Cách dùng:** Lấy versionNumber từ API lịch sử (không dùng GUID versionId ở route này), gửi:
+
+```json
+{
+  "reason": "Khôi phục nội dung trước khi chỉnh nhầm",
+  "decisionNumber": "QD-2026-01",
+  "effectiveDate": "2026-10-06"
+}
+```
+
+Reason bắt buộc, tối đa 4000 ký tự; decisionNumber bắt buộc, tối đa 100 ký tự; effectiveDate là ngày hợp lệ.
+Backend khóa thủ tục, chụp trạng thái trước rollback vào version kế tiếp rồi khôi phục dữ liệu snapshot
+đã chọn trong cùng transaction. Giữ nguyên id, createdAt, isActive và lý do bật/tắt hiện tại; cập nhật updatedAt.
+Số quyết định trong contentPayload được thay bằng decisionNumber của lần khôi phục này.
+
+**Kết quả:** 200 ProcedureDetailDto. Lịch sử mới giữ snapshot TRƯỚC rollback theo quy ước version hiện có;
+`snapshotData.rollback` ghi restoredFromVersion, reason, changedBy, decisionNumber, effectiveDate.
+Không xóa/sửa các version cũ. FE tải lại chi tiết và lịch sử sau thành công.
+
+**Lỗi và xử lý:**
+
+- 400 khi body/số phiên bản sai; 404 khi thủ tục hoặc phiên bản của thủ tục không tồn tại.
+- 409 procedure.invalid_snapshot khi snapshot thiếu/sai dữ liệu → đối soát và sửa thủ công.
+- 409 procedure.category_not_found khi danh mục lịch sử đã bị xóa; procedure.code_exists khi mã cũ đã được
+  thủ tục khác dùng → cập nhật thủ công với danh mục/mã phù hợp.
+- Thủ tục đang tắt vẫn tắt sau rollback. Gọi lại là một hành động rollback mới, có version mới;
+  FE không tự retry khi chưa biết lần trước thành công hay chưa.
+
+#### API 72 — Danh sách biểu mẫu để chọn cho thủ tục
+
+**Method & Đường dẫn:** `GET /api/v1/procedure-manager/document-forms?page=1&pageSize=50&searchCode=CT`
+
+**Mục đích:** Cán bộ chọn formTemplateId từ dropdown, không nhập GUID thủ công.
+
+**Cách dùng:** Không body. Page từ 1 đến 1000000, pageSize 1–100; searchCode tùy chọn, tối đa 100 ký tự.
+Procedure gọi DocumentForm qua HTTP và chỉ lấy biểu mẫu active. Cấu hình DocumentForm__BaseUrl phải trỏ
+đúng service (Compose dùng http://document-form:8080/, local mặc định http://localhost:5004/).
+
+**Kết quả:** 200 mảng `{id, formCode, formName, formType}` của trang yêu cầu; dùng id làm formTemplateId.
+API này không trả metadata phân trang; khi cần thêm, FE gọi trang kế tiếp cho đến mảng rỗng.
+Hợp đồng DocumentForm hiện cung cấp mẫu DOCX, nên formType là DOCX_TEMPLATE; chưa có danh sách mẫu
+ONLINE_INTERACTIVE riêng. Mẫu chưa có file Word vẫn có thể xuất hiện; cần kiểm tra mẫu trước khi sử dụng.
+
+**Lỗi và xử lý:** 400 query sai; 502 document_form.invalid_response khi dữ liệu nguồn sai;
+503 khi thiếu địa chỉ hoặc DocumentForm không sẵn sàng; 504 timeout. Không hiển thị mảng rỗng giả khi service lỗi.
+Không truy vấn chéo database, không đưa secret liên dịch vụ vào FE.
+
+#### API 73 — Đọc PDF gốc của một phiên bản lịch sử
+
+**Method & Đường dẫn:** `GET /api/v1/procedure-manager/procedures/{id}/versions/{versionId}/source`
+
+**Mục đích:** Mở PDF của phiên bản cũ để đối chiếu, kể cả thủ tục hiện đã tắt hoặc đã thay PDF mới.
+
+**Cách dùng:** Lấy GUID id của version từ API lịch sử (không dùng versionNumber), không body.
+
+**Kết quả:** 200 `{url, expiresInSeconds: 600}`, Cache-Control no-store. URL chỉ có quyền đọc và hết hạn
+sau 10 phút; FE xin link mới khi hết hạn, không lưu SAS vào dữ liệu thủ tục.
+
+**Lỗi và xử lý:** 404 khi version không thuộc thủ tục, không có PDF đã upload qua draft, hoặc Blob đã mất;
+503 khi cấu hình/lưu trữ chưa sẵn sàng. Hệ thống chỉ ký URL của Blob ghi nhận trong draft Published của
+thủ tục đó, không tự ký URL ngoài hoặc URL tùy ý trong snapshot.
+
 ## 3. Document & Form Service — chỉnh sửa DOCX trên web
 
 Luồng hiện tại (07/10/2026): admin upload mẫu DOCX nguyên bản; FE tải binary vào editor Word trên web;
@@ -1189,7 +1349,7 @@ quyền nghiệp vụ. Health/root phục vụ nhận biết tiến trình, khô
 
 
 ApplicationWorkflow và AnalyticsSystem mới có root/health, chưa có API nghiệp vụ. Tổng cộng có 6 root và 7
-health endpoint theo host, ngoài 60 API nghiệp vụ.
+health endpoint theo host.
 
 ### Nhóm 5.2 — Các tuyến chuyển tiếp của Gateway (local: cổng 5000)
 
@@ -1852,12 +2012,12 @@ snapshotData là **object JSON**. Danh sách version trả thứ tự phiên b�
   nguồn PDF hiện tại. PDF nhập tay chỉ có URL mà không có bản nháp tương ứng có thể trả 404. SAS đã cấp còn
   hiệu lực đến lúc hết hạn.
 
-Hiện chưa có DELETE thủ tục, controller CRUD lĩnh vực hoặc GET chi tiết riêng cho manager theo ID. Không dùng
+Hiện chưa có DELETE thủ tục. Đã bổ sung CRUD lĩnh vực và GET chi tiết quản trị (API 66, 68–70). Không dùng
 public detail để xem thủ tục inactive vì sẽ nhận 404.
 
 ## 5. Procedure: PDF, bản nháp và đối soát
 
-Toàn bộ 8 endpoint này yêu cầu ProcedureManager. Backend cung cấp dữ liệu cho màn hình đối soát; không có màn
+Các endpoint draft yêu cầu ProcedureManager; DELETE mới xem API 67, nguồn PDF lịch sử xem API 73. Backend cung cấp dữ liệu cho màn hình đối soát; không có màn
 hình FE Split-view trong backend.
 
 - **Method:** POST

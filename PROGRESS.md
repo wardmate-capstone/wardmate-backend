@@ -1488,3 +1488,170 @@ for errors and FE adapter. No JWT/identity or database migration changes in this
 Swagger: https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/document-form/swagger/index.html
 
 Changed paths: docs/documentform-deployment.md, src/Services/WardMate.Services.DocumentForm/azure-documentform-api.http, PROGRESS.md. Suggested Antigravity commit: docs(documentform): record verified DOCX editor Azure release. No Git executed.
+
+## VERIFY-AZURE-DRAFTS â€” Kiá»ƒm tra endpoint draft trÃªn Azure (chÆ°a hoÃ n táº¥t upload)
+
+Thá»i gian: 2026-10-05 23:02:20 +07:00 (Asia/Saigon).
+- Host: https://wardmate-procedure-catalog.blackmeadow-a2f12767.japaneast.azurecontainerapps.io
+- GET /health: 200; GET /swagger/v1/swagger.json: 200.
+- Swagger deploy cÃ³ POST /api/v1/procedure-manager/drafts, multipart/form-data trÆ°á»ng File,
+  Bearer authentication, response thÃ nh cÃ´ng Ä‘Æ°á»£c khai bÃ¡o 202 DraftDto.
+- GET /api/v1/procedure-manager/drafts khÃ´ng token: 401 auth.unauthorized.
+- ChÆ°a gá»i upload cÃ³ xÃ¡c thá»±c, chÆ°a xÃ¡c minh cáº¥u hÃ¬nh/ghi Ä‘á»c Azure Blob trÃªn deploy do chÆ°a cÃ³ phiÃªn
+  hoáº·c tÃ i khoáº£n test Ä‘Æ°á»£c cung cáº¥p. KhÃ´ng káº¿t luáº­n Blob thiáº¿u cáº¥u hÃ¬nh chá»‰ tá»« 401.
+- MÃ£ nguá»“n local dÃ¹ng AzureBlob:ConnectionString, container procedure-sources;
+  thiáº¿u cáº¥u hÃ¬nh tráº£ 503 draft.storage_not_configured sau khi vÆ°á»£t qua xÃ¡c thá»±c.
+- KhÃ´ng Ä‘á»•i code/API; chá»‰ cáº­p nháº­t PROGRESS.md. KhÃ´ng build/test suite (kiá»ƒm tra HTTP remote, khÃ´ng sá»­a code).
+- KhÃ´ng cháº¡y Git, khÃ´ng deploy, khÃ´ng táº¡o tÃ i nguyÃªn Azure hoáº·c dá»¯ liá»‡u draft.
+
+## VERIFY-AZURE-DRAFTS-02 â€” XÃ¡c minh báº£n deploy thiáº¿u route draft
+
+Thá»i gian: 2026-10-05 23:46:24 +07:00 (Asia/Saigon).
+- Kiá»ƒm tra trá»±c tiáº¿p host wardmate-procedure-catalog.blackmeadow-a2f12767.japaneast.azurecontainerapps.io.
+- GET /swagger/v1/swagger.json: 200; OpenAPI hiá»‡n chá»‰ liá»‡t kÃª 8 paths (procedure manager CRUD/publish/version,
+  public list/detail vÃ  root), khÃ´ng cÃ³ /api/v1/procedure-manager/drafts hoáº·c cÃ¡c route draft con.
+- GET /api/v1/procedure-manager/drafts khÃ´ng token: 404 body rá»—ng; GET /api/v1/procedures: 200.
+- KhÃ¡c láº§n kiá»ƒm tra trÆ°á»›c tá»«ng cÃ³ drafts trong Swagger. Báº±ng chá»©ng hiá»‡n táº¡i cho tháº¥y báº£n phá»¥c vá»¥ request
+  khÃ´ng cÃ´ng bá»‘ endpoint draft; cáº§n kiá»ƒm tra image/revision vÃ  traffic, chÆ°a xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c cáº¥u hÃ¬nh Azure
+  cá»¥ thá»ƒ do khÃ´ng cÃ³ quyá»n Ä‘á»c Azure quáº£n trá»‹. KhÃ´ng quy lá»—i nÃ y cho JWT hoáº·c Blob.
+- ChÆ°a test upload cÃ³ xÃ¡c thá»±c; khÃ´ng táº¡o dá»¯ liá»‡u. KhÃ´ng sá»­a code, khÃ´ng build/test, khÃ´ng Git/deploy.
+- File cáº­p nháº­t: PROGRESS.md. API má»›i: khÃ´ng. Test tá»± Ä‘á»™ng má»›i: 0.
+
+## PROC-FE-001 â€” HoÃ n thiá»‡n API quáº£n trá»‹ Procedure Catalog theo yÃªu cáº§u FE
+
+HoÃ n thÃ nh: 2026-10-06 22:07:56 +07:00 (Asia/Saigon, UTC+07:00).
+
+### Káº¿t quáº£
+
+- Bá»• sung Ä‘á»§ 8 operations FE Ä‘á» nghá»‹, CQRS MediatR, validation tiáº¿ng Viá»‡t, policy ProcedureManager
+  (PROCEDURE_MANAGER hoáº·c IT_ADMIN); role MANAGER phÆ°á»ng khÃ´ng tá»± cÃ³ quyá»n quáº£n trá»‹ thá»§ tá»¥c.
+- Chi tiáº¿t quáº£n trá»‹ tráº£ cáº£ inactive, public detail giá»¯ bá»™ lá»c active.
+- Category CRUD: trim tÃªn, chá»‘ng trÃ¹ng khÃ´ng phÃ¢n biá»‡t hoa/thÆ°á»ng, serialize táº¡o/Ä‘á»•i tÃªn báº±ng advisory lock;
+  cháº·n xÃ³a náº¿u cÃ³ thá»§ tá»¥c active hoáº·c inactive liÃªn káº¿t, FK báº£o vá»‡ dá»¯ liá»‡u.
+- Migration AlignCategoryIdentitySequence Ä‘iá»u chá»‰nh sequence ID sau dá»¯ liá»‡u seed 1â€“3, khÃ´ng tua lÃ¹i bá»™ Ä‘áº¿m
+  database Ä‘Ã£ cÃ³ dá»¯ liá»‡u. KhÃ´ng Ä‘á»•i schema báº£ng hoáº·c xÃ³a dá»¯ liá»‡u cÅ©.
+- Discard: khÃ³a draft, cháº·n Published/Processing vÃ  PDF Ä‘Æ°á»£c tham chiáº¿u bá»Ÿi thá»§ tá»¥c/version. Ghi Deleting
+  trÆ°á»›c khi xÃ³a Blob; chá»‰ xÃ³a báº£n ghi sau Blob thÃ nh cÃ´ng. Lá»—i giá»¯ báº£n ghi Ä‘á»ƒ retry DELETE; khÃ´ng cÃ³ worker
+  tá»± retry xÃ³a. Máº¥t káº¿t ná»‘i sau xÃ³a Blob váº«n cho phÃ©p gá»i láº¡i Ä‘á»ƒ hoÃ n táº¥t. KhÃ´ng tuyÃªn bá»‘ transaction phÃ¢n tÃ¡n.
+- Rollback: khÃ³a thá»§ tá»¥c, xÃ¡c minh snapshot/category/code, snapshot tráº¡ng thÃ¡i trÆ°á»›c khÃ´i phá»¥c thÃ nh version
+  káº¿ tiáº¿p, phá»¥c há»“i ná»™i dung cÃ¹ng PDF/checklist/forms. Giá»¯ isActive, StatusChangeReason, Id, CreatedAt;
+  cáº­p nháº­t UpdatedAt vÃ  quyáº¿t Ä‘á»‹nh hiá»‡n táº¡i tá»« input. snapshotData.rollback ghi actor/lÃ½ do/phiÃªn báº£n nguá»“n.
+- Nguá»“n PDF lá»‹ch sá»­: chá»‰ kÃ½ Blob thuá»™c draft Published cÃ¹ng thá»§ tá»¥c/URL Ä‘Æ°á»£c lÆ°u trong version,
+  kiá»ƒm tra Blob tá»“n táº¡i; khÃ´ng kÃ½ URL bÃªn ngoÃ i. SAS read-only 600 giÃ¢y, response no-store.
+- Dropdown biá»ƒu máº«u: gá»i HTTP DocumentForm, khÃ´ng tham chiáº¿u database/domain service khÃ¡c; chá»‰ active,
+  phÃ¢n trang vÃ  tÃ¬m mÃ£. Há»£p Ä‘á»“ng DocumentForm hiá»‡n lÃ  DOCX nÃªn formType=DOCX_TEMPLATE, chÆ°a cÃ³ provider
+  cho ONLINE_INTERACTIVE. KhÃ´ng suy Ä‘oÃ¡n ráº±ng thiáº¿u file DOCX lÃ  biá»ƒu máº«u online.
+
+### File táº¡o má»›i
+
+DÆ°á»›i src/Services/WardMate.Services.ProcedureCatalog/:
+- WardMate.Services.ProcedureCatalog.Application/Management/AdministrationRequests.cs
+- WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureAdministration.cs
+- WardMate.Services.ProcedureCatalog.Infrastructure/DocumentFormsClient.cs
+- WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureAdministrationController.cs
+- WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20261006145135_AlignCategoryIdentitySequence.cs
+- WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20261006145135_AlignCategoryIdentitySequence.Designer.cs
+
+Tests má»›i trong project hiá»‡n cÃ³:
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/AdministrationTests.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/DocumentFormsClientTests.cs
+
+### File chá»‰nh sá»­a/Ä‘Æ°á»£c tooling táº¡o láº¡i
+
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/DependencyInjection.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/appsettings.json
+- Infrastructure/Persistence/Migrations/ProcedureDbContextModelSnapshot.cs trong service (EF tÃ¡i sinh,
+  model khÃ´ng thay Ä‘á»•i; migration chá»‰ Ä‘iá»u chá»‰nh sequence).
+- docker/docker-compose.yml: thÃªm DocumentForm__BaseUrl cho procedure-catalog.
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/DraftTestBlobStorage.cs (giáº£ láº­p lá»—i xÃ³a theo blob).
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedurePersistenceTests.cs (Ä‘á»‘i chiáº¿u toÃ n bá»™
+  migration thay vÃ¬ cá»‘ Ä‘á»‹nh sá»‘ lÆ°á»£ng lÃ  5).
+- docs/api-guide.md: 8 má»¥c API má»›i 66â€“73, DTO/lá»—i/tÃ¬nh huá»‘ng FE, cáº­p nháº­t ná»™i dung cÅ© bá»‹ mÃ¢u thuáº«n.
+- PROGRESS.md.
+
+### Endpoints vÃ  DTO
+
+Prefix /api/v1/procedure-manager, táº¥t cáº£ dÃ¹ng Bearer vÃ  policy ProcedureManager; 401/403 theo xÃ¡c thá»±c/quyá»n.
+
+- GET /procedures/{id}: khÃ´ng body; 200 ProcedureDetailDto ká»ƒ cáº£ inactive; 404 khÃ´ng tá»“n táº¡i.
+- DELETE /drafts/{id}: khÃ´ng body; 204 hoÃ n táº¥t; 404 khÃ´ng tá»“n táº¡i; 409 Ä‘ang xá»­ lÃ½/Ä‘Ã£ xuáº¥t báº£n/Ä‘ang tham chiáº¿u;
+  503 draft.storage_unavailable. Cho phÃ©p NeedsReview, Failed, Queued hoáº·c retry Deleting.
+- POST /categories: {categoryName, description?}; 201 ProcedureCategoryDto {id,categoryName,description};
+  400 validation; 409 tÃªn trÃ¹ng. TÃªn tá»‘i Ä‘a 255, mÃ´ táº£ tá»‘i Ä‘a 4000 kÃ½ tá»±.
+- PUT /categories/{id}: body nhÆ° POST; 200 ProcedureCategoryDto; 400/404/409.
+- DELETE /categories/{id}: khÃ´ng body; 204; 404; 409 category.in_use.
+- POST /procedures/{id}/versions/{versionNumber}/rollback: {reason,decisionNumber,effectiveDate: yyyy-MM-dd};
+  200 ProcedureDetailDto; 400 validation; 404 thiáº¿u thá»§ tá»¥c/version; 409 snapshot/danh má»¥c/mÃ£ khÃ´ng phÃ¹ há»£p.
+  Version má»›i lÆ°u tráº¡ng thÃ¡i TRÆ¯á»šC rollback theo quy Æ°á»›c cÅ©, thÃªm audit trong snapshotData.rollback.
+- GET /document-forms?page=1&pageSize=50&searchCode=...: khÃ´ng body; 200 máº£ng
+  {id,formCode,formName,formType}; 400 query; 502 response nguá»“n sai; 503 thiáº¿u cáº¥u hÃ¬nh/upstream lá»—i;
+  504 timeout. PageSize tá»‘i Ä‘a 100, khÃ´ng cÃ³ metadata trong response máº£ng; FE táº£i thÃªm trang Ä‘áº¿n máº£ng rá»—ng.
+- GET /procedures/{id}/versions/{versionId}/source: khÃ´ng body; 200 {url,expiresInSeconds:600};
+  404 version/file khÃ´ng há»£p lá»‡ hoáº·c ngoÃ i há»‡ thá»‘ng; 503 Blob chÆ°a sáºµn sÃ ng.
+
+### Kiá»ƒm chá»©ng
+
+- dotnet restore WardMate.sln: thÃ nh cÃ´ng sau khi Ä‘Æ°á»£c phÃ©p truy cáº­p NuGet ngoÃ i sandbox.
+  LÆ°á»£t build Ä‘áº§u cÃ³ assets cÅ© thiáº¿u dependency; khÃ´ng chá»‰nh code ApplicationWorkflow ngoÃ i pháº¡m vi Ä‘á»ƒ nÃ© lá»—i.
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: PASS, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: 186 passed, 0 failed, 0 skipped.
+  ProcedureCatalog 96 (tÄƒng 15: 11 integration cases + 4 HTTP adapter unit cases), DocumentForm 71,
+  ApplicationWorkflow 19. KhÃ´ng táº¡o test project má»›i.
+- Kiá»ƒm tra PostgreSQL 16 táº¡m: migration, category ID/duplicate/constraint, inactive detail vs public,
+  rollback snapshot/audit/giá»¯ inactive/Ä‘á»“ng thá»i/invalid snapshot, xÃ³a Blob+row/Processing/Published,
+  lá»—i Blob retry, nguá»“n lá»‹ch sá»­/no-store/khÃ¡c thá»§ tá»¥c vÃ  phÃ¢n quyá»n.
+- HTTP DocumentForm test dÃ¹ng handler giáº£ láº­p Ä‘á»ƒ kiá»ƒm tra DTO, escaping query vÃ  lá»—i upstream; Blob dÃ¹ng
+  fake trong integration tests. ChÆ°a test káº¿t ná»‘i DocumentForm hoáº·c Blob Azure tháº­t trong task nÃ y.
+- EF has-pending-model-changes: khÃ´ng cÃ³ thay Ä‘á»•i model ngoÃ i migration.
+- LÆ°á»£t test Ä‘áº§u phÃ¡t hiá»‡n assertion migration cÅ© cá»‘ Ä‘á»‹nh 5; Ä‘Ã£ cáº­p nháº­t vÃ  cháº¡y láº¡i toÃ n suite thÃ nh cÃ´ng.
+
+### BÃ n giao
+
+- Cáº§n deploy source má»›i vÃ  Ã¡p dá»¥ng migration AlignCategoryIdentitySequence; kiá»ƒm thá»­ chá»‰ Ã¡p dá»¥ng trÃªn DB táº¡m.
+- Azure cáº§n DocumentForm__BaseUrl trá» Ä‘Ãºng service DocumentForm (khÃ´ng dÃ¹ng localhost); giá»¯ JWT vÃ  Blob
+  Ä‘ang hoáº¡t Ä‘á»™ng. Compose Ä‘Ã£ cáº¥u hÃ¬nh URL ná»™i bá»™. Frontend dÃ¹ng manager detail má»›i cho form sá»­a inactive.
+- Gáº·p Deleting thÃ¬ khÃ³a sá»­a/publish, cho thá»­ DELETE láº¡i; khÃ´ng tá»± xÃ³a file gá»‘c cá»§a báº£n Published.
+- Danh má»¥c chá»‰ cÃ²n trong snapshot lá»‹ch sá»­ cÃ³ thá»ƒ xÃ³a, nhÆ°ng rollback vá» danh má»¥c Ä‘Ã£ xÃ³a tráº£ 409 Ä‘á»ƒ Ä‘á»‘i soÃ¡t.
+- CÃ¡c thay Ä‘á»•i trong workspace khÃ´ng Ä‘á»“ng nghÄ©a Azure Ä‘Ã£ cÃ³ API má»›i. KhÃ´ng cháº¡y Git, khÃ´ng build image,
+  khÃ´ng deploy hoáº·c Ä‘á»•i tÃ i nguyÃªn Azure. KhÃ´ng commit secrets.
+- Gá»£i Ã½ Conventional Commits (Antigravity tÃ¡ch tá»«ng file theo quy táº¯c hiá»‡n hÃ nh):
+  feat(procedure-catalog): complete manager administration APIs;
+  fix(procedure-catalog): align category identity sequence after seeding;
+  test(procedure-catalog): cover rollback and draft deletion safeguards;
+  docs: document procedure manager administration APIs.
+
+## PROC-SYNC-GIT-20261007 â€” Pull latest remote commits and prepare procedure administration commits
+
+HoÃ n thÃ nh: 2026-10-07 09:10:00 +07:00 (Asia/Saigon, UTC+07:00).
+
+- NhÃ¡nh: kha.
+- ÄÃ£ kÃ©o cÃ¡c commit má»›i tá»« origin/kha (bao gá»“m tÃ­nh nÄƒng DocumentForm E-Form online drafts vÃ  tÃ i liá»‡u deploy Azure).
+- Giáº£i quyáº¿t xung Ä‘á»™t merge thÃ nh cÃ´ng trong docs/api-guide.md vÃ  PROGRESS.md, khÃ´ng cÃ³ xung Ä‘á»™t mÃ£ nguá»“n C#.
+- BiÃªn dá»‹ch Release: dotnet build WardMate.sln -c Release -warnaserror Ä‘áº¡t 0 lá»—i, 0 cáº£nh bÃ¡o.
+- Kiá»ƒm thá»­ unit: DocumentForm 76/76 passed; ProcedureCatalog DocumentFormsClientTests 4/4 passed. (CÃ¡c integration tests dÃ¹ng Testcontainers yÃªu cáº§u Docker Desktop Ä‘ang dá»«ng).
+- Sáº¯p xáº¿p vÃ  chuáº©n bá»‹ commit theo quy táº¯c háº¡t nhÃ¢n cá»§a AGENTS.md (má»—i file má»›i 1 commit, tÃ¡ch riÃªng functional updates). BÃ¡o cÃ¡o sá»‘ lÆ°á»£ng commit cho ngÆ°á»i dÃ¹ng vÃ  chá» xÃ¡c nháº­n trÆ°á»›c khi thá»±c hiá»‡n git push origin kha.
+## PROC-SWAGGER-001 — Tách controller theo nhóm nghiệp vụ
+
+Thời gian: 2026-10-07 14:43:49 +07:00 (Asia/Saigon, UTC+07:00).
+- Xóa controller gom chung ProcedureAdministrationController.cs.
+- Chuyển GET /api/v1/procedure-manager/procedures/{id}, POST .../{id}/versions/{versionNumber}/rollback
+  và GET .../{id}/versions/{versionId}/source vào ProcedureManagerController.cs.
+- Chuyển DELETE /api/v1/procedure-manager/drafts/{id} vào ProcedureDraftsController.cs.
+- Tạo ProcedureCategoriesController.cs cho POST /api/v1/procedure-manager/categories,
+  PUT/DELETE /api/v1/procedure-manager/categories/{id}.
+- Tạo ProcedureDocumentFormsController.cs cho GET /api/v1/procedure-manager/document-forms.
+- Các file controller nằm dưới src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/.
+- Cập nhật docs/api-guide.md và PROGRESS.md. FE giữ nguyên HTTP method, URL, request body, DTO, token và
+  xử lý ProblemDetails/status codes; chỉ thay nhóm Swagger. Không migration hoặc thay đổi nghiệp vụ.
+- Swagger: ProcedureManager (chi tiết/rollback/source lịch sử), ProcedureDrafts (xóa draft),
+  ProcedureCategories (3 API danh mục), ProcedureDocumentForms (tra cứu biểu mẫu).
+- Release build toàn solution với --no-restore -warnaserror -m:1: PASS, 0 errors, 0 warnings.
+  Lượt build song song trước đó kết thúc thất bại không có compiler diagnostic; build tuần tự thành công.
+- Không tạo test mới cho việc tổ chức controller. Kết quả test hồi quy ghi bổ sung bên dưới.
+- Không chạy Git, không build Docker hoặc deploy; cần build lại Procedure image để xem nhóm mới.
+- Gợi ý commit: refactor(procedure-catalog): organize controllers by feature.
+- Test hồi quy AdministrationTests, ProcedureDraftTests, ProcedureManagerTests: 42 passed, 0 failed, 0 skipped trên PostgreSQL tạm; không chạy lại toàn suite trong phiên chỉ tổ chức controller này.
+
+
+## DF-FORM-TEMPLATES-GIT-HANDOFF — 2026-10-07T15:46:42.175659+07:00
+Owner explicitly authorized Codex Git and main/nghia updates for this session, superseding standing no-Git restriction for this task. Created22 scoped file commits for completed form templates/editor, local fixes, tests and docs. Integrated origin/main d3084f4 (16 ProcedureCatalog commits); documentation conflicts resolved preserving both feature guides and progress histories. Docker compose auto-merge preserved both services. Full solution Release build0 warnings/errors; DocumentForm tests76 passed0 failed0 skipped. No API changes beyond documented DOCX editor contract; no new token changes. Intended atomic fast-forward push of integrated HEAD to main and nghia, no force and no push to kha/deploy. Push success to be verified by remote refs. Suggested/release merge message: feat(documentform): complete form templates and online DOCX editing.
