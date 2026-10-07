@@ -37,6 +37,18 @@ public sealed class FormTemplateVersion : BaseEntity
         SetCreated(DateTime.UtcNow);
     }
 
+    public string OriginalBlobUrl { get; private set; } = string.Empty;
+    public string OriginalSha256 { get; private set; } = string.Empty;
+    public string MappingDefinition { get; private set; } = "[]";
+
+    public void BindOriginal(string blobUrl, string sha256, string mappingJson)
+    {
+        if (!string.IsNullOrEmpty(OriginalBlobUrl)) throw new InvalidOperationException("Published versions are immutable.");
+        OriginalBlobUrl = blobUrl;
+        OriginalSha256 = sha256;
+        MappingDefinition = mappingJson;
+    }
+
     public Guid TemplateId { get; private set; }
     public int VersionNumber { get; private set; }
     public string SchemaDefinition { get; private set; } = string.Empty;
@@ -48,6 +60,7 @@ public sealed class FormTemplateVersion : BaseEntity
     public void UpdateSchemaDefinition(string schemaDefinition, string? updatedBy = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(schemaDefinition);
+        if (!string.IsNullOrEmpty(OriginalBlobUrl)) throw new InvalidOperationException("Published versions are immutable.");
         SchemaDefinition = schemaDefinition;
         UpdatedBy = updatedBy;
         SetUpdated(DateTime.UtcNow);

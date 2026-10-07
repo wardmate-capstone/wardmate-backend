@@ -52,4 +52,12 @@ public static class DocumentFormErrors
     public static Error SubmissionFileNotFound(Guid submissionId) =>
         Error.NotFound("document.submission_file_not_found",
             $"No DOCX file found for submission '{submissionId}'.");
+
+    public static Error BlobUploadFailed(string detail) =>
+        Error.Failure("document.blob_upload_failed",
+            $"Failed to upload file to storage: {detail}");
+
+    public static Error FormDataRequired =>
+        Error.Validation("document.form_data_required",
+            "Form data must contain at least one field value.");
 }

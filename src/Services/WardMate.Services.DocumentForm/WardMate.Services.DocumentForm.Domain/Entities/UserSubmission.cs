@@ -45,6 +45,18 @@ public sealed class UserSubmission : BaseEntity
     // ── Properties ──────────────────────────────────────────────────
 
     /// <summary>ID phôi mẫu gốc mà hồ sơ này được tạo từ đó.</summary>
+    public Guid? TemplateVersionId { get; private set; }
+    public string? FormData { get; private set; }
+
+    public void SetOnlineData(Guid versionId, string formData)
+    {
+        if (Status != SubmissionStatus.Draft) throw new InvalidOperationException("Only drafts can be edited.");
+        if (TemplateVersionId.HasValue && TemplateVersionId != versionId)
+            throw new InvalidOperationException("A draft is pinned to its template version.");
+        TemplateVersionId = versionId;
+        FormData = formData;
+    }
+
     public Guid TemplateId { get; private set; }
 
     /// <summary>ID người dân sở hữu hồ sơ này.</summary>
