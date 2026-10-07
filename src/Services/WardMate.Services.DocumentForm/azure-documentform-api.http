@@ -1,208 +1,42 @@
-### ====================================================================================
-### WardMate Document & Form Service — LIVE AZURE TEST FILE (ALL 18 APIS THEO ACTOR)
-### Base URL: https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io
-### Dùng VS Code extension: REST Client (humao.rest-client)
-### ====================================================================================
-
-@baseUrl = https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io
-@contentType = application/json
+# Local source contract. Azure still requires a separate deployment.
+@baseUrl = http://localhost:15014
+@templateId = REPLACE_TEMPLATE_ID
+@submissionId = REPLACE_SUBMISSION_ID
 @applicantId = 11111111-1111-1111-1111-111111111111
-@officerId = 22222222-2222-2222-2222-222222222222
 
-# ====================================================================================
-# CỤM 1: 📑 FormTemplates — Quản trị viên / Hệ thống
-# ====================================================================================
-
-### [1.1] TẠO BIỂU MẪU PHÔI MỚI (Admin)
-### POST /api/v1/form-templates
-# @name createTemplate
-POST {{baseUrl}}/api/v1/form-templates
-Content-Type: {{contentType}}
-
-{
-  "code": "DON-XAC-NHAN-CU-TRU-TEST",
-  "title": "Đơn xác nhận thông tin về cư trú (Azure Live)",
-  "createdBy": "admin-system"
-}
-
-###
-
-### [1.2] UPLOAD FILE DOCX CHO BIỂU MẪU PHÔI (Admin)
-### POST /api/v1/form-templates/{templateId}/upload-docx
-@templateId = {{createTemplate.response.body.id}}
-
-POST {{baseUrl}}/api/document-form/api/v1/form-templates/{{templateId}}/upload-docx
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
-
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="file"; filename="mau_phoi_cu_tru.docx"
-Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
-
-< ./don_sample.docx
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
-
-###
-
-### [1.3] LẤY DANH SÁCH BIỂU MẪU PHÔI (Phân trang)
-### GET /api/v1/form-templates
-GET {{baseUrl}}/api/v1/form-templates?page=1&pageSize=10&isActive=true
-Accept: {{contentType}}
-
-###
-
-### [1.4] XEM CHI TIẾT 1 BIỂU MẪU PHÔI THEO ID
-### GET /api/v1/form-templates/{templateId}
+### FE: get schema and templateVersionId; require onlineReady=true
 GET {{baseUrl}}/api/v1/form-templates/{{templateId}}
-Accept: {{contentType}}
 
-###
+### Admin: inspect original paragraphs before configuring mappings
+GET {{baseUrl}}/api/v1/form-templates/{{templateId}}/docx-structure
 
-### [1.5] LẤY LINK SAS TẢI FILE PHÔI DOCX (Có thời hạn)
-### GET /api/v1/form-templates/{templateId}/docx-url
-GET {{baseUrl}}/api/document-form/api/v1/form-templates/{{templateId}}/docx-url?validForMinutes=60
-Accept: {{contentType}}
+### See docs/api-guide.md for upload and online-config bodies.
+### Citizen: save JSON draft (use field IDs from the template schema)
+POST {{baseUrl}}/api/v1/citizen/submissions/draft
+Content-Type: application/json
 
-###
+{"templateId":"{{templateId}}","applicantId":"{{applicantId}}","formData":{"ho_ten":"Nguoi dung thu nghiem"}}
 
-### [1.6] TẢI TRỰC TIẾP FILE PHÔI DOCX GỐC VỀ MÁY
-### GET /api/v1/form-templates/{templateId}/download-docx
-GET {{baseUrl}}/api/document-form/api/v1/form-templates/{{templateId}}/download-docx
+### Reopen draft, including pinned schema and saved formData
+GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}?applicantId={{applicantId}}
 
+### Replace ALL formData; omitted optional fields are cleared
+PUT {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/draft
+Content-Type: application/json
 
-# ====================================================================================
-# CỤM 2: 👤 Citizen — Hồ sơ người dân (Luồng Người dân)
-# ====================================================================================
+{"applicantId":"{{applicantId}}","formData":{"ho_ten":"Nguoi dung thu nghiem","ngay_sinh":"2000-01-02"}}
 
-### [2.1] [CITIZEN] TẠO BẢN NHÁP HỒ SƠ ĐẦU TIÊN (Lưu nháp - Draft)
-### POST /api/v1/citizen/submissions/draft
-# @name createDraft
-POST {{baseUrl}}/api/document-form/api/v1/citizen/submissions/draft
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+### Finalize the electronic form, not the whole procedure application
+POST {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/submit
+Content-Type: application/json
 
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="templateId"
+{"applicantId":"{{applicantId}}"}
 
-{{templateId}}
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="applicantId"
+### Download generated copy
+GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/download-docx?applicantId={{applicantId}}
 
-{{applicantId}}
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="file"; filename="don_cu_tru_nhap_v1.docx"
-Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+### List own electronic forms
+GET {{baseUrl}}/api/v1/citizen/submissions?applicantId={{applicantId}}&page=1&pageSize=20
 
-< ./don_sample.docx
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
-
-###
-
-### [2.2] [CITIZEN] LẤY DANH SÁCH HỒ SƠ CỦA NGƯỜI DÂN (Hồ sơ của tôi)
-### GET /api/v1/citizen/submissions
-GET {{baseUrl}}/api/v1/citizen/submissions?applicantId={{applicantId}}&page=1&pageSize=10
-Accept: {{contentType}}
-
-###
-
-### [2.3] [CITIZEN] XEM CHI TIẾT 1 HỒ SƠ
-### GET /api/v1/citizen/submissions/{submissionId}
-@submissionId = {{createDraft.response.body.submissionId}}
-
-GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}
-Accept: {{contentType}}
-
-###
-
-### [2.4] [CITIZEN] TẢI FILE DOCX ĐANG LƯU NHÁP VỀ MÁY ĐỂ ĐIỀN TIẾP
-### GET /api/v1/citizen/submissions/{submissionId}/download-docx
-GET {{baseUrl}}/api/document-form/api/v1/citizen/submissions/{{submissionId}}/download-docx
-
-###
-
-### [2.5] [CITIZEN] CẬP NHẬT BẢN NHÁP HỒ SƠ (Điền tiếp thông tin)
-### PUT /api/v1/citizen/submissions/{submissionId}/draft
-PUT {{baseUrl}}/api/document-form/api/v1/citizen/submissions/{{submissionId}}/draft
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
-
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="applicantId"
-
-{{applicantId}}
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="file"; filename="don_cu_tru_nhap_v2.docx"
-Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
-
-< ./don_sample.docx
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
-
-###
-
-### [2.6] [CITIZEN] NỘP HỒ SƠ CHÍNH THỨC (Draft -> Submitted)
-### POST /api/v1/citizen/submissions/{submissionId}/submit
-POST {{baseUrl}}/api/document-form/api/v1/citizen/submissions/{{submissionId}}/submit
-Content-Type: {{contentType}}
-
-{
-  "applicantId": "{{applicantId}}"
-}
-
-
-# ====================================================================================
-# CỤM 3: 🏢 Officer — Xét duyệt hồ sơ (Front-Desk / Cán bộ)
-# ====================================================================================
-
-### [3.1] [OFFICER] LẤY DANH SÁCH HỒ SƠ ĐANG CHỜ DUYỆT (Hàng đợi xét duyệt)
-### GET /api/v1/officer/submissions?status=Submitted
-GET {{baseUrl}}/api/v1/officer/submissions?status=Submitted&page=1&pageSize=10
-Accept: {{contentType}}
-
-###
-
-### [3.2] [OFFICER] XEM CHI TIẾT HỒ SƠ ĐÃ NỘP
-### GET /api/v1/officer/submissions/{submissionId}
-GET {{baseUrl}}/api/v1/officer/submissions/{{submissionId}}
-Accept: {{contentType}}
-
-###
-
-### [3.3] [OFFICER] TẢI FILE DOCX ĐỂ THẨM ĐỊNH THÔNG TIN
-### GET /api/v1/officer/submissions/{submissionId}/download-docx
-GET {{baseUrl}}/api/document-form/api/v1/officer/submissions/{{submissionId}}/download-docx
-
-###
-
-### [3.4] [OFFICER - NHÁNH 1] TRẢ HỒ SƠ, YÊU CẦU SỬA ĐỔI / BỔ SUNG (Submitted -> RevisionRequested)
-### POST /api/v1/officer/submissions/{submissionId}/request-revision
-POST {{baseUrl}}/api/document-form/api/v1/officer/submissions/{{submissionId}}/request-revision
-Content-Type: {{contentType}}
-
-{
-  "officerId": "{{officerId}}",
-  "comment": "Ảnh chụp CCCD mặt sau bị mờ, vui lòng chụp lại rõ nét hơn rồi nộp lại."
-}
-
-###
-
-### [3.5] [OFFICER - NHÁNH 2] PHÊ DUYỆT HỒ SƠ HOÀN TẤT (Submitted -> Approved)
-### POST /api/v1/officer/submissions/{submissionId}/approve
-POST {{baseUrl}}/api/document-form/api/v1/officer/submissions/{{submissionId}}/approve
-Content-Type: {{contentType}}
-
-{
-  "officerId": "{{officerId}}"
-}
-
-
-# ====================================================================================
-# CỤM 4: ⚙️ WardMate.Services.DocumentForm.API (Root & Health)
-# ====================================================================================
-
-### [4.1] THÔNG TIN SERVICE GỐC
-### GET /
-GET {{baseUrl}}/api/document-form/
-Accept: {{contentType}}
-
-###
-
-### [4.2] KIỂM TRA HEALTHCHECK SERVICE
-### GET /health
-GET {{baseUrl}}/api/document-form/health
+# applicantId is not authentication: integrate verified JWT identity before production.
+# Removed: officer review APIs, docx-url, citizen multipart Word editing.
