@@ -3,6 +3,7 @@ Start the new API with local PostgreSQL + Azurite and run: python scripts/verify
 No third-party Python packages required. Does not run against Azure.
 """
 import io
+from pathlib import Path
 import json
 import sys
 import uuid
@@ -40,69 +41,74 @@ def fixture():
     return output.getvalue()
 
 
-def upload(template, data):
+def multipart(method, path, fields, data=None, expected=200, filename="edited.docx"):
     boundary = "wm-" + uuid.uuid4().hex
-    body = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="original.docx"\r\nContent-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document\r\n\r\n'.encode()
-            + data + f"\r\n--{boundary}--\r\n".encode())
-    return call("POST", f"/api/v1/form-templates/{template}/upload-docx", body,
-                content_type="multipart/form-data; boundary=" + boundary)
+    parts = []
+    for key, value in fields.items():
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n'.encode())
+    if data is not None:
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\nContent-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document\r\n\r\n'.encode() + data + b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
+    return call(method, path, b"".join(parts), expected, "multipart/form-data; boundary=" + boundary)
+
+
+def edit(data, text):
+    output = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(data)) as source, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
+        for item in source.infolist():
+            content = source.read(item.filename)
+            if item.filename == "word/document.xml":
+                root = ET.fromstring(content)
+                node = root.find(".//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t")
+                assert node is not None
+                node.text = text
+                content = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+            target.writestr(item, content)
+    return output.getvalue()
 
 
 applicant = str(uuid.uuid4())
-template = call("POST", "/api/v1/form-templates", {"code": "SMOKE-" + uuid.uuid4().hex[:12], "title": "Synthetic online form"}, 201)["id"]
-t = "/api/v1/form-templates/" + template
 c = "/api/v1/citizen/submissions"
-original = fixture()
-upload(template, original)
-assert call("GET", t + "/download-docx", raw=True) == original
+template = call("POST", "/api/v1/form-templates", {"code": "DOCX-" + uuid.uuid4().hex[:12], "title": "Synthetic editor test"}, 201)["id"]
+t = "/api/v1/form-templates/" + template
+original = Path(sys.argv[2]).read_bytes() if len(sys.argv) > 2 else fixture()
+fields = {"templateId": template, "applicantId": applicant}
 assert not call("GET", t)["onlineReady"]
-structure = call("GET", t + "/docx-structure")
-assert structure["paragraphs"][0]["text"] == "Ho ten: ......"
-schema = {"title": "Synthetic online form", "sections": [{"section_id": "main", "title": "Details", "fields": [
-    {"field_id": "ho_ten", "label": "Ho ten", "type": "text", "is_required": True},
-    {"field_id": "ngay_sinh", "label": "Ngay sinh", "type": "date", "is_required": True}]}]}
-mappings = [{"fieldId": "ho_ten", "paragraphIndex": 0, "start": 8, "length": 6, "expectedText": "......"},
-            {"fieldId": "ngay_sinh", "paragraphIndex": 1, "start": 11, "length": 6, "expectedText": "......"}]
-config = {"schemaDefinition": schema, "mappings": mappings, "originalSha256": structure["originalSha256"]}
-call("PUT", t + "/online-config", dict(config, originalSha256="wrong"), 409)
-version = call("PUT", t + "/online-config", config)["templateVersionId"]
-detail = call("GET", t)
-assert detail["onlineReady"] and detail["templateVersionId"] == version
-assert detail["schemaDefinition"] == schema
-draft_body = {"templateId": template, "templateVersionId": version, "applicantId": applicant, "formData": {"ho_ten": "Synthetic Applicant"}}
-draft = call("POST", c + "/draft", draft_body, 201)["submissionId"]
+multipart("POST", c + "/draft", fields, original, 404)
+multipart("POST", t + "/upload-docx", {}, b"broken", 400)
+multipart("POST", t + "/upload-docx", {}, original, filename="mẫu gốc.docx")
+assert call("GET", t + "/download-docx", raw=True) == original
+meta = call("GET", t)
+assert meta["onlineReady"] and "schemaDefinition" not in meta
+edited = edit(original, "Synthetic citizen edit one")
+updated = edit(original, "Synthetic citizen edit two")
+call("POST", c + "/draft", fields, 415)
+multipart("POST", c + "/draft", fields, expected=400)
+multipart("POST", c + "/draft", fields, b"", 400)
+multipart("POST", c + "/draft", fields, b"broken", 400)
+multipart("POST", c + "/draft", fields, edited, 400, filename="wrong.txt")
+draft = multipart("POST", c + "/draft", fields, edited, 201)["submissionId"]
 d = c + "/" + draft
-validation = call("POST", d + "/submit", {"applicantId": applicant}, 400)
-assert validation["code"] == "document.invalid_form_data" and validation["fieldErrors"]
-call("PUT", d + "/draft", {"applicantId": str(uuid.uuid4()), "formData": {}}, 403)
-call("PUT", d + "/draft", {"applicantId": applicant, "formData": {"unexpected": 1}}, 400)
-data = {"ho_ten": "Synthetic Applicant", "ngay_sinh": "2000-01-02"}
-call("PUT", d + "/draft", {"applicantId": applicant, "formData": data})
-reopened = call("GET", d + "?applicantId=" + applicant)
-assert reopened["formData"] == data and reopened["schemaDefinition"] == schema
-assert reopened["templateVersionId"] == version
+query = "?applicantId=" + applicant
+assert call("GET", d + "/download-docx" + query, raw=True) == edited
+assert call("GET", d + query)["status"] == "Draft"
 call("GET", d + "?applicantId=" + str(uuid.uuid4()), expected=403)
-generated = call("GET", d + "/download-docx?applicantId=" + applicant, raw=True)
-with zipfile.ZipFile(io.BytesIO(generated)) as package:
-    xml = ET.fromstring(package.read("word/document.xml"))
-    text = "".join(xml.itertext())
-    assert "Synthetic Applicant" in text and "2000-01-02" in text
+call("GET", d + "/download-docx?applicantId=" + str(uuid.uuid4()), expected=403)
+multipart("PUT", d + "/draft", {"applicantId": str(uuid.uuid4())}, updated, 403)
+multipart("PUT", d + "/draft", {"applicantId": applicant}, updated)
+assert call("GET", d + "/download-docx" + query, raw=True) == updated
 assert call("GET", t + "/download-docx", raw=True) == original
+# A later admin upload must not change the saved citizen document.
+multipart("POST", t + "/upload-docx", {}, edited)
+assert call("GET", d + "/download-docx" + query, raw=True) == updated
 assert call("POST", d + "/submit", {"applicantId": applicant})["status"] == "Submitted"
-call("PUT", d + "/draft", {"applicantId": applicant, "formData": data}, 400)
+multipart("PUT", d + "/draft", {"applicantId": applicant}, edited, 400)
 call("POST", d + "/submit", {"applicantId": applicant}, 400)
+assert call("GET", d + "/download-docx" + query, raw=True) == updated
 call("GET", c, expected=400)
-assert call("GET", c + "?applicantId=" + applicant)["totalCount"] == 1
-# Uploading a new source invalidates current online readiness; previous drafts remain pinned.
-second = call("POST", c + "/draft", draft_body, 201)["submissionId"]
-upload(template, original)
-assert not call("GET", t)["onlineReady"]
-call("POST", c + "/draft", draft_body, 409)
-call("PUT", c + "/" + second + "/draft", {"applicantId": applicant, "formData": data})
-assert call("GET", c + "/" + second + "?applicantId=" + applicant)["templateVersionId"] == version
-# Old Word-editing and full-application review APIs must no longer be advertised.
+assert call("GET", c + query)["totalCount"] == 1
 spec = call("GET", "/swagger/v1/swagger.json")
-assert not any("officer/" in p or "docx-url" in p for p in spec["paths"])
-assert "application/json" in spec["paths"][c + "/draft"]["post"]["requestBody"]["content"]
-assert "multipart/form-data" not in spec["paths"][c + "/draft"]["post"]["requestBody"]["content"]
-print(f"PASS: {checks} HTTP checks; original byte integrity, JSON drafts, pinned versions, submit validation, generated DOCX, removed APIs.")
+assert not any(any(x in p for x in ("online-config", "docx-structure", "officer/", "docx-url")) for p in spec["paths"])
+content = spec["paths"][c + "/draft"]["post"]["requestBody"]["content"]
+assert "multipart/form-data" in content and "application/json" not in content
+print(f"PASS: {checks} HTTP checks; unchanged originals, exact edited bytes, draft reopen/update, ownership, submit locking, multipart contract and removed APIs.")
