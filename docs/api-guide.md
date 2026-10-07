@@ -1,6 +1,6 @@
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
-Đối chiếu mã nguồn ngày **05/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả 60
+Đối chiếu mã nguồn ngày **05/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả các
 API nghiệp vụ hiện có, các endpoint hệ thống và đường dẫn Gateway. Không phải xác nhận tình trạng deploy.
 
 **Cách đọc:** Mỗi API có mục đích, quyền, cách dùng, kết quả và lỗi thường gặp trên các dòng riêng. Public
@@ -1079,128 +1079,63 @@ transaction.
   vĩnh viễn.
 
 
-## 3. Document & Form Service (Biểu mẫu & Tệp tin)
+## 3. Document & Form Service — đơn điện tử điền online
 
-**Chịu trách nhiệm:** Quản lý mẫu tờ khai, phiên bản cấu trúc ô nhập liệu và file Word DOCX có các vị trí chờ
-điền dữ liệu.
+Cập nhật 07/10/2026. Đây là **một đơn trong bộ hồ sơ**, không quản lý toàn bộ thủ tục,
+ảnh định danh, giấy khai sinh hay việc cán bộ duyệt hồ sơ. ProcedureCatalog trả `checklistSchema`
+cho giấy tờ đính kèm và `formDefinitions[].formTemplateId` cho đơn điện tử. FE hiển thị “Điền đơn”
+và gọi DocumentForm khi người dân chọn đơn đó. Không có FK hay truy vấn chéo database.
 
-### Nhóm 3.1 — Quản lý biểu mẫu điện tử (`/api/v1/form-templates`)
+**Ranh giới:** `Submitted` nghĩa là đơn đã chốt, không phải toàn bộ hồ sơ đã nộp/được duyệt.
+FE/backend Workflow dùng `submissionId` để gắn đơn vào hồ sơ cùng các giấy tờ khác.
+DocumentForm chưa gọi API Workflow và không tự kiểm tra danh sách giấy tờ của Procedure.
 
-**Hiện trạng code:** các API này chưa gắn Authorize/middleware xác thực; không ghi là đã bắt buộc cán
-bộ/Admin. schemaDefinition là chuỗi chứa JSON cấu trúc biểu mẫu; JSON bên trong dùng snake_case. Chưa có API
-nghiệp vụ sinh/tải PDF kết quả được công bố.
+**Xác thực hiện tại:** các controller DocumentForm chưa có JWT/Authorize. `applicantId` là dữ liệu
+client cung cấp và kiểm tra khớp chủ sở hữu, KHÔNG chứng minh danh tính người gọi. Khi tích hợp IAM,
+phải lấy applicantId từ token và phân quyền quản trị mẫu; không coi API này đã được bảo vệ.
 
-#### API 47 — Danh sách mẫu biểu
+### Nhóm 3.1 — Quản trị mẫu gốc và cấu hình form
 
-`GET /api/v1/form-templates`
+Quản trị upload **DOCX nguyên bản** lấy từ cổng quốc gia. Không chèn `{{placeholder}}`, không sửa
+file gốc. Backend lưu byte nguyên vẹn; schema và mapping được lưu riêng theo phiên bản.
+Một file Word bất kỳ không tự mô tả tên/kiểu trường cho FE: quản trị cần cấu hình một lần qua
+`docx-structure` và `online-config`. FE có thể xây màn hình chọn đoạn trống để tạo mapping này.
+Đây là schema E-Form riêng của WardMate, không phải chuẩn JSON Schema Draft 2020-12.
 
-**Quyền / Header:** Chưa yêu cầu xác thực trong code
+| API | Ai dùng, khi nào và cách gọi | Thành công | Sai thường gặp và xử lý |
+|---|---|---|---|
+| `GET /api/v1/form-templates` | Quản trị tra mẫu để gắn `templateId` vào Procedure. Query `page`, `pageSize`, `isActive`, `searchCode`. | 200 danh sách phân trang | Danh sách rỗng: kiểm tra bộ lọc/mẫu đã tạo; không suy ra lỗi DB. |
+| `POST /api/v1/form-templates` | Quản trị tạo mã/tên mẫu. JSON `{code,title}`. | 201 chi tiết mẫu, `onlineReady=false` | 400 dữ liệu không hợp lệ; 409 trùng mã: dùng mã khác hoặc mẫu hiện có. |
+| `GET /api/v1/form-templates/{templateId}` | FE gọi khi click “Điền đơn”. Nhận `schemaDefinition` là **object**, `templateVersionId`, `versionNumber`, `onlineReady`. | 200; FE render sections/fields khi onlineReady=true | 404 ID sai; onlineReady=false: chưa upload/cấu hình file hiện tại hoặc mẫu bị tắt. Không cho lưu nháp khi chưa sẵn sàng. |
+| `POST /api/v1/form-templates/{templateId}/upload-docx` | Quản trị upload multipart field `file`, DOCX tối đa 20 MiB. Mỗi upload tạo blob mới, không ghi đè file cũ. | 200 `{templateId,blobUrl}` | 400 file hỏng/sai loại/quá lớn; 404 mẫu không tồn tại. Upload mẫu mới làm onlineReady=false cho đến khi cấu hình lại. |
+| `GET /api/v1/form-templates/{templateId}/download-docx` | Quản trị đối chiếu/lưu bản gốc; không phải bước bắt buộc của công dân. | 200 binary DOCX đúng byte đã upload | 404 chưa có file: upload trước. |
+| `GET /api/v1/form-templates/{templateId}/docx-structure` | Quản trị/FE thiết kế form lấy `{originalSha256,paragraphs:[{index,text}]}` để chọn vị trí điền trong body/bảng. | 200, chỉ đọc file gốc | 404 chưa có file; 400 DOCX không đọc được. Không tự suy đoán vị trí bằng tên label. |
+| `PUT /api/v1/form-templates/{templateId}/online-config` | Quản trị xuất bản `{schemaDefinition,originalSha256,mappings}` theo ví dụ phụ lục 6. | 200 `{templateVersionId}` mới, phiên bản cũ bất biến | 400 schema/mapping sai, chồng lấn hoặc thiếu field; 409 file thay đổi/concurrent config: lấy lại structure rồi cấu hình lại. |
 
-**Mục đích:** Chọn mẫu biểu để xem, thêm version hoặc liên kết với thủ tục.
+### Nhóm 3.2 — Công dân điền và chốt đơn
 
-**Cách dùng:** Ví dụ `?page=1&pageSize=20&searchCode=DEMO&isActive=true`; bỏ isActive để không lọc trạng thái.
+| API | Ai dùng, khi nào và cách gọi | Thành công | Sai thường gặp và xử lý |
+|---|---|---|---|
+| `POST /api/v1/citizen/submissions/draft` | FE lưu lần đầu: JSON `{templateId,applicantId,templateVersionId?,formData:{...}}`. Nên truyền version vừa đọc. Backend sinh DOCX từ **bản sao** của mẫu rồi lưu Blob. | 201 `{submissionId,templateVersionId,status:"Draft",fileName,fileSizeBytes,updatedAt,message}` | 400 dữ liệu sai/field lạ; 404 mẫu/file không tồn tại; 409 mẫu chưa cấu hình/inactive/version cũ của file khác. Không upload Word; multipart trả 415. |
+| `GET /api/v1/citizen/submissions?applicantId=...` | FE liệt kê đơn của công dân. `applicantId` bắt buộc; `page>=1`, `pageSize=1..100`, `status` tùy chọn. | 200 danh sách phân trang | 400 ID trống/phân trang/status sai: sửa query. Không có chế độ ID trống xem tất cả. |
+| `GET /api/v1/citizen/submissions/{submissionId}?applicantId=...` | FE mở lại bản nháp; render **schemaDefinition của bản nháp**, điền lại `formData`. | 200 chi tiết, phiên bản cố định và dữ liệu JSON | 403 applicantId không khớp; 404 ID sai. Đơn cũ chỉ có file sẽ có schema/formData null. |
+| `PUT /api/v1/citizen/submissions/{submissionId}/draft` | FE lưu tiếp JSON `{applicantId,templateVersionId?,formData}`. Thay thế toàn bộ formData, không merge. Tạo DOCX mới từ cùng bản gốc/phiên bản. | 200 kết quả lưu nháp | 400 đơn đã chốt/giá trị sai; 403 sai chủ; 404 không có; 409 bản cũ file-only hoặc xung đột chỉnh sửa: tải lại; với file-only tạo draft mới. |
+| `POST /api/v1/citizen/submissions/{submissionId}/submit` | FE chốt đơn sau khi lưu thành công. JSON `{applicantId}`. Backend kiểm tra toàn bộ required/type/validation bằng schema đã ghim. | 200 status=Submitted; dùng submissionId để gắn vào hồ sơ Workflow | 400 thiếu dữ liệu/bản đã chốt; 403 sai chủ; 404 không có; 409 bản legacy/xung đột: xử lý rồi thử lại. Không đồng nghĩa nộp đầy đủ hồ sơ. |
+| `GET /api/v1/citizen/submissions/{submissionId}/download-docx?applicantId=...` | Công dân tải bản **đã sinh** để xem/in, không cần Word để điền online. | 200 binary DOCX | 403 sai chủ; 404 thiếu đơn/file. Bản gốc vẫn ở API download của template. |
 
-**Kết quả:** Nhận 200 với items và phân trang, có latestVersion.
+Nháp có thể để thiếu trường bắt buộc; trường đã nhập vẫn kiểm tra kiểu, độ dài, lựa chọn và regex.
+`formData` dùng field_id làm key, giá trị scalar (text/number/bool/null), không nhận object/array,
+key lạ hoặc key trùng. Date `yyyy-MM-dd`, checkbox JSON boolean. Giá trị tối đa 10000 ký tự;
+formData tối đa 200000 ký tự. Textarea cho phép xuống dòng. Submit không sửa dữ liệu hay file đã sinh.
 
-**Trường hợp sai và cách xử lý:**
+**API đã bỏ:** `GET /api/v1/form-templates/{id}/docx-url`; toàn bộ
+`/api/v1/officer/submissions` (list/detail/download/request-revision/approve); chế độ multipart
+của POST/PUT draft. Không xoá bảng/cột/dữ liệu legacy; bản cũ có thể đọc/tải nhưng không giả lập
+formData từ file đã upload. Tiện ích placeholder cũ không phải hợp đồng điền online mới.
 
-- Dùng keyword để tìm tên không phải hợp đồng hiện có; searchCode tìm mã.
-- Trang/kích thước bị điều chỉnh về giới hạn thay vì luôn báo 400.
-- Không đọc metadata theo tên của API Procedure vì tên trường khác nhau.
-
-#### API 48 — Xem mẫu biểu và các phiên bản
-
-`GET /api/v1/form-templates/{templateId}`
-
-**Quyền / Header:** Chưa yêu cầu xác thực trong code
-
-**Mục đích:** Xem thông tin mẫu, file Word và lịch sử schema.
-
-**Cách dùng:** Lấy templateId từ API 47, gọi không body.
-
-**Kết quả:** Nhận 200 với versions. Mỗi schemaDefinition là chuỗi JSON; parse chuỗi để dựng các ô nhập.
-
-**Trường hợp sai và cách xử lý:**
-
-- templateId không có → 404; nhập formCode thay UUID không đúng route.
-- Chưa có fileDocxUrl hoặc versions rỗng có thể vì chưa upload/tạo schema, không phải lỗi đọc API.
-
-#### API 49 — Tạo mẫu biểu
-
-`POST /api/v1/form-templates`
-
-**Quyền / Header:** Chưa yêu cầu xác thực trong code
-
-**Mục đích:** Tạo bản ghi mẫu để sau đó gắn Word và cấu trúc các trường nhập liệu.
-
-**Cách dùng:** Gửi code, title và initialSchemaDefinition nếu đã chuẩn bị schema; trường schema là **chuỗi
-JSON**, không phải object. Xem ví dụ JSON.stringify tại mục 6.1.
-
-**Kết quả:** Nhận 201 với templateId; dùng ID đó cho upload Word/thêm version.
-
-**Trường hợp sai và cách xử lý:**
-
-- Trùng code → 409; schema không hợp lệ → 400.
-- JSON ngoài dùng camelCase nhưng nội dung schema dùng snake_case: field_id/section_id, không phải
-  fieldId/sectionId.
-- Tạo template chưa tự sinh file Word.
-
-#### API 50 — Thêm phiên bản cấu trúc biểu mẫu
-
-`POST /api/v1/form-templates/{templateId}/versions`
-
-**Quyền / Header:** Chưa yêu cầu xác thực trong code
-
-**Mục đích:** Lưu cấu trúc các trường mới khi biểu mẫu thay đổi, giữ lại phiên bản cũ.
-
-**Cách dùng:** Gửi `{schemaDefinition}` với chuỗi JSON hợp lệ cho template đã có.
-
-**Kết quả:** Nhận 201 với versionNumber và schema vừa lưu.
-
-**Trường hợp sai và cách xử lý:**
-
-- Template không có → 404; JSON/schema thiếu section hoặc trường sai → 400.
-- Gọi nhiều lần để “lưu lại” có thể tạo nhiều version; kiểm tra trước khi gửi lại sau timeout.
-- API này không thay file DOCX.
-
-#### API 51 — Upload file Word cho mẫu biểu
-
-`POST /api/v1/form-templates/{templateId}/upload-docx`
-
-**Quyền / Header:** Chưa yêu cầu xác thực trong code
-
-**Mục đích:** Lưu bản Word gốc cho template và kiểm tra các vị trí cần điền có khớp schema không.
-
-**Cách dùng:** Chọn đúng templateId; gửi multipart `file` DOCX tối đa 20 MiB; cần Blob hoạt động.
-
-**Kết quả:** Nhận 200 với blobUrl, extractedPlaceholders và kết quả đối chiếu schema nếu có. Upload cập nhật
-file mẫu, không tự tạo version schema.
-
-**Trường hợp sai và cách xử lý:**
-
-- Template thiếu → 404; file sai/rỗng/quá lớn → lỗi upload; Blob lỗi thì chưa thể lưu.
-- HTTP 200 nhưng isValid=false nghĩa file đã được xử lý song thiếu trường trong schema; sửa file/schema, không
-  coi là hoàn toàn sẵn sàng. unusedInDocx cho biết trường schema chưa dùng trong Word.
-
-#### API 52 — Đọc thử các vị trí điền dữ liệu trong Word
-
-`POST /api/v1/form-templates/extract-placeholders`
-
-**Quyền / Header:** Chưa yêu cầu xác thực trong code
-
-**Mục đích:** Kiểm tra Word có những placeholder nào trước khi tạo/lưu mẫu.
-
-**Cách dùng:** Upload multipart `file` DOCX; không cần templateId, không cần lưu Blob.
-
-**Kết quả:** Nhận 200 với tên file, tên tag, số lần xuất hiện và vị trí. Không tự tạo template hay schema.
-
-**Trường hợp sai và cách xử lý:**
-
-- File rỗng/không phải DOCX → 400.
-- Danh sách rỗng có thể vì file không có tag được bộ đọc nhận diện.
-- Chỉ upload Word có nội dung chữ thường không có nghĩa hệ thống tự hiểu mọi chỗ cần điền.
-- Giới hạn request còn phụ thuộc host/ingress.
-
+**Lỗi API online:** ProblemDetails với `status,title,detail,code,traceId`; lỗi form có `fieldErrors`
+(gồm `fieldId,label,errorCode,errorMessage`). Lỗi model binding dùng ValidationProblemDetails.
+API quản trị mẫu cũ còn trả `{code,message}`. Blob upload thất bại trả 503; không coi là đã lưu.
 
 ## 4. AIOCR Service (Trích xuất dữ liệu PDF)
 
@@ -2044,106 +1979,108 @@ const draft = await response.json();
 FE không nhận hoặc gửi X-Service-Key. Không lưu SAS URL lâu dài; gọi lại source khi URL hết hạn.
 Source/preview được trả với chỉ dẫn không cache.
 
-## 6. Document Form: mẫu biểu và DOCX
+## 6. Document Form: hợp đồng FE và ánh xạ DOCX nguyên bản
 
-**Trạng thái hiện tại: controller này chưa gắn Authorize và service chưa bật middleware xác thực.** Bảng dưới
-mô tả hành vi thực tế, không coi Bearer là điều kiện bắt buộc. Cần tính đến điểm này khi tích hợp môi trường
-public.
+### 6.1. Cấu hình một lần cho mẫu
 
-- **Method:** GET
-  - **Route:** `/api/v1/form-templates`
-  - **Request / Công dụng:** Query `page=1&pageSize=20&isActive=true&searchCode=DEMO`
-  - **Thành công:** `200 FormTemplatePage`
-  - **Lỗi điển hình:** —
+1. Tạo template; upload DOCX gốc; gọi `docx-structure`.
+2. FE quản trị lấy văn bản các paragraph; quản trị chọn đoạn trống ứng với field.
+3. PUT `online-config`. Ví dụ **chỉ khi** paragraph 0 thực tế là `Ho ten: ......`:
 
-- **Method:** GET
-  - **Route:** `/api/v1/form-templates/{templateId}`
-  - **Request / Công dụng:** Xem template và các version
-  - **Thành công:** `200 FormTemplateDetailDto`
-  - **Lỗi điển hình:** `404`
-
-- **Method:** POST
-  - **Route:** `/api/v1/form-templates`
-  - **Request / Công dụng:** `{code,title,initialSchemaDefinition?}`
-  - **Thành công:** `201 FormTemplateDetailDto`
-  - **Lỗi điển hình:** `400/409`
-
-- **Method:** POST
-  - **Route:** `/api/v1/form-templates/{templateId}/versions`
-  - **Request / Công dụng:** `{schemaDefinition}`
-  - **Thành công:** `201 FormTemplateVersionDto`
-  - **Lỗi điển hình:** `400/404`
-
-- **Method:** POST
-  - **Route:** `/api/v1/form-templates/{templateId}/upload-docx`
-  - **Request / Công dụng:** Multipart `file`; lưu DOCX trên Blob
-  - **Thành công:** `200 UploadDocxResultDto`
-  - **Lỗi điển hình:** `400/404`, lỗi lưu trữ
-
-- **Method:** POST
-  - **Route:** `/api/v1/form-templates/extract-placeholders`
-  - **Request / Công dụng:** Multipart `file`; đọc placeholder không lưu Blob
-  - **Thành công:** `200 {fileName,placeholders}`
-  - **Lỗi điển hình:** `400`
-
-
-Danh sách: isActive không truyền thì lấy cả hai trạng thái; searchCode tìm chứa mã đã chuẩn hóa hoa. Page được
-chặn tối thiểu 1, pageSize trong 1–100.
-
-DTO:
-
-- FormTemplateDto: `id, code, title, fileDocxUrl?, isActive, latestVersion, createdAtUtc, updatedAtUtc?`.
-- FormTemplatePage: `items, page, pageSize, totalCount, totalPages, hasNextPage, hasPreviousPage` — khác tên
-  metadata Procedure/IAM.
-- FormTemplateDetailDto: `id, code, title, fileDocxUrl?, isActive, createdAtUtc, updatedAtUtc?, versions`.
-- FormTemplateVersionDto: `id, templateId, versionNumber, schemaDefinition, createdAtUtc, updatedAtUtc?`.
-  **schemaDefinition là chuỗi chứa JSON**.
-- UploadDocxResultDto: `templateId, blobUrl, extractedPlaceholders, schemaMatchResult?`.
-- Placeholder: `name, rawTag, occurrences, locations` (mảng chuỗi).
-- SchemaMatchResult: `matchedFields, missingInSchema, unusedInDocx` (mảng chuỗi), `isValid`. isValid dựa trên
-  việc không còn missingInSchema; không có nghĩa mọi trường schema đều xuất hiện trong DOCX.
-
-### 6.1. Tạo schema đúng định dạng
-
-JSON bên ngoài request dùng camelCase, nhưng **JSON bên trong schemaDefinition dùng snake_case**. Đừng truyền
-một object trực tiếp cho schemaDefinition. Ví dụ FE tạo schema và serialize:
-
-```javascript
-const schema = {
-  title: 'Tờ khai minh họa', version: 1,
-  sections: [{
-    section_id: 'personal', title: 'Thông tin cá nhân', order: 1,
-    fields: [{
-      field_id: 'full_name', label: 'Họ và tên', type: 'text',
-      is_required: true, order: 1
+```json
+{
+  "originalSha256": "<lấy từ docx-structure>",
+  "schemaDefinition": {
+    "title": "Đơn đề nghị",
+    "sections": [{
+      "section_id": "thong_tin",
+      "title": "Thông tin người làm đơn",
+      "fields": [{
+        "field_id": "ho_ten",
+        "label": "Họ và tên",
+        "type": "text",
+        "is_required": true,
+        "validation": { "max_length": 100 }
+      }]
     }]
+  },
+  "mappings": [{
+    "fieldId": "ho_ten",
+    "paragraphIndex": 0,
+    "start": 8,
+    "length": 6,
+    "expectedText": "......"
   }]
-};
-const body = {
-  code: 'DEMO_FORM', title: 'Tờ khai minh họa',
-  initialSchemaDefinition: JSON.stringify(schema)
-};
-// POST /api/v1/form-templates với JSON.stringify(body).
-// Thêm version: POST /{templateId}/versions
-// body = { schemaDefinition: JSON.stringify(schema) }.
+}
 ```
 
-Schema cần title, ít nhất một section với section_id/title; field_id phải hợp lệ và không trùng. Các field
-type hỗ trợ: `text`, `number`, `date`, `date_time`, `select`, `radio`, `checkbox`, `textarea`,
-`national_id`, `phone_number`, `email`, `currency`. Trường lựa chọn có options chứa `{label,value}`; có
-thể cấu hình validation như min_length, max_length, min_value, max_value, regex_pattern, custom_error_message.
+JSON ngoài camelCase; schemaDefinition bên trong snake_case, **truyền object trực tiếp**, không
+JSON.stringify schema thành chuỗi. Các type: text, number, date, date_time, select, radio, checkbox,
+textarea, national_id, phone_number, email, currency. Select/radio cần options `{label,value}`.
 
-### 6.2. DOCX
+Offset `start`, `length` là số UTF-16 code unit (giống JavaScript string.slice), index bắt đầu 0.
+Phải map đủ các field; một field được xuất hiện nhiều vị trí. Các vùng không được chồng nhau;
+expectedText phải khớp chính xác, length>0. Tabs/newlines có trong text nhưng không được nằm trong
+vùng thay thế. Paragraph chứa Word field code, tracked deletion hoặc paragraph lồng không được map.
+Hiện ánh xạ nội dung text của body và bảng; chưa ánh xạ header/footer, checkbox dạng control,
+ảnh scan hoặc layout phức tạp. Mọi phần gốc ngoài vùng điền được giữ; chữ dài có thể làm Word xuống
+dòng/đổi số trang. Không cam kết pixel-identical cho file kết quả hay tự đoán field từ tài liệu bất kỳ.
+Header/footer, hình ảnh và cấu trúc gốc không bị chủ động xoá. File gốc lưu Blob giữ nguyên byte.
+Cần đối chiếu một mẫu thật sau khi quản trị chọn mapping trước khi đưa mẫu vào sử dụng.
 
-Luồng: tạo template → tạo schema/version → upload DOCX → xem extractedPlaceholders và schemaMatchResult → sửa
-file/schema nếu chưa khớp. Upload không tự tạo version schema. Đối soát không khớp vẫn có thể trả HTTP 200; FE
-phải kiểm tra isValid/missingInSchema.
+### 6.2. Liên kết với thủ tục và FE công dân
 
-upload-docx kiểm tra file DOCX, tối đa 20 MiB, cần cấu hình Blob. extract-placeholders không cần lưu Blob;
-controller này chưa đặt giới hạn 20 MiB riêng như upload-docx, vẫn chịu giới hạn request của host/ingress.
+ProcedureCatalog hiện có `formDefinitions[].formTemplateId`; service này tự quản checklist giấy tờ.
+Không sửa database Procedure từ DocumentForm. Ví dụ một phần dữ liệu thủ tục do nhóm Procedure quản lý:
 
-Hiện chưa có API public tạo hồ sơ công dân, render biểu mẫu, sinh hoặc tải kết quả PDF. Việc có engine/entity
-bên trong service không có nghĩa các API đó đã được công bố.
+```json
+{
+  "formDefinitions": [{
+    "formTemplateId": "<templateId của DocumentForm>",
+    "formCode": "DON-DE-NGHI",
+    "formName": "Đơn đề nghị",
+    "formType": "ONLINE_INTERACTIVE",
+    "isMandatory": true,
+    "quantity": 1
+  }]
+}
+```
+
+Sau click “Điền đơn”: GET template → kiểm tra onlineReady → FE render sections/fields.
+Lưu lần đầu:
+
+```json
+{
+  "templateId": "<templateId>",
+  "templateVersionId": "<templateVersionId từ GET template>",
+  "applicantId": "<ID người dân>",
+  "formData": { "ho_ten": "Nguyễn Văn A" }
+}
+```
+
+POST `/api/v1/citizen/submissions/draft` trả submissionId. Sau đó GET chi tiết để mở lại,
+PUT draft với formData đầy đủ để lưu tiếp; POST `/{submissionId}/submit` với `{applicantId}` để chốt.
+FE không upload DOCX đã điền. Khi template thay đổi, draft cũ vẫn dùng version/schema/file gốc cũ.
+Bản nháp legacy không có JSON không thể tự chuyển sang online: tạo đơn mới và nhập dữ liệu lại.
+
+Gateway local source có routes `/api/v1/form-templates/{**catch-all}` và
+`/api/v1/citizen/{**catch-all}` đến document-form, cùng route có prefix `/api/document-form`.
+Azure image cũ có thể chưa có route trực tiếp. Nếu chỉ có route prefix, FE dùng base URL
+`https://<gateway>/api/document-form`, rồi nối đường dẫn `/api/v1/...`.
+Swagger Servers=`/` cần Gateway có các route trực tiếp; không suy ra deploy mới đã hoàn tất từ source.
+
+### 6.3. Migration và kiểm tra local
+
+Migration `OnlineFormDrafts` thêm bảng `document.form_template_versions` và hai cột nullable
+`form_data`, `template_version_id` vào `user_submissions`. Không xoá dữ liệu/cột legacy.
+Áp dụng migration trước khi chạy API mới; cấu hình connection string của riêng DocumentForm.
+Không chạy migration xuống database dịch vụ khác. Frontend và backend đổi JSON contract cùng đợt release.
+
+Project test có sẵn: `dotnet test tests/WardMate.Services.DocumentForm.Tests -c Release`.
+Smoke script: `python scripts/verify-documentform-online.py http://127.0.0.1:15014`.
+Chỉ dùng database/container Blob kiểm thử riêng; script tạo dữ liệu giả và chỉ chấp nhận localhost.
+Script kiểm tra byte nguyên bản, schema, save/reopen/update/submit, generated DOCX, version pinning,
+ngăn edit sau submit, sai chủ và loại bỏ API cũ. Không tự xoá dữ liệu sau kiểm tra.
 
 ## 7. AIOCR: API nội bộ
 
@@ -2260,8 +2197,7 @@ khoản IT_ADMIN thì cần người vận hành cấp tài khoản ban đầu.
 → tắt status → xác nhận public không còn trả thủ tục đó nhưng manager vẫn thấy.
 5. PDF: dùng extract-preview để kiểm tra đọc chữ; dùng drafts nếu cần lưu PDF, đối soát và xuất bản có nguồn
 gốc. Chỉ nhấn publish khi dữ liệu được kiểm tra đầy đủ.
-6. DocumentForm: tạo template/schema → upload DOCX → đối chiếu placeholder. Dùng đúng prefix Gateway và phân
-biệt JSON string schemaDefinition với object payload của Procedure.
+6. DocumentForm: tạo template → upload DOCX nguyên bản → cấu hình schema/mapping → lưu nháp JSON → chốt đơn. Xem mục 3 và phụ lục 6 cho hợp đồng online mới.
 
 ### 9.3. Đối chiếu mã nguồn khi API thay đổi
 
