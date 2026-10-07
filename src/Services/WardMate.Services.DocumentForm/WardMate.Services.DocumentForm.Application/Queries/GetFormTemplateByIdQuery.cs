@@ -29,16 +29,10 @@ public sealed class GetFormTemplateByIdQueryHandler : IQueryHandler<GetFormTempl
             return DocumentFormErrors.TemplateNotFound(request.TemplateId);
         }
 
-        var version = await _dbContext.FormTemplateVersions.AsNoTracking()
-            .Where(v => v.TemplateId == template.Id && v.OriginalBlobUrl == template.FileDocxUrl && !v.IsDeleted)
-            .OrderByDescending(v => v.VersionNumber).FirstOrDefaultAsync(cancellationToken);
         var dto = new FormTemplateDetailDto
         {
             Id = template.Id,
-            TemplateVersionId = version?.Id,
-            VersionNumber = version?.VersionNumber,
-            SchemaDefinition = version is null ? null : System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(version.SchemaDefinition),
-            OnlineReady = template.IsActive && version is not null,
+            OnlineReady = template.IsActive && !string.IsNullOrWhiteSpace(template.FileDocxUrl),
             Code = template.Code,
             Title = template.Title,
             FileDocxUrl = template.FileDocxUrl,
