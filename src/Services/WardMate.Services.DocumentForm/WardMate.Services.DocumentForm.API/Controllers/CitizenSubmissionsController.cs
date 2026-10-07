@@ -1,4 +1,4 @@
-using System.Text.Json;
+using System.ComponentModel.DataAnnotations;
 using MediatR;
 using WardMate.Services.DocumentForm.Application.DTOs;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +7,7 @@ using WardMate.Services.DocumentForm.Application.Queries;
 using WardMate.SharedKernel.Common;
 namespace WardMate.Services.DocumentForm.API.Controllers;
 
-/// <summary>Đơn điện tử thuộc một bộ hồ sơ; người dân điền trên web bằng schema và formData.</summary>
+/// <summary>Đơn điện tử thuộc một bộ hồ sơ; người dân chỉnh sửa DOCX bằng editor trên web.</summary>
 [ApiController]
 [Route("api/v1/citizen/submissions")]
 [Produces("application/json")]
@@ -24,7 +24,7 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
 
-    /// <summary>Mở lại đơn cùng formData và schema phiên bản đã dùng để FE tiếp tục chỉnh sửa.</summary>
+    /// <summary>Lấy metadata đơn; tải download-docx để mở lại bản đã lưu trong editor.</summary>
     [HttpGet("{submissionId:guid}")]
     [ProducesResponseType(typeof(UserSubmissionSummaryDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(Guid submissionId, [FromQuery] Guid applicantId, CancellationToken ct)
@@ -33,30 +33,32 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
 
-    /// <summary>Lưu nháp JSON; backend điền bản sao DOCX gốc và lưu Blob. Không upload Word từ người dân.</summary>
+    /// <summary>Lưu nguyên file DOCX do editor xuất ra; không thay đổi mẫu gốc.</summary>
     [HttpPost("draft")]
     [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status201Created)]
-    [Consumes("application/json")]
-    public async Task<IActionResult> CreateDraft([FromBody] CreateOnlineDraftRequest request, CancellationToken ct)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CreateDraft([FromForm] CreateOnlineDraftRequest request, CancellationToken ct)
     {
+        using var stream = request.File.OpenReadStream();
         var result = await mediator.Send(new SaveDraftSubmissionCommand(null, request.TemplateId,
-            request.ApplicantId, request.FormData, request.TemplateVersionId, User.Identity?.Name), ct);
+            request.ApplicantId, stream, request.File.FileName, request.File.Length, User.Identity?.Name), ct);
         return result.IsSuccess ? CreatedAtAction(nameof(GetById),
             new { submissionId = result.Value.SubmissionId, applicantId = request.ApplicantId }, result.Value) : Failure(result.Error);
     }
 
-    /// <summary>Thay thế toàn bộ formData của bản nháp bằng JSON mới; phiên bản mẫu được giữ cố định.</summary>
+    /// <summary>Lưu phiên bản DOCX mới của bản nháp hiện có.</summary>
     [HttpPut("{submissionId:guid}/draft")]
     [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
-    [Consumes("application/json")]
-    public async Task<IActionResult> UpdateDraft(Guid submissionId, [FromBody] UpdateOnlineDraftRequest request, CancellationToken ct)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UpdateDraft(Guid submissionId, [FromForm] UpdateOnlineDraftRequest request, CancellationToken ct)
     {
+        using var stream = request.File.OpenReadStream();
         var result = await mediator.Send(new SaveDraftSubmissionCommand(submissionId, Guid.Empty,
-            request.ApplicantId, request.FormData, request.TemplateVersionId, User.Identity?.Name), ct);
+            request.ApplicantId, stream, request.File.FileName, request.File.Length, User.Identity?.Name), ct);
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
 
-    /// <summary>Kiểm tra dữ liệu bắt buộc và chốt đơn. Không nộp hay xét duyệt toàn bộ hồ sơ hành chính.</summary>
+    /// <summary>Người dân xác nhận hoàn thành và chốt bản DOCX đã lưu. Không nộp hay xét duyệt toàn bộ hồ sơ hành chính.</summary>
     [HttpPost("{submissionId:guid}/submit")]
     [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Submit(Guid submissionId, [FromBody] CitizenSubmitRequest request, CancellationToken ct)
@@ -65,7 +67,7 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
 
-    /// <summary>Tải DOCX đã sinh để xem/in; người dân không cần sửa và upload lại file.</summary>
+    /// <summary>Tải nguyên DOCX đã lưu để editor mở lại, hoặc để xem/in.</summary>
     [HttpGet("{submissionId:guid}/download-docx")]
     public async Task<IActionResult> DownloadDocx(Guid submissionId, [FromQuery] Guid applicantId, CancellationToken ct)
     {
@@ -84,14 +86,18 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
             Detail = error.Description, Instance = HttpContext.Request.Path };
         problem.Extensions["code"] = error.Code;
         problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
-        if (error.Code == "document.invalid_form_data" && error.Description.StartsWith("[", StringComparison.Ordinal))
-        {
-            problem.Detail = "Form data validation failed.";
-            problem.Extensions["fieldErrors"] = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(error.Description);
-        }
         return new ObjectResult(problem) { StatusCode = status, ContentTypes = { "application/problem+json" } };
     }
 }
 public sealed record CitizenSubmitRequest(Guid ApplicantId);
-public sealed record CreateOnlineDraftRequest(Guid TemplateId, Guid ApplicantId, JsonElement FormData, Guid? TemplateVersionId = null);
-public sealed record UpdateOnlineDraftRequest(Guid ApplicantId, JsonElement FormData, Guid? TemplateVersionId = null);
+public sealed class CreateOnlineDraftRequest
+{
+    public Guid TemplateId { get; init; }
+    public Guid ApplicantId { get; init; }
+    [Required] public IFormFile File { get; init; } = null!;
+}
+public sealed class UpdateOnlineDraftRequest
+{
+    public Guid ApplicantId { get; init; }
+    [Required] public IFormFile File { get; init; } = null!;
+}
