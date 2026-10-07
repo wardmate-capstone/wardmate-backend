@@ -21,13 +21,26 @@ public sealed class OnlineFormTests
                 new Paragraph(new Run(new Text("Họ tên: ")),
                     new Run(new RunProperties(new Bold()), new Text("...")),
                     new Run(new Text("...; Ngày: ......"))),
-                new Table(new TableRow(new TableCell(new Paragraph(new Run(new Text("Nội dung: ......"))))))));
+                new Table(new TableProperties(), new TableGrid(new GridColumn()), new TableRow(new TableCell(new Paragraph(new Run(new Text("Nội dung: ......"))))))));
             var header = main.AddNewPart<HeaderPart>();
             header.Header = new Header(new Paragraph(new Run(new Text("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM"))));
             main.Document.Body!.Append(new SectionProperties(new HeaderReference
                 { Id = main.GetIdOfPart(header), Type = HeaderFooterValues.Default }));
         }
         return stream.ToArray();
+    }
+
+    [Fact]
+    public async Task Upload_PreservesAllBytesAndRejectsInvalidFiles()
+    {
+        var bytes = Original();
+        var result = await DocxUpload.ReadAsync(new MemoryStream(bytes), "official.docx", bytes.Length, default);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(bytes, result.Value);
+        Assert.False((await DocxUpload.ReadAsync(new MemoryStream(bytes), "official.txt", bytes.Length, default)).IsSuccess);
+        Assert.False((await DocxUpload.ReadAsync(new MemoryStream([1, 2, 3]), "bad.docx", 3, default)).IsSuccess);
+        Assert.False((await DocxUpload.ReadAsync(new MemoryStream(), "empty.docx", 0, default)).IsSuccess);
+        Assert.False((await DocxUpload.ReadAsync(new MemoryStream(bytes), "large.docx", DocxUpload.MaxBytes + 1, default)).IsSuccess);
     }
 
     [Fact]
@@ -51,6 +64,9 @@ public sealed class OnlineFormTests
         Assert.Contains("Họ tên: Nguyễn Văn A", allText);
         Assert.Contains("Ngày sinh: 2000-01-02", allText);
         Assert.Contains("noi_dung: Dòng một", allText);
+        Assert.IsType<SectionProperties>(body.LastChild);
+        Assert.Contains(body.Descendants<Break>(), b => b.Type is null);
+        Assert.Empty(new DocumentFormat.OpenXml.Validation.OpenXmlValidator().Validate(doc));
     }
 
     [Fact]
