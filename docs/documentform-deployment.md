@@ -1,3 +1,31 @@
+# DocumentForm deployment history
+
+## DOCX editor deployment — 2026-10-07 15:40:24 +07:00
+
+User approved local tests and explicitly requested Azure deployment. Deployed image
+`acrwardmate2026.azurecr.io/wardmate-documentform:editor-20261007-01`, digest
+`sha256:0e67569f1b39dad6ca3360253a05daee7629daaeb8ca608e63b435cf91fb0f26`.
+Container App wardmate-documentform in rg-wardmate-prod reports Succeeded. Previous image was
+online-20261007-0854; previous provisioning error was BuildFailed: no build sandbox capacity.
+Built image locally and pushed to ACR; updated image only, preserved existing secrets/config.
+Gateway unchanged; no restart required. No Git commands or branch pushes.
+
+Five Azure HTTP checks passed200: /api/document-form/health, Swagger UI, Swagger JSON,
+/api/v1/form-templates?page=1&pageSize=1 and citizen list for synthetic applicant UUID.
+OpenAPI confirms multipart draft and absence of online-config. No cloud test records created;
+full save/download/submit verified locally earlier (76 tests,60 HTTP checks). Docker release build
+this session0 warnings/errors. Cloud file round-trip still available for owner testing, not claimed tested here.
+
+Current contract: template create JSON/upload DOCX/download binary; citizen POST draft multipart
+{templateId,applicantId,file}201, PUT draft multipart {applicantId,file}200,
+GET list/detail/download200, POST submit JSON {applicantId}200. See docs/api-guide.md sections3/6
+for errors and FE adapter. No JWT/identity or database migration changes in this deployment.
+
+Swagger: https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/document-form/swagger/index.html
+
+
+## Historical notes (superseded contracts)
+
 # DocumentForm: local recovery and Azure handoff
 
 > 2026-10-07: the source now implements JSON online drafts (breaking API change). Apply
