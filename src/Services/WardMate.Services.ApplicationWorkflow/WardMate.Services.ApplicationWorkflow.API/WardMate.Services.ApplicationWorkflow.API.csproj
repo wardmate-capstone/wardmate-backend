@@ -4,4 +4,9 @@
     <ProjectReference Include="../WardMate.Services.ApplicationWorkflow.Infrastructure/WardMate.Services.ApplicationWorkflow.Infrastructure.csproj" />
     <ProjectReference Include="../../../BuildingBlocks/WardMate.SharedKernel/WardMate.SharedKernel.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
 </Project>
+

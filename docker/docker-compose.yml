@@ -1,6 +1,38 @@
 name: wardmate
 
 services:
+  workflow-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: wardmate_workflow_db
+      POSTGRES_USER: wardmate_workflow
+      POSTGRES_PASSWORD: ${WORKFLOW_DB_PASSWORD:?Set WORKFLOW_DB_PASSWORD in docker/.env}
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - workflow-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wardmate_workflow -d wardmate_workflow_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  application-workflow:
+    build:
+      context: ..
+      dockerfile: src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__WorkflowDatabase: Host=workflow-db;Port=5432;Database=wardmate_workflow_db;Username=wardmate_workflow;Password=${WORKFLOW_DB_PASSWORD}
+      Jwt__Key: ${JWT_KEY}
+      Database__AutoMigrate: "true"
+      ProcedureCatalog__BaseUrl: http://procedure-catalog:8080/
+    ports:
+      - "5003:8080"
+    depends_on:
+      workflow-db:
+        condition: service_healthy
+
   # Independent database for Procedure Catalog; no shared initialization scripts.
   procedure-db:
     image: postgres:16-alpine
@@ -80,6 +112,45 @@ services:
       timeout: 3s
       retries: 10
 
+  # IAM API Microservice (port 5001)
+  iam-api:
+    build:
+      context: ..
+      dockerfile: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Dockerfile
+    image: wardmate-iam:local
+    container_name: wardmate-iam-api-1
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Database: Host=iam-db;Port=5432;Database=wardmate_iam_db;Username=wardmate;Password=${IAM_DB_PASSWORD:-wardmate_secret}
+      Database__AutoMigrate: "true"
+      Jwt__Key: ${JWT_KEY}
+    ports:
+      - "5001:8080"
+    depends_on:
+      iam-db:
+        condition: service_healthy
+
+  # YARP Gateway (port 5000)
+  gateway:
+    build:
+      context: ..
+      dockerfile: src/Gateways/WardMate.YarpGateway/Dockerfile
+    image: wardmate-gateway:local
+    container_name: wardmate-gateway-1
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ReverseProxy__Clusters__iam__Destinations__primary__Address: http://iam-api:8080/
+      ReverseProxy__Clusters__procedure-catalog__Destinations__primary__Address: http://procedure-catalog:8080/
+      ReverseProxy__Clusters__document-form__Destinations__primary__Address: http://document-form:8080/
+      ReverseProxy__Clusters__application-workflow__Destinations__primary__Address: http://application-workflow:8080/
+    ports:
+      - "5000:8080"
+    depends_on:
+      - iam-api
+      - procedure-catalog
+
   # pgAdmin 4 - Quản lý giao diện Web PostgreSQL (port 5050)
   pgadmin:
     image: dpage/pgadmin4
@@ -158,6 +229,7 @@ services:
       - "8080"
 
 volumes:
+  workflow-data:
   procedure-data:
   iam-data:
   postgres_data:
