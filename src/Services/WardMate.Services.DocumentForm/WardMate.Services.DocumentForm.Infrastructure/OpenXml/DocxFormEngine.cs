@@ -43,8 +43,28 @@ public sealed class DocxFormEngine : IDocxFormEngine
             // This satisfies the "file docx upload lên phải trọn vẹn và tôi không cần chỉnh sửa gì"
             // requirement while still generating a filled document with the citizen's data.
 
+            // sectPr must remain the final child of body; append content before it.
+            void Append(Paragraph paragraph)
+            {
+                var section = body.Elements<SectionProperties>().LastOrDefault();
+                if (section is null) body.AppendChild(paragraph);
+                else body.InsertBefore(paragraph, section);
+            }
+
+            static Run ValueRun(string value)
+            {
+                var run = new Run();
+                var lines = value.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+                for (var i = 0; i < lines.Length; i++)
+                {
+                    if (i > 0) run.Append(new Break());
+                    run.Append(new Text(lines[i]) { Space = SpaceProcessingModeValues.Preserve });
+                }
+                return run;
+            }
+
             // 1. Add a page break
-            body.AppendChild(new Paragraph(
+            Append(new Paragraph(
                 new Run(
                     new Break() { Type = BreakValues.Page }
                 )
@@ -57,8 +77,8 @@ public sealed class DocxFormEngine : IDocxFormEngine
             var titlePara = new Paragraph(titleRun);
             var titleParaProps = new ParagraphProperties(new Justification { Val = JustificationValues.Center });
             titlePara.PrependChild(titleParaProps);
-            body.AppendChild(titlePara);
-            body.AppendChild(new Paragraph(new Run(new Text("")))); // Empty line
+            Append(titlePara);
+            Append(new Paragraph(new Run(new Text("")))); // Empty line
 
             // 3. Parse Schema to get Labels
             var fields = new List<(string Id, string Label)>();
@@ -85,13 +105,13 @@ public sealed class DocxFormEngine : IDocxFormEngine
             foreach (var f in fields)
             {
                 var val = values.TryGetValue(f.Id, out var v) ? v : "(Chưa điền)";
-                var labelRun = new Run(new Text($"{f.Label}: "));
+                var labelRun = new Run(new Text($"{f.Label}: ") { Space = SpaceProcessingModeValues.Preserve });
                 labelRun.PrependChild(new RunProperties(new Bold()));
                 
-                var valRun = new Run(new Text(val));
+                var valRun = ValueRun(val);
                 
                 var para = new Paragraph(labelRun, valRun);
-                body.AppendChild(para);
+                Append(para);
             }
 
             // Fallback for fields in values that aren't in schema
@@ -99,9 +119,9 @@ public sealed class DocxFormEngine : IDocxFormEngine
             {
                 if (!fields.Any(f => f.Id == kvp.Key))
                 {
-                    body.AppendChild(new Paragraph(
-                        new Run(new RunProperties(new Bold()), new Text($"{kvp.Key}: ")),
-                        new Run(new Text(kvp.Value))
+                    Append(new Paragraph(
+                        new Run(new RunProperties(new Bold()), new Text($"{kvp.Key}: ") { Space = SpaceProcessingModeValues.Preserve }),
+                        ValueRun(kvp.Value)
                     ));
                 }
             }
