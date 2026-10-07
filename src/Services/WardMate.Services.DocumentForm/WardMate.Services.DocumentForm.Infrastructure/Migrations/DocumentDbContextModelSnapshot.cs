@@ -21,6 +21,7 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "uuid-ossp");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.ApplicationForm", b =>
@@ -54,7 +55,6 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnName("form_data");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_deleted");
@@ -79,8 +79,7 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .HasColumnName("id");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -106,13 +105,11 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnName("file_docx_url");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_deleted");
@@ -147,27 +144,40 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("created_at");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
 
                     b.Property<string>("CreatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
+                        .HasColumnType("text")
                         .HasColumnName("created_by");
 
                     b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("deleted_at");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at_utc");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
-                        .HasDefaultValue(false)
                         .HasColumnName("is_deleted");
+
+                    b.Property<string>("MappingDefinition")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("mapping_definition");
+
+                    b.Property<string>("OriginalBlobUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("original_blob_url");
+
+                    b.Property<string>("OriginalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("original_sha256");
 
                     b.Property<string>("SchemaDefinition")
                         .IsRequired()
@@ -179,12 +189,11 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnName("template_id");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("updated_at");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
 
                     b.Property<string>("UpdatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
+                        .HasColumnType("text")
                         .HasColumnName("updated_by");
 
                     b.Property<int>("VersionNumber")
@@ -233,7 +242,6 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnName("document_type");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_deleted");
@@ -263,8 +271,7 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .HasColumnName("id");
 
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid")
@@ -308,7 +315,6 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnName("file_size_bytes");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_deleted");
@@ -328,21 +334,131 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                     b.ToTable("supporting_documents", "document");
                 });
 
+            modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.UserSubmission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<Guid>("ApplicantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("applicant_id");
+
+                    b.Property<string>("BlobUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("blob_url");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("file_name");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size_bytes");
+
+                    b.Property<string>("FormData")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("form_data");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("OfficerComment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("officer_comment");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedByOfficerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by_officer_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<Guid?>("TemplateVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_version_id");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_submissions");
+
+                    b.HasIndex("ApplicantId")
+                        .HasDatabaseName("ix_user_submissions_applicant_id");
+
+                    b.HasIndex("TemplateVersionId")
+                        .HasDatabaseName("ix_user_submissions_template_version_id");
+
+                    b.HasIndex("ApplicantId", "Status")
+                        .HasDatabaseName("ix_user_submissions_applicant_status");
+
+                    b.ToTable("user_submissions", "document");
+                });
+
             modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.FormTemplateVersion", b =>
                 {
                     b.HasOne("WardMate.Services.DocumentForm.Domain.Entities.FormTemplate", "Template")
-                        .WithMany("Versions")
+                        .WithMany()
                         .HasForeignKey("TemplateId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_form_template_versions_form_templates_template_id");
 
                     b.Navigation("Template");
                 });
 
-            modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.FormTemplate", b =>
+            modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.UserSubmission", b =>
                 {
-                    b.Navigation("Versions");
+                    b.HasOne("WardMate.Services.DocumentForm.Domain.Entities.FormTemplateVersion", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_user_submissions_form_template_versions_template_version_id");
                 });
 #pragma warning restore 612, 618
         }

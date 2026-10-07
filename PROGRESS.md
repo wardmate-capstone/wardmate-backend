@@ -1,8 +1,68 @@
 # WardMate — Nhật ký phát triển
 
+**Trạng thái DF-AZURE-ONLINE-GIT-PUSH: HOÀN THÀNH** — đã tạo 16 commits cho tính năng online drafts + preserved DOCX trên nhánh `nghia`, merge với `kha` (resolve conflict PROGRESS/api-guide/appsettings.json bằng ours), push lên `kha` (17 commits mới: `5b7667f..95c8a01`). Build Docker image `wardmate-documentform:kha-20261007-0817` (0 errors), push lên ACR `acrwardmate2026.azurecr.io`, update Container App `wardmate-documentform` provisioningState=Succeeded. Kiểm tra công khai qua Gateway: health 200, Swagger UI 200, form-templates 200, citizen submissions 200, Swagger JSON xác nhận online-config hiện diện và officer endpoints không còn. Xác minh ngày 07/10/2026 lúc 08:20 (Asia/Saigon).
+
+**Trạng thái IAM Ingress CSRF (IAM-007): HOÀN THÀNH** — đã cấu hình ForwardedHeadersOptions xử lý X-Forwarded-For, X-Forwarded-Proto và X-Forwarded-Host trong middleware pipeline IAM, hỗ trợ Swagger Azure và ingress proxy tin cậy. 27/27 HTTP checks passed, 131/131 solution tests passed. Xác minh ngày 02/10/2026 lúc 01:45 (Asia/Saigon).
+**Trạng thái Procedure Catalog (TASK-09 điều chỉnh): HOÀN THÀNH** — đã triển khai xuất bản thủ tục đã đối soát kèm lịch sử phiên bản PDF, phân trang danh sách Public/Manager, tìm kiếm unaccent, hoàn thiện 11 integration tests, build Docker image và migrate database Local Dev. Xác minh ngày 01/10/2026 lúc 14:15 (Asia/Saigon).
+**Trạng thái Fix AddVersion Concurrency: HOÀN THÀNH** — đã fix `DbUpdateConcurrencyException` trên endpoint `POST /api/v1/form-templates/{id}/versions`. Xác minh ngày 01/10/2026 lúc 11:30 (Asia/Saigon).
 **Trạng thái Document & Form Service (TASK-10, TASK-11, TASK-12): HOÀN THÀNH** — đã triển khai thực thể Document, E-Forms dynamic schema engine, OpenXML DOCX placeholder extraction, Azure Blob upload, FormTemplates API và 22 unit tests. Xác minh ngày 29/09/2026 lúc 11:15 (Asia/Saigon).
 **Trạng thái Core IAM: HOÀN THÀNH** — đã bàn giao lịch sử commit tách theo file lên `kha` và `deploy`; PostgreSQL Local Dev đã migrate và Swagger IAM đang chạy. Xác minh ngày 25/09/2026 lúc 10:13 (Asia/Saigon).
 **Trạng thái Shared Kernel & Central Logging (TASK-05, TASK-06): HOÀN THÀNH** — đã triển khai đầy đủ Domain primitives, CQRS MediatR abstractions, Azure Blob Storage client wrapper, Serilog tập trung, RequestLoggingMiddleware và 39 unit tests cho SharedKernel. Xác minh ngày 26/09/2026 lúc 18:10 (Asia/Saigon).
+
+**Trạng thái User Submissions API: HOÀN THÀNH** — đã thêm entity UserSubmission, enum SubmissionStatus, các command/query và 7 endpoints quản lý vòng đời hồ sơ người dân (draft, submit, request-revision, approve). Đã commit từng lớp và push lên `main`, `nghia`, `deploy`. Xác minh ngày 04/10/2026 lúc 21:30 (Asia/Saigon).
+**Trạng thái DOC-003 Citizen/Officer API split + Dockerfile: HOÀN THÀNH** — đã tách UserSubmissionsController thành CitizenSubmissionsController (/api/v1/citizen/submissions) và OfficerSubmissionsController (/api/v1/officer/submissions), cập nhật Dockerfile Alpine + non-root user + HEALTHCHECK, thêm service document-form vào docker-compose.yml. Docker image `wardmate-document-form:local` 196MB, 0 errors. Xác minh ngày 05/10/2026 lúc 08:21 (Asia/Saigon).
+**Trạng thái Fix SaveDraftSubmission 500: HOÀN THÀNH** — đã fix lỗi 500 trên `PUT /api/v1/citizen/submissions/{id}/draft` do `Azure.RequestFailedException` không được catch. Đã thêm try-catch quanh `UploadAsync`, thêm error `BlobUploadFailed`, và đổi thứ tự logic: kiểm tra DB trước rồi mới upload blob (tránh orphaned blobs). Build Release 0 errors 0 warnings. Xác minh ngày 07/10/2026 lúc 00:59 (Asia/Saigon).
+
+---
+
+## DOC-002 — User Submissions API (Hồ sơ người dân)
+
+- Hoàn thành: **04/10/2026, 21:30 (Asia/Saigon, UTC+07:00)**
+- Nhánh: `nghia`, `main`, `deploy`
+
+### Chức năng hoàn thiện
+- Thêm Entity `UserSubmission` và Enum `SubmissionStatus` (Draft, Submitted, RevisionRequested, Approved).
+- Cấu hình EF Core `UserSubmissionConfiguration` với bảng `document.user_submissions`.
+- Bổ sung Migration `AddUserSubmissions`.
+- Application layer: `SaveDraftSubmissionCommand`, `SubmitSubmissionCommand`, `RequestRevisionCommand`, `ApproveSubmissionCommand`.
+- Queries: `GetMySubmissionsQuery`, `GetSubmissionByIdQuery`, `DownloadSubmissionDocxQuery`.
+- Controllers: `UserSubmissionsController` với 7 endpoints (GET list, GET detail, POST draft, PUT draft, POST submit, GET download-docx, POST request-revision, POST approve).
+
+### Build & Test
+- `dotnet build`: **0 errors, 0 warnings**
+
+---
+
+## FIX-001 — Fix DbUpdateConcurrencyException trên AddVersion endpoint
+
+- Hoàn thành: **01/10/2026, 11:30 (Asia/Saigon, UTC+07:00)**
+- Nhánh: `kha-feat-fix-addversion-concurrency` → merge vào `kha` → `main` → `deploy`
+
+### Endpoint bị ảnh hưởng
+- `POST /api/v1/form-templates/{templateId}/versions` → `201 Created`
+- Request body: `{ "schemaDefinition": "<JSON string>" }`
+- Response: `FormTemplateVersionDto` (id, templateId, versionNumber, schemaDefinition, createdAtUtc, updatedAtUtc)
+
+### Root cause
+EF Core với `.HasDefaultValue(true/false)` tự động đặt các property boolean (`IsActive`, `IsDeleted`) là `ValueGeneratedOnAdd`. Khi EF Core thực thi batch gồm UPDATE trên `FormTemplate` và INSERT trên `FormTemplateVersion`, nó chờ đọc lại giá trị từ database nhưng nhận 0 rows affected → `DbUpdateConcurrencyException`.
+
+### Các thay đổi
+| File | Thay đổi |
+|------|---------|
+| [`CreateFormTemplateVersionCommand.cs`](src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/CreateFormTemplateVersionCommand.cs) | Thay `template.AddVersion()` bằng 2 bước Save riêng: update FormTemplate → insert FormTemplateVersion qua DbSet trực tiếp |
+| `FormTemplateConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsActive` và `IsDeleted` |
+| `FormTemplateVersionConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsDeleted` |
+| `SupportingDocumentConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsDeleted` |
+| `ApplicationFormConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsDeleted` |
+| `GeneratedDocumentConfiguration.cs` | Thêm `.ValueGeneratedNever()` cho `IsDeleted` |
+| Migrations/ | Thêm migration `AddSoftDeleteToDocumentForm` |
+
+### Build & Test
+- `dotnet build WardMate.sln -c Release`: **0 errors, 0 warnings**
+- Manual test `POST .../versions` với schemaDefinition hợp lệ: **HTTP 201** ✅
+
+---
+
 
 ## DOC-001 (TASK-10, TASK-11, TASK-12) — Thực thể Document, Engine E-Forms Schema & OpenXML Docx Placeholder
 
@@ -618,3 +678,729 @@ Gợi ý commit cho Antigravity: `feat(procedure-catalog): add manager APIs with
 
 Gợi ý commit cho Antigravity: feat(iam)!: move refresh tokens to HttpOnly cookies with CSRF protection
 Breaking change: refresh/logout không nhận token trong JSON; mọi POST auth yêu cầu X-CSRF-Protection: 1 và credentials; response login/refresh bỏ refreshToken.
+
+## TASK-08-LIST — API danh sách thủ tục công khai và quản lý
+
+- Hoàn thành: **2026-10-01 11:18 (Asia/Saigon, UTC+07:00)**.
+- Bổ sung CQRS GetProceduresQuery, FluentValidation tiếng Việt, projection DTO tóm tắt bằng EF Core, phân trang tại database. Không tải JSONB lớn cho danh sách. Không cần migration hoặc thay route Gateway. Không chạy Git.
+
+### API mới
+
+| Method | Route | Request body / query | Response |
+|---|---|---|---|
+| GET | /api/v1/procedures | Không body. page=1, pageSize=20, search?, categoryId? | 200 ProcedureListDto; 400 ProblemDetails |
+| GET | /api/v1/procedure-manager/procedures | Không body. page=1, pageSize=20, search?, categoryId?, isActive? | 200 ProcedureListDto; 400; 401; 403 |
+
+- Public luôn chỉ lấy IsActive=true, không cho client ghi đè. Manager yêu cầu PROCEDURE_MANAGER hoặc IT_ADMIN; không truyền isActive thì lấy cả hai trạng thái.
+- page>=1, pageSize 1..100; kiểm tra overflow offset. Search tối đa 255 ký tự, trim, tìm chứa trong code/title không phân biệt hoa/thường (vẫn phân biệt dấu). Escape ký tự %, _ và backslash, pattern được parameterize. Lọc danh mục dương và trạng thái kết hợp AND. Sort cố định ProcedureCode rồi Id.
+- FE nhận `{items,page,pageSize,totalCount,totalPages}`. Item gồm id, categoryId, categoryName, procedureCode, title, issuingAuthority?, executingAgency?, levelOfImplementation, targetAudience, feeSummary, processingTimeSummary, isActive, createdAt, updatedAt. Không bao gồm contentPayload/checklistSchema/formDefinitions/versions; gọi API chi tiết khi cần.
+- Trang vượt dữ liệu / danh mục không tồn tại / không có kết quả: 200 items=[]; totalPages=0 khi totalCount=0. Query không hợp lệ: 400 application/problem+json, code validation.failed, thông báo tiếng Việt, errors, traceId. Token handling không thay đổi.
+- Count và items là hai query riêng; khi có concurrent writes, metadata có thể lệch tức thời. Không cung cấp snapshot pagination giữa các request.
+
+### File mới
+
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/DTOs/ProcedureListDto.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Queries/GetProceduresQuery.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureListTests.cs
+
+### File sửa
+
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Interfaces/IProcedureRepository.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureRepository.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProceduresController.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureManagerController.cs
+- docs/procedure-catalog.md
+- docs/procedure-manager.md
+- PROGRESS.md
+
+### Kiểm thử
+
+- Release solution build --no-restore: **0 warnings, 0 errors**.
+- dotnet test WardMate.sln -c Release --no-build --verbosity quiet: **116 passed / 0 failed / 0 skipped**: ProcedureCatalog 44, DocumentForm 72 trong solution hiện tại.
+- Viết thêm **12 integration cases**, unit tests mới 0: public không lộ inactive dù truyền isActive=false; phân trang/sort/summary; manager status/category/search; tìm title tiếng Việt case-insensitive; literal wildcard; query sai/overflow; 401/403/admin/public. PostgreSQL 16 thật qua Testcontainers tạm. Không thêm test project mới.
+- Chưa khởi động/restart ứng dụng Local Dev, không build Docker image. Swagger hiển thị endpoint mới sau khi chủ sở hữu chạy lại service với code mới.
+
+Gợi ý commit cho Antigravity: feat(procedure-catalog): add paginated public and manager procedure lists
+
+## TASK-08-DOCKER — Đóng gói Docker và tích hợp Local Dev cho Procedure Catalog
+
+- Hoàn thành: **2026-10-01 11:25 (Asia/Saigon, UTC+07:00)**.
+- Thêm Dockerfile đa tầng (.NET 8 SDK build & ASP.NET runtime) cho `WardMate.Services.ProcedureCatalog.API`.
+- Tích hợp service `procedure-catalog` vào `docker/docker-compose.yml`, kết nối mạng nội bộ với `procedure-db`, bật `Database__AutoMigrate=true`, cấu hình JWT đồng bộ với IAM (`docker/.env`).
+- Mở cổng `5002:8080`, cho phép khởi chạy và dừng trực tiếp qua Docker Desktop GUI mà không cần chạy lệnh `dotnet run`.
+
+### File mới
+
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Dockerfile
+
+### File sửa
+
+- docker/docker-compose.yml
+- PROGRESS.md
+
+### Kiểm thử & Xác minh
+
+- Release solution build `dotnet build WardMate.sln -c Release --no-restore -warnaserror`: **0 warnings, 0 errors**.
+- Docker compose build: Image `wardmate-procedure-catalog:local` được build thành công.
+- Khởi chạy container `wardmate_procedure_catalog`:
+  - EF Core migration `20261001012015_ProcedureStatusReason` tự động áp dụng thành công.
+  - Liveness check `GET http://localhost:5002/health`: **HTTP 200 Healthy**.
+  - Kiểm tra API danh sách mới `GET http://localhost:5002/api/v1/procedures`: Trả về 200 kèm `items`, `page`, `pageSize`, `totalCount`, `totalPages`.
+  - Kiểm tra API quản lý `GET http://localhost:5002/api/v1/procedure-manager/procedures`: Xác thực JWT thành công với vai trò `PROCEDURE_MANAGER`.
+  - Swagger UI sẵn sàng tại `http://localhost:5002/swagger`.
+
+Gợi ý commit cho Antigravity:
+1. `build(procedure-catalog): add Dockerfile for Procedure Catalog API`
+2. `feat(docker): add procedure-catalog service to docker-compose`
+
+## TASK-09 — Tìm kiếm nâng cao & import (ĐANG THỰC HIỆN)
+
+- Cập nhật phiên: **2026-10-01 13:34 (Asia/Saigon, UTC+07:00)**. Chưa hoàn thành toàn task.
+- Bước 0 đã xác minh: GET /api/v1/procedures luôn ép IsActive=true; GET /api/v1/procedure-manager/procedures có JWT role policy và mặc định lấy cả hai trạng thái. Giữ nguyên phân tách này khi nâng cấp.
+- Đã triển khai GetProceduresPagedQuery, keyword không dấu qua PostgreSQL unaccent/ILIKE, lọc cấp/danh mục/trạng thái, whitelist sort và phân trang pageNumber/pageSize (default10/max100). PagedResult<ProcedureSummaryDto> dùng currentPage,totalPages,totalCount,pageSize,hasPrevious,hasNext; DTO tóm tắt không tải JSONB. Alias search/page vẫn được nhận; response page cũ đã thay bằng currentPage.
+- Migration ProcedureUnaccentSearch cài unaccent. Build Release: 0 errors, 0 warnings. EF has-pending-model-changes: không có thay đổi thiếu migration.
+- dotnet test toàn solution: 120 passed, 0 failed, 0 skipped (ProcedureCatalog 48; DocumentForm 72). Thêm 4 integration cases cho keyword không dấu, cấp/sort/metadata và validation mới; cập nhật 12 test danh sách theo DTO mới. Các con số này CHƯA xác minh importer CSV.
+- API GET không body, query mới và response như docs/procedure-catalog.md; status 200/400; Manager thêm401/403. Không thay token handling.
+- Phần import CSV đã có bản nháp: CsvHelper 33.0.1, batch200, upsert và snapshot, endpoint multipart /api/v1/procedure-manager/procedures/import-csv. CHƯA có kiểm thử import/performance, chưa xác nhận ready. Không import dữ liệu thật.
+- Trong phiên, chủ sở hữu cho biết muốn import từng DOCX/PDF và hỏi khả năng tự đọc/lưu database. Đã đề xuất DOCX/PDF có chữ → trích xuất → người quản lý xem/sửa → xác nhận lưu; PDF scan cần OCR (AIOCR hiện chỉ có khung service). Đang chờ chọn thay CSV trong TASK-09 hay làm tài liệu ở task sau và có bước duyệt hay tự lưu. Không suy diễn trả lời thay chủ sở hữu; chưa triển khai luồng DOCX/PDF.
+- Không chạy Git; chưa bàn giao task hoàn chỉnh cho Antigravity.
+
+### Các đường dẫn đã tác động trong phiên (bao gồm bản nháp chưa hoàn tất)
+
+- Application/DTOs/PagedResult.cs (mới), Application/Queries/GetProceduresPagedQuery.cs (mới).
+- Application/Import/ImportProceduresFromCsvCommand.cs (mới, bản nháp import).
+- Application/Interfaces/IProcedureRepository.cs (sửa).
+- Application/DTOs/ProcedureListDto.cs và Application/Queries/GetProceduresQuery.cs (xóa, thay bằng hợp đồng mới).
+- Infrastructure/Persistence/ProcedureRepository.cs, ProcedureDbContext.cs, Migrations/ProcedureDbContextModelSnapshot.cs (sửa).
+- Infrastructure/Persistence/Migrations/*ProcedureUnaccentSearch.cs và *.Designer.cs (mới).
+- Infrastructure/Import/ProcedureCsvRow.cs, ProcedureCsvBatchWriter.cs, ProcedureCsvImporter.cs (mới, bản nháp import).
+- Infrastructure/DependencyInjection.cs, WardMate.Services.ProcedureCatalog.Infrastructure.csproj (sửa cho CsvHelper/import).
+- API/Controllers/ProceduresController.cs, ProcedureManagerController.cs (sửa).
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureListTests.cs, ProcedurePersistenceTests.cs (sửa).
+- docs/procedure-catalog.md, docs/procedure-manager.md, PROGRESS.md (sửa).
+
+Các đường dẫn Application/Infrastructure/API trên thuộc src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.<tầng>/. Chưa đề xuất commit toàn task vì phạm vi import đang được điều chỉnh.
+
+## TASK-09 (điều chỉnh) — HOÀN THÀNH: tìm kiếm và xuất bản bản nháp đã đối soát
+
+- Hoàn thành: **2026-10-01 14:10 (Asia/Saigon, UTC+07:00)**.
+- Thay thế phạm vi import cũ: đã xóa toàn bộ 4 file importer CSV, endpoint import-csv, DI và dependency CsvHelper; xóa các thư mục Import rỗng. Không triển khai CSV. Các mục TASK-09 trước đây ở trạng thái nháp/chờ phạm vi chỉ là lịch sử.
+- Đã xác minh lại: Public luôn active-only (cả query và repository); Manager lấy cả active/inactive nếu không truyền filter, có JWT role PROCEDURE_MANAGER/IT_ADMIN. Public cap50, Manager cap100, mặc định10.
+- Tách GetPublicProceduresPagedQuery/GetManagerProceduresPagedQuery; tìm không dấu unaccent/ILIKE, lọc danh mục/cấp, phân trang. Giữ tùy chọn sort và alias page/search cũ. DTO Public có OriginalPdfUrl, không có IsActive; Manager thêm IsActive, VersionCount, CreatedAt/UpdatedAt.
+- Bổ sung OriginalPdfUrl (nullable varchar500), PdfFileName (nullable varchar255) cho Procedure và ProcedureVersion. API chi tiết/lịch sử và snapshot JSON cũng có hai trường. Migration mới: 20261001070638_ProcedureOriginalPdf. Migration unaccent trước đó được giữ.
+- PublishReviewedProcedureCommand: validation tiếng Việt; category tồn tại; mã mới tạo active + version1; mã có sẵn snapshot trạng thái cũ + version tiếp theo rồi thay dữ liệu. Transaction toàn vẹn; advisory lock theo mã bảo vệ publish concurrent khi chưa có row, row lock bảo vệ cập nhật. Giữ nguyên trạng thái đóng/mở, Id, CreatedAt khi cập nhật; không tự mở lại thủ tục đã đóng.
+- Task nhận JSON đã đối soát, không thực hiện upload/OCR/AI/split-view FE. Không đọc/lưu PDF thật trong phiên này. Backend chỉ lưu URL, không xác minh nội dung file trên Azure Blob. Không thay schema/service IAM.
+- Đã build Docker image `wardmate-procedure-catalog:local` và khởi động lại container trên Docker Desktop (cổng 5002); migrations đã tự động áp dụng vào PostgreSQL Local Dev khi container khởi chạy.
+
+### Endpoints / hợp đồng FE
+
+| Method | Route | Request | Response |
+|---|---|---|---|
+| GET | /api/v1/procedures | Không body. keyword?, categoryId?, levelOfImplementation?, pageNumber=1, pageSize=10 (max50); sortBy/isAscending và alias page/search còn hỗ trợ | 200 PagedResult<ProcedureSummaryDto>; 400 |
+| GET | /api/v1/procedure-manager/procedures | Không body. Cùng filter; isActive nullable; pageSize max100 | 200 PagedResult<ProcedureManagerSummaryDto>; 400; 401; 403 |
+| POST | /api/v1/procedure-manager/procedures/publish | JSON ReviewedProcedureInput: procedureCode, categoryId, title, issuingAuthority?, executingAgency?, levelOfImplementation, targetAudience, feeSummary, processingTimeSummary, originalPdfUrl?, pdfFileName?, contentPayload, checklistSchema?, formDefinitions? | 200 ProcedureDetailDto cho cả tạo/cập nhật; 400; 401; 403; 409 |
+
+- Public item: id, procedureCode, title, categoryName, levelOfImplementation, feeSummary, processingTimeSummary, originalPdfUrl?, updatedAt. Manager item thêm isActive, versionCount, createdAt. Không tải contentPayload/checklist/form/version snapshots trong danh sách.
+- Pagination: items/currentPage/totalPages/totalCount/pageSize/hasPrevious/hasNext. Danh sách rỗng trả200, totalPages=0; count và items có thể lệch tức thời nếu có concurrent writes (hai SQL riêng).
+- JWT Bearer có role PROCEDURE_MANAGER hoặc IT_ADMIN cho manager/publish; token handling không thay đổi.
+- OriginalPdfUrl nullable, HTTPS tuyệt đối, không userinfo, tối đa500 ký tự; PdfFileName tối đa255. JSON null bị bỏ khỏi response. Dùng URL ổn định; không nhúng secret/SAS dài hạn vào URL công khai. Blob private cần cơ chế cấp link của storage riêng.
+- Publish thay toàn bộ input; snapshot trước sửa giữ URL/tên PDF cũ. Metadata ngày hiệu lực mặc định ngày UTC xuất bản do request không có EffectiveDate. Publish lặp vẫn tạo version; FE chặn double-submit. FeeSummary/ProcessingTimeSummary phải gửi rõ, không tự điền miễn phí/1 ngày.
+- 400 validation.failed hoặc procedure.category_not_found, 409 procedure.code_exists; ProblemDetails tiếng Việt có traceId, instance, errors khi validation. Giao diện/AI gửi đầy đủ dữ liệu đã đối soát, không gửi file/multipart tới publish.
+- Hướng dẫn và request mẫu: docs/procedure-reviewed-publishing.md. Swagger http://localhost:5002/swagger sau khi chủ sở hữu chạy lại service. Gateway chuyển nguyên route hiện có.
+
+### Kiểm thử và migration
+
+- dotnet build WardMate.sln -c Release --no-restore --verbosity quiet: **0 errors, 0 warnings**.
+- dotnet test WardMate.sln -c Release --no-build --verbosity quiet --logger trx --results-directory TestResults: **131 passed / 0 failed / 0 skipped** (ProcedureCatalog59 + DocumentForm72).
+- Thêm **11 integration cases**, unit tests mới0: JSONB10 cases + checklist/forms roundtrip; cột PDF/live/version/snapshot; update và versionCount; giữ trạng thái đóng; public/manager filters; concurrent publish cùng mã mới; invalid payload/category/URL/length rollback; rollback lỗi DB thật; giới hạn pageSize; 401/403/IT_ADMIN; Swagger không còn CSV.
+- Cập nhật test danh sách theo DTO public/manager mới và test migration count. Không tạo thêm test project.
+- EF has-pending-model-changes: không có thay đổi thiếu migration. Kiểm tra migration thêm đúng 4 cột nullable, không xóa dữ liệu nghiệp vụ. Database Local Dev đã được migrate đầy đủ 2 migration (`20261001063051_ProcedureUnaccentSearch` và `20261001070638_ProcedureOriginalPdf`) tự động qua Docker container startup.
+- TRX local: TestResults/LAPTOP_KHA_KHANGUYEN_2026-10-01_14_07_33.trx (DocumentForm), TestResults/LAPTOP_KHA_KHANGUYEN_2026-10-01_14_07_40.trx (ProcedureCatalog); generated artifacts không bàn giao commit.
+
+### File mới trong phiên điều chỉnh
+
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Queries/ProcedureSearchOptions.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Queries/GetPublicProceduresPagedQuery.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Queries/GetManagerProceduresPagedQuery.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/PublishReviewedProcedureCommand.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20261001070638_ProcedureOriginalPdf.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20261001070638_ProcedureOriginalPdf.Designer.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ReviewedProcedureTests.cs
+- docs/procedure-reviewed-publishing.md
+
+### File chỉnh sửa
+
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/Entities/Procedure.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/Entities/ProcedureVersion.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/DTOs/PagedResult.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/DTOs/ProcedureDetailDto.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Interfaces/IProcedureRepository.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Interfaces/IProcedureManagementStore.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureInput.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureInputValidator.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/GetProcedureVersionsQuery.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/DependencyInjection.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/WardMate.Services.ProcedureCatalog.Infrastructure.csproj
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureManagementStore.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureRepository.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Configurations/ProcedureConfiguration.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Configurations/ProcedureVersionConfiguration.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/ProcedureDbContextModelSnapshot.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProceduresController.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureManagerController.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureListTests.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedurePersistenceTests.cs
+- docs/procedure-catalog.md
+- docs/procedure-manager.md
+- PROGRESS.md
+
+### File đã gỡ
+
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Queries/GetProceduresPagedQuery.cs (thay bằng query riêng public/manager và options chung)
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Import/ImportProceduresFromCsvCommand.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Import/ProcedureCsvRow.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Import/ProcedureCsvBatchWriter.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Import/ProcedureCsvImporter.cs
+
+Gợi ý commit cho Antigravity: feat(procedure-catalog): publish reviewed procedures with PDF version history
+
+## IAM-007 — Sửa CSRF trên Swagger sau Azure ingress bằng Forwarded Headers
+
+- Hoàn thành: 2026-10-02 01:44:58 Asia/Saigon (UTC+07:00).
+- Phạm vi: cấu hình IAM API nhận X-Forwarded-For, X-Forwarded-Proto và X-Forwarded-Host; xóa KnownNetworks/KnownProxies theo yêu cầu. Middleware chạy ngay sau UseGlobalExceptionHandling, trước logging, CORS, Swagger và authentication/authorization. Giữ ForwardLimit mặc định 1.
+- Đã kiểm tra BrowserAuthProtectionAttribute: sameOrigin sử dụng Request.Scheme/Host sau chuẩn hóa; không cần sửa attribute. Vẫn bắt buộc X-CSRF-Protection: 1 và từ chối origin không cùng domain, không thuộc CORS allowlist.
+
+### File thay đổi
+
+| File | Nội dung |
+| --- | --- |
+| src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Program.cs | Cấu hình và thứ tự middleware Forwarded Headers |
+| scripts/verify-iam-cookie.ps1 | Thêm 5 kiểm tra HTTP cho forwarded origin và bảo toàn CSRF/CORS |
+| docs/iam-httponly.md | Hướng dẫn ingress, trust boundary và giới hạn proxy nhiều hop |
+| PROGRESS.md | Nhật ký IAM-007 và kết quả kiểm chứng |
+
+### API / Frontend
+
+- Không thêm endpoint hay thay đổi DTO/request body/token contract.
+- POST /api/v1/auth/login vẫn nhận UsernameOrEmail và Password, trả 200 với access token và cookie refresh HttpOnly khi hợp lệ; CSRF không hợp lệ trả 403 ProblemDetails với code iam.csrf_rejected.
+- Swagger cùng public domain không cần thêm domain đó vào CORS allowlist nếu ingress chuyển đúng Host/Proto. FE khác domain vẫn phải nằm trong AllowedOrigins và gửi credentials cùng X-CSRF-Protection: 1.
+- Container phải chỉ nhận traffic từ ingress/proxy được kiểm soát; proxy phải làm sạch/ghi đè forwarded headers. Với nhiều hop, proxy gần IAM nhất phải chuyển đúng public host/proto.
+
+### Kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: PASS, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release: PASS 131/131, 0 failed, 0 skipped (DocumentForm 72, ProcedureCatalog 59). Không tạo mới unit test project.
+- pwsh -NoProfile -File scripts/verify-iam-cookie.ps1: PASS 27/27 HTTP checks trên PostgreSQL tạm và IAM/Gateway local, gồm 5 checks mới. Origin HTTPS của Swagger Azure được chấp nhận với forwarded host/proto dù không nằm trong CORS allowlist; thiếu forwarding, thiếu CSRF header hoặc origin lạ bị từ chối; CORS cho FE được phép vẫn hoạt động.
+- Không chạy Git. Chưa deploy hoặc kiểm tra trực tiếp trên Azure; cần Antigravity triển khai và kiểm tra lại ingress thực tế.
+
+Gợi ý commit: fix(iam): honor forwarded headers before CSRF validation
+
+## IAM-008 — Chuẩn bị tạo 5 tài khoản kiểm thử trên deploy (chưa hoàn tất)
+
+- Thời gian ghi nhận: 2026-10-02, Asia/Saigon (UTC+07:00).
+- Đã kiểm tra Swagger Azure IAM: GET /swagger/v1/swagger.json trả HTTP 200; có API đăng ký, đăng nhập và quản lý role.
+- Chưa tạo tài khoản hoặc thay đổi dữ liệu deploy: đang chờ phiên/thông tin đăng nhập IT_ADMIN để gán role qua API được bảo vệ. Đăng ký công khai chỉ gán REGISTERED_CITIZEN.
+- Dự kiến sử dụng POST /api/v1/auth/register (Username, Email, Password, FullName; 201), POST /api/v1/auth/login (UsernameOrEmail, Password; 200), GET /api/v1/rbac/roles (200), PUT/DELETE /api/v1/rbac/users/{userId}/roles/{roleId} (204), và xác minh đăng nhập sau khi gán role.
+- File thay đổi trong phiên này: PROGRESS.md. Không sửa mã nguồn, không chạy lại build/unit tests; chưa có kiểm thử tạo tài khoản thành công. Không chạy Git.
+- Token/Frontend: auth POST cần X-CSRF-Protection: 1; quản lý role cần token IT_ADMIN. Không lưu thông tin đăng nhập/token vào tài liệu hoặc mã nguồn.
+
+### IAM-008 — Cập nhật điều kiện bootstrap (2026-10-02, Asia/Saigon UTC+07:00)
+
+- Chủ hệ thống xác nhận chưa có IT_ADMIN và yêu cầu tạo mỗi role một tài khoản trên deploy.
+- Đã xác định quy trình bootstrap trong docs/iam-rbac-admin.md: gán IT_ADMIN đầu tiên trực tiếp qua kết nối database quản trị tin cậy, sau đó quản lý role bằng API.
+- Chưa có kết nối quản trị Azure/PostgreSQL trong môi trường thao tác (không có Azure CLI hoặc biến môi trường kết nối phù hợp). Đã yêu cầu đường dẫn file kết nối deploy hoặc phiên Azure Portal được đăng nhập.
+- Chưa tạo tài khoản, chưa thay đổi database deploy; chưa chạy kiểm thử cấp tài khoản. Không thêm endpoint tự cấp quyền, không chạy Git.
+
+## IAM-009 — Khởi tạo 5 tài khoản chính thức cho từng vai trò và dọn dẹp tài khoản kiểm thử cũ
+
+- Hoàn thành: 2026-10-02 13:16:00 Asia/Saigon (UTC+07:00).
+- Phạm vi:
+  - Loại bỏ các tài khoản kiểm thử tạm thời (`citizentest`, `officertest`, `managertest`, `procmanagertest`, `admintest`, `testcitizen1`).
+  - Thiết lập 5 tài khoản chính thức chuẩn hóa theo từng vai trò của hệ thống WardMate, không chứa hậu tố `test`:
+    1. **IT Admin**: `wardmateadmin` (Tên hiển thị: `WardMate Admin`, Email: `admin@wardmate.vn`, Vai trò: `IT_ADMIN` - Id 5)
+    2. **Procedure Manager**: `wardmateprocmanager` (Tên hiển thị: `WardMate Procedure Manager`, Email: `procmanager@wardmate.vn`, Vai trò: `PROCEDURE_MANAGER` - Id 4)
+    3. **Manager**: `wardmatemanager` (Tên hiển thị: `WardMate Manager`, Email: `manager@wardmate.vn`, Vai trò: `MANAGER` - Id 3)
+    4. **Front Desk Officer**: `wardmateofficer` (Tên hiển thị: `WardMate Officer`, Email: `officer@wardmate.vn`, Vai trò: `FRONT_DESK_OFFICER` - Id 2)
+    5. **Citizen**: `wardmatecitizen` (Tên hiển thị: `WardMate Citizen`, Email: `citizen@wardmate.vn`, Vai trò: `REGISTERED_CITIZEN` - Id 1)
+  - Mật khẩu mặc định: `Password123!` (đáp ứng đầy đủ chính sách độ phức tạp mật khẩu: >=8 ký tự, có chữ hoa, ký tự đặc biệt, UTF-8 <= 72 byte).
+  - Phương án triển khai: Khởi tạo trực tiếp qua Database Bootstrap Script vào cơ sở dữ liệu PostgreSQL (đã áp dụng và xác minh trên container `wardmate-iam-db-1` local, sẵn sàng thực thi trên Supabase Deploy qua SQL Editor).
+  - Giữ mã nguồn hệ thống hoàn toàn sạch (clean architecture), không hardcode thông tin tài khoản mẫu trong code backend để đảm bảo an toàn bảo mật và tránh nguy cơ vô tình ghi đè mật khẩu khi khởi động lại.
+
+### File thay đổi
+
+| File | Nội dung |
+| --- | --- |
+| `PROGRESS.md` | Ghi nhận hoàn thành task IAM-009 |
+
+### API / Frontend
+
+- Đăng nhập: POST `/api/v1/auth/login` với `UsernameOrEmail` là username (`WardMateAdmin`, `wardmateadmin`, ...) hoặc email (`admin@wardmate.vn`, ...), `Password` là `Password123!`.
+- Header bắt buộc cho browser/cookie authentication: `X-CSRF-Protection: 1`.
+- Không tạo endpoint công khai mới; bảo toàn kiến trúc bảo mật RBAC.
+
+### Kết quả kiểm chứng
+
+- `dotnet build WardMate.sln -c Release --no-restore -warnaserror`: **PASS, 0 errors, 0 warnings**.
+- `dotnet test WardMate.sln -c Release --no-build`: **PASS 131/131, 0 failed, 0 skipped** (DocumentForm 72, ProcedureCatalog 59).
+- Đã xác minh dữ liệu thực tế tại PostgreSQL container local: 5 tài khoản hiển thị đầy đủ kèm đúng vai trò và thông tin profile.
+- Tuân thủ quy định `AGENTS.md`: không tự ý thực thi các lệnh Git.
+
+Gợi ý commit cho Antigravity:
+- `docs: update PROGRESS.md with official role accounts seeding`
+
+
+## PDF-001 — Backend upload PDF, bóc tách AIOCR và đối soát bản nháp thủ tục
+
+- Hoàn thành mã nguồn và kiểm thử local: 2026-10-02 14:57:59 Asia/Saigon (UTC+07:00).
+- Trạng thái: hoàn thành backend và adapter có thể cấu hình. Chưa kích hoạt/kiểm chứng Azure Blob, OCR và AI thật; chủ dự án xác nhận chưa có OCR. Chưa xây màn hình FE Split-view trong repository backend, chưa deploy, chưa áp dụng migration lên database Local Dev/deploy.
+- Không chạy Git; không build Docker image hoặc khởi động cụm ứng dụng. Các container PostgreSQL được tạo bởi integration tests là tạm thời và độc lập database người dùng.
+
+### Chức năng
+
+- Procedure Catalog quản lý PDF nguồn private trên Azure Blob, bảng procedure_drafts với JSONB payload/warnings, trạng thái Queued/Processing/NeedsReview/Failed/Published và người tạo/đối soát.
+- Nghiệp vụ ở tầng Application qua IDraftPersistence/IDraftFileStorage; Infrastructure triển khai EF Core, Blob, HTTP AIOCR và background worker. AIOCR không tham chiếu assembly/database Procedure Catalog.
+- Khi OCR tắt, upload tạo bản nháp thủ công NeedsReview. Thiếu cấu hình Blob trả 503, không giả vờ upload thành công. File PDF tối đa 20 MiB, kiểm tra phần mở rộng và chữ ký đầu file.
+- Worker sử dụng hàng đợi PostgreSQL, row locks SKIP LOCKED và lease phục hồi khi restart; có thời hạn xử lý, số lần nhận giới hạn và retry thủ công. Kết quả AI không tự xuất bản.
+- Revision GUID chống ghi đè; xuất bản yêu cầu confirmed=true, giữ nguồn PDF của bản nháp, dùng handler publish hiện có. Trạng thái bản nháp, thủ tục và version commit/rollback cùng transaction; xác nhận trùng trả 409.
+- Adapter AIOCR dùng Azure Document Intelligence prebuilt-layout + Azure OpenAI JSON mode, giữ trường chưa biết ở dạng null và warnings. Publish không tự biến trường thiếu thành các giá trị POCO mặc định. Adapter mặc định tắt, không gọi cloud trong tests.
+- Link PDF read SAS 10 phút chỉ cấp cho manager hoặc thủ tục đã xuất bản còn active; SAS không lưu vào DB. Dockerfile AIOCR, Compose profile ai và biến môi trường mẫu đã được thêm; Compose đã validate, image chưa build.
+
+### API và hợp đồng FE
+
+| Method | Route | Request body | Response |
+| --- | --- | --- | --- |
+| POST | /api/v1/procedure-manager/drafts | Multipart file PDF | 202 DraftDto; 400/413; 503 thiếu Blob |
+| GET | /api/v1/procedure-manager/drafts?page=1&pageSize=10 | Không | 200 DraftSummaryDto[], pageSize tối đa 50; 400 |
+| GET | /api/v1/procedure-manager/drafts/{id} | Không | 200 DraftDto; 404 |
+| GET | /api/v1/procedure-manager/drafts/{id}/source | Không | 200 {url,expiresInSeconds:600}; 404/503 |
+| PUT | /api/v1/procedure-manager/drafts/{id} | {revision,payload} | 200 DraftDto; 400/404/409 |
+| POST | /api/v1/procedure-manager/drafts/{id}/retry | {revision} | 200 DraftDto; 404/409/503 |
+| POST | /api/v1/procedure-manager/drafts/{id}/publish | {revision,confirmed:true} | 200 ProcedureDetailDto; 400/404/409 |
+| GET | /api/v1/procedures/{id}/source | Không, public | 200 {url,expiresInSeconds:600}; 404/503 |
+| POST | AIOCR /internal/v1/procedure-extractions | Binary PDF, X-Service-Key | 200 {payload,extractedText,warnings}; 400/401/413/502/503/504 |
+
+Manager endpoints yêu cầu Bearer role PROCEDURE_MANAGER hoặc IT_ADMIN (401/403 khi không đủ quyền). DTO bản nháp có revision/status/payload/warnings/extractedText/pdfFileName/failureCode/publishedProcedureId và timestamps. FE poll GET khi Queued/Processing, lấy link source hiển thị PDF, sửa payload và gửi revision mới nhất. Chỉ bấm publish sau đối soát. Lỗi ProblemDetails tiếng Việt có code/traceId/errors khi phù hợp. Không thay đổi token contract IAM. Hướng dẫn FE, giới hạn và cấu hình: docs/procedure-pdf-drafts.md.
+
+### Kiểm thử thực tế
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: PASS, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-restore: PASS 144/144, 0 failed, 0 skipped: DocumentForm 72; ProcedureCatalog và adapter AIOCR 72.
+- Thêm 13 test cases trong project hiện có (10 kiểm thử luồng draft/PostgreSQL/HTTP, 3 kiểm thử adapter HTTP mô phỏng); không tạo test project mới.
+- Kiểm tra: upload/manual edit, 10 cases, PDF source/private URL, active filtering, role authorization, revision conflict, publish trùng, rollback khi ghi draft thất bại, khôi phục lease, worker không tự publish, field unknown không biến thành 0, provider response bị cắt, thiếu cấu hình provider không gọi mạng.
+- dotnet ef migrations has-pending-model-changes: không có model change chưa được đưa vào migration. Migration mới chạy thành công trên PostgreSQL tạm của tests.
+- docker compose -f docker/docker-compose.yml --profile ai config --quiet: PASS. Không build image.
+- Chưa thử OCR trên PDF thật, chưa đo độ chính xác/chi phí AI, chưa xác minh cloud hoặc UI frontend. Blob storage trong integration tests là fake; provider HTTP được mô phỏng và không phát sinh phí.
+
+### File tạo mới
+
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/Entities/ProcedureDraft.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Drafts/DraftContracts.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Drafts/DraftPayloadRequirements.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Drafts/DraftPersistence.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Drafts/ProcedureDraftService.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Drafts/DraftPersistence.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Drafts/DraftExtractionWorker.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Configurations/ProcedureDraftConfiguration.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20261002072134_ProcedureDrafts.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/20261002072134_ProcedureDrafts.Designer.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureDraftsController.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureSourcesController.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Application/Extraction/ProcedureExtraction.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/AzureProcedureDocumentExtractor.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/Controllers/ProcedureExtractionsController.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/Dockerfile
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureDraftTests.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/DraftTestBlobStorage.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/AzureExtractionAdapterTests.cs
+- docs/procedure-pdf-drafts.md
+
+### File chỉnh sửa
+
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/WardMate.Services.ProcedureCatalog.Infrastructure.csproj
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/DependencyInjection.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureDbContext.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureManagementStore.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/Migrations/ProcedureDbContextModelSnapshot.cs
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/appsettings.json
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/WardMate.Services.AIOCR.Infrastructure.csproj
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/Program.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/appsettings.json
+- docker/docker-compose.yml
+- docker/.env.example
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureFixture.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedurePersistenceTests.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/WardMate.Services.ProcedureCatalog.IntegrationTests.csproj
+- PROGRESS.md
+
+Gợi ý Conventional Commit theo chức năng để Antigravity tách từng file theo quy định: feat(procedure-catalog): add PDF drafts and reviewed publication; feat(aiocr): add configurable Azure procedure extraction; test(procedure-catalog): verify PDF draft lifecycle and extraction; docs: document PDF review workflow and configuration.
+
+## PDF-002 — Ưu tiên đọc văn bản PDF trực tiếp và API đọc thử
+
+
+- Hoàn thành: 2026-10-03 08:43:28 Asia/Saigon (UTC+07:00).
+- Thực hiện theo yêu cầu đọc PDF có lớp văn bản, không bắt buộc OCR. Giữ nguyên dữ liệu và các thay đổi khác trong workspace; không chạy Git.
+
+### Chức năng / API / hướng dẫn FE
+
+- AIOCR dùng PdfPig 0.1.16 + ContentOrderTextExtractor để đọc từng trang, chuẩn hóa Unicode NFC; giữ dấu phân trang trong extractedText. Không cần OCR hoặc AI credentials để lấy chữ.
+- Hai cờ riêng: Extraction:UseAI=false và Extraction:OcrFallbackEnabled=false mặc định. Khi bật UseAI và có AzureOpenAI config, văn bản đi trực tiếp sang bước map JSON; không gọi Document Intelligence cho PDF đủ chữ theo kiểm tra sơ bộ.
+- Trang ít chữ, có ký tự hỏng/control được cảnh báo; không gọi AI trên văn bản thiếu trang khi OCR fallback tắt. Trang có ảnh luôn được cảnh báo vì reader không đọc chữ trong ảnh. Đây là heuristic, không đảm bảo chính xác/đầy đủ tuyệt đối; cán bộ vẫn đối soát.
+- Khi AI tắt/lỗi: giữ extractedText, trả khung payload chưa điền và warnings để nhập tay; không giả lập dữ liệu thủ tục. OCR chỉ gọi khi bật fallback riêng. PDF quá 20 MiB/100 trang/100.000 ký tự bị từ chối thay vì âm thầm cắt; file hỏng/khóa có lỗi có kiểm soát.
+- API mới: POST /api/v1/procedure-manager/drafts/extract-preview, multipart/form-data trường file; 200 {payload,extractedText,warnings}, Cache-Control no-store. Manager/IT_ADMIN Bearer bắt buộc (401/403). Không lưu Blob hoặc tạo bản nháp/ghi DB. Lỗi: 400 file sai; 503 thiếu config AIOCR; 502 service/PDF lỗi; 504 timeout; request quá lớn có thể 413 từ server/ingress.
+- Không đổi endpoint AIOCR nội bộ, DTO lưu nháp hoặc token IAM; không thêm migration. Luồng lưu bản nháp vẫn cần Blob và ProcedureDrafts:ExtractionEnabled=true để worker gọi AIOCR. Preview gọi trực tiếp extractor, không phụ thuộc cờ hàng đợi này.
+- Script scripts/verify-pdf-text.ps1 nhận PdfPath và ExpectedText tùy chọn; chạy AIOCR tạm trên loopback bằng khóa ngẫu nhiên, ép AI/OCR tắt, kiểm tra HTTP rồi dừng process. Không gọi cloud/Blob/DB.
+- Hướng dẫn test Swagger, script, cấu hình service key và các giới hạn: docs/procedure-pdf-text.md. Chưa triển khai FE Split-view hoặc deploy Azure; không tự build Docker.
+
+### Kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: PASS, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: PASS 152/152 (DocumentForm72 + ProcedureCatalog/AIOCR80), 0 failed, 0 skipped.
+- Thêm 8 test cases trong project có sẵn: 7 test reader/adapter (PDF thật tạo trong bộ nhớ, không cần OCR/AI credentials/network, trang thiếu chữ, AI-only mapping, AI failure fallback, file hỏng, giới hạn trang); 1 test HTTP preview phân quyền và không cần Blob. Điều chỉnh test Azure cũ để bật UseAI rõ ràng. Không tạo test project mới.
+- Smoke test bằng PDF mẫu Đăng ký tạm trú người dùng đã cung cấp: 13 trang, PdfPig qua HTTP đọc 21.367 ký tự, kiểm tra tiêu đề có dấu Đăng ký tạm trú thành công; đoạn đầu có mã 1.116789. AI/OCR đều tắt, không truyền tài liệu ra cloud. Đối chiếu độc lập pypdf (13 trang, 20.917 ký tự) và ảnh render trang đầu bằng pypdfium2; khác số ký tự do cách xuống dòng/phân trang. Không khẳng định toàn bộ layout được giữ nguyên.
+- docker compose -f docker/docker-compose.yml --profile ai config --quiet: PASS; chỉ validate, không build/start.
+- PDF gốc không sao chép vào source; ảnh kiểm tra nằm trong TestResults đã được ignore. Chưa kiểm chứng mapping AI thật do chưa có nhà cung cấp/key.
+
+### File tạo mới
+
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/TextFirstProcedureExtractor.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/TextPdfExtractionTests.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/PdfPreviewTests.cs
+- scripts/verify-pdf-text.ps1
+- docs/procedure-pdf-text.md
+
+### File chỉnh sửa
+
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/WardMate.Services.AIOCR.Infrastructure.csproj
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/AzureProcedureDocumentExtractor.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/Program.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/appsettings.json
+- src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureDraftsController.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/AzureExtractionAdapterTests.cs
+- docker/docker-compose.yml
+- docker/.env.example
+- docs/procedure-pdf-drafts.md
+- PROGRESS.md
+
+Gợi ý commit cho Antigravity (tách file theo quy định): feat(aiocr): extract PDF text before optional OCR and AI; feat(procedure-catalog): add PDF extraction preview; test(aiocr): cover native PDF extraction and preview authorization; docs: explain OCR-free PDF testing.
+
+## DOC-PDF-003 — Tài liệu sử dụng API đọc thử PDF trong hệ thống
+
+- Hoàn thành: 2026-10-04 21:47:13 Asia/Saigon (UTC+07:00).
+- Tạo docs/api-pdf-extract-preview.md: mô tả mục đích, endpoint, role, cấu hình Procedure/AIOCR, multipart file, response, Swagger/Postman/curl, ví dụ FE fetch, ProblemDetails và liên kết luồng lưu bản nháp/xuất bản.
+- File thay đổi: docs/api-pdf-extract-preview.md (mới), PROGRESS.md (cập nhật).
+- Không thêm/sửa API: tài liệu cho POST /api/v1/procedure-manager/drafts/extract-preview, request multipart file, 200 ExtractionResult; 400/401/403/413/502/503/504 và lỗi hệ thống 500. Preview không lưu Blob/DB.
+- FE: Bearer PROCEDURE_MANAGER hoặc IT_ADMIN; không truyền service key, không tự đặt multipart boundary, hiển thị warnings; payload trống khi AI tắt là bình thường. Không đổi token IAM.
+- Kiểm chứng: đối chiếu controller và tài liệu triển khai hiện tại; kiểm tra file Markdown và liên kết nội bộ. Không chạy build/test vì chỉ thêm tài liệu; số test mới 0. Không dùng kết quả 152 tests của phiên trước như kết quả chạy lại phiên này.
+- Không chạy Git, không build Docker, không deploy.
+- Gợi ý commit: docs: add PDF extraction preview API usage guide
+
+## DOC-API-001 — Danh mục và hướng dẫn sử dụng toàn bộ API
+
+- Hoàn thành: 2026-10-04 22:00:20 Asia/Saigon (UTC+07:00).
+- File mới: docs/api-guide.md. File cập nhật: PROGRESS.md. Không sửa mã nguồn hoặc cấu hình hệ thống.
+- Tài liệu bao phủ 53 thao tác controller: IAM 29, Procedure Catalog 17, Document Form 6, AIOCR 1; thêm 6 endpoint root, 7 health endpoint và Swagger theo môi trường.
+- Không tạo endpoint mới. Mỗi endpoint hiện có được ghi HTTP method, route, quyền, request/body/query, response DTO và status; có ví dụ cho login/HttpOnly, hồ sơ, RBAC, tìm kiếm/phân trang, version/publish, PDF draft/review và DOCX/schema.
+- FE: phân biệt route trực tiếp/Gateway, CSRF header/cookie refresh không có JSON token, policy ProcedureManager, revision draft, thời hạn SAS, các kiểu metadata phân trang và lỗi khác nhau. Ghi đúng hiện trạng DocumentForm chưa gắn xác thực, AIOCR nội bộ dùng service key, Workflow/Analytics chưa có API nghiệp vụ.
+- Kiểm chứng: đối chiếu tự động đủ 53/53 controller operations với bảng tài liệu; 4/4 ví dụ JSON parse thành công. Đối chiếu DTO, validators và cấu hình route trong source.
+- Build: dotnet build WardMate.sln -c Release --no-restore -warnaserror — thành công, 0 errors, 0 warnings.
+- Tests: 0 test mới; không chạy dotnet test vì thay đổi chỉ là tài liệu. Không tuyên bố kết quả test từ phiên trước là kết quả của phiên này.
+- Không chạy Git, không build Docker, không deploy.
+- Gợi ý commit tách file cho Antigravity: docs: add complete API reference and usage guide (docs/api-guide.md); docs: record API documentation completion (PROGRESS.md).
+
+## DOC-API-002 — Giải thích từng API theo tình huống sử dụng
+
+- Hoàn thành: 2026-10-04 22:11:00 Asia/Saigon (UTC+07:00).
+- File thay đổi: docs/api-guide.md, AGENTS.md, PROGRESS.md.
+- Bổ sung 53 mục riêng cho 53 API controller: mục đích, cách gọi/quyền, kết quả, lỗi sử dụng và hướng xử lý bằng tiếng Việt dễ hiểu; hướng dẫn root/health/Swagger. Giữ phần DTO/request/status chi tiết làm tài liệu tra cứu phía sau.
+- AGENTS.md: yêu cầu cập nhật chính docs/api-guide.md khi thêm hoặc thay đổi API, bao gồm tình huống sử dụng sai và cách khắc phục.
+- Endpoint mới/thay đổi: không có. Không sửa hành vi API, request body hoặc response code.
+- FE: làm rõ 401/403, cookie và refresh, khác nhau giữa tài khoản/hồ sơ, role/quyền, preview/draft/publish, revision và cập nhật version, xử lý schema dưới dạng chuỗi JSON.
+- Kiểm chứng: đối chiếu 53/53 route controller có mục giải thích riêng; Release build với --no-restore -warnaserror thành công, 0 lỗi, 0 cảnh báo.
+- Tests: 0 test mới; không chạy dotnet test vì chỉ sửa tài liệu/quy tắc tài liệu. Không khẳng định coverage kiểm thử nghiệp vụ từ kiểm tra tài liệu.
+- Không chạy Git, Docker hoặc deploy.
+- Commit gợi ý theo file: docs: explain each API with usage scenarios and troubleshooting; docs: require ongoing API guide updates; docs: record API guide clarification.
+
+## DOC-API-003 — Trình bày API theo mẫu Service / Nhóm chức năng / Bảng
+
+- Hoàn thành: 2026-10-05 12:42:00 Asia/Saigon (UTC+07:00).
+- File thay đổi: docs/api-guide.md, PROGRESS.md.
+- Sắp xếp lại theo mẫu chủ dự án: trách nhiệm từng service, các nhóm chức năng, bảng Method & Đường dẫn / Quyền / Mục đích-cách dùng-kết quả / Trường hợp sai-cách xử lý. Giữ phụ lục DTO và ví dụ kỹ thuật để tra cứu.
+- Bổ sung đầy đủ nhóm draft/PDF, publish, AIOCR và tuyến Gateway còn thiếu trong mẫu. Giữ thông tin đúng code: REGISTERED_CITIZEN, reason tùy chọn, DocumentForm chưa gắn xác thực, route Gateway DocumentForm có prefix, thời hạn token lấy từ cấu hình/response.
+- API mới/thay đổi: không có; không thay request, response hoặc quyền. Nội dung mô tả 53 API nghiệp vụ cùng root/health/Swagger và reverse proxy.
+- Kiểm chứng: đối chiếu 53/53 endpoint controller có trong bảng nhóm; dotnet build WardMate.sln -c Release --no-restore -warnaserror thành công, 0 lỗi, 0 cảnh báo.
+- Tests: 0 test mới; không chạy dotnet test vì chỉ thay đổi tài liệu. Không dùng kết quả build để tuyên bố tests đã pass.
+- FE: giữ hướng dẫn cookie/CSRF, quyền, revision, trạng thái draft, DTO và tình huống lỗi theo từng API; tiếp tục cập nhật chính docs/api-guide.md khi API thay đổi.
+- Không chạy Git, không build Docker, không deploy.
+- Gợi ý commit: docs: organize API guide by service and feature group; docs: record API guide reorganization.
+
+## DOC-API-004 — Markdown dễ đọc trực tiếp trong IDE
+
+- Hoàn thành: 2026-10-05 12:45:30 Asia/Saigon (UTC+07:00).
+- File thay đổi: docs/api-guide.md, PROGRESS.md.
+- Giữ nhóm service/chức năng; chuyển bảng dài thành 53 mục API với quyền, mục đích, cách dùng, kết quả và lỗi riêng dòng. Loại bỏ HTML br và bảng rộng; ngắt dòng văn xuôi khoảng 110 ký tự, giữ code block và nội dung kỹ thuật.
+- Không thay endpoint, request, response, quyền hoặc hành vi token. FE tiếp tục dùng các DTO/ProblemDetails và hướng dẫn hiện có.
+- Kiểm tra: đủ 53 mục API, 4 ví dụ JSON hợp lệ, không còn HTML br/bảng rộng. Release build --no-restore -warnaserror: 0 lỗi, 0 cảnh báo.
+- Tests: 0 test mới; không chạy dotnet test vì chỉ sửa tài liệu. Không chạy Git/Docker/deploy.
+- Gợi ý commit: docs: make API guide readable in source editors; docs: record Markdown readability update.
+
+## IAM-WARD-001 — Quản lý tài khoản theo phường và danh mục để Front Desk tự lọc
+
+- Hoàn thành: 2026-10-05 15:00:00 Asia/Saigon (UTC+07:00).
+- Yêu cầu đã chốt: IT_ADMIN quản lý toàn hệ thống; MANAGER quản lý Front Desk cùng phường, được tạo tài khoản và cấp/gỡ riêng role FRONT_DESK_OFFICER. Mỗi Manager có một phường; một phường có nhiều Front Desk. Catalog chỉ cung cấp lĩnh vực/bộ lọc, chưa gán cứng lĩnh vực cho cán bộ.
+
+### Thay đổi nghiệp vụ và bảo vệ phạm vi
+
+- Thêm Ward và User.WardId nullable, FK/index; tài khoản cũ chưa gán phường giữ null. Manager không có phường bị từ chối quản lý (403).
+- Scope dựa trên DB hiện tại, không nhận phường từ JWT/request để quyết định quyền. Lọc trước count/paging và bảo vệ lookup/update/delete theo ID.
+- Admin = IT_ADMIN có iam.manage đang hoạt động. Manager chỉ quản lý tài khoản Front Desk cùng phường, không phải chính mình; loại các tài khoản kiêm role quản trị/role tùy chỉnh khỏi phạm vi Manager để tránh tác động tài khoản đặc quyền.
+- Không cấp iam.manage toàn cục cho Manager. Các API RBAC tạo/sửa/xóa role, gán quyền, audit vẫn Admin-only. PUT/DELETE user-role mở riêng FRONT_DESK_OFFICER cùng phường cho Manager; người nhận không được có role khác ngoài Front Desk/Citizen.
+- Tạo Front Desk tạo user/profile/role/phường trong một transaction. Admin phải chọn phường; Manager dùng phường DB của mình, truyền phường khác bị 403. Mật khẩu dùng BCrypt và validator đăng ký hiện có.
+- Kiểm tra scope và mutation cùng transaction/advisory lock với RBAC/đổi phường/khóa tài khoản. Sửa IdentityStore để dùng transaction có sẵn khi quản trị ghi profile, tránh transaction lồng nhau.
+- Đổi phường chỉ Admin; cập nhật DB và thu hồi refresh token. GET users/me bổ sung wardId; access token cũ không vượt scope IAM mới.
+
+### Endpoints
+
+- Mới GET /api/v1/users?page=1&pageSize=20: không body; 200 {items,page,pageSize,total}; items có id/username/email/isActive/wardId?/wardName?/profile?/roles[{id,roleName}]; 400 phân trang, 401/403 quyền. Không trả hash/token; pageSize tối đa 100.
+- Mới POST /api/v1/accounts/front-desk: JSON {username,email,password,fullName,wardId?}; 201 ManagedUserDto; 400 dữ liệu, 403 phường/quyền, 404 phường không hợp lệ, 409 trùng tài khoản. Không cấp token đăng nhập.
+- Mới GET /api/v1/accounts/wards: không body; 200 WardDto[] {id,code,name}; Admin tất cả, Manager phường mình; 401/403.
+- Mới POST /api/v1/accounts/wards: Admin; JSON {code,name}; 201 WardDto, 400 validation, 401/403, 409 mã trùng.
+- Mới PUT /api/v1/accounts/{userId}/ward: Admin; JSON {wardId:Guid|null}; 204, 401/403, 404 user/phường. Null gỡ phường; body {} cũng có wardId null theo DTO, FE phải gửi rõ lựa chọn.
+- Mới GET /api/v1/procedures/categories: public, không body; 200 [{id,categoryName,description?}], dùng id với categoryId của API thủ tục hiện có; không gán lĩnh vực vào tài khoản. Gateway route procedures hiện có đã bao phủ endpoint.
+- Đổi quyền GET /api/v1/accounts, GET /api/v1/accounts/{userId}, PUT /api/v1/accounts/{userId}/status và GET/POST/PUT/DELETE /api/v1/users/{userId}/profile: Admin toàn hệ thống hoặc Manager trong scope. User ngoài scope trả 404 ở nhóm này.
+- Đổi quyền PUT/DELETE /api/v1/rbac/users/{userId}/roles/{roleId}: Manager chỉ cấp/gỡ FRONT_DESK_OFFICER cùng phường, ngoài phạm vi/quyền trả 403; Admin giữ chức năng hiện có.
+
+### File tạo mới hoặc sửa
+
+IAM Domain (src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Domain/):
+- Entities/Ward.cs (mới)
+- Entities/User.cs
+
+IAM Application (src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/):
+- Accounts/IManagementScope.cs (mới)
+- Accounts/StaffRequests.cs (mới)
+- Accounts/AccountRequests.cs
+- DTOs/IdentityDtos.cs
+- Rbac/RbacCommandHandlers.cs
+
+IAM Infrastructure (src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/):
+- DependencyInjection.cs
+- Persistence/ManagementScope.cs (mới)
+- Persistence/StaffAdministration.cs (mới)
+- Persistence/AccountStore.cs
+- Persistence/IdentityStore.cs
+- Persistence/IamDbContext.cs
+- Persistence/Configurations/IdentityConfigurations.cs
+- Persistence/Configurations/WardConfiguration.cs (mới)
+- Persistence/Migrations/20261005074640_WardScopedAccountManagement.cs (mới)
+- Persistence/Migrations/20261005074640_WardScopedAccountManagement.Designer.cs (mới)
+- Persistence/Migrations/IamDbContextModelSnapshot.cs
+
+IAM API (src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/):
+- Authorization/AccountManagementAuthorization.cs (mới)
+- Authorization/PermissionAuthorization.cs
+- Controllers/StaffAdministrationController.cs (mới)
+- Controllers/AccountsController.cs
+- Controllers/AdminProfilesController.cs
+- Controllers/UsersController.cs
+- Controllers/RbacController.cs
+
+Procedure Catalog (src/Services/WardMate.Services.ProcedureCatalog/):
+- WardMate.Services.ProcedureCatalog.Application/DTOs/ProcedureCategoryDto.cs (mới)
+- WardMate.Services.ProcedureCatalog.Application/Queries/GetProcedureCategoriesQuery.cs (mới)
+- WardMate.Services.ProcedureCatalog.Application/Interfaces/IProcedureRepository.cs
+- WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureRepository.cs
+- WardMate.Services.ProcedureCatalog.API/Controllers/ProceduresController.cs
+
+Kiểm thử và tài liệu:
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureListTests.cs (thêm 1 test vào project đã có, không tạo lại project test IAM)
+- docs/api-guide.md (59 API được đối chiếu; hướng dẫn mới, cập nhật scope/role/DTO)
+- PROGRESS.md
+
+### Kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: thành công, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: 153/153 passed, 0 failed, 0 skipped (DocumentForm 72; ProcedureCatalog 81).
+- Thêm 1 integration test vào test project hiện hữu: danh mục public cung cấp ID và lọc được nhiều lĩnh vực khác nhau mà không gán tài khoản.
+- Smoke test IAM độc lập: 52 HTTP checks PASS trên database PostgreSQL tạm mới, cùng assertions count/paging/profile/phường. Bao gồm migration DB sạch, Manager chưa có phường, tạo Front Desk, dữ liệu sai/trùng, chặn khác phường, bảo vệ account nhiều role, không cấp Admin, cấp/gỡ Front Desk, CRUD profile, khóa/mở, scope đổi ngay với token cũ, Manager bị khóa.
+- Smoke script nằm trong thư mục tạm, không tạo project test mới. Database tạm và tiến trình IAM cổng 5198 đã dọn sau chạy. Không dùng DB deploy để seed hoặc kiểm thử.
+- EF has-pending-model-changes: không còn thay đổi model chưa có migration.
+- Đối chiếu tài liệu đủ 59/59 controller operations.
+
+### Hướng dẫn bàn giao
+
+- Migration mới chỉ được áp dụng/kiểm chứng trên DB tạm. Chưa migrate DB Local Dev đang dùng hoặc Azure. Runtime AutoMigrate hiện có sẽ áp dụng khi bản mới được triển khai với cấu hình tương ứng.
+- Admin tạo phường, gán role MANAGER và wardId cho quản lý hiện có; Manager sau đó tự tạo Front Desk trong phường. Không tự gán phường giả cho tài khoản thật.
+- FE dùng GET users cho màn hình nhân sự, AccountPage cho danh sách gọn; CurrentUserDto thêm wardId nullable; ManagedUserDto.roles có id/roleName, khác roles:string[] trong users/me. Cookie/CSRF/token handling giữ nguyên.
+- FE không dựa riêng JWT role để quyết định phạm vi; xử lý 403 thiếu phường/quyền, 404 đối tượng ngoài phạm vi và 409 xung đột. Mọi message validation mới là tiếng Việt.
+- Catalog là bộ lọc tự chọn; chưa có phân công/giới hạn lĩnh vực theo cán bộ, chưa có CRUD danh mục.
+- Không chạy lệnh Git, không build image Docker, không deploy. Antigravity xử lý commit từng file theo quy tắc hiện hành.
+- Gợi ý Conventional Commits theo phần thay đổi: feat(iam): scope account management by ward; feat(iam): let managers provision front desk accounts; feat(procedure-catalog): expose procedure category filters; test(procedure-catalog): verify category discovery and filtering; docs: describe ward scoped management APIs.
+
+## IAM-PROFILES-001 — API danh sách hồ sơ người dùng
+
+Hoàn thành: 2026-10-05 21:44:37 +07:00 (Asia/Saigon, UTC+07:00).
+
+- Thêm GET /api/v1/users/profiles?page=1&pageSize=20, không request body, Bearer JWT của IAM.
+- 200 ProfilePage {items,page,pageSize,total}; item có userId, fullName, identityNumber, phoneNumber,
+  dateOfBirth, gender, permanentAddress, temporaryAddress, updatedAt. Null bị bỏ theo cấu hình IAM.
+- Chỉ lấy profile tồn tại; bao gồm profile tài khoản bị khóa trong phạm vi. Sắp xếp FullName, UserId.
+- Admin theo policy quản trị hiện tại xem toàn hệ thống; Manager chỉ Front Desk cùng phường, loại tài khoản
+  có role đặc quyền khác. Tái sử dụng ManagementScope, lọc trước Count/Skip/Take. Không nhận wardId từ FE.
+- 400 query sai (page 1..1000000, pageSize 1..100, validation tiếng Việt); 401 token sai/hết hạn;
+  403 thiếu quyền/phường hoặc actor bị khóa. Trang không có hồ sơ trả 200 items rỗng.
+- FE lấy userId để mở API profile chi tiết; gọi các trang liên tiếp nếu cần lấy toàn bộ phạm vi.
+  Không đổi cookie/CSRF hoặc database schema, không cần migration.
+
+File thay đổi (đường dẫn trong src/Services/WardMate.Services.IAM/):
+
+- WardMate.Services.IAM.API/Controllers/AdminProfilesController.cs
+- WardMate.Services.IAM.Application/Profiles/ProfileRequests.cs
+- WardMate.Services.IAM.Application/Profiles/ProfileHandlers.cs
+- WardMate.Services.IAM.Application/Profiles/ProfileValidators.cs
+- WardMate.Services.IAM.Application/Interfaces/IProfileStore.cs
+- WardMate.Services.IAM.Infrastructure/Persistence/ProfileStore.cs
+- docs/api-guide.md và PROGRESS.md tại repository (hướng dẫn có 60 mục API).
+
+Kiểm chứng:
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror: 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-build --no-restore: 152 passed, 0 failed, 0 skipped
+  (DocumentForm 71; ProcedureCatalog 81).
+- Số test IAM mới: 0; không tạo lại project test theo AGENTS.md. Bộ test hiện có không bao phủ API IAM mới;
+  đã rà soát route, DTO, validation, DI và tái sử dụng scope quản lý. Chưa kiểm thử HTTP API mới trên DB thật.
+- Gợi ý Conventional Commit: feat(iam): add paginated profiles within management scope.
+
+## DF-DEPLOY-LOCAL-20261006 — Docker recovery and Azure deployment preparation
+
+Completion time: 2026-10-06 17:13:48 +07:00 (Asia/Saigon). Local checkpoint complete; Azure deployment incomplete pending actual resource names/access. No Git commands or remote writes performed.
+
+Changed paths:
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Dockerfile — fix malformed UseAppHost publish argument.
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/UserSubmissionQueries.cs — fix enum status filtering that caused PostgreSQL-backed Officer GET to return 500; unknown status now returns 400.
+- docs/documentform-deployment.md (new) — local restart instructions, actual API contracts, Azure checkpoints and verified gaps.
+- PROGRESS.md — this entry.
+
+Runtime work: restarted existing wardmate_postgres, wardmate_pgadmin, wardmate_azurite without deleting volumes. Created separate UTF8 wardmate_documentform_db; old wardmate_db preserved. Built wardmate-documentform:v1, started wardmate_documentform on 127.0.0.1:5004 with PostgreSQL host postgres and Azurite proxy URI http://azurite. Docker health is healthy. Both EF migrations applied: 20261002151540_InitialDocumentFormSchema, 20261004142021_AddUserSubmissions; five document schema tables verified.
+
+Validation:
+- Final dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1: PASS, 0 warnings, 0 errors. Initial default parallel build returned exit 1 without diagnostics; serial build succeeded, and was repeated successfully after the filter fix.
+- Docker build and publish: PASS, 0 compiler warnings/errors.
+- Automated test runner: 0 tests run; no test projects added or recreated. Existing test csproj files were present in checkout and were compiled by solution build; no automated coverage claim.
+- 13 HTTP smoke checks passed (includes pgAdmin login, health, template listing, status variants/invalid statuses, create template/draft, populated filtering and DOCX download). Initial Officer status check reproduced 500 before fix; subsequent checks passed.
+- Synthetic local data retained for inspection only: template 9a8ffa13-4f51-44a1-a9fd-ce216caa6d3a and draft d532741b-b92b-4ed7-85e0-a86af0f6c212; generated temporary DOCX removed. No real citizen data used.
+
+Endpoints/request bodies/status codes:
+- GET localhost:5050/login: 200.
+- GET /health: 200 Healthy (liveness only).
+- GET /api/v1/form-templates: 200 paginated DTO (items array).
+- POST /api/v1/form-templates: JSON {code,title}, 201.
+- POST /api/v1/citizen/submissions/draft: multipart templateId, applicantId, file (.docx), 201. JSON from proposed deployment plan is not the current contract.
+- GET /api/v1/officer/submissions?status=Submitted, Draft, submitted: 200; invalid and 999: 400 {code:document.invalid_submission_status,message}. Populated check: Draft count 1, Submitted count 0.
+- GET /api/v1/citizen/submissions/{submissionId}/download-docx: 200, 829-byte synthetic DOCX downloaded from Azurite.
+
+Frontend/ProblemDetails/token notes: no DTO or token shape changes. Status filter now validates enum values; business errors use code/message, while model validation/global errors use ProblemDetails. DocumentForm and Gateway source currently lack JWT/role enforcement on these routes. Public access to real records requires authorization/ownership work before release. Draft storage currently uses configured form-templates container with user-submissions prefix; separate submissions container is not used automatically.
+
+Outstanding Azure checkpoints: verify PostgreSQL FQDN/admin, ACR name/login server/image, Storage account, Gateway URL/environment; configure secrets, private ingress, database/Blob network access; verify revision/logs and gateway APIs, then CI/CD. Screenshot establishes IAM in managedEnvironment-rgwardmateprod-bd51, Japan East, not planned cae-wardmate-prod. No Azure deployment/CI/CD success claimed. User chose Azure Container Apps, not VM.
+
+Antigravity commit suggestions (separate functional updates/new files; no squash): fix(documentform): correct Docker publish argument; fix(documentform): filter submissions using mapped status enum; docs(documentform): add local recovery and Azure deployment checklist; docs(progress): record DocumentForm deployment preparation.
+
+## DF-SWAGGER-ACR-20261006 — Production Swagger and registry image
+
+Completed local preparation at 2026-10-06 18:19:55 +07:00 (Asia/Saigon); cloud deployment still pending.
+Changed: src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Program.cs; docs/documentform-deployment.md; PROGRESS.md.
+Swagger:Enabled enables Swagger outside Development. Relative ./v1/swagger.json supports Gateway prefix /api/document-form/swagger/; OpenAPI server / targets the existing gateway /api/v1 routes. No business DTO, ProblemDetails or token changes.
+Validation: solution Release build --no-restore -warnaserror -m:1 PASS (0 warnings/errors); Docker build/publish PASS. Production container with Swagger__Enabled=true and Database__AutoMigrate=false: GET /swagger/index.html 200; GET /swagger/v1/swagger.json 200 with server /. Temporary container removed. No database accessed. Two HTTP checks; 0 automated tests run, no test project created. Gateway end-to-end Swagger not yet verified.
+Local image: acrwardmate2026.azurecr.io/wardmate-documentform:demo-20261006. Not pushed. Azure CLI unavailable on PATH; user authentication pending. Registry hostname and separate Supabase project connection fields supplied by user; no password stored. Supabase migration, cloud Blob and Azure revision remain unverified.
+Suggested commits: feat(documentform): enable configurable Swagger behind gateway; docs(documentform): record registry and Swagger deployment configuration; docs(progress): record Swagger preparation. Antigravity handles Git; none executed.
+
+
+## DF-GATEWAY-V2-DIAG — 2026-10-06 22:11:04 +07:00 (Asia/Saigon)
+Changed path: PROGRESS.md only. Read-only cloud registry access: refreshed local ACR login and pulled Gateway v2; no cloud resource mutation or Git. Image digest sha256:d596e2d292a79649f39a13500b175255e2b1231ace30adc7cf1b3dc9cf7b83c5. Image appsettings confirms document-form / primary identifiers, but lacks direct DocumentForm /api/v1 routes. Local temporary Gateway with environment override targeted http://127.0.0.1:15099/health as expected. One HTTP smoke request GET /api/document-form/health (no body) returned expected 502 because synthetic destination had no listener; log proves override applied. Temporary container removed. 0 automated tests run; build not rerun for documentation-only diagnosis (previous Release build 0 warnings/errors). Azure user-supplied template contains correct override but runtime logs still show localhost:5004; runtime environment/deployed image identity remains to verify. No DTO/ProblemDetails/token changes. Azure deployment remains incomplete. Suggested commit: docs(progress): record Gateway v2 override diagnosis.
+
+
+
+## DF-ONLINE-ORIGINAL-DOCX — 2026-10-07 07:52 +07:00 (Asia/Saigon)
+
+Completed local backend implementation for an electronic form within a ProcedureCatalog checklist. ProcedureCatalog remains owner of procedures/checklists; DocumentForm does not approve the whole administrative application. Existing ProcedureCatalog FormDefinitionSchema.FormTemplateId links the services without cross-database access.
+
+Paths changed/new (relative to src/Services/WardMate.Services.DocumentForm unless stated otherwise; Domain/Application/Infrastructure/API below mean WardMate.Services.DocumentForm.Domain/.Application/.Infrastructure/.API respectively):
+- Domain: Models/DocxFieldMapping.cs (new); Entities/FormTemplateVersion.cs; Entities/UserSubmission.cs.
+- Application: Interfaces/IDocxFormEngine.cs (new), IDocumentDbContext.cs, IFormSchemaEngine.cs; Services/OnlineFormSupport.cs (new), FormSchemaEngine.cs; Commands/ConfigureOnlineFormCommand.cs (new), SaveDraftSubmissionCommand.cs, SubmitSubmissionCommand.cs, UploadFormTemplateDocxCommand.cs, CreateFormTemplateCommand.cs; Queries/GetFormTemplateByIdQuery.cs, DownloadFormTemplateDocxQuery.cs, UserSubmissionQueries.cs; DTOs/FormTemplateDto.cs, UserSubmissionDto.cs. Deleted Commands/OfficerReviewCommands.cs.
+- Infrastructure: DependencyInjection.cs; OpenXml/DocxFormEngine.cs (new), DocxPlaceholderEngine.cs (missing OpenXml using fixed); Persistence/DocumentDbContext.cs; Persistence/Configurations/FormTemplateVersionConfiguration.cs (new), UserSubmissionConfiguration.cs; Migrations/20261006184319_OnlineFormDrafts.cs and .Designer.cs (new), DocumentDbContextModelSnapshot.cs.
+- API: Controllers/FormTemplatesController.cs, CitizenSubmissionsController.cs; deleted Controllers/OfficerSubmissionsController.cs.
+- src/Gateways/WardMate.YarpGateway/appsettings.json: removed obsolete DocumentForm officer route.
+- tests/WardMate.Services.DocumentForm.Tests/OnlineFormTests.cs (new in existing project); scripts/verify-documentform-online.py (new); azure-documentform-api.http; root docs/api-guide.md, docs/documentform-deployment.md, PROGRESS.md.
+
+API contract (prefix /api/v1):
+- GET /form-templates: existing pagination; 200. POST /form-templates JSON {code,title}: 201, validation400, duplicate409.
+- GET /form-templates/{id}: 200 now includes onlineReady, templateVersionId, versionNumber, schemaDefinition object; 404.
+- POST /form-templates/{id}/upload-docx multipart file: 200, invalid400, missing404; original bytes stored intact. GET /form-templates/{id}/download-docx: 200 original binary, missing404.
+- NEW GET /form-templates/{id}/docx-structure: 200 {originalSha256,paragraphs:[{index,text}]}; 400/404/503.
+- NEW PUT /form-templates/{id}/online-config JSON {schemaDefinition,originalSha256,mappings:[{fieldId,paragraphIndex,start,length,expectedText}]}: 200 {templateVersionId}; 400 invalid mapping/schema, 404 missing, 409 changed source/concurrent config, 503 dependency.
+- POST /citizen/submissions/draft JSON {templateId,applicantId,templateVersionId?,formData:{...}}: 201; 400 validation, 404 missing, 409 unconfigured/legacy/version conflict, 503 dependency. Multipart no longer accepted (415).
+- PUT /citizen/submissions/{id}/draft JSON {applicantId,templateVersionId?,formData:{...}}: 200; replaces all JSON, pins original version; 400 finalized/invalid, 403 ownership mismatch, 404 missing, 409 concurrency/legacy, 503 dependency.
+- GET /citizen/submissions?applicantId=...: 200 paged; 400 empty applicant/invalid paging/status. GET /citizen/submissions/{id}?applicantId=...: 200 includes stored formData and pinned schema; 403/404.
+- POST /citizen/submissions/{id}/submit JSON {applicantId}: 200 Submitted after complete required-field validation; 400 incomplete/already finalized, 403/404/409. Pass submissionId to Workflow separately.
+- GET /citizen/submissions/{id}/download-docx?applicantId=...: 200 generated binary; 403/404/503.
+- REMOVED GET /form-templates/{id}/docx-url and all /officer/submissions list/detail/download/request-revision/approve endpoints. Old entity columns/data retained for compatibility; legacy file-only submissions cannot be edited/submitted through new JSON workflow.
+
+Frontend: schemaDefinition is an object with existing custom snake_case sections/field_id schema (not generic JSON Schema). Reopen drafts using their pinned schema; PUT sends complete formData; missing required permitted in drafts, blocked at submit. Citizen and online-config errors use ProblemDetails with code/traceId and fieldErrors (camelCase) for field validation. Existing template endpoints retain code/message error shape. No token changes; controllers still lack JWT authorization, applicantId is supplied data, not proof of identity. Production identity binding/admin authorization remains pending IAM integration.
+
+DOCX preservation: source remains byte-for-byte unchanged, SHA256 protects mapping against source changes; generated output replaces mapped ranges in a copy, retaining other package parts and run formatting. No placeholder insertion into original. Admin configures fields and UTF-16 paragraph offsets once per source version. Supports body/table text, not automatic semantic understanding of every official form; headers/footers/images preserved but not mapped. Long input may reflow pages. Real government DOCX visual verification and FE admin mapping screen remain outside this local backend delivery; no real sample supplied. Replaced draft output blobs are not garbage-collected yet.
+
+Validation of final source: dotnet build WardMate.sln -c Release --no-restore --nologo -m:1 PASS, 0 warnings, 0 errors. Existing DocumentForm test project: 76 passed, 0 failed, 0 skipped (includes 5 new tests; no test project recreated). Local-only HTTP script: 29 checks PASS against rebuilt API and separate PostgreSQL database wardmate_online_smoke_20261007 / Azurite container online-smoke-20261007, synthetic data only. Covers original byte equality, generated DOCX, partial/complete validation, ownership checks, pinned versions/new original behavior and removed Swagger endpoints. Local API stopped after verification; dedicated synthetic data retained. Migration applied only to dedicated local test DB. No full ProcedureCatalog integration test run; no cloud migration/deployment, no Git commands.
+
+Suggested Conventional Commit subject for feature: feat(documentform): support online drafts with preserved original DOCX
+Antigravity commit granularity: each new file listed above gets its own commit (feat for source/migration, test for OnlineFormTests and verification script); existing-file updates separated by functional change; docs(api-guide), docs(deployment), docs(progress) separate. Do not squash. Complete feature validated together; intermediate dependency commits may not compile. No commits or push executed by Codex.
+
+
+
+## DF-AZURE-ONLINE-DEPLOY — 2026-10-07 08:12 +07:00 (Asia/Saigon)
+
+Completed direct Azure deployment at user's explicit request. No Git. Local paths changed this session: docs/documentform-deployment.md, PROGRESS.md only; deployed prior completed source. Image acrwardmate2026.azurecr.io/wardmate-documentform:online-20261007-0755; digest sha256:9b32a1a6c00ca1fe010cf3f8278cc5fec0369abf23e32cc9247c1edff3b74bfb. Docker build 0 warnings/errors and local health/Swagger PASS. Existing whole-solution final build and 76 tests/29 local HTTP checks from DF-ONLINE-ORIGINAL-DOCX still apply; no source changes here.
+
+Azure wardmate-documentform Succeeded, image verified, Swagger enabled, AutoMigrate enabled, existing secret references preserved. Internal new API returns schema and DB-backed results; public template detail queries form_template_versions successfully, citizen list queries new columns successfully. Gateway destination duplicate fixed to one HTTPS address; citizen route added; template route preserved. Revision restart returned InternalServerError. Automatic review initially rejected shared Gateway stop due downtime scope; user explicitly approved stop/start, then completed successfully. Gateway runtime had stale environment before restart, final public tests passed afterward. CLI log stream still fails eventStreamEndpoint on Express; used container console and HTTP checks instead.
+
+Seven final public HTTP checks: GET /api/document-form/health200; GET /api/document-form/swagger/index.html200; GET /api/document-form/swagger/v1/swagger.json200 (online-config present, draft application/json, obsolete endpoints absent); GET /api/v1/form-templates200; GET /api/v1/citizen/submissions?applicantId=<synthetic UUID>200; GET /api/v1/form-templates/{existing-id}200; POST /api/v1/citizen/submissions/draft body {}400 (validation, no record created). Cloud create/upload/fill/submit not run; 29 end-to-end checks already passed locally. No new cloud test records. Temporary local Docker check container removed.
+
+Frontend request/DTO/ProblemDetails unchanged from DF-ONLINE-ORIGINAL-DOCX. User clarified login belongs to shared system; no separate account/login implementation and no token changes. Test Swagger at https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/document-form/swagger/index.html. Configure schema/mappings after uploading an original DOCX, then draft JSON and submit. Existing legacy records preserved, not auto-converted to online templates. Suggested Antigravity commit: docs(documentform): record verified Azure online-form deployment (separate docs/progress commits per standing workflow).
+
+## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
+
+Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
+
+Paths changed:
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/SaveDraftSubmissionCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/UploadFormTemplateDocxCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Interfaces/IDocxFormEngine.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Services/OnlineFormSupport.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/OpenXml/DocxFormEngine.cs
+- tests/WardMate.Services.DocumentForm.Tests/OnlineFormTests.cs
+- docs/api-guide.md
+
+API changes:
+- "PUT /api/v1/form-templates/{id}/online-config": Removed mappings from the required JSON payload. It now only takes schemaDefinition.
+- "GET /api/v1/form-templates/{id}/docx-structure": Removed entirely.
+
+This replaces the strict positional replacement engine with an automated append-to-end engine. Build and Tests succeeded (75/75 passed). Committed as eeab7626a64670c775485d6dbc07f13372e5540c. Waiting for user to confirm Docker execution.
+
+## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
+
+Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
+
+Paths changed:
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/SaveDraftSubmissionCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/UploadFormTemplateDocxCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Interfaces/IDocxFormEngine.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Services/OnlineFormSupport.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/OpenXml/DocxFormEngine.cs
+- tests/WardMate.Services.DocumentForm.Tests/OnlineFormTests.cs
+- docs/api-guide.md
+
+API changes:
+- "PUT /api/v1/form-templates/{id}/online-config": Removed mappings from the required JSON payload. It now only takes schemaDefinition.
+- "GET /api/v1/form-templates/{id}/docx-structure": Removed entirely.
+
+This replaces the strict positional replacement engine with an automated append-to-end engine. Build and Tests succeeded (75/75 passed). Committed as eeab7626a64670c775485d6dbc07f13372e5540c. Waiting for user to confirm Docker execution.

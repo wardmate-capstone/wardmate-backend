@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml;
 using System.Text;
 using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Packaging;
@@ -128,7 +129,102 @@ public sealed class DocxPlaceholderEngine : IDocxPlaceholderEngine
         };
     }
 
+    // ─── Fill placeholders ─────────────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public Stream FillPlaceholders(Stream templateStream, IReadOnlyDictionary<string, string> formData)
+    {
+        ArgumentNullException.ThrowIfNull(templateStream);
+        ArgumentNullException.ThrowIfNull(formData);
+
+        // Copy template into a writable MemoryStream
+        var ms = new MemoryStream();
+        templateStream.CopyTo(ms);
+        ms.Position = 0;
+
+        using (var wordDoc = WordprocessingDocument.Open(ms, isEditable: true))
+        {
+            var mainPart = wordDoc.MainDocumentPart
+                ?? throw new InvalidOperationException("DOCX has no main document part.");
+
+            // Fill body
+            FillInElement(mainPart.Document.Body!, formData);
+
+            // Fill headers and footers
+            foreach (var headerPart in mainPart.HeaderParts)
+                FillInElement(headerPart.Header, formData);
+            foreach (var footerPart in mainPart.FooterParts)
+                FillInElement(footerPart.Footer, formData);
+
+            mainPart.Document.Save();
+        }
+
+        ms.Position = 0;
+        return ms;
+    }
+
+    /// <summary>
+    /// Duyệt qua tất cả Paragraph trong element và điền giá trị vào placeholder.
+    /// </summary>
+    private static void FillInElement(OpenXmlElement root, IReadOnlyDictionary<string, string> formData)
+    {
+        foreach (var para in root.Descendants<Paragraph>().ToList())
+            NormalizeAndFillParagraph(para, formData);
+    }
+
+    /// <summary>
+    /// Với mỗi đoạn văn (Paragraph): ghép toàn bộ text từ các Run,
+    /// thay thế placeholders trong chuỗi đã ghép, rồi ghi lại vào Run đầu tiên.
+    /// Cách này xử lý được trường hợp placeholder bị Word tự phân mảnh sang nhiều Run.
+    /// </summary>
+    private static void NormalizeAndFillParagraph(Paragraph para, IReadOnlyDictionary<string, string> formData)
+    {
+        var runs = para.Elements<Run>().ToList();
+        if (runs.Count == 0) return;
+
+        // Ghép toàn bộ text trong paragraph
+        var fullText = string.Concat(
+            runs.SelectMany(r => r.Elements<Text>()).Select(t => t.Text));
+
+        if (!fullText.Contains("{{")) return;
+
+        // Thay thế từng placeholder (case-insensitive)
+        foreach (var (key, value) in formData)
+        {
+            fullText = Regex.Replace(
+                fullText,
+                @"\{\{\s*" + Regex.Escape(key) + @"\s*\}\}",
+                value ?? string.Empty,
+                RegexOptions.IgnoreCase);
+        }
+
+        // Ghi text đã thay thế vào Run đầu tiên
+        var firstRun = runs[0];
+        var existingTexts = firstRun.Elements<Text>().ToList();
+
+        Text firstText;
+        if (existingTexts.Count > 0)
+        {
+            firstText = existingTexts[0];
+            foreach (var extra in existingTexts.Skip(1)) extra.Remove();
+        }
+        else
+        {
+            firstText = new Text();
+            firstRun.AppendChild(firstText);
+        }
+
+        firstText.Text = fullText;
+        firstText.Space = SpaceProcessingModeValues.Preserve;
+
+        // Xoá text trong các Run còn lại (giữ nguyên Run để không mất formatting)
+        foreach (var run in runs.Skip(1))
+            foreach (var t in run.Elements<Text>().ToList())
+                t.Remove();
+    }
+
     // ─── Private helpers ───────────────────────────────────────────────────────
+
 
     private static string ExtractFullText(Body body)
     {

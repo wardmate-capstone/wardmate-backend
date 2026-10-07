@@ -138,6 +138,22 @@ try {
     $null = Start-Api 'src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API' 'WardMate.Services.IAM.API' $iamPort $settings
     $secureLogin = Request POST '/api/v1/auth/login' $credentials @{ 'X-CSRF-Protection' = '1' }
     Check ($secureLogin.StatusCode -eq 200 -and ($secureLogin.Headers['Set-Cookie'] -join '') -match ';\s*secure') 'Production always issues Secure cookie'
+    $publicHost = 'wardmate-iam.blackmeadow-a2f12767.japaneast.azurecontainerapps.io'
+    $proxyHeaders = @{
+        Origin = "https://$publicHost"; 'X-CSRF-Protection' = '1'
+        'X-Forwarded-Host' = $publicHost; 'X-Forwarded-Proto' = 'https'; 'X-Forwarded-For' = '198.51.100.10'
+    }
+    $proxyLogin = Request POST '/api/v1/auth/login' $credentials $proxyHeaders
+    Check ($proxyLogin.StatusCode -eq 200) 'Forwarded HTTPS Swagger origin works without CORS allowlisting'
+    $withoutForwarding = Request POST '/api/v1/auth/login' $credentials @{ Origin = "https://$publicHost"; 'X-CSRF-Protection' = '1' }
+    Check ($withoutForwarding.StatusCode -eq 403) 'External origin mismatches internal HTTP request without forwarding'
+    $noCsrf = $proxyHeaders.Clone(); $noCsrf.Remove('X-CSRF-Protection')
+    Check ((Request POST '/api/v1/auth/login' $credentials $noCsrf).StatusCode -eq 403) 'Forwarding does not bypass CSRF header requirement'
+    $wrongOrigin = $proxyHeaders.Clone(); $wrongOrigin.Origin = 'https://untrusted.example.test'
+    Check ((Request POST '/api/v1/auth/login' $credentials $wrongOrigin).StatusCode -eq 403) 'Forwarding still rejects unrelated origins'
+    $allowedOrigin = $proxyHeaders.Clone(); $allowedOrigin.Origin = 'https://frontend.example.test'
+    $allowedResponse = Request POST '/api/v1/auth/login' $credentials $allowedOrigin
+    Check ($allowedResponse.StatusCode -eq 200 -and ($allowedResponse.Headers['Access-Control-Allow-Origin'] -join '') -eq $allowedOrigin.Origin) 'Forwarding preserves credentialed CORS for approved frontend'
     Write-Output "Completed: $script:checks HTTP checks passed."
 }
 finally {

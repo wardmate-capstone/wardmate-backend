@@ -1,0 +1,42 @@
+# Local source contract. Azure still requires a separate deployment.
+@baseUrl = http://localhost:15014
+@templateId = REPLACE_TEMPLATE_ID
+@submissionId = REPLACE_SUBMISSION_ID
+@applicantId = 11111111-1111-1111-1111-111111111111
+
+### FE: get schema and templateVersionId; require onlineReady=true
+GET {{baseUrl}}/api/v1/form-templates/{{templateId}}
+
+### Admin: inspect original paragraphs before configuring mappings
+GET {{baseUrl}}/api/v1/form-templates/{{templateId}}/docx-structure
+
+### See docs/api-guide.md for upload and online-config bodies.
+### Citizen: save JSON draft (use field IDs from the template schema)
+POST {{baseUrl}}/api/v1/citizen/submissions/draft
+Content-Type: application/json
+
+{"templateId":"{{templateId}}","applicantId":"{{applicantId}}","formData":{"ho_ten":"Nguoi dung thu nghiem"}}
+
+### Reopen draft, including pinned schema and saved formData
+GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}?applicantId={{applicantId}}
+
+### Replace ALL formData; omitted optional fields are cleared
+PUT {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/draft
+Content-Type: application/json
+
+{"applicantId":"{{applicantId}}","formData":{"ho_ten":"Nguoi dung thu nghiem","ngay_sinh":"2000-01-02"}}
+
+### Finalize the electronic form, not the whole procedure application
+POST {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/submit
+Content-Type: application/json
+
+{"applicantId":"{{applicantId}}"}
+
+### Download generated copy
+GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/download-docx?applicantId={{applicantId}}
+
+### List own electronic forms
+GET {{baseUrl}}/api/v1/citizen/submissions?applicantId={{applicantId}}&page=1&pageSize=20
+
+# applicantId is not authentication: integrate verified JWT identity before production.
+# Removed: officer review APIs, docx-url, citizen multipart Word editing.

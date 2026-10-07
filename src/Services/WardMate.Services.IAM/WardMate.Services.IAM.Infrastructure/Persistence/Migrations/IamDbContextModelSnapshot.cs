@@ -350,6 +350,10 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("username");
 
+                    b.Property<Guid?>("WardId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ward_id");
+
                     b.HasKey("Id")
                         .HasName("pk_users");
 
@@ -360,6 +364,9 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                     b.HasIndex("Username")
                         .IsUnique()
                         .HasDatabaseName("ix_users_username");
+
+                    b.HasIndex("WardId")
+                        .HasDatabaseName("ix_users_ward_id");
 
                     b.ToTable("users", (string)null);
                 });
@@ -436,6 +443,35 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                     b.ToTable("user_roles", (string)null);
                 });
 
+            modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.Ward", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_wards");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_wards_code");
+
+                    b.ToTable("wards", (string)null);
+                });
+
             modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("WardMate.Services.IAM.Domain.Entities.User", "User")
@@ -467,6 +503,17 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                     b.Navigation("Permission");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.User", b =>
+                {
+                    b.HasOne("WardMate.Services.IAM.Domain.Entities.Ward", "Ward")
+                        .WithMany()
+                        .HasForeignKey("WardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_users_wards_ward_id");
+
+                    b.Navigation("Ward");
                 });
 
             modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.UserProfile", b =>

@@ -99,3 +99,27 @@ dotnet test WardMate.sln -c Release --no-build
 ```
 
 Script HTTP tự tạo PostgreSQL container riêng và hai process IAM/Gateway tạm, tự dọn khi kết thúc. Không build Docker image, không dùng DB Local Dev, không thêm test project IAM đã bị gỡ. Kiểm tra HTTP/header không thay thế E2E trên browser của FE; FE vẫn cần xác minh credentials/cookie policy trong môi trường chạy thật.
+
+## IAM-007 — Forwarded Headers trên Azure Container Apps / Reverse Proxy
+
+IAM xử lý X-Forwarded-For, X-Forwarded-Proto và X-Forwarded-Host bằng UseForwardedHeaders ngay sau UseGlobalExceptionHandling, trước logging, CORS, Swagger và Authentication/Authorization. Khi ingress chuyển tiếp HTTPS public host về container HTTP, Request.Scheme/Host được khôi phục trước BrowserAuthProtectionAttribute; Origin của Swagger cùng domain được nhận diện là same-origin, không cần thêm chính domain Swagger vào CORS AllowedOrigins.
+
+Ví dụ ingress chuyển tới container:
+
+```text
+Origin: https://wardmate-iam.blackmeadow-a2f12767.japaneast.azurecontainerapps.io
+X-Forwarded-Proto: https
+X-Forwarded-Host: wardmate-iam.blackmeadow-a2f12767.japaneast.azurecontainerapps.io
+X-Forwarded-For: <client-ip>
+X-CSRF-Protection: 1
+```
+
+X-CSRF-Protection: 1 vẫn bắt buộc; origin khác vẫn phải thuộc Cors:AllowedOrigins. Không thêm wildcard CORS và không bỏ kiểm tra CSRF. Không cần thay DTO, cookie hay endpoint.
+
+Theo cấu hình container được yêu cầu, KnownNetworks/KnownProxies được Clear để chấp nhận proxy có IP động. Điều này tin cậy forwarded headers từ mọi địa chỉ kết nối: container phải chỉ được truy cập qua ingress/proxy kiểm soát được; ingress phải ghi đè/làm sạch header do client tự gửi. Không coi việc Clear là an toàn cho Kestrel mở trực tiếp ra Internet.
+
+Giữ ForwardLimit mặc định 1: dùng giá trị bên phải của chuỗi forwarded headers từ hop gần IAM nhất. Nếu có nhiều hop (Azure ingress → YARP → IAM), proxy gần IAM cần chuyển tiếp đúng public host/proto. Nếu YARP phát X-Forwarded-Proto=http vì chưa xử lý TLS termination ở upstream, cần cấu hình forwarded headers của chính Gateway theo topology thực tế; IAM không thể suy ra HTTPS từ header sai. Không tự tăng ForwardLimit vô hạn khi không giới hạn proxy tin cậy.
+
+Tài liệu Microsoft: https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0
+
+Script scripts/verify-iam-cookie.ps1 bổ sung regression checks cho origin Azure giả lập qua HTTP local: cùng host/proto forwarded thành công dù không nằm allowlist; bỏ forwarded headers thì bị từ chối; thiếu CSRF hoặc origin lạ vẫn403; FE trong allowlist vẫn có credentialed CORS. Đây là kiểm thử local, không phải xác nhận đã deploy/sửa thành công trên Azure. Sau deploy cần kiểm tra revision mới và Execute trên Swagger thật. Swagger vẫn chỉ bật trong Development theo cấu hình cũ; bản sửa không bật Swagger ở Production.

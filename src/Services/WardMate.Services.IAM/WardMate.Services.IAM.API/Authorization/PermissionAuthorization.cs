@@ -25,8 +25,10 @@ public static class PermissionAuthorization
     {
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddScoped<IAuthorizationHandler, RbacAdministratorHandler>();
+        services.AddScoped<IAuthorizationHandler, AccountManagementHandler>();
         services.AddAuthorization(options =>
         {
+            options.AddPolicy(AccountManagementRequirement.Policy, policy => policy.RequireAuthenticatedUser().AddRequirements(new AccountManagementRequirement()));
             options.AddPolicy(RbacAdministratorRequirement.Policy, policy => policy.RequireAuthenticatedUser()
                 .AddRequirements(new RbacAdministratorRequirement()));
             foreach (var permission in new[] { PermissionCodes.ProfileRead, PermissionCodes.ProfileWrite, PermissionCodes.Manage })

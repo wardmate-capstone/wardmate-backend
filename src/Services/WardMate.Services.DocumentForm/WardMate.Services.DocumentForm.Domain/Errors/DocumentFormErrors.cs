@@ -33,4 +33,31 @@ public static class DocumentFormErrors
 
     public static Error PlaceholderMismatch(string details) =>
         Error.Validation("document.placeholder_mismatch", details);
+
+    public static Error FileNotUploaded =>
+        Error.NotFound("document.file_not_uploaded", "No DOCX file has been uploaded for this template yet.");
+
+    // ── UserSubmission errors ────────────────────────────────────────
+
+    public static Error SubmissionNotFound(Guid submissionId) =>
+        Error.NotFound("document.submission_not_found", $"User submission with ID '{submissionId}' was not found.");
+
+    public static Error SubmissionNotOwnedByApplicant(Guid submissionId, Guid applicantId) =>
+        Error.Forbidden("document.submission_not_owned", $"Submission '{submissionId}' does not belong to applicant '{applicantId}'.");
+
+    public static Error SubmissionInvalidStatusTransition(string currentStatus, string action) =>
+        Error.Validation("document.submission_invalid_transition",
+            $"Cannot perform '{action}' on a submission with status '{currentStatus}'.");
+
+    public static Error SubmissionFileNotFound(Guid submissionId) =>
+        Error.NotFound("document.submission_file_not_found",
+            $"No DOCX file found for submission '{submissionId}'.");
+
+    public static Error BlobUploadFailed(string detail) =>
+        Error.Failure("document.blob_upload_failed",
+            $"Failed to upload file to storage: {detail}");
+
+    public static Error FormDataRequired =>
+        Error.Validation("document.form_data_required",
+            "Form data must contain at least one field value.");
 }

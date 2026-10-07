@@ -11,22 +11,22 @@ namespace WardMate.Services.DocumentForm.Application.Commands;
 public sealed record CreateFormTemplateCommand(
     string Code,
     string Title,
-    string? InitialSchemaDefinition = null,
     string? CreatedBy = null) : ICommand<FormTemplateDetailDto>;
 
 public sealed class CreateFormTemplateCommandHandler : ICommandHandler<CreateFormTemplateCommand, FormTemplateDetailDto>
 {
     private readonly IDocumentDbContext _dbContext;
-    private readonly IFormSchemaEngine _schemaEngine;
 
-    public CreateFormTemplateCommandHandler(IDocumentDbContext dbContext, IFormSchemaEngine schemaEngine)
+    public CreateFormTemplateCommandHandler(IDocumentDbContext dbContext)
     {
         _dbContext = dbContext;
-        _schemaEngine = schemaEngine;
     }
 
     public async Task<Result<FormTemplateDetailDto>> Handle(CreateFormTemplateCommand request, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Code) || request.Code.Trim().Length > 50
+            || string.IsNullOrWhiteSpace(request.Title) || request.Title.Trim().Length > 255)
+            return Error.Validation("document.invalid_template", "Code (1..50) and title (1..255) are required.");
         var normalizedCode = request.Code.Trim().ToUpperInvariant();
 
         var existing = await _dbContext.FormTemplates
@@ -39,17 +39,6 @@ public sealed class CreateFormTemplateCommandHandler : ICommandHandler<CreateFor
 
         var template = new FormTemplate(normalizedCode, request.Title, createdBy: request.CreatedBy);
 
-        if (!string.IsNullOrWhiteSpace(request.InitialSchemaDefinition))
-        {
-            var validateSchemaResult = _schemaEngine.ParseAndValidateSchema(request.InitialSchemaDefinition);
-            if (!validateSchemaResult.IsSuccess)
-            {
-                return validateSchemaResult.Error;
-            }
-
-            template.AddVersion(request.InitialSchemaDefinition, request.CreatedBy);
-        }
-
         _dbContext.FormTemplates.Add(template);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -61,16 +50,7 @@ public sealed class CreateFormTemplateCommandHandler : ICommandHandler<CreateFor
             FileDocxUrl = template.FileDocxUrl,
             IsActive = template.IsActive,
             CreatedAtUtc = template.CreatedAtUtc,
-            UpdatedAtUtc = template.UpdatedAtUtc,
-            Versions = template.Versions.Select(v => new FormTemplateVersionDto
-            {
-                Id = v.Id,
-                TemplateId = v.TemplateId,
-                VersionNumber = v.VersionNumber,
-                SchemaDefinition = v.SchemaDefinition,
-                CreatedAtUtc = v.CreatedAtUtc,
-                UpdatedAtUtc = v.UpdatedAtUtc
-            }).ToList()
+            UpdatedAtUtc = template.UpdatedAtUtc
         };
 
         return dto;

@@ -22,7 +22,6 @@ public sealed class GetFormTemplateByIdQueryHandler : IQueryHandler<GetFormTempl
     {
         var template = await _dbContext.FormTemplates
             .AsNoTracking()
-            .Include(t => t.Versions)
             .FirstOrDefaultAsync(t => t.Id == request.TemplateId, cancellationToken);
 
         if (template is null)
@@ -30,26 +29,22 @@ public sealed class GetFormTemplateByIdQueryHandler : IQueryHandler<GetFormTempl
             return DocumentFormErrors.TemplateNotFound(request.TemplateId);
         }
 
+        var version = await _dbContext.FormTemplateVersions.AsNoTracking()
+            .Where(v => v.TemplateId == template.Id && v.OriginalBlobUrl == template.FileDocxUrl && !v.IsDeleted)
+            .OrderByDescending(v => v.VersionNumber).FirstOrDefaultAsync(cancellationToken);
         var dto = new FormTemplateDetailDto
         {
             Id = template.Id,
+            TemplateVersionId = version?.Id,
+            VersionNumber = version?.VersionNumber,
+            SchemaDefinition = version is null ? null : System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(version.SchemaDefinition),
+            OnlineReady = template.IsActive && version is not null,
             Code = template.Code,
             Title = template.Title,
             FileDocxUrl = template.FileDocxUrl,
             IsActive = template.IsActive,
             CreatedAtUtc = template.CreatedAtUtc,
-            UpdatedAtUtc = template.UpdatedAtUtc,
-            Versions = template.Versions
-                .OrderByDescending(v => v.VersionNumber)
-                .Select(v => new FormTemplateVersionDto
-                {
-                    Id = v.Id,
-                    TemplateId = v.TemplateId,
-                    VersionNumber = v.VersionNumber,
-                    SchemaDefinition = v.SchemaDefinition,
-                    CreatedAtUtc = v.CreatedAtUtc,
-                    UpdatedAtUtc = v.UpdatedAtUtc
-                }).ToList()
+            UpdatedAtUtc = template.UpdatedAtUtc
         };
 
         return dto;

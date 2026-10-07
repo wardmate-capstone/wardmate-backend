@@ -13,6 +13,7 @@ public interface IDocumentDbContext
     DbSet<ApplicationForm> ApplicationForms { get; }
     DbSet<SupportingDocument> SupportingDocuments { get; }
     DbSet<GeneratedDocument> GeneratedDocuments { get; }
+    DbSet<UserSubmission> UserSubmissions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

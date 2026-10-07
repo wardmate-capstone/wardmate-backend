@@ -1,0 +1,89 @@
+2026-10-02 22:18:39.316 +07:00 [ERR] Microsoft.EntityFrameworkCore.Database.Command: Failed executing DbCommand (19ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE TABLE document.application_forms (
+    id uuid NOT NULL DEFAULT (uuid_generate_v4()),
+    application_id uuid NOT NULL,
+    form_data jsonb NOT NULL,
+    created_by character varying(100),
+    updated_by character varying(100),
+    created_at timestamptz NOT NULL,
+    updated_at timestamptz,
+    is_deleted boolean NOT NULL DEFAULT FALSE,
+    deleted_at timestamptz,
+    CONSTRAINT pk_application_forms PRIMARY KEY (id)
+);
+2026-10-02 22:18:39.484 +07:00 [WRN] : Failed to apply database migrations automatically on startup.
+Npgsql.PostgresException (0x80004005): 42P07: relation "application_forms" already exists
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteNonQuery(Boolean async, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQueryAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQueryAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQueryAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Migrations.Internal.MigrationCommandExecutor.ExecuteNonQueryAsync(IEnumerable`1 migrationCommands, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Migrations.Internal.MigrationCommandExecutor.ExecuteNonQueryAsync(IEnumerable`1 migrationCommands, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Migrations.Internal.MigrationCommandExecutor.ExecuteNonQueryAsync(IEnumerable`1 migrationCommands, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Migrations.Internal.MigrationCommandExecutor.ExecuteNonQueryAsync(IEnumerable`1 migrationCommands, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Migrations.Internal.Migrator.MigrateAsync(String targetMigration, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Migrations.Internal.NpgsqlMigrator.MigrateAsync(String targetMigration, CancellationToken cancellationToken)
+   at Program.<Main>$(String[] args) in D:\term 9\wardmate-backend\src\Services\WardMate.Services.DocumentForm\WardMate.Services.DocumentForm.API\Program.cs:line 69
+   at Program.<Main>$(String[] args) in D:\term 9\wardmate-backend\src\Services\WardMate.Services.DocumentForm\WardMate.Services.DocumentForm.API\Program.cs:line 69
+  Exception data:
+    Severity: ERROR
+    SqlState: 42P07
+    MessageText: relation "application_forms" already exists
+    File: heap.c
+    Line: 1167
+    Routine: heap_create_with_catalog
+2026-10-02 22:18:39.973 +07:00 [INF] : WardMate.Services.DocumentForm started successfully.
+2026-10-02 22:18:40.220 +07:00 [INF] Microsoft.Hosting.Lifetime: Now listening on: http://localhost:5004
+2026-10-02 22:18:40.224 +07:00 [INF] Microsoft.Hosting.Lifetime: Application started. Press Ctrl+C to shut down.
+2026-10-02 22:18:40.224 +07:00 [INF] Microsoft.Hosting.Lifetime: Hosting environment: Development
+2026-10-02 22:18:40.224 +07:00 [INF] Microsoft.Hosting.Lifetime: Content root path: D:\term 9\wardmate-backend\src\Services\WardMate.Services.DocumentForm\WardMate.Services.DocumentForm.API
+2026-10-02 22:19:30.894 +07:00 [INF] : WardMate.Services.DocumentForm started successfully.
+2026-10-02 22:19:30.961 +07:00 [INF] Microsoft.Hosting.Lifetime: Now listening on: http://localhost:5004
+2026-10-02 22:19:30.963 +07:00 [INF] Microsoft.Hosting.Lifetime: Application started. Press Ctrl+C to shut down.
+2026-10-02 22:19:30.964 +07:00 [INF] Microsoft.Hosting.Lifetime: Hosting environment: Development
+2026-10-02 22:19:30.964 +07:00 [INF] Microsoft.Hosting.Lifetime: Content root path: D:\term 9\wardmate-backend\src\Services\WardMate.Services.DocumentForm\WardMate.Services.DocumentForm.API
+2026-10-02 22:20:07.999 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates  => 201 [389ms] | IP: ::1 | TraceId: 0HNP0J2I6M0BK:00000001
+2026-10-02 22:20:08.004 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates responded 201 in 401.173 ms
+2026-10-02 22:20:44.728 +07:00 [WRN] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates  => 409 [70ms] | IP: ::1 | TraceId: 0HNP0J2I6M0BL:00000001
+2026-10-02 22:20:44.728 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates responded 409 in 71.389 ms
+2026-10-02 22:20:54.170 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates  => 201 [11ms] | IP: ::1 | TraceId: 0HNP0J2I6M0BM:00000001
+2026-10-02 22:20:54.170 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates responded 201 in 11.368 ms
+2026-10-02 22:21:56.311 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /swagger/index.html  => 200 [127ms] | IP: ::1 | TraceId: 0HNP0J2I6M0BN:00000001
+2026-10-02 22:21:56.312 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /swagger/index.html responded 200 in 128.938 ms
+2026-10-02 22:21:56.341 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /swagger/index.js  => 200 [2ms] | IP: ::1 | TraceId: 0HNP0J2I6M0BN:00000002
+2026-10-02 22:21:56.342 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /swagger/index.js responded 200 in 2.853 ms
+2026-10-02 22:21:56.666 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /swagger/v1/swagger.json  => 200 [221ms] | IP: ::1 | TraceId: 0HNP0J2I6M0BN:00000003
+2026-10-02 22:21:56.666 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /swagger/v1/swagger.json responded 200 in 221.558 ms
+2026-10-02 22:22:12.663 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates ?page=1&pageSize=20&isActive=true => 200 [223ms] | IP: ::1 | TraceId: 0HNP0J2I6M0BN:00000004
+2026-10-02 22:22:12.663 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates responded 200 in 224.381 ms
+2026-10-02 22:22:35.983 +07:00 [INF] WardMate.SharedKernel.Blob.AzureBlobStorageClient: Blob uploaded: form-templates/tb-tkvl-2024/d2ed6d11527843d49eee99d32a703eea_Mus24tiPhlcbanhnhkmtheo_VL.docx to form-templates
+2026-10-02 22:22:36.006 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates/9d82ed8a-6c71-4c85-b8a7-b514788dbb9f/upload-docx  => 200 [1210ms] | IP: ::1 | TraceId: 0HNP0J2I6M0BN:00000005
+2026-10-02 22:22:36.006 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates/9d82ed8a-6c71-4c85-b8a7-b514788dbb9f/upload-docx responded 200 in 1211.267 ms
+2026-10-02 22:37:18.736 +07:00 [INF] : WardMate.Services.DocumentForm started successfully.
+2026-10-02 22:37:18.809 +07:00 [INF] Microsoft.Hosting.Lifetime: Now listening on: http://localhost:5004
+2026-10-02 22:37:18.812 +07:00 [INF] Microsoft.Hosting.Lifetime: Application started. Press Ctrl+C to shut down.
+2026-10-02 22:37:18.812 +07:00 [INF] Microsoft.Hosting.Lifetime: Hosting environment: Development
+2026-10-02 22:37:18.812 +07:00 [INF] Microsoft.Hosting.Lifetime: Content root path: D:\term 9\wardmate-backend\src\Services\WardMate.Services.DocumentForm\WardMate.Services.DocumentForm.API
+2026-10-02 22:37:43.666 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates/9d82ed8a-6c71-4c85-b8a7-b514788dbb9f/docx-url  => 200 [366ms] | IP: ::1 | TraceId: 0HNP0JCCQMLRE:00000001
+2026-10-02 22:37:43.670 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates/9d82ed8a-6c71-4c85-b8a7-b514788dbb9f/docx-url responded 200 in 375.301 ms
+2026-10-02 22:37:55.804 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates/9d82ed8a-6c71-4c85-b8a7-b514788dbb9f/download-docx  => 200 [170ms] | IP: ::1 | TraceId: 0HNP0JCCQMLRF:00000001
+2026-10-02 22:37:55.805 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates/9d82ed8a-6c71-4c85-b8a7-b514788dbb9f/download-docx responded 200 in 171.094 ms
+2026-10-02 22:40:10.497 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /swagger/index.html  => 200 [79ms] | IP: ::1 | TraceId: 0HNP0JCCQMLRG:00000001
+2026-10-02 22:40:10.497 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /swagger/index.html responded 200 in 80.306 ms
+2026-10-02 22:40:10.514 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /swagger/index.js  => 200 [0ms] | IP: ::1 | TraceId: 0HNP0JCCQMLRG:00000002
+2026-10-02 22:40:10.515 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /swagger/index.js responded 200 in 1.619 ms
+2026-10-02 22:40:10.785 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /swagger/v1/swagger.json  => 200 [171ms] | IP: ::1 | TraceId: 0HNP0JCCQMLRG:00000003
+2026-10-02 22:40:10.785 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /swagger/v1/swagger.json responded 200 in 172.186 ms
+2026-10-02 22:40:33.476 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates ?page=1&pageSize=20&isActive=true => 200 [133ms] | IP: ::1 | TraceId: 0HNP0JCCQMLRG:00000004
+2026-10-02 22:40:33.477 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates responded 200 in 134.415 ms
+2026-10-02 22:40:51.376 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates/9d82ed8a-6c71-4c85-b8a7-b514788dbb9f/download-docx  => 200 [27ms] | IP: ::1 | TraceId: 0HNP0JCCQMLRG:00000005
+2026-10-02 22:40:51.376 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/form-templates/9d82ed8a-6c71-4c85-b8a7-b514788dbb9f/download-docx responded 200 in 27.837 ms
+2026-10-02 22:41:57.836 +07:00 [INF] WardMate.SharedKernel.Blob.AzureBlobStorageClient: Blob uploaded: form-templates/tb-tkvl-24/6597903266004c508d8b80d7127c9cc4_Mus24tiPhlcbanhnhkmtheo_VL.docx to form-templates
+2026-10-02 22:41:57.979 +07:00 [INF] WardMate.SharedKernel.Logging.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates/5940eb26-02e8-4ad5-88e3-8c303e7ebcf3/upload-docx  => 200 [328ms] | IP: ::1 | TraceId: 0HNP0JCCQMLRG:00000006
+2026-10-02 22:41:57.979 +07:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /api/v1/form-templates/5940eb26-02e8-4ad5-88e3-8c303e7ebcf3/upload-docx responded 200 in 328.724 ms

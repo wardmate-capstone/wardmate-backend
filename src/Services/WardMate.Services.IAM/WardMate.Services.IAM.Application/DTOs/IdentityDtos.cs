@@ -11,10 +11,10 @@ public sealed record UserProfileDto(string FullName, string? IdentityNumber, str
         profile.PhoneNumber, profile.DateOfBirth, profile.Gender, profile.PermanentAddress, profile.TemporaryAddress);
 }
 public sealed record CurrentUserDto(Guid Id, string Username, string Email, UserProfileDto? Profile,
-    string[] Roles, string[] Permissions)
+    string[] Roles, string[] Permissions, Guid? WardId = null)
 {
     public static CurrentUserDto From(User user) => new(user.Id, user.Username, user.Email,
         user.Profile is null ? null : UserProfileDto.From(user.Profile),
         user.UserRoles.Select(x => x.Role.RoleName).Distinct().Order().ToArray(),
-        user.UserRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.PermissionCode).Distinct().Order().ToArray());
+        user.UserRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.PermissionCode).Distinct().Order().ToArray(), user.WardId);
 }

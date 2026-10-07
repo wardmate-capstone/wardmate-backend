@@ -29,4 +29,11 @@ public interface IDocxPlaceholderEngine
     /// Tự động sinh cấu trúc Schema dự thảo từ danh sách placeholders được bóc tách từ file Word.
     /// </summary>
     FormSchemaDefinition GenerateDraftSchema(IReadOnlyList<DocxPlaceholder> placeholders, string templateTitle);
+
+    /// <summary>
+    /// Điền giá trị từ FormData người dân vào các placeholders {{field_id}} trong DOCX template.
+    /// Trả về MemoryStream chứa file DOCX đã điền — sẵn sàng để upload Blob và lưu submission.
+    /// </summary>
+    Stream FillPlaceholders(Stream templateStream, IReadOnlyDictionary<string, string> formData);
 }
+

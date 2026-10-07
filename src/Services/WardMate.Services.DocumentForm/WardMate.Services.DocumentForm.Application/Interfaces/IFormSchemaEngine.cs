@@ -17,5 +17,5 @@ public interface IFormSchemaEngine
     /// <summary>
     /// Kiểm tra tính hợp lệ của dữ liệu người dùng gửi lên so với Schema biểu mẫu đã định nghĩa.
     /// </summary>
-    Result<IReadOnlyList<FormDataValidationError>> ValidateFormData(FormSchemaDefinition schema, string formDataJson);
+    Result<IReadOnlyList<FormDataValidationError>> ValidateFormData(FormSchemaDefinition schema, string formDataJson, bool requireComplete = true);
 }
