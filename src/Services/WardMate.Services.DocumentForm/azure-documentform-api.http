@@ -1,42 +1,81 @@
-# Local source contract. Azure still requires a separate deployment.
-@baseUrl = http://localhost:15014
+# Deployed editor-20261007-01; Azure Swagger/read endpoints verified 2026-10-07. Mutating examples create cloud test data.
+### DOCX editor workflow; replace IDs and local file paths before running.
+@baseUrl = https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/document-form
 @templateId = REPLACE_TEMPLATE_ID
 @submissionId = REPLACE_SUBMISSION_ID
-@applicantId = 11111111-1111-1111-1111-111111111111
+@applicantId = 11111111-1111-4111-8111-111111111111
 
-### FE: get schema and templateVersionId; require onlineReady=true
+### Admin create -> copy returned id into templateId (201)
+POST {{baseUrl}}/api/v1/form-templates
+Content-Type: application/json
+
+{"code":"DOCX_EDITOR_DEMO","title":"Mẫu đơn chính thức"}
+
+### Admin upload original unchanged (200). Replace file path below.
+POST {{baseUrl}}/api/v1/form-templates/{{templateId}}/upload-docx
+Content-Type: multipart/form-data; boundary=DocumentBoundary
+
+--DocumentBoundary
+Content-Disposition: form-data; name="file"; filename="original.docx"
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+< ./original.docx
+--DocumentBoundary--
+
+### Admin list (200)
+GET {{baseUrl}}/api/v1/form-templates?page=1&pageSize=20
+
+### FE metadata: onlineReady=true after upload (200)
 GET {{baseUrl}}/api/v1/form-templates/{{templateId}}
 
-### Admin: inspect original paragraphs before configuring mappings
-GET {{baseUrl}}/api/v1/form-templates/{{templateId}}/docx-structure
+### FE imports this binary into Word editor (200)
+GET {{baseUrl}}/api/v1/form-templates/{{templateId}}/download-docx
 
-### See docs/api-guide.md for upload and online-config bodies.
-### Citizen: save JSON draft (use field IDs from the template schema)
+### FE saves exported DOCX; copy submissionId from 201 response
 POST {{baseUrl}}/api/v1/citizen/submissions/draft
-Content-Type: application/json
+Content-Type: multipart/form-data; boundary=DocumentBoundary
 
-{"templateId":"{{templateId}}","applicantId":"{{applicantId}}","formData":{"ho_ten":"Nguoi dung thu nghiem"}}
+--DocumentBoundary
+Content-Disposition: form-data; name="templateId"
 
-### Reopen draft, including pinned schema and saved formData
+{{templateId}}
+--DocumentBoundary
+Content-Disposition: form-data; name="applicantId"
+
+{{applicantId}}
+--DocumentBoundary
+Content-Disposition: form-data; name="file"; filename="edited.docx"
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+< ./edited.docx
+--DocumentBoundary--
+
+### List saved forms (200)
+GET {{baseUrl}}/api/v1/citizen/submissions?applicantId={{applicantId}}
+
+### Reopen metadata (200)
 GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}?applicantId={{applicantId}}
 
-### Replace ALL formData; omitted optional fields are cleared
+### Reopen saved DOCX in editor (200)
+GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/download-docx?applicantId={{applicantId}}
+
+### Save updated exported DOCX (200)
 PUT {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/draft
-Content-Type: application/json
+Content-Type: multipart/form-data; boundary=DocumentBoundary
 
-{"applicantId":"{{applicantId}}","formData":{"ho_ten":"Nguoi dung thu nghiem","ngay_sinh":"2000-01-02"}}
+--DocumentBoundary
+Content-Disposition: form-data; name="applicantId"
 
-### Finalize the electronic form, not the whole procedure application
+{{applicantId}}
+--DocumentBoundary
+Content-Disposition: form-data; name="file"; filename="edited.docx"
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+< ./edited.docx
+--DocumentBoundary--
+
+### Confirm completion AFTER save succeeds (200). Later PUT draft -> 400.
 POST {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/submit
 Content-Type: application/json
 
 {"applicantId":"{{applicantId}}"}
-
-### Download generated copy
-GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/download-docx?applicantId={{applicantId}}
-
-### List own electronic forms
-GET {{baseUrl}}/api/v1/citizen/submissions?applicantId={{applicantId}}&page=1&pageSize=20
-
-# applicantId is not authentication: integrate verified JWT identity before production.
-# Removed: officer review APIs, docx-url, citizen multipart Word editing.
