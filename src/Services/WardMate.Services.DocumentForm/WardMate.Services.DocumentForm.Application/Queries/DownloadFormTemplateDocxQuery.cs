@@ -49,7 +49,7 @@ public sealed class DownloadFormTemplateDocxQueryHandler : IQueryHandler<Downloa
             path = path["devstoreaccount1/".Length..];
         }
         var firstSlashIndex = path.IndexOf('/');
-        return firstSlashIndex >= 0 ? path[(firstSlashIndex + 1)..] : path;
+        return Uri.UnescapeDataString(firstSlashIndex >= 0 ? path[(firstSlashIndex + 1)..] : path);
     }
 }
 
