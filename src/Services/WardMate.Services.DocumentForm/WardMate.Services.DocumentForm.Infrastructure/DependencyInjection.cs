@@ -30,6 +30,7 @@ public static class DependencyInjection
 
         // OpenXML Placeholder Engine
         services.AddSingleton<IDocxPlaceholderEngine, DocxPlaceholderEngine>();
+        services.AddSingleton<IDocxFormEngine, DocxFormEngine>();
 
         return services;
     }

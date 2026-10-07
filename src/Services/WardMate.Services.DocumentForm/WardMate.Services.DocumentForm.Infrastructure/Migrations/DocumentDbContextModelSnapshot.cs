@@ -139,6 +139,77 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                     b.ToTable("form_templates", "document");
                 });
 
+            modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.FormTemplateVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at_utc");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("MappingDefinition")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("mapping_definition");
+
+                    b.Property<string>("OriginalBlobUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("original_blob_url");
+
+                    b.Property<string>("OriginalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("original_sha256");
+
+                    b.Property<string>("SchemaDefinition")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("schema_definition");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_number");
+
+                    b.HasKey("Id")
+                        .HasName("pk_form_template_versions");
+
+                    b.HasIndex("TemplateId", "VersionNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_form_template_versions_template_id_version_number");
+
+                    b.ToTable("form_template_versions", "document");
+                });
+
             modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.GeneratedDocument", b =>
                 {
                     b.Property<Guid>("Id")
@@ -304,6 +375,10 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("file_size_bytes");
 
+                    b.Property<string>("FormData")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("form_data");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
@@ -336,7 +411,12 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("template_id");
 
+                    b.Property<Guid?>("TemplateVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_version_id");
+
                     b.Property<DateTime?>("UpdatedAtUtc")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamptz")
                         .HasColumnName("updated_at");
 
@@ -351,10 +431,34 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                     b.HasIndex("ApplicantId")
                         .HasDatabaseName("ix_user_submissions_applicant_id");
 
+                    b.HasIndex("TemplateVersionId")
+                        .HasDatabaseName("ix_user_submissions_template_version_id");
+
                     b.HasIndex("ApplicantId", "Status")
                         .HasDatabaseName("ix_user_submissions_applicant_status");
 
                     b.ToTable("user_submissions", "document");
+                });
+
+            modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.FormTemplateVersion", b =>
+                {
+                    b.HasOne("WardMate.Services.DocumentForm.Domain.Entities.FormTemplate", "Template")
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_form_template_versions_form_templates_template_id");
+
+                    b.Navigation("Template");
+                });
+
+            modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.UserSubmission", b =>
+                {
+                    b.HasOne("WardMate.Services.DocumentForm.Domain.Entities.FormTemplateVersion", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_user_submissions_form_template_versions_template_version_id");
                 });
 #pragma warning restore 612, 618
         }
