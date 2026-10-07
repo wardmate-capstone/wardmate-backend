@@ -1364,3 +1364,23 @@ Azure wardmate-documentform Succeeded, image verified, Swagger enabled, AutoMigr
 Seven final public HTTP checks: GET /api/document-form/health200; GET /api/document-form/swagger/index.html200; GET /api/document-form/swagger/v1/swagger.json200 (online-config present, draft application/json, obsolete endpoints absent); GET /api/v1/form-templates200; GET /api/v1/citizen/submissions?applicantId=<synthetic UUID>200; GET /api/v1/form-templates/{existing-id}200; POST /api/v1/citizen/submissions/draft body {}400 (validation, no record created). Cloud create/upload/fill/submit not run; 29 end-to-end checks already passed locally. No new cloud test records. Temporary local Docker check container removed.
 
 Frontend request/DTO/ProblemDetails unchanged from DF-ONLINE-ORIGINAL-DOCX. User clarified login belongs to shared system; no separate account/login implementation and no token changes. Test Swagger at https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/document-form/swagger/index.html. Configure schema/mappings after uploading an original DOCX, then draft JSON and submit. Existing legacy records preserved, not auto-converted to online templates. Suggested Antigravity commit: docs(documentform): record verified Azure online-form deployment (separate docs/progress commits per standing workflow).
+
+## DF-ONLINE-DOCX-APPEND — 2026-10-07 08:52 +07:00 (Asia/Saigon)
+
+Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI BÁO TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
+
+Paths changed:
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/SaveDraftSubmissionCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/UploadFormTemplateDocxCommand.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Interfaces/IDocxFormEngine.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Services/OnlineFormSupport.cs
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/OpenXml/DocxFormEngine.cs
+- tests/WardMate.Services.DocumentForm.Tests/OnlineFormTests.cs
+- docs/api-guide.md
+
+API changes:
+- "PUT /api/v1/form-templates/{id}/online-config": Removed mappings from the required JSON payload. It now only takes schemaDefinition.
+- "GET /api/v1/form-templates/{id}/docx-structure": Removed entirely.
+
+This replaces the strict positional replacement engine with an automated append-to-end engine. Build and Tests succeeded (75/75 passed). Committed as eeab7626a64670c775485d6dbc07f13372e5540c. Waiting for user to confirm Docker execution.
