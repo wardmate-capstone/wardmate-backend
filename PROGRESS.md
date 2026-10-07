@@ -1404,3 +1404,87 @@ API changes:
 - "GET /api/v1/form-templates/{id}/docx-structure": Removed entirely.
 
 This replaces the strict positional replacement engine with an automated append-to-end engine. Build and Tests succeeded (75/75 passed). Committed as eeab7626a64670c775485d6dbc07f13372e5540c. Waiting for user to confirm Docker execution.
+
+## DF-LOCAL-API-REPAIR — 2026-10-07 14:35 +07:00 (Asia/Saigon)
+
+Completed local-only diagnosis/fix after owner refactored DOCX output to append online data. No Git, Azure, registry push, or deployment in this session. Preserved owner's no-mapping API and appended declaration-page design.
+
+Root causes: running Docker DocumentForm targeted legacy wardmate_db; startup migration failed because application_forms already existed. Legacy form_template_versions had created_at instead of created_at_utc and lacked original/checksum/mapping columns; user_submissions absent. Detail queries returned500 and configure caught DB schema errors. Upload had already succeeded200 in later logs. Also ConfigureOnlineForm stored literal auto-fill as checksum, causing every new draft to fail SHA256 validation409. Generated Word appended paragraphs after final sectPr (invalid body order), and original download did not decode percent-escaped Blob names.
+
+Changed paths:
+- docker/docker-compose.yml: DocumentForm DB=wardmate_documentform_db; default Azurite proxy host.docker.internal for container access, environment override preserved.
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs: download pinned original and save real SHA256; schema-only request preserved.
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/DownloadFormTemplateDocxQuery.cs: decode Blob URL path for filenames containing Unicode/spaces.
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/OpenXml/DocxFormEngine.cs: append paragraphs before final sectPr, preserve label spacing and convert multiline values into Word breaks.
+- tests/WardMate.Services.DocumentForm.Tests/OnlineFormTests.cs: strengthened existing append test with OpenXmlValidator and section/newline assertions; existing fixture table schema corrected. No test project created.
+- scripts/verify-documentform-online.py: optional real DOCX input, Unicode filename, assert removed docx-structure endpoint.
+- docs/api-guide.md: correct current schema-only/append semantics, removed obsolete structure row, local recovery instructions and checksum recovery.
+- PROGRESS.md: this record.
+
+Local operations: created dedicated wardmate_documentform_db, applied all three existing EF migrations via rebuilt container, copied four form_templates rows into empty destination (IDs and Blob paths unchanged). Old wardmate_db and all old data remain untouched; other legacy tables were not migrated/copied. Existing blobs retained. Recreated only wardmate_document_form via docker compose up --build --no-deps. Container remains running, Gateway unchanged. Synthetic SMOKE templates/drafts from verification retained only in new local DB/Blob storage.
+
+Endpoint validation: POST /api/v1/form-templates JSON {code,title}201; POST /{id}/upload-docx multipart file200; GET /{id}/download-docx200 byte-identical; PUT /{id}/online-config JSON {schemaDefinition}200; GET /{id}200 onlineReady/schema/version; POST /api/v1/citizen/submissions/draft JSON {templateId,templateVersionId,applicantId,formData}201; PUT /{id}/draft JSON {applicantId,formData}200; GET /{id}?applicantId200; generated download200; POST /{id}/submit JSON {applicantId}200 when complete,400 missing required/already submitted; wrong owner403; unknown field400; missing applicant400; new original invalidates new draft409 and pinned existing draft stays usable. Routes tested through localhost:5000/api/document-form plus three final direct Gateway/UI checks200.
+
+Final validation: whole solution Release build PASS 0 warnings/errors. Existing DocumentForm tests75 passed,0 failed,0 skipped. HTTP script27 checks PASS with synthetic DOCX,27 PASS with the actual previously uploaded DOCX from template cdfd09b9-dd5a-4703-b326-8404bd3d7e0f; source remains byte-identical, generated output contains form data. Three final Gateway checks200 (Swagger UI, original template detail, citizen list):57 HTTP checks total excluding download used as test input. Docker build/publish PASS. No visual pagination validation of official document; OpenXml schema validated by unit fixture. Docker Compose warns unrelated JWT_KEY undefined; no IAM/workflow containers recreated.
+
+Frontend/ProblemDetails/token: no DTO or token change; configuration still only {schemaDefinition}. No positional mappings or automatic detection of official blank fields; output appends declaration data. Previously configured auto-fill versions must be replaced by reconfiguring template before creating new drafts. Existing identity integration unchanged. Owner should refresh http://localhost:5000/api/document-form/swagger/index.html and test existing template. Azure remains previous deployment, untouched.
+
+Suggested Antigravity functional commits (no Git executed): fix(documentform): pin original checksum for schema-only drafts; fix(documentform): preserve Word section order and multiline values; fix(documentform): decode original blob filenames; fix(docker): isolate DocumentForm local database; test(documentform): verify refactored online workflow; docs(documentform): document local schema recovery. Separate file/function commits per AGENTS; do not squash.
+
+## DF-LOCAL-DATA-LOCATION — 2026-10-07 14:40:33 +07:00 (Asia/Saigon)
+Read-only verification: local DocumentForm uses PostgreSQL host postgres, database wardmate_documentform_db. Confirmed the user-specified KHAM_SUC_KHOE template exists locally with the same ID shown in their Swagger201 response; no record contents persisted in this log. Supabase screenshot is a separate cloud database. No automatic local/cloud replication configured by this work. Changed path: PROGRESS.md only. No API/DTO/ProblemDetails/token changes; no cloud mutation or Git. One read-only SQL check passed; 0 automated tests run, build not rerun for documentation-only diagnosis (previous Release build0 warnings/errors). Suggested commit: docs(progress): record local template storage verification.
+
+
+## DF-DOCX-EDITOR-ROUNDTRIP — 2026-10-07 15:17 +07:00 (Asia/Saigon)
+
+Completed local backend change requested by owner: official DOCX is downloaded into FE Word editor, FE exports edited DOCX for draft save, reopens saved bytes and explicitly finalizes. Supersedes prior schema/formData/append-page API workflow. No Git commands, cloud mutation or deployment executed. Existing unrelated work and historical schema columns retained; no migration needed.
+
+Changed paths (under src/Services/WardMate.Services.DocumentForm unless stated):
+- WardMate.Services.DocumentForm.API/Controllers/CitizenSubmissionsController.cs: POST/PUT draft multipart file DTOs, updated summaries, removed schema error extension.
+- WardMate.Services.DocumentForm.API/Controllers/FormTemplatesController.cs: removed online-config endpoint/request; original download for editor.
+- WardMate.Services.DocumentForm.API/Program.cs: Swagger describes file round-trip.
+- WardMate.Services.DocumentForm.Application/Commands/SaveDraftSubmissionCommand.cs: validate/store exact edited bytes in separate unique blob; ownership/status checks and best-effort orphan cleanup on DB save failure.
+- WardMate.Services.DocumentForm.Application/Commands/SubmitSubmissionCommand.cs: verify saved blob exists, owner and Draft transition; no required-field/schema validation.
+- WardMate.Services.DocumentForm.Application/Commands/UploadFormTemplateDocxCommand.cs: shared DOCX validator, original bytes preserved.
+- WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs: removed obsolete command/handler.
+- WardMate.Services.DocumentForm.Application/Services/DocxUpload.cs: NEW shared bounded validation, 20 MiB input, 5,000 ZIP entries/100 MiB expanded, DOCX body required/no macros; returns original bytes.
+- WardMate.Services.DocumentForm.Application/DTOs/FormTemplateDto.cs and UserSubmissionDto.cs: remove schema/formData/version fields from public editor DTOs; onlineReady based on active original upload.
+- WardMate.Services.DocumentForm.Application/Queries/GetFormTemplateByIdQuery.cs and UserSubmissionQueries.cs: remove schema/version retrieval, byte download retained with decoded blob path.
+- documentform-api.http and azure-documentform-api.http: current multipart examples; cloud sample explicitly unverified pending deployment.
+- tests/WardMate.Services.DocumentForm.Tests/OnlineFormTests.cs: add validation/preservation test in existing project. Old utility tests remain but do not describe current public API workflow.
+- scripts/verify-documentform-online.py: replace JSON workflow with 30 local HTTP checks for file workflow.
+- docs/api-guide.md: sections3/6 rewritten with all11 business endpoints, statuses, FE editor import/export adapter and error recovery; stale appendix updated.
+- PROGRESS.md: this entry.
+
+Endpoint contract: POST /api/v1/form-templates JSON {code,title}->201; GET list/detail->200; POST /{templateId}/upload-docx multipart file->200; GET /{templateId}/download-docx->200 binary. POST /api/v1/citizen/submissions/draft multipart {templateId,applicantId,file}->201; PUT /{submissionId}/draft multipart {applicantId,file}->200. GET list/detail with applicantId->200 metadata; GET /{submissionId}/download-docx?applicantId->200 exact saved binary. POST /{submissionId}/submit JSON {applicantId}->200 Submitted. Invalid file/missing required file/already-finalized edits400; wrong owner403; missing original404; inactive template/concurrency409; JSON draft415; draft storage failure503. PUT online-config removed from Swagger/controller. Existing original/sample blob not overwritten by verification.
+
+Verification completed: full WardMate.sln Release build0 warnings/0 errors; existing DocumentForm suite76 passed/0 failed/0 skipped (no new test project). Docker build/publish passed and only document-form local container rebuilt/recreated. HTTP smoke30 passed using synthetic DOCX and30 passed using existing official DOCX copied via local API as test input:60 assertions/check calls total. Both runs check exact original/edited bytes, draft reopen/update, separate citizen blobs, unchanged saved draft after later admin upload, ownership, submit locking, missing/invalid uploads, JSON415 and removed Swagger API. Synthetic DOCX-* records retained in local dedicated DocumentForm DB/Blob only. Gateway source/config untouched. No visual editor test: no FE editor implemented in this task.
+
+FE: API now accepts multipart instead of JSON formData (breaking contract change). Fetch template binary into editor; export DOCX Blob into FormData; browser supplies boundary. Save submissionId and reopen submission binary, not current admin template. Await save before submit. Submitted means this one document completed, not full procedure submitted. Backend cannot prove arbitrary DOCX blanks are complete or guarantee FE layout fidelity. Citizen errors ProblemDetails/code/traceId; template business errors retain code/message. Existing applicantId integration unchanged; these controllers do not themselves authenticate JWT, so trusted identity integration remains a separate system responsibility. No changes to shared IAM or JWT configuration.
+
+Suggested Conventional Commit for Antigravity: feat(documentform): support DOCX editor draft round-trip. Split new file, functional existing-file updates and documentation commits according to AGENTS.md; no commits executed.
+
+## DOCX editor deployment — 2026-10-07 15:40:24 +07:00
+
+User approved local tests and explicitly requested Azure deployment. Deployed image
+`acrwardmate2026.azurecr.io/wardmate-documentform:editor-20261007-01`, digest
+`sha256:0e67569f1b39dad6ca3360253a05daee7629daaeb8ca608e63b435cf91fb0f26`.
+Container App wardmate-documentform in rg-wardmate-prod reports Succeeded. Previous image was
+online-20261007-0854; previous provisioning error was BuildFailed: no build sandbox capacity.
+Built image locally and pushed to ACR; updated image only, preserved existing secrets/config.
+Gateway unchanged; no restart required. No Git commands or branch pushes.
+
+Five Azure HTTP checks passed200: /api/document-form/health, Swagger UI, Swagger JSON,
+/api/v1/form-templates?page=1&pageSize=1 and citizen list for synthetic applicant UUID.
+OpenAPI confirms multipart draft and absence of online-config. No cloud test records created;
+full save/download/submit verified locally earlier (76 tests,60 HTTP checks). Docker release build
+this session0 warnings/errors. Cloud file round-trip still available for owner testing, not claimed tested here.
+
+Current contract: template create JSON/upload DOCX/download binary; citizen POST draft multipart
+{templateId,applicantId,file}201, PUT draft multipart {applicantId,file}200,
+GET list/detail/download200, POST submit JSON {applicantId}200. See docs/api-guide.md sections3/6
+for errors and FE adapter. No JWT/identity or database migration changes in this deployment.
+
+Swagger: https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/document-form/swagger/index.html
+
+Changed paths: docs/documentform-deployment.md, src/Services/WardMate.Services.DocumentForm/azure-documentform-api.http, PROGRESS.md. Suggested Antigravity commit: docs(documentform): record verified DOCX editor Azure release. No Git executed.
