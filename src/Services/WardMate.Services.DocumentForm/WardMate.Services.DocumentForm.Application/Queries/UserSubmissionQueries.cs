@@ -104,14 +104,9 @@ public sealed class GetSubmissionByIdQueryHandler
 
         if (request.ApplicantId == Guid.Empty || submission.ApplicantId != request.ApplicantId)
             return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.ApplicantId);
-        var version = await _dbContext.FormTemplateVersions.AsNoTracking()
-            .FirstOrDefaultAsync(v => v.Id == submission.TemplateVersionId, cancellationToken);
         return new UserSubmissionSummaryDto
         {
             Id = submission.Id,
-            TemplateVersionId = submission.TemplateVersionId,
-            FormData = submission.FormData is null ? null : System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(submission.FormData),
-            SchemaDefinition = version is null ? null : System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(version.SchemaDefinition),
             TemplateId = submission.TemplateId,
             ApplicantId = submission.ApplicantId,
             FileName = submission.FileName,
@@ -183,7 +178,7 @@ public sealed class DownloadSubmissionDocxQueryHandler
             path = path["devstoreaccount1/".Length..];
         }
         var firstSlashIndex = path.IndexOf('/');
-        return firstSlashIndex >= 0 ? path[(firstSlashIndex + 1)..] : path;
+        return Uri.UnescapeDataString(firstSlashIndex >= 0 ? path[(firstSlashIndex + 1)..] : path);
     }
 }
 
