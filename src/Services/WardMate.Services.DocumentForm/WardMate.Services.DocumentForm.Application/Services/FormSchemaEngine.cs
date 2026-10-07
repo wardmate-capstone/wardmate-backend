@@ -24,6 +24,11 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
         }
     };
 
+    private static bool SafeMatch(string value, string pattern)
+    {
+        try { return Regex.IsMatch(value, pattern, RegexOptions.None, TimeSpan.FromMilliseconds(100)); }
+        catch (RegexMatchTimeoutException) { return false; }
+    }
     private static readonly Regex FieldIdRegex = new(@"^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
     private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
     private static readonly Regex PhoneRegex = new(@"^(0|\+84)[1-9][0-9]{8}$", RegexOptions.Compiled);
@@ -56,7 +61,7 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
             return DocumentFormErrors.InvalidSchema("Schema title is required.");
         }
 
-        if (schema.Sections.Count == 0)
+        if (schema.Sections is null || schema.Sections.Count == 0 || schema.Sections.Any(s => s is null || s.Fields is null || s.Fields.Any(f => f is null)))
         {
             return DocumentFormErrors.InvalidSchema("Schema must contain at least one section.");
         }
@@ -98,6 +103,12 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
                     return DocumentFormErrors.InvalidSchema($"Duplicate field ID '{field.FieldId}' detected across form sections.");
                 }
 
+                if (!Enum.IsDefined(field.Type) || field.Options is null || field.Options.Any(o => o is null))
+                    return DocumentFormErrors.InvalidSchema("Invalid field type/options.");
+                if (field.Validation is { } validation &&
+                    (validation.MinLength < 0 || validation.MaxLength < 0 || validation.MinLength > validation.MaxLength
+                    || validation.MinValue > validation.MaxValue))
+                    return DocumentFormErrors.InvalidSchema("Invalid validation bounds.");
                 if (string.IsNullOrWhiteSpace(field.Label))
                 {
                     return DocumentFormErrors.InvalidSchema($"Field '{field.FieldId}' must have a label.");
@@ -139,10 +150,11 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
             }
         }
 
+        if (!schema.GetAllFields().Any()) return DocumentFormErrors.InvalidSchema("At least one field is required.");
         return schema;
     }
 
-    public Result<IReadOnlyList<FormDataValidationError>> ValidateFormData(FormSchemaDefinition schema, string formDataJson)
+    public Result<IReadOnlyList<FormDataValidationError>> ValidateFormData(FormSchemaDefinition schema, string formDataJson, bool requireComplete = true)
     {
         ArgumentNullException.ThrowIfNull(schema);
 
@@ -170,6 +182,15 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
 
             var root = jsonDoc.RootElement;
             var errors = new List<FormDataValidationError>();
+            var known = schema.GetAllFields().Select(f => f.FieldId).ToHashSet(StringComparer.Ordinal);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in root.EnumerateObject())
+            {
+                if (!known.Contains(property.Name) || !seen.Add(property.Name))
+                    return DocumentFormErrors.InvalidFormData("Unknown or duplicate field: " + property.Name);
+                if (property.Value.ValueKind is JsonValueKind.Array or JsonValueKind.Object)
+                    return DocumentFormErrors.InvalidFormData("Field values must be scalar.");
+            }
 
             foreach (var field in schema.GetAllFields())
             {
@@ -180,7 +201,7 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
                                     (propElement.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(propElement.GetString()));
 
                 // 1. Kiểm tra bắt buộc (Required)
-                if (field.IsRequired && isNullOrEmpty)
+                if (requireComplete && field.IsRequired && isNullOrEmpty)
                 {
                     errors.Add(new FormDataValidationError
                     {
@@ -201,6 +222,12 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
                     ? propElement.GetString()?.Trim() ?? string.Empty
                     : propElement.ToString();
 
+                if (stringVal.Length > 10000 || stringVal.Any(c => char.IsControl(c) && c != '\n' && c != '\r'))
+                    return DocumentFormErrors.InvalidFormData("Field values must be text of at most 10000 characters.");
+                if (field.Type == FormFieldType.Checkbox && propElement.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    return DocumentFormErrors.InvalidFormData("Checkbox values must be JSON booleans.");
+                if (field.Type == FormFieldType.DateTime && !System.DateTimeOffset.TryParse(stringVal, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+                    return DocumentFormErrors.InvalidFormData("Invalid date-time value.");
                 // 2. Kiểm tra độ dài chuỗi (MinLength / MaxLength)
                 if (field.Validation?.MinLength is not null && stringVal.Length < field.Validation.MinLength.Value)
                 {
@@ -228,7 +255,7 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
                 switch (field.Type)
                 {
                     case FormFieldType.Number or FormFieldType.Currency:
-                        if (!decimal.TryParse(stringVal, out var numberVal))
+                        if (!decimal.TryParse(stringVal, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var numberVal))
                         {
                             errors.Add(new FormDataValidationError
                             {
@@ -265,7 +292,7 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
                         break;
 
                     case FormFieldType.Date:
-                        if (!DateOnly.TryParse(stringVal, out _) && !DateTime.TryParse(stringVal, out _))
+                        if (!DateOnly.TryParseExact(stringVal, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
                         {
                             errors.Add(new FormDataValidationError
                             {
@@ -333,7 +360,7 @@ public sealed class FormSchemaEngine : IFormSchemaEngine
 
                 // 4. Kiểm tra Regex tùy biến
                 if (field.Validation?.RegexPattern is not null &&
-                    !Regex.IsMatch(stringVal, field.Validation.RegexPattern))
+                    !SafeMatch(stringVal, field.Validation.RegexPattern))
                 {
                     errors.Add(new FormDataValidationError
                     {

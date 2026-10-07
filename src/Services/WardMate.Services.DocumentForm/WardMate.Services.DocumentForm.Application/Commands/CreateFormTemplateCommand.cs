@@ -24,6 +24,9 @@ public sealed class CreateFormTemplateCommandHandler : ICommandHandler<CreateFor
 
     public async Task<Result<FormTemplateDetailDto>> Handle(CreateFormTemplateCommand request, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Code) || request.Code.Trim().Length > 50
+            || string.IsNullOrWhiteSpace(request.Title) || request.Title.Trim().Length > 255)
+            return Error.Validation("document.invalid_template", "Code (1..50) and title (1..255) are required.");
         var normalizedCode = request.Code.Trim().ToUpperInvariant();
 
         var existing = await _dbContext.FormTemplates

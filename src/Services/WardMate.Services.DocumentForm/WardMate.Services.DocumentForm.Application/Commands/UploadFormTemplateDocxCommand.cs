@@ -27,13 +27,15 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
 
     private readonly IDocumentDbContext _dbContext;
     private readonly IBlobStorageClient _blobClient;
+    private readonly IDocxFormEngine _docx;
 
     public UploadFormTemplateDocxCommandHandler(
         IDocumentDbContext dbContext,
-        IBlobStorageClient blobClient)
+        IBlobStorageClient blobClient, IDocxFormEngine docx)
     {
         _dbContext = dbContext;
         _blobClient = blobClient;
+        _docx = docx;
     }
 
     public async Task<Result<UploadDocxResultDto>> Handle(UploadFormTemplateDocxCommand request, CancellationToken cancellationToken)
@@ -65,6 +67,10 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
         using var memoryStream = new MemoryStream();
         await request.FileStream.CopyToAsync(memoryStream, cancellationToken);
         var docxBytes = memoryStream.ToArray();
+        if (docxBytes.Length > MaxDocxSizeBytes) return DocumentFormErrors.FileTooLarge(MaxDocxSizeBytes);
+        try { _docx.Inspect(docxBytes); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        { return DocumentFormErrors.InvalidDocxFile("Invalid or unsupported Word document."); }
 
         using var uploadStream = new MemoryStream(docxBytes);
         var blobPath = $"form-templates/{template.Code.ToLowerInvariant()}/{Guid.NewGuid():N}_{Path.GetFileName(request.FileName)}";

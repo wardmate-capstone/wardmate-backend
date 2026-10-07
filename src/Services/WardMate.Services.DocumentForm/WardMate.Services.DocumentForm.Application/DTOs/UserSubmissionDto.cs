@@ -7,6 +7,9 @@ namespace WardMate.Services.DocumentForm.Application.DTOs;
 /// </summary>
 public sealed record UserSubmissionSummaryDto
 {
+    public Guid? TemplateVersionId { get; init; }
+    public System.Text.Json.JsonElement? FormData { get; init; }
+    public System.Text.Json.JsonElement? SchemaDefinition { get; init; }
     public Guid Id { get; init; }
     public Guid TemplateId { get; init; }
     public Guid ApplicantId { get; init; }
@@ -25,6 +28,7 @@ public sealed record UserSubmissionSummaryDto
 /// </summary>
 public sealed record SaveSubmissionResultDto
 {
+    public Guid? TemplateVersionId { get; init; }
     public Guid SubmissionId { get; init; }
     public string Status { get; init; } = string.Empty;
     public string FileName { get; init; } = string.Empty;

@@ -33,10 +33,11 @@ public sealed class GetMySubmissionsQueryHandler
     public async Task<Result<PagedResult<UserSubmissionSummaryDto>>> Handle(
         GetMySubmissionsQuery request, CancellationToken cancellationToken)
     {
-        // Nếu ApplicantId = Guid.Empty → officer xem tất cả hồ sơ, không lọc theo người dùng
+        if (request.ApplicantId == Guid.Empty || request.Page < 1 || request.PageSize < 1 || request.PageSize > 100)
+            return Error.Validation("document.invalid_query", "applicantId is required; page >= 1 and pageSize between 1 and 100.");
         var query = _dbContext.UserSubmissions
             .AsNoTracking()
-            .Where(s => (request.ApplicantId == Guid.Empty || s.ApplicantId == request.ApplicantId)
+            .Where(s => s.ApplicantId == request.ApplicantId
                         && !s.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(request.Status))
@@ -79,7 +80,7 @@ public sealed class GetMySubmissionsQueryHandler
 // GET /user-submissions/{id}
 // ─────────────────────────────────────────────────────────────────────────────
 
-public sealed record GetSubmissionByIdQuery(Guid SubmissionId) : IQuery<UserSubmissionSummaryDto>;
+public sealed record GetSubmissionByIdQuery(Guid SubmissionId, Guid ApplicantId) : IQuery<UserSubmissionSummaryDto>;
 
 public sealed class GetSubmissionByIdQueryHandler
     : IQueryHandler<GetSubmissionByIdQuery, UserSubmissionSummaryDto>
@@ -101,9 +102,16 @@ public sealed class GetSubmissionByIdQueryHandler
         if (submission is null)
             return DocumentFormErrors.SubmissionNotFound(request.SubmissionId);
 
+        if (request.ApplicantId == Guid.Empty || submission.ApplicantId != request.ApplicantId)
+            return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.ApplicantId);
+        var version = await _dbContext.FormTemplateVersions.AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == submission.TemplateVersionId, cancellationToken);
         return new UserSubmissionSummaryDto
         {
             Id = submission.Id,
+            TemplateVersionId = submission.TemplateVersionId,
+            FormData = submission.FormData is null ? null : System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(submission.FormData),
+            SchemaDefinition = version is null ? null : System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(version.SchemaDefinition),
             TemplateId = submission.TemplateId,
             ApplicantId = submission.ApplicantId,
             FileName = submission.FileName,
@@ -123,7 +131,7 @@ public sealed class GetSubmissionByIdQueryHandler
 // GET /user-submissions/{id}/download-docx
 // ─────────────────────────────────────────────────────────────────────────────
 
-public sealed record DownloadSubmissionDocxQuery(Guid SubmissionId) : IQuery<DownloadDocxResult>;
+public sealed record DownloadSubmissionDocxQuery(Guid SubmissionId, Guid ApplicantId) : IQuery<DownloadDocxResult>;
 
 public sealed class DownloadSubmissionDocxQueryHandler
     : IQueryHandler<DownloadSubmissionDocxQuery, DownloadDocxResult>
@@ -147,6 +155,8 @@ public sealed class DownloadSubmissionDocxQueryHandler
         if (submission is null)
             return DocumentFormErrors.SubmissionNotFound(request.SubmissionId);
 
+        if (request.ApplicantId == Guid.Empty || submission.ApplicantId != request.ApplicantId)
+            return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.ApplicantId);
         if (string.IsNullOrWhiteSpace(submission.BlobUrl))
             return DocumentFormErrors.SubmissionFileNotFound(request.SubmissionId);
 
