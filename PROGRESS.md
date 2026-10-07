@@ -1546,3 +1546,24 @@ HoÃ n thÃ nh: 2026-10-07 09:10:00 +07:00 (Asia/Saigon, UTC+07:00).
 - BiÃªn dá»‹ch Release: dotnet build WardMate.sln -c Release -warnaserror Ä‘áº¡t 0 lá»—i, 0 cáº£nh bÃ¡o.
 - Kiá»ƒm thá»­ unit: DocumentForm 76/76 passed; ProcedureCatalog DocumentFormsClientTests 4/4 passed. (CÃ¡c integration tests dÃ¹ng Testcontainers yÃªu cáº§u Docker Desktop Ä‘ang dá»«ng).
 - Sáº¯p xáº¿p vÃ  chuáº©n bá»‹ commit theo quy táº¯c háº¡t nhÃ¢n cá»§a AGENTS.md (má»—i file má»›i 1 commit, tÃ¡ch riÃªng functional updates). BÃ¡o cÃ¡o sá»‘ lÆ°á»£ng commit cho ngÆ°á»i dÃ¹ng vÃ  chá» xÃ¡c nháº­n trÆ°á»›c khi thá»±c hiá»‡n git push origin kha.
+## PROC-SWAGGER-001 — Tách controller theo nhóm nghiệp vụ
+
+Thời gian: 2026-10-07 14:43:49 +07:00 (Asia/Saigon, UTC+07:00).
+- Xóa controller gom chung ProcedureAdministrationController.cs.
+- Chuyển GET /api/v1/procedure-manager/procedures/{id}, POST .../{id}/versions/{versionNumber}/rollback
+  và GET .../{id}/versions/{versionId}/source vào ProcedureManagerController.cs.
+- Chuyển DELETE /api/v1/procedure-manager/drafts/{id} vào ProcedureDraftsController.cs.
+- Tạo ProcedureCategoriesController.cs cho POST /api/v1/procedure-manager/categories,
+  PUT/DELETE /api/v1/procedure-manager/categories/{id}.
+- Tạo ProcedureDocumentFormsController.cs cho GET /api/v1/procedure-manager/document-forms.
+- Các file controller nằm dưới src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/.
+- Cập nhật docs/api-guide.md và PROGRESS.md. FE giữ nguyên HTTP method, URL, request body, DTO, token và
+  xử lý ProblemDetails/status codes; chỉ thay nhóm Swagger. Không migration hoặc thay đổi nghiệp vụ.
+- Swagger: ProcedureManager (chi tiết/rollback/source lịch sử), ProcedureDrafts (xóa draft),
+  ProcedureCategories (3 API danh mục), ProcedureDocumentForms (tra cứu biểu mẫu).
+- Release build toàn solution với --no-restore -warnaserror -m:1: PASS, 0 errors, 0 warnings.
+  Lượt build song song trước đó kết thúc thất bại không có compiler diagnostic; build tuần tự thành công.
+- Không tạo test mới cho việc tổ chức controller. Kết quả test hồi quy ghi bổ sung bên dưới.
+- Không chạy Git, không build Docker hoặc deploy; cần build lại Procedure image để xem nhóm mới.
+- Gợi ý commit: refactor(procedure-catalog): organize controllers by feature.
+- Test hồi quy AdministrationTests, ProcedureDraftTests, ProcedureManagerTests: 42 passed, 0 failed, 0 skipped trên PostgreSQL tạm; không chạy lại toàn suite trong phiên chỉ tổ chức controller này.
