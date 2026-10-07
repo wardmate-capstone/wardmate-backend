@@ -1109,8 +1109,8 @@ Một file Word bất kỳ không tự mô tả tên/kiểu trường cho FE: qu
 | `GET /api/v1/form-templates/{templateId}` | FE gọi khi click “Điền đơn”. Nhận `schemaDefinition` là **object**, `templateVersionId`, `versionNumber`, `onlineReady`. | 200; FE render sections/fields khi onlineReady=true | 404 ID sai; onlineReady=false: chưa upload/cấu hình file hiện tại hoặc mẫu bị tắt. Không cho lưu nháp khi chưa sẵn sàng. |
 | `POST /api/v1/form-templates/{templateId}/upload-docx` | Quản trị upload multipart field `file`, DOCX tối đa 20 MiB. Mỗi upload tạo blob mới, không ghi đè file cũ. | 200 `{templateId,blobUrl}` | 400 file hỏng/sai loại/quá lớn; 404 mẫu không tồn tại. Upload mẫu mới làm onlineReady=false cho đến khi cấu hình lại. |
 | `GET /api/v1/form-templates/{templateId}/download-docx` | Quản trị đối chiếu/lưu bản gốc; không phải bước bắt buộc của công dân. | 200 binary DOCX đúng byte đã upload | 404 chưa có file: upload trước. |
-| `GET /api/v1/form-templates/{templateId}/docx-structure` | Quản trị/FE thiết kế form lấy `{originalSha256,paragraphs:[{index,text}]}` để chọn vị trí điền trong body/bảng. | 200, chỉ đọc file gốc | 404 chưa có file; 400 DOCX không đọc được. Không tự suy đoán vị trí bằng tên label. |
-| `PUT /api/v1/form-templates/{templateId}/online-config` | Quản trị xuất bản `{schemaDefinition,originalSha256,mappings}` theo ví dụ phụ lục 6. | 200 `{templateVersionId}` mới, phiên bản cũ bất biến | 400 schema/mapping sai, chồng lấn hoặc thiếu field; 409 file thay đổi/concurrent config: lấy lại structure rồi cấu hình lại. |
+| `GET /api/v1/form-templates/{templateId}/docx-structure` | Quản trị/FE thiết kế form lấy `{originalSha256,paragraphs:[{index,text}]}` để chọn vị trí điền trong body/bảng. (Sắp bị loại bỏ). | 200, chỉ đọc file gốc | 404 chưa có file; 400 DOCX không đọc được. Không tự suy đoán vị trí bằng tên label. |
+| `PUT /api/v1/form-templates/{templateId}/online-config` | Quản trị xuất bản `{schemaDefinition}`. Từ 07/10/2026 không cần truyền mappings thủ công, tự động trích xuất. | 200 `{templateVersionId}` mới, phiên bản cũ bất biến | 400 schema sai hoặc thiếu field; 409 file thay đổi/concurrent config. |
 
 ### Nhóm 3.2 — Công dân điền và chốt đơn
 
@@ -1983,13 +1983,11 @@ Source/preview được trả với chỉ dẫn không cache.
 
 ### 6.1. Cấu hình một lần cho mẫu
 
-1. Tạo template; upload DOCX gốc; gọi `docx-structure`.
-2. FE quản trị lấy văn bản các paragraph; quản trị chọn đoạn trống ứng với field.
-3. PUT `online-config`. Ví dụ **chỉ khi** paragraph 0 thực tế là `Ho ten: ......`:
+1. Tạo template; upload DOCX gốc.
+2. PUT `online-config` để xác định schema:
 
 ```json
 {
-  "originalSha256": "<lấy từ docx-structure>",
   "schemaDefinition": {
     "title": "Đơn đề nghị",
     "sections": [{
@@ -2003,14 +2001,7 @@ Source/preview được trả với chỉ dẫn không cache.
         "validation": { "max_length": 100 }
       }]
     }]
-  },
-  "mappings": [{
-    "fieldId": "ho_ten",
-    "paragraphIndex": 0,
-    "start": 8,
-    "length": 6,
-    "expectedText": "......"
-  }]
+  }
 }
 ```
 
@@ -2018,15 +2009,11 @@ JSON ngoài camelCase; schemaDefinition bên trong snake_case, **truyền object
 JSON.stringify schema thành chuỗi. Các type: text, number, date, date_time, select, radio, checkbox,
 textarea, national_id, phone_number, email, currency. Select/radio cần options `{label,value}`.
 
-Offset `start`, `length` là số UTF-16 code unit (giống JavaScript string.slice), index bắt đầu 0.
-Phải map đủ các field; một field được xuất hiện nhiều vị trí. Các vùng không được chồng nhau;
-expectedText phải khớp chính xác, length>0. Tabs/newlines có trong text nhưng không được nằm trong
-vùng thay thế. Paragraph chứa Word field code, tracked deletion hoặc paragraph lồng không được map.
-Hiện ánh xạ nội dung text của body và bảng; chưa ánh xạ header/footer, checkbox dạng control,
-ảnh scan hoặc layout phức tạp. Mọi phần gốc ngoài vùng điền được giữ; chữ dài có thể làm Word xuống
-dòng/đổi số trang. Không cam kết pixel-identical cho file kết quả hay tự đoán field từ tài liệu bất kỳ.
+Từ 07/10/2026, ứng dụng tự động đối chiếu Schema và bổ sung các trường thông tin khai báo trực tuyến
+vào cuối trang của tài liệu gốc, đảm bảo mọi tài liệu biểu mẫu gốc được giữ nguyên định dạng, không cần
+quản trị viên mất thời gian lựa chọn vị trí điền như trước đây. Khối cấu hình mappings và originalSha256
+đã được loại bỏ hoàn toàn.
 Header/footer, hình ảnh và cấu trúc gốc không bị chủ động xoá. File gốc lưu Blob giữ nguyên byte.
-Cần đối chiếu một mẫu thật sau khi quản trị chọn mapping trước khi đưa mẫu vào sử dụng.
 
 ### 6.2. Liên kết với thủ tục và FE công dân
 

@@ -1,10 +1,7 @@
-using WardMate.Services.DocumentForm.Domain.Models;
+using WardMate.Services.DocumentForm.Application.Interfaces;
 namespace WardMate.Services.DocumentForm.Application.Interfaces;
 
-// Mapping is stored separately. The uploaded source is never rewritten.
 public interface IDocxFormEngine
 {
-    IReadOnlyList<DocxParagraph> Inspect(byte[] original);
-    byte[] Fill(byte[] original, IReadOnlyList<DocxFieldMapping> mappings, IReadOnlyDictionary<string, string> values);
+    byte[] Fill(byte[] original, string schemaDefinitionJson, IReadOnlyDictionary<string, string> values);
 }
-public sealed record DocxParagraph(int Index, string Text);

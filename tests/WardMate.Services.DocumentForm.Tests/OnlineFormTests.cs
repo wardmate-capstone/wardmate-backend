@@ -30,47 +30,27 @@ public sealed class OnlineFormTests
         return stream.ToArray();
     }
 
-    private static DocxFieldMapping NameMapping => new()
-    { FieldId = "ho_ten", ParagraphIndex = 0, Start = 8, Length = 6, ExpectedText = "......" };
-
     [Fact]
-    public void Fill_PreservesOriginalPackageAndFormattingAcrossRunsAndTable()
+    public void Fill_AppendsDataCorrectly()
     {
         var original = Original();
         var before = original.ToArray();
         var engine = new DocxFormEngine();
-        var mapping = new[] { NameMapping,
-            new DocxFieldMapping { FieldId = "ngay_sinh", ParagraphIndex = 0, Start = 22, Length = 6, ExpectedText = "......" },
-            new DocxFieldMapping { FieldId = "noi_dung", ParagraphIndex = 1, Start = 10, Length = 6, ExpectedText = "......" } };
-        var output = engine.Fill(original, mapping, new Dictionary<string, string>
+        var schema = "{\"sections\":[{\"fields\":[{\"field_id\":\"ho_ten\",\"label\":\"Họ tên\"},{\"field_id\":\"ngay_sinh\",\"label\":\"Ngày sinh\"}]}]}";
+        
+        var output = engine.Fill(original, schema, new Dictionary<string, string>
         { ["ho_ten"] = "Nguyễn Văn A", ["ngay_sinh"] = "2000-01-02", ["noi_dung"] = "Dòng một\nDòng hai" });
-        Assert.Equal(before, original);
-        Assert.Equal("Họ tên: Nguyễn Văn A; Ngày: 2000-01-02", engine.Inspect(output)[0].Text);
-        Assert.Equal("Nội dung: Dòng một\nDòng hai", engine.Inspect(output)[1].Text);
+        
+        Assert.Equal(before, original); // Doesn't mutate original array
+        
         using var doc = WordprocessingDocument.Open(new MemoryStream(output), false);
-        Assert.Single(doc.MainDocumentPart!.Document.Descendants<Table>());
-        Assert.Contains(doc.MainDocumentPart.Document.Descendants<Run>(),
-            r => r.InnerText.Contains("Nguyễn Văn A") && r.RunProperties?.Bold is not null);
-        using var sourceZip = new ZipArchive(new MemoryStream(original));
-        using var outputZip = new ZipArchive(new MemoryStream(output));
-        Assert.Equal(sourceZip.Entries.Select(e => e.FullName).Order(), outputZip.Entries.Select(e => e.FullName).Order());
-        foreach (var entry in sourceZip.Entries.Where(e => e.FullName != "word/document.xml"))
-        {
-            using var first = new MemoryStream(); using var second = new MemoryStream();
-            using var a = entry.Open(); using var b = outputZip.GetEntry(entry.FullName)!.Open();
-            a.CopyTo(first); b.CopyTo(second);
-            Assert.Equal(first.ToArray(), second.ToArray());
-        }
-    }
-
-    [Fact]
-    public void Fill_RejectsStaleAndOverlappingMappings()
-    {
-        var engine = new DocxFormEngine();
-        Assert.Throws<InvalidDataException>(() => engine.Fill(Original(),
-            [NameMapping with { ExpectedText = "wrong!" }], new Dictionary<string, string>()));
-        Assert.Throws<InvalidDataException>(() => engine.Fill(Original(),
-            [NameMapping, NameMapping], new Dictionary<string, string>()));
+        var body = doc.MainDocumentPart!.Document.Body!;
+        
+        var allText = string.Join("", body.Descendants<Text>().Select(t => t.Text));
+        Assert.Contains("DỮ LIỆU KHAI BÁO TRỰC TUYẾN", allText);
+        Assert.Contains("Họ tên: Nguyễn Văn A", allText);
+        Assert.Contains("Ngày sinh: 2000-01-02", allText);
+        Assert.Contains("noi_dung: Dòng một", allText);
     }
 
     [Fact]

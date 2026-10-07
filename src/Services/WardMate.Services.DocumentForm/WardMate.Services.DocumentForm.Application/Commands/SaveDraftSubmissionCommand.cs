@@ -62,7 +62,7 @@ public sealed class SaveDraftSubmissionCommandHandler(IDocumentDbContext db, IBl
         if (OnlineFormSupport.Hash(bytes) != version.OriginalSha256)
             return Error.Conflict("document.original_changed", "The pinned original no longer matches its checksum.");
         byte[] generated;
-        try { generated = docx.Fill(bytes, OnlineFormSupport.Mappings(version.MappingDefinition), OnlineFormSupport.Values(request.FormData)); }
+        try { generated = docx.Fill(bytes, version.SchemaDefinition, OnlineFormSupport.Values(request.FormData)); }
         catch (Exception ex) when (ex is not OperationCanceledException)
         { return DocumentFormErrors.InvalidDocxFile("Cannot fill the configured original DOCX."); }
         var fileName = $"don-{template.Id:N}.docx";

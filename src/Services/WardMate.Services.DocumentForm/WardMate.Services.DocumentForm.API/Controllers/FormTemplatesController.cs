@@ -150,20 +150,11 @@ public sealed class FormTemplatesController : ControllerBase
             result.Value.FileName);
     }
 
-    /// <summary>Quản trị: đọc vị trí văn bản trong DOCX gốc để cấu hình ánh xạ, không chỉnh sửa file.</summary>
-    [HttpGet("{templateId:guid}/docx-structure")]
-    public async Task<IActionResult> Structure(Guid templateId, CancellationToken ct)
-    {
-        var result = await _mediator.Send(new GetDocxStructureQuery(templateId), ct);
-        return result.IsSuccess ? Ok(result.Value) : OnlineFailure(result.Error);
-    }
-
-    /// <summary>Quản trị: xuất bản schema và ánh xạ riêng cho file DOCX nguyên bản.</summary>
+    /// <summary>Quản trị: xuất bản schema để FE render form.</summary>
     [HttpPut("{templateId:guid}/online-config")]
     public async Task<IActionResult> Configure(Guid templateId, [FromBody] OnlineConfigRequest request, CancellationToken ct)
     {
-        var result = await _mediator.Send(new ConfigureOnlineFormCommand(templateId, request.SchemaDefinition,
-            request.Mappings, request.OriginalSha256, User.Identity?.Name), ct);
+        var result = await _mediator.Send(new ConfigureOnlineFormCommand(templateId, request.SchemaDefinition, User.Identity?.Name), ct);
         return result.IsSuccess ? Ok(new { templateVersionId = result.Value }) : OnlineFailure(result.Error);
     }
 
@@ -187,8 +178,7 @@ public sealed class FormTemplatesController : ControllerBase
     }
 }
 
-public sealed record OnlineConfigRequest(System.Text.Json.JsonElement SchemaDefinition,
-    IReadOnlyList<WardMate.Services.DocumentForm.Domain.Models.DocxFieldMapping> Mappings, string OriginalSha256);
+public sealed record OnlineConfigRequest(System.Text.Json.JsonElement SchemaDefinition);
 public sealed record CreateFormTemplateRequest
 {
     public string Code { get; init; } = string.Empty;
