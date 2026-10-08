@@ -31,7 +31,7 @@ public sealed class WorkflowTests(WorkflowFixture fixture) : IClassFixture<Workf
         var user = Guid.NewGuid(); using var client = fixture.Client(user);
         var application = await Create(client);
         Assert.Equal("DRAFT", application.Status);
-        Assert.Null(application.ApplicationCode);
+        Assert.Matches("^HS-[0-9]{8}-[0-9]{8,}$", application.ApplicationCode!);
         Assert.Equal(user, application.UserId);
         Assert.Equal(3, application.Checklists.Length);
         Assert.DoesNotContain(application.Checklists, x => x.Code == "CASE_B");
@@ -60,7 +60,7 @@ public sealed class WorkflowTests(WorkflowFixture fixture) : IClassFixture<Workf
         Assert.Equal("application.checklist_incomplete", error.GetProperty("code").GetString());
         Assert.Equal(2, error.GetProperty("missingItems").GetArrayLength());
         var unchanged = await client.GetFromJsonAsync<ApplicationDto>($"/api/v1/applications/{a.Id}");
-        Assert.Equal("DRAFT", unchanged!.Status); Assert.Null(unchanged.SubmittedAt); Assert.Null(unchanged.ApplicationCode);
+        Assert.Equal("DRAFT", unchanged!.Status); Assert.Null(unchanged.SubmittedAt); Assert.Equal(a.ApplicationCode, unchanged.ApplicationCode);
         Assert.Single(unchanged.History);
     }
 
@@ -149,4 +149,5 @@ public sealed class WorkflowTests(WorkflowFixture fixture) : IClassFixture<Workf
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PatchAsJsonAsync($"/api/v1/applications/{a.Id}/checklists/{a.Checklists[0].Id}", new { status = "COMPLETED", fileUrl = "http://example.invalid/a" })).StatusCode);
     }
 }
+
 

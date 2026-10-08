@@ -47,10 +47,10 @@ public sealed class WorkflowFixture : IAsyncLifetime
         using var client = Factory.CreateClient();
         (await client.GetAsync("/health")).EnsureSuccessStatusCode();
     }
-    public HttpClient Client(Guid userId, bool admin = false)
+    public HttpClient Client(Guid userId, bool admin = false, bool officer = false)
     {
         var token = new JwtSecurityToken("wardmate", "wardmate-client",
-            [new Claim("sub", userId.ToString()), new Claim("role", admin ? "IT_ADMIN" : "REGISTERED_CITIZEN")],
+            [new Claim("sub", userId.ToString()), new Claim("role", officer ? "FRONT_DESK_OFFICER" : admin ? "IT_ADMIN" : "REGISTERED_CITIZEN")],
             DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow.AddMinutes(10),
             new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)), SecurityAlgorithms.HmacSha256));
         var client = Factory.CreateClient();
@@ -70,3 +70,4 @@ public sealed class WorkflowFixture : IAsyncLifetime
             : WorkflowResult<ProcedureSnapshot>.Fail(404, "application.procedure_not_found", "Không tìm thấy thủ tục."));
     }
 }
+
