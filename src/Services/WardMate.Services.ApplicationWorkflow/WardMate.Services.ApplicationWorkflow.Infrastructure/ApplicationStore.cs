@@ -41,6 +41,7 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         if (result.Error is not null) return result;
         // New history has an application-generated Guid, so explicitly mark it as an INSERT.
         db.StatusHistory.AddRange(application.History.Where(x => !existingHistoryIds.Contains(x.Id)));
+        db.Versions.AddRange(application.Versions);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return result;

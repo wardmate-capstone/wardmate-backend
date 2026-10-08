@@ -17,7 +17,7 @@ public sealed record ChecklistDto(Guid Id, string Code, string Title, bool IsReq
 public sealed record HistoryDto(Guid Id, string? FromStatus, string ToStatus, Guid ChangedBy, string? Reason, DateTime CreatedAt);
 public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserId, Guid ProcedureId,
     string ProcedureTitle, string? CaseCode, string Status, JsonElement FormData, DateTime? SubmittedAt,
-    DateTime CreatedAt, DateTime UpdatedAt, ChecklistDto[] Checklists, HistoryDto[] History)
+    DateTime CreatedAt, DateTime UpdatedAt, ChecklistDto[] Checklists, HistoryDto[] History, Guid? AssignedOfficerId = null, int ResubmitCount = 0, int CurrentVersionNumber = 0, string? Notes = null, DateTime? ApprovedAt = null)
 {
     public static ApplicationDto From(ApplicationRecord a) => new(a.Id, a.ApplicationCode, a.UserId, a.ProcedureId,
         a.ProcedureTitle, a.CaseCode, a.Status, JsonSerializer.Deserialize<JsonElement>(a.FormData),
@@ -25,7 +25,8 @@ public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserI
         a.Checklists.OrderBy(x => x.Code).Select(x => new ChecklistDto(x.Id, x.Code, x.Title, x.IsRequired,
             x.Status, x.FileUrl, x.Note, x.CreatedAt, x.UpdatedAt)).ToArray(),
         a.History.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new HistoryDto(x.Id,
-            x.FromStatus, x.ToStatus, x.ChangedBy, x.Reason, x.CreatedAt)).ToArray());
+            x.FromStatus, x.ToStatus, x.ChangedBy, x.Reason, x.CreatedAt)).ToArray(),
+        a.AssignedOfficerId, a.ResubmitCount, a.Status == ApplicationStates.Draft ? 0 : a.ResubmitCount + 1, a.Notes, a.ApprovedAt);
 }
 public sealed record ApplicationSummaryDto(Guid Id, string? ApplicationCode, Guid ProcedureId,
     string ProcedureTitle, string Status, DateTime CreatedAt, DateTime? SubmittedAt);
@@ -51,3 +52,4 @@ public interface IApplicationStore
         Func<ApplicationRecord, Task<WorkflowResult<ApplicationDto>>> operation, CancellationToken ct);
     Task<string> NextCode(DateTime now, CancellationToken ct);
 }
+

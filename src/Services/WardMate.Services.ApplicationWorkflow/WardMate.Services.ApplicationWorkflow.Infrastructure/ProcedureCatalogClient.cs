@@ -39,6 +39,7 @@ public static class WorkflowInfrastructureRegistration
         services.AddDbContext<WorkflowDbContext>(o => o.UseNpgsql(config.GetConnectionString("WorkflowDatabase")
             ?? throw new InvalidOperationException("Cần cấu hình ConnectionStrings:WorkflowDatabase.")).UseSnakeCaseNamingConvention());
         services.AddScoped<IApplicationStore, ApplicationStore>();
+        services.AddScoped<IApplicationReviewStore, ApplicationReviewStore>();
         services.AddSingleton(TimeProvider.System);
         services.AddHttpClient<IProcedureCatalogClient, ProcedureCatalogClient>(http =>
         {

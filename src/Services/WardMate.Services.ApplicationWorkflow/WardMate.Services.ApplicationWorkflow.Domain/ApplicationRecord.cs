@@ -4,6 +4,10 @@ public static class ApplicationStates
 {
     public const string Draft = "DRAFT";
     public const string Submitted = "SUBMITTED";
+    public const string UnderReview = "UNDER_REVIEW";
+    public const string NeedRevision = "NEED_REVISION";
+    public const string Approved = "APPROVED";
+    public const string Cancelled = "CANCELLED";
 }
 
 public static class ChecklistStates
@@ -16,7 +20,7 @@ public static class ChecklistStates
 public sealed class ApplicationRecord
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string? ApplicationCode { get; set; }
+    public string ApplicationCode { get; set; } = string.Empty;
     public Guid UserId { get; set; }
     public Guid ProcedureId { get; set; }
     public string ProcedureTitle { get; set; } = string.Empty;
@@ -26,6 +30,12 @@ public sealed class ApplicationRecord
     public DateTime? SubmittedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public Guid? AssignedOfficerId { get; set; }
+    public int ResubmitCount { get; set; }
+    public string? Notes { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public List<ApplicationComment> Comments { get; set; } = [];
+    public List<ApplicationVersion> Versions { get; set; } = [];
     public List<ApplicationChecklist> Checklists { get; set; } = [];
     public List<ApplicationStatusHistory> History { get; set; } = [];
 
@@ -65,3 +75,4 @@ public sealed class ApplicationStatusHistory
     public string? Reason { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+

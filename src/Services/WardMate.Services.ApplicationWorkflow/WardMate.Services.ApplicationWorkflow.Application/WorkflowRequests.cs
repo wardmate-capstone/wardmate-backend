@@ -36,7 +36,7 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
         if (selected.Select(x => x.ChecklistId).Distinct(StringComparer.Ordinal).Count() != selected.Length)
             return WorkflowResult<ApplicationDto>.Fail(502, "application.invalid_schema", "Mã checklist của thủ tục bị trùng.");
         var now = clock.GetUtcNow().UtcDateTime;
-        var application = new ApplicationRecord { UserId = r.UserId, ProcedureId = procedure.Id,
+        var application = new ApplicationRecord { ApplicationCode = await store.NextCode(now, ct), UserId = r.UserId, ProcedureId = procedure.Id,
             ProcedureTitle = procedure.Title, CaseCode = caseCode, FormData = r.Input.FormData.GetRawText(), CreatedAt = now, UpdatedAt = now };
         application.Checklists.AddRange(selected.Select(x => new ApplicationChecklist { ApplicationId = application.Id,
             Code = x.ChecklistId, Title = x.ItemName, IsRequired = x.IsMandatory!.Value, CreatedAt = now, UpdatedAt = now }));
@@ -75,7 +75,9 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
             if (missing.Length > 0) return WorkflowResult<ApplicationDto>.Fail(422, "application.checklist_incomplete",
                 "Vui lòng hoàn tất tất cả giấy tờ bắt buộc trước khi nộp hồ sơ.", missing);
             var now = clock.GetUtcNow().UtcDateTime;
-            application.Submit(await store.NextCode(now, ct), r.UserId, now);
+            var code = string.IsNullOrWhiteSpace(application.ApplicationCode) ? await store.NextCode(now, ct) : application.ApplicationCode;
+            application.Submit(code, r.UserId, now);
+            application.Versions.Add(ApplicationSnapshots.Capture(application, r.UserId, now));
             return WorkflowResult<ApplicationDto>.Ok(ApplicationDto.From(application));
         }, ct);
 
@@ -84,3 +86,5 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
     private static WorkflowResult<ApplicationDto> NotDraft() => WorkflowResult<ApplicationDto>.Fail(409,
         "application.invalid_status", "Chỉ được sửa hoặc nộp hồ sơ ở trạng thái DRAFT.");
 }
+
+
