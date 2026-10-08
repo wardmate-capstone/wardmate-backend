@@ -1,4 +1,4 @@
-# WardMate — Chức năng và hướng dẫn sử dụng API theo Service
+﻿# WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
 Cập nhật ngày **07/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả các
 API nghiệp vụ hiện có, các endpoint hệ thống và đường dẫn Gateway. Không phải xác nhận tình trạng deploy.
@@ -1348,7 +1348,7 @@ quyền nghiệp vụ. Health/root phục vụ nhận biết tiến trình, khô
     Swagger tương ứng.
 
 
-ApplicationWorkflow và AnalyticsSystem mới có root/health, chưa có API nghiệp vụ. Tổng cộng có 6 root và 7
+ApplicationWorkflow đã có API hồ sơ (xem mục TASK-11 bên dưới); AnalyticsSystem mới có root/health. Tổng cộng có 6 root và 7
 health endpoint theo host.
 
 ### Nhóm 5.2 — Các tuyến chuyển tiếp của Gateway (local: cổng 5000)
@@ -1444,7 +1444,7 @@ Docker/Azure dùng địa chỉ và port đã cấu hình cho môi trường đ�
 
 - **Thành phần:** Application Workflow
   - **Base URL trực tiếp:** `http://localhost:5003`
-  - **Swagger UI khi bật môi trường Development:** Chưa cấu hình
+  - **Swagger UI khi bật môi trường Development:** `http://localhost:5003/swagger`
 
 - **Thành phần:** Document Form
   - **Base URL trực tiếp:** `http://localhost:5004`
@@ -2224,7 +2224,7 @@ IAM, Procedure và DocumentForm bật Swagger trong Development: `GET /swagger/i
 `GET /swagger/v1/swagger.json` (OpenAPI). `/swagger` thường chuyển hướng vào giao diện. Không mặc định Swagger
 có trên Production.
 
-ApplicationWorkflow và AnalyticsSystem mới có root/health, chưa có controller nghiệp vụ. Không có endpoint
+ApplicationWorkflow đã có controller hồ sơ/cán bộ (xem mục TASK-11 bên dưới); AnalyticsSystem mới có root/health. Không có endpoint
 import CSV trong danh mục này.
 
 ## 9. Xử lý lỗi và trình tự tích hợp FE
@@ -2309,3 +2309,316 @@ API nên không dùng loopback của API; mặc định Docker Desktop dùng Dev
 Luồng editor mới không dùng checksum/schema cũ. Không cần cấu hình online-config trước khi tạo draft.
 Tên file có dấu/khoảng trắng được giải mã URL khi tải lại từ Blob. Backend lưu/tải nguyên bytes DOCX
 đã nhận, không thêm trang formData và không ghi đè mẫu khi người dân lưu đơn.
+## Bổ sung RBAC — Danh mục chức năng đã deploy (07/10/2026)
+
+Database IAM deploy đã được bổ sung 27 permission bằng migration DeployedFeaturePermissionCatalog,
+đưa tổng số permission lên 30. Không xóa/sửa ba permission cũ hoặc thu hồi các role-permission đã có.
+Không tạo quyền cho các chức năng chưa xác nhận deploy như Analytics, SMS, RAG hoặc phê duyệt toàn hồ sơ.
+
+Admin gọi GET /api/v1/rbac/permissions để lấy danh mục, GET /api/v1/rbac/roles/{roleId}/permissions
+để xem quyền của role. Dùng các API gán/gỡ permission hiện có; không đoán permissionId, lấy ID từ response.
+Tên quyền mới là tiếng Việt, module là IAM, ProcedureCatalog hoặc DocumentForm.
+
+**Quan trọng về hiệu lực:** Migration này cập nhật danh mục quyền và phân quyền mặc định trong IAM,
+không tự đổi authorization của các service. IAM vẫn dùng policy hiện có và phạm vi phường ở backend.
+Procedure hiện dùng role PROCEDURE_MANAGER/IT_ADMIN; gỡ một permission procedure.* chưa chặn riêng endpoint.
+DocumentForm đang nhận applicantId từ request và chưa tích hợp JWT theo code được kiểm tra; các permission
+DocumentForm mới chưa khắc phục vấn đề đó. Không dùng việc ẩn menu ở FE thay cho bảo vệ API.
+
+Access token đã phát hành không được sửa nội dung. Đăng nhập lại hoặc refresh qua IAM để nhận claim
+permissions cập nhật; GET /api/v1/users/me dùng để tải lại thông tin quyền cho giao diện.
+Dữ liệu public như danh sách thủ tục/danh mục vẫn là public, không yêu cầu thêm permission.
+Quyền document.submissions.* mô tả thao tác trên đơn của chính mình, không cấp quyền xem đơn người khác.
+
+Danh mục bổ sung và role được gán mặc định:
+- `iam.accounts.read` — Xem tài khoản và hồ sơ trong phạm vi quản lý.
+  Role: IT_ADMIN, MANAGER.
+
+- `iam.accounts.manage` — Quản lý tài khoản và hồ sơ trong phạm vi được phép.
+  Role: IT_ADMIN, MANAGER.
+
+- `iam.wards.read` — Xem phường trong phạm vi quản lý.
+  Role: IT_ADMIN, MANAGER.
+
+- `iam.wards.manage` — Tạo phường và phân công phường công tác.
+  Role: IT_ADMIN.
+
+- `iam.rbac.manage` — Quản trị vai trò và quyền toàn hệ thống.
+  Role: IT_ADMIN.
+
+- `iam.audit.read` — Xem nhật ký phân quyền.
+  Role: IT_ADMIN.
+
+- `procedure.read` — Xem toàn bộ thủ tục, kể cả đã ngừng công khai.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.create` — Tạo thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.update` — Cập nhật nội dung thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.publish` — Xuất bản dữ liệu thủ tục đã đối soát.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.status` — Bật hoặc tắt thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.versions.read` — Xem lịch sử phiên bản thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.rollback` — Khôi phục phiên bản thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.source.read` — Đọc PDF gốc của phiên bản lịch sử.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.categories.manage` — Thêm sửa xóa danh mục thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.read` — Xem bản nháp và PDF đối soát.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.upload` — Tải PDF tạo bản nháp.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.update` — Sửa dữ liệu bản nháp.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.extract` — Đọc thử PDF và thử trích xuất lại.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.publish` — Xác nhận và xuất bản bản nháp.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.delete` — Xóa bản nháp chưa xuất bản.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `document.templates.read` — Tra cứu và tải biểu mẫu gốc.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+- `document.templates.manage` — Tạo biểu mẫu và tải DOCX gốc.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `document.submissions.read` — Xem đơn điện tử của chính mình.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+- `document.submissions.write` — Tạo và sửa nháp đơn điện tử của chính mình.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+- `document.submissions.submit` — Chốt đơn điện tử của chính mình.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+- `document.submissions.download` — Tải DOCX đã điền của chính mình.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+
+## Application Workflow — TASK-11: thẩm định, yêu cầu sửa và nộp lại
+
+Swagger local: `http://localhost:5003/swagger` khi service chạy ở Development.
+Gateway chuyển tiếp nguyên route `/api/v1/applications/...` và
+`/api/v1/officer/applications/...` đến Workflow.
+Tất cả API dưới đây dùng `Authorization: Bearer <accessToken>` của IAM.
+
+### Luồng sử dụng
+
+1. Công dân tạo hồ sơ, hoàn tất checklist rồi gọi API `submit` hiện có.
+2. Lần nộp đầu tạo snapshot version 1 gồm form và toàn bộ checklist/file URL.
+3. Cán bộ Một cửa mở danh sách chờ và tự tiếp nhận bằng `assign`.
+4. Cán bộ xem version, tạo các nhận xét cụ thể, rồi gọi `request-revision`.
+5. Công dân đọc nhận xét, chỉnh dữ liệu trên FE và gửi toàn bộ dữ liệu qua `resubmit`.
+6. Backend tạo version kế tiếp, đóng nhận xét của phiên bản trước, chuyển về SUBMITTED.
+   Cán bộ cũ tiếp nhận lại và dùng `diff` để đối chiếu.
+
+Phạm vi quyền: các API `/officer/...` yêu cầu role `FRONT_DESK_OFFICER`.
+Cán bộ không được tự thẩm định hồ sơ của chính mình, không nhận hồ sơ đang thuộc cán bộ khác.
+API đọc comments/versions/diff chỉ cho chủ hồ sơ hoặc cán bộ đang thụ lý.
+IT_ADMIN/MANAGER không tự động có quyền thẩm định trong task này.
+JWT role được kiểm tra tại service; task này không thêm permission vào IAM deploy.
+
+Hiện Application chưa có phường tiếp nhận và JWT chưa cấp phạm vi phường cho luồng này.
+Danh sách chờ gồm hồ sơ chưa phân công và hồ sơ của chính cán bộ, chưa chia theo phường.
+Không được hiểu đây là cơ chế cách ly hồ sơ giữa các phường đã hoàn chỉnh.
+
+### Thay đổi tương thích của API hồ sơ hiện có
+
+- `POST /api/v1/applications`: vẫn nhận `{procedureId, caseCode?, formData}` và trả 201.
+  Theo yêu cầu ApplicationCode NOT NULL, mã HS nay được cấp ngay khi tạo DRAFT.
+  Mã không đổi khi submit/nộp lại; có thể có khoảng trống trong dãy mã.
+- `POST /api/v1/applications/{id}/submit`: vẫn trả 200, yêu cầu DRAFT và checklist
+  bắt buộc COMPLETED; nay lưu snapshot version 1 cùng transaction với lịch sử.
+- `GET /api/v1/applications/{id}`: chủ hồ sơ đọc được `assignedOfficerId`,
+  `resubmitCount`, `currentVersionNumber`, `notes`, `approvedAt` bổ sung.
+  DRAFT có currentVersionNumber = 0. Không chuyển form/checklist thành dữ liệu dùng chung.
+- API PATCH checklist cũ vẫn chỉ sửa DRAFT. Khi NEED_REVISION, FE gửi dữ liệu sửa
+  bằng resubmit để form và checklist được kiểm tra/lưu cùng nhau.
+- `userId` hiện có chính là CitizenId trong đặc tả; `history[].changedBy` là người
+  chuyển trạng thái. Giữ tên cũ để không phá hợp đồng FE.
+
+### GET /api/v1/officer/applications/pending
+
+**Dùng để làm gì:** danh sách công việc chờ của cán bộ, hồ sơ nộp lâu nhất đứng trước.
+
+**Cách gọi:** không có body. Query tùy chọn `status=SUBMITTED` hoặc `UNDER_REVIEW`,
+`procedureId`, `submittedFrom`, `submittedTo` (ISO 8601 có múi giờ), `page=1`, `pageSize=20`.
+Không truyền status lấy cả hai. Khoảng thời gian gồm hai đầu mút; nộp lại dùng thời điểm nộp mới.
+
+**Kết quả:** 200 `{items, page, pageSize, total}`; items là thông tin gọn, không có form/file.
+Trang rỗng vẫn 200. `pageSize` 1–100, page 1–1000000.
+
+**Dùng sai:** 400 nếu status ngoài hai giá trị, phân trang sai hoặc ngày bắt đầu sau ngày kết thúc.
+401 cần đăng nhập lại; 403 cần đúng role. Không dùng API này để lấy hồ sơ đã duyệt.
+
+### POST /api/v1/officer/applications/{id}/assign
+
+**Dùng để làm gì:** cán bộ tự nhận xử lý một hồ sơ SUBMITTED, chuyển sang UNDER_REVIEW.
+
+**Cách gọi:** không body; cán bộ được lấy từ `sub` của JWT, không nhận officerId từ FE.
+
+**Kết quả:** 200 `ReviewResultDto`, gồm `application`, `assignedOfficerId`,
+`resubmitCount`, `currentVersionNumber`. Ghi lịch sử chuyển trạng thái cùng transaction.
+
+**Dùng sai:** 404 không có hồ sơ; 403 tự nhận hồ sơ của mình/thiếu role;
+409 hồ sơ đã được nhận, đang trạng thái khác hoặc không có snapshot hợp lệ.
+Tải lại danh sách khi 409. Hai cán bộ nhận đồng thời chỉ một người thành công.
+
+### POST /api/v1/officer/applications/{id}/comments
+
+**Dùng để làm gì:** đánh dấu chính xác ô nhập hoặc giấy tờ cần sửa trên version hiện tại.
+
+**Cách gọi:** cán bộ đang thụ lý hồ sơ UNDER_REVIEW gửi:
+
+```json
+{
+  "versionNumber": 1,
+  "targetType": "FORM_FIELD",
+  "targetId": "/formData/fullName",
+  "fieldLabel": "Họ và tên",
+  "commentText": "Vui lòng nhập họ tên đúng theo giấy tờ."
+}
+```
+
+FORM_FIELD dùng đường dẫn JSON Pointer: `/formData/address/city`,
+`/formData/children/0/name`. Ký tự `/` trong tên key viết `~1`, `~` viết `~0`.
+Đích phải tồn tại trong snapshot và là giá trị lá (hoặc object/array rỗng).
+CHECKLIST_ITEM dùng UUID dòng checklist từ `application.checklists[].id`, không dùng code giấy tờ.
+TargetId tối đa 100 ký tự; label 255; commentText 4000, đều không rỗng.
+
+**Kết quả:** 200 ReviewResultDto; nhận xét OPEN gắn với phiên bản hiện tại.
+Gọi GET comments để lấy id/nội dung nhận xét vừa tạo.
+
+**Dùng sai:** 400 ô/giấy tờ không tồn tại hoặc nội dung sai;
+403 không phải cán bộ thụ lý; 409 trạng thái/version đã thay đổi. Tải lại versions trước khi bắt lỗi.
+Không dùng version cũ để đánh dấu dữ liệu mới.
+
+### POST /api/v1/officer/applications/{id}/request-revision
+
+**Dùng để làm gì:** gửi yêu cầu chỉnh sửa sau khi đã tạo nhận xét chi tiết.
+
+**Cách gọi:** cán bộ thụ lý gửi `{"reason":"Vui lòng bổ sung giấy tờ và sửa các ô đã đánh dấu."}`.
+Reason bắt buộc, tối đa 4000 ký tự.
+
+**Kết quả:** 200 ReviewResultDto, NEED_REVISION; reason lưu vào notes và lịch sử.
+
+**Dùng sai:** 409 nếu chưa có nhận xét OPEN của version hiện tại hoặc không còn UNDER_REVIEW.
+Tạo nhận xét trước. 403 nếu người gọi không thụ lý hồ sơ; 400 nếu lý do rỗng.
+
+### POST /api/v1/applications/{id}/resubmit
+
+**Dùng để làm gì:** chủ hồ sơ gửi dữ liệu đã sửa trong một lần nộp lại.
+
+**Cách gọi:** chỉ ở NEED_REVISION. Gửi toàn bộ formData mới và mọi dòng checklist,
+bao gồm cả dòng tùy chọn và dòng không đổi:
+
+```json
+{
+  "expectedVersionNumber": 1,
+  "formData": { "fullName": "Nguyễn Văn A" },
+  "checklists": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "status": "COMPLETED",
+      "fileUrl": "https://example.invalid/giay-to-da-sua.pdf",
+      "note": "Đã thay giấy tờ"
+    }
+  ]
+}
+```
+
+Dùng id thật của hồ sơ; ví dụ trên chỉ minh họa. Status PENDING hoặc COMPLETED.
+FileUrl HTTPS tối đa 500 ký tự, hoặc null để bỏ liên kết; note tối đa 4000 ký tự.
+FormData là object tối đa 64 KiB. Checklist rỗng `[]` chỉ khi hồ sơ không có checklist.
+Không thể thay đổi tiêu đề, tính bắt buộc hay thêm/bỏ checklist trong API này.
+
+**Kết quả:** 200 ReviewResultDto. ResubmitCount tăng một; snapshot version kế tiếp
+được tạo; nhận xét OPEN của version trước thành RESOLVED; hồ sơ về SUBMITTED,
+giữ cán bộ cũ và mã HS. RESOLVED có nghĩa đã nộp lại, chưa phải cán bộ duyệt nội dung sửa.
+Toàn bộ thao tác cùng transaction, không có trường hợp lưu nửa chừng.
+
+**Dùng sai:** 404 hồ sơ không thuộc bạn; 409 sai trạng thái hoặc expectedVersionNumber cũ;
+400 thiếu/trùng checklist, form không đúng hoặc URL sai; 422 checklist bắt buộc chưa COMPLETED,
+response `missingItems` chỉ ra giấy tờ cần hoàn tất. Không được chỉ gửi các ô đã sửa:
+các ô bị bỏ khỏi formData sẽ được xem là bị xóa và hiển thị trong diff.
+
+API chưa kiểm chứng nội dung file hay liên kết DocumentForm submission; COMPLETED là trạng thái
+đã khai báo. Không xem đây là bằng chứng giấy tờ đã được xác thực.
+
+### GET /api/v1/applications/{id}/comments
+
+**Dùng để làm gì:** công dân biết cần sửa gì; cán bộ xem các nhận xét của mình trên hồ sơ.
+
+**Cách gọi:** không body. Query `versionNumber=1`, `status=OPEN` hoặc `RESOLVED` tùy chọn.
+Không truyền bộ lọc sẽ nhận toàn bộ nhận xét của hồ sơ.
+
+**Kết quả:** 200 mảng CommentDto: id, applicationVersionId, versionNumber, officerId,
+targetType, targetId, fieldLabel, commentText, status, createdAt, updatedAt.
+Không có nhận xét phù hợp trả `[]`.
+
+**Dùng sai:** 404 ngoài phạm vi truy cập hoặc version không thuộc hồ sơ;
+400 số phiên bản/status sai. Nhận xét cũ vẫn còn để đối chiếu, không bị xóa khi nộp lại.
+
+### GET /api/v1/applications/{id}/versions
+
+**Dùng để làm gì:** lấy dữ liệu đóng băng cho màn hình xem hồ sơ và so sánh các lần nộp.
+
+**Cách gọi:** không body; chủ hồ sơ hoặc cán bộ thụ lý. Cán bộ cần assign trước khi đọc.
+
+**Kết quả:** 200 mảng VersionDto tăng dần theo versionNumber, gồm id, versionNumber,
+submittedBy, submittedAt và snapshotData (thông tin hồ sơ, formData, checklists/file URL).
+DRAFT chưa nộp trả `[]`. Snapshot không đổi khi các lần nộp sau sửa dữ liệu.
+
+**Dùng sai:** 404 hồ sơ không tồn tại hoặc không thuộc phạm vi. Không dùng thời điểm updatedAt
+của hồ sơ thay cho submittedAt của phiên bản; không gửi snapshotData vào API sửa trực tiếp.
+
+### GET /api/v1/applications/{id}/diff?fromVersion=1&toVersion=2
+
+**Dùng để làm gì:** xem những ô/giấy tờ đã đổi giữa hai lần nộp.
+
+**Cách gọi:** chọn hai số phiên bản của cùng hồ sơ; toVersion lớn hơn fromVersion.
+Chủ hồ sơ và cán bộ thụ lý được đọc.
+
+**Kết quả:** 200 mảng các thay đổi: fieldKey, fieldLabel, oldValue, newValue,
+hasChanged=true, associatedComments, oldExists, newExists.
+Không có thay đổi trả `[]`. Diff đi sâu vào object/array của form;
+checklist so theo UUID, không theo vị trí trong mảng. File URL đổi có fieldKey
+`/checklists/{uuid}/fileUrl`. Giá trị bị xóa được phân biệt với giá trị null qua cờ Exists.
+FieldLabel dùng nhãn nhận xét khi có, nếu không dùng đường dẫn fieldKey.
+AssociatedComments chỉ gồm nhận xét thuộc hai phiên bản đang đối chiếu.
+
+**Dùng sai:** 400 số phiên bản sai/thứ tự sai; 404 thiếu một phiên bản hoặc không có quyền đọc hồ sơ.
+So sánh chuỗi JSON nguyên văn trên FE có thể tạo khác biệt giả do thứ tự key; dùng kết quả API.
+
+### Migration và môi trường
+
+Migration `20261008004706_ApplicationReviewVersions` tạo application_versions/application_comments,
+FK ràng buộc comment thuộc đúng hồ sơ/version, unique `(application_id, version_number)` và index hàng chờ.
+Hồ sơ SUBMITTED cũ (API cũ đã khóa sửa) được backfill version 1 từ dữ liệu hiện có;
+DRAFT cũ được cấp mã, chưa tạo snapshot. Không tái dựng lịch sử không tồn tại.
+APPROVED/CANCELLED đã là trạng thái hợp lệ trong schema, chưa có API duyệt/hủy trong TASK-11.
+
+Connection key vẫn là `ConnectionStrings__WorkflowDatabase`. Cấu hình local hiện dùng database độc lập
+`wardmate_workflow_db`; giữ tên đang dùng để không làm mất kết nối dữ liệu cũ.
+Nếu môi trường mới dùng tên `wardmate_application_db` trong đặc tả, trỏ connection string đến database đó
+và chạy migration của Workflow. Không trỏ vào database IAM/Procedure.
+Chưa áp dụng migration trên Azure trong task này.
+

@@ -1,4 +1,4 @@
-# WardMate — Nhật ký phát triển
+﻿# WardMate — Nhật ký phát triển
 
 **Trạng thái DF-AZURE-ONLINE-GIT-PUSH: HOÀN THÀNH** — đã tạo 16 commits cho tính năng online drafts + preserved DOCX trên nhánh `nghia`, merge với `kha` (resolve conflict PROGRESS/api-guide/appsettings.json bằng ours), push lên `kha` (17 commits mới: `5b7667f..95c8a01`). Build Docker image `wardmate-documentform:kha-20261007-0817` (0 errors), push lên ACR `acrwardmate2026.azurecr.io`, update Container App `wardmate-documentform` provisioningState=Succeeded. Kiểm tra công khai qua Gateway: health 200, Swagger UI 200, form-templates 200, citizen submissions 200, Swagger JSON xác nhận online-config hiện diện và officer endpoints không còn. Xác minh ngày 07/10/2026 lúc 08:20 (Asia/Saigon).
 
@@ -1365,9 +1365,9 @@ Seven final public HTTP checks: GET /api/document-form/health200; GET /api/docum
 
 Frontend request/DTO/ProblemDetails unchanged from DF-ONLINE-ORIGINAL-DOCX. User clarified login belongs to shared system; no separate account/login implementation and no token changes. Test Swagger at https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/document-form/swagger/index.html. Configure schema/mappings after uploading an original DOCX, then draft JSON and submit. Existing legacy records preserved, not auto-converted to online templates. Suggested Antigravity commit: docs(documentform): record verified Azure online-form deployment (separate docs/progress commits per standing workflow).
 
-## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
+## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
 
-Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
+Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
 
 Paths changed:
 - src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs
@@ -1385,9 +1385,9 @@ API changes:
 
 This replaces the strict positional replacement engine with an automated append-to-end engine. Build and Tests succeeded (75/75 passed). Committed as eeab7626a64670c775485d6dbc07f13372e5540c. Waiting for user to confirm Docker execution.
 
-## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
+## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
 
-Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
+Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
 
 Paths changed:
 - src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs
@@ -1655,3 +1655,175 @@ Thời gian: 2026-10-07 14:43:49 +07:00 (Asia/Saigon, UTC+07:00).
 
 ## DF-FORM-TEMPLATES-GIT-HANDOFF — 2026-10-07T15:46:42.175659+07:00
 Owner explicitly authorized Codex Git and main/nghia updates for this session, superseding standing no-Git restriction for this task. Created22 scoped file commits for completed form templates/editor, local fixes, tests and docs. Integrated origin/main d3084f4 (16 ProcedureCatalog commits); documentation conflicts resolved preserving both feature guides and progress histories. Docker compose auto-merge preserved both services. Full solution Release build0 warnings/errors; DocumentForm tests76 passed0 failed0 skipped. No API changes beyond documented DOCX editor contract; no new token changes. Intended atomic fast-forward push of integrated HEAD to main and nghia, no force and no push to kha/deploy. Push success to be verified by remote refs. Suggested/release merge message: feat(documentform): complete form templates and online DOCX editing.
+## IAM-RBAC-DEPLOYED-001 — Bổ sung danh mục quyền cho chức năng đã deploy
+
+Hoàn thành: 2026-10-07 16:07:47 +07:00 (Asia/Saigon, UTC+07:00).
+
+### Phạm vi và đối chiếu
+
+- Đọc OpenAPI Azure của IAM, ProcedureCatalog và DocumentForm qua Gateway. IAM gồm quản lý tài khoản/
+  phường/RBAC; Procedure có CRUD/draft/category/rollback/source; DocumentForm có templates và citizen submissions.
+- Chỉ bổ sung dữ liệu RBAC tương ứng các chức năng đã thấy trên deploy. Không thêm quyền Analytics/RAG/SMS
+  hoặc ApplicationWorkflow khi chưa xác nhận endpoint deploy của chúng trong phiên này.
+- Danh mục tăng từ 3 lên 30 permission: 6 IAM quản trị có phạm vi, 15 ProcedureCatalog, 6 DocumentForm.
+  Tên quyền tiếng Việt; mapping chi tiết trong docs/api-guide.md.
+- Phân quyền mặc định: IT_ADMIN có quyền nghiệp vụ toàn danh mục; PROCEDURE_MANAGER quản trị thủ tục/mẫu;
+  MANAGER chỉ bổ sung account/ward read theo phạm vi; mỗi role có nhóm biểu mẫu và đơn điện tử của chính mình.
+- SQL dùng permission_code/role_name để tra ID, ON CONFLICT DO NOTHING, cùng advisory lock RBAC hiện hữu.
+  Đồng bộ sequence permissions để không trùng ID seed. Không overwrite tên/quyền custom đã có.
+- Migration chạy một lần, không tự tái cấp permission đã bị Admin thu hồi mỗi lần restart.
+  Down chủ động chặn rollback tự động tránh xóa các quyền đã được quản trị tùy chỉnh; muốn thu hồi cần
+  migration điều chỉnh có đối soát hoặc API RBAC hiện hữu.
+
+### Kiểm chứng và cập nhật database deploy
+
+- Connection được người dùng trực tiếp cung cấp để cập nhật IAM deploy. Chỉ truyền qua environment của
+  tiến trình; không ghi vào source/config/docs hoặc file credential. Không ghi secret vào báo cáo.
+- Read-only preflight xác nhận public.roles, permissions, role_permissions, users và các IAM migrations.
+  Database postgres hiện dùng chung IAM/Procedure; migration mới không chạm bảng Procedure hoặc user.
+- Pending IAM trước áp dụng đúng một migration mới; nếu có migration khác, công cụ đã cấu hình dừng.
+- Smoke PostgreSQL16 tạm: fresh migration PASS, 30 permission, sequence không trùng seed, không cấp
+  iam.manage/Procedure quyền cho Manager trên DB sạch, citizen chỉ quyền cá nhân/đọc mẫu, chạy migrate lại
+  không tái cấp quyền đã thu hồi. Sáu nhóm assertion PASS. Không tạo project test mới.
+- Release solution build --no-restore -warnaserror -m:1: PASS 0 errors, 0 warnings.
+- EF has-pending-model-changes: không còn thay đổi model ngoài migration.
+- Áp dụng thành công migration 20261007090139_DeployedFeaturePermissionCatalog trên DB deploy.
+  Trước: 3 permissions, 12 role_permissions. Sau: 30 permissions, 78 role_permissions.
+  Added 27 permissions và 66 grants; assertion mọi permission definition và role grant cũ còn nguyên PASS.
+- Tổng quyền theo role deploy: REGISTERED_CITIZEN 7, FRONT_DESK_OFFICER 7, MANAGER 11,
+  PROCEDURE_MANAGER 23, IT_ADMIN 30. Manager có một grant cũ khác DB seed sạch, giữ nguyên theo yêu cầu
+  bảo toàn cấu hình, không tự ý thu hồi. Còn 0 pending IAM migrations.
+- Không chạy lại full suite: thay đổi chỉ migration dữ liệu, đã kiểm tra thực tế trên PostgreSQL tạm và
+  đọc lại dữ liệu deploy. Không tuyên bố test HTTP đăng nhập/RBAC trên deploy (không có phiên đăng nhập test).
+
+### File thay đổi
+
+- Mới: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261007090139_DeployedFeaturePermissionCatalog.cs
+- Mới: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261007090139_DeployedFeaturePermissionCatalog.Designer.cs
+- EF tái sinh IamDbContextModelSnapshot.cs cùng thư mục (không có model schema change).
+- docs/api-guide.md: danh mục quyền, mapping role, hiệu lực và cách refresh thông tin quyền.
+- PROGRESS.md. Công cụ smoke nằm trong thư mục tạm ngoài repository, không chứa connection string.
+
+### Hướng dẫn FE và giới hạn hiệu lực
+
+- Không thêm/sửa endpoint hay request/response DTO. GET /api/v1/rbac/permissions (Admin) nay đọc 30 quyền;
+  GET /api/v1/rbac/roles/{roleId}/permissions phản ánh grants; các status code/token handling giữ nguyên.
+- Đăng nhập/refresh để nhận permissions mới trong JWT; tải GET /api/v1/users/me để cập nhật giao diện.
+- Đây là catalog và gán quyền DB; không đổi chính sách authorization runtime. Procedure vẫn kiểm role,
+  gỡ riêng permission mới chưa chặn endpoint. DocumentForm chưa kiểm JWT/ownership từ token; bổ sung quyền
+  không được coi là đã bảo vệ API. IAM giữ nguyên kiểm tra phạm vi phường hiện có.
+- Không deploy image, không chạy bất kỳ lệnh Git nào. Database đã được cập nhật theo yêu cầu trực tiếp.
+- Credential đã gửi trong chat: đề nghị người dùng rotate và cập nhật secrets liên quan sau công việc;
+  không tự rotate gây ngắt kết nối các service.
+- Gợi ý Conventional Commit: feat(iam): seed deployed feature permission catalog.
+
+## TASK-11 — Thẩm định hồ sơ, nhận xét in-line và diff phiên bản
+
+- Hoàn thành local: 2026-10-08 07:54 (Asia/Saigon, UTC+07:00).
+- Kết quả: triển khai chu trình SUBMITTED → UNDER_REVIEW → NEED_REVISION → SUBMITTED;
+  tự tiếp nhận, nhận xét theo version/ô/checklist, nộp lại, snapshot JSONB và diff.
+- Không chạy lệnh Git, không build/deploy image và không thay database Azure.
+
+### Domain, dữ liệu và tính toàn vẹn
+
+- Thêm ApplicationComment, ApplicationVersion; bổ sung AssignedOfficerId, ResubmitCount,
+  Notes, ApprovedAt và các trạng thái cho ApplicationRecord.
+- Giữ UserId (CitizenId) và History/ChangedBy hiện có để tương thích hợp đồng cũ.
+- ApplicationCode nay varchar(50), unique, NOT NULL; cấp ngay lúc tạo DRAFT, giữ mã khi nộp lại.
+- Version 1 tạo cùng transaction với lần submit đầu. Các lần nộp lại tăng ResubmitCount,
+  chụp version kế tiếp, đóng nhận xét version trước và ghi lịch sử cùng transaction.
+- SELECT FOR UPDATE tuần tự hóa tiếp nhận/nộp lại. Unique(application_id, version_number),
+  FK kép application_id/application_version_id ngăn nhận xét trỏ sang version hồ sơ khác.
+- Migration 20261008004706_ApplicationReviewVersions: backfill mã cho DRAFT cũ, snapshot cho
+  SUBMITTED cũ dựa trên dữ liệu đã được API cũ khóa sửa. Không ghi snapshot giả cho draft.
+- Không đổi tên database local đang tồn tại wardmate_workflow_db. ConnectionStrings__WorkflowDatabase
+  có thể trỏ đến database độc lập wardmate_application_db theo đặc tả ở môi trường mới.
+
+### API, DTO và HTTP
+
+Các API mới trả 200 khi thành công; đều cần JWT. Các route officer yêu cầu FRONT_DESK_OFFICER.
+
+- GET /api/v1/officer/applications/pending — query status, procedureId, submittedFrom, submittedTo,
+  page/pageSize; trả ApplicationPage {items,page,pageSize,total}, FIFO theo SubmittedAt + Id.
+- POST /api/v1/officer/applications/{id}/assign — không body; tự nhận bằng sub, trả ReviewResultDto.
+- POST /api/v1/officer/applications/{id}/comments — body
+  {versionNumber,targetType,targetId,fieldLabel,commentText}, trả ReviewResultDto.
+- POST /api/v1/officer/applications/{id}/request-revision — body {reason}, trả ReviewResultDto;
+  phải có ít nhất một OPEN comment của version hiện tại.
+- POST /api/v1/applications/{id}/resubmit — body {expectedVersionNumber,formData,checklists:[{id,status,fileUrl,note}]},
+  trả ReviewResultDto; yêu cầu đủ checklist và các mục bắt buộc COMPLETED.
+- GET /api/v1/applications/{id}/comments — query versionNumber/status tùy chọn, trả CommentDto[].
+- GET /api/v1/applications/{id}/versions — không body, trả VersionDto[] gồm snapshotData.
+- GET /api/v1/applications/{id}/diff — query fromVersion/toVersion, trả FieldDiffDto[] chỉ các thay đổi.
+- ReviewResultDto: application, assignedOfficerId, resubmitCount, currentVersionNumber.
+- ApplicationDto hiện có bổ sung assignedOfficerId/resubmitCount/currentVersionNumber/notes/approvedAt.
+- Lỗi: 400 validation/target/checklist sai; 401 JWT sai; 403 sai role/cán bộ thụ lý;
+  404 ngoài phạm vi/không có hồ sơ/version; 409 trạng thái hoặc version xung đột/thiếu comment;
+  422 thiếu checklist bắt buộc (missingItems). Lỗi nghiệp vụ có code application.* và traceId;
+  validation dùng validation.failed. Role middleware 403 hiện không có ProblemDetails body.
+
+### Quyền và giới hạn
+
+- Công dân chỉ nộp lại hồ sơ của mình. Cán bộ chỉ bắt lỗi/yêu cầu sửa trên hồ sơ mình thụ lý,
+  không được tự thẩm định hồ sơ của mình. Cán bộ khác không đọc versions/comments/diff.
+- Hàng chờ gồm hồ sơ chưa phân công và của cán bộ hiện tại. Chưa có WardId nhận hồ sơ trong
+  Application; chưa triển khai phạm vi phường cho hàng chờ. Không tuyên bố cách ly dữ liệu theo phường.
+- JWT dùng role hiện có; không chỉnh RBAC deploy trong task này. Không tự cấp quyền thẩm định cho Admin/Manager.
+- APPROVED/CANCELLED mới được khai báo trong schema, không có endpoint duyệt/hủy trong TASK-11.
+- Snapshot đóng băng form/checklist/URL, không sao chép binary file. Chưa kiểm chứng file từ DocumentForm.
+- RESOLVED là đã nộp lại, không đồng nghĩa cán bộ đã duyệt thay đổi.
+
+### File mới (đường dẫn tương đối từ repository)
+
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Domain/ApplicationReview.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewContracts.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewHandlers.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewValidation.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/ApplicationReviewStore.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261008004706_ApplicationReviewVersions.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261008004706_ApplicationReviewVersions.Designer.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationReviewController.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/ReviewTests.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/ReviewDiffTests.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/ReviewMigrationTests.cs
+
+### File sửa
+
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Domain/ApplicationRecord.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WorkflowContracts.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WorkflowRequests.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/ApplicationStore.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDbContext.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/ProcedureCatalogClient.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/WorkflowDbContextModelSnapshot.cs
+- src/Gateways/WardMate.YarpGateway/appsettings.json
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowFixture.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowTests.cs
+- docs/api-guide.md
+- PROGRESS.md
+
+### Kiểm thử
+
+- Thêm 10 tests vào project có sẵn theo yêu cầu task: 7 API/integration, 2 unit diff,
+  1 upgrade migration PostgreSQL thật. Không tạo test project mới.
+- Kiểm tra cả chu trình hai lần nộp lại, snapshot cũ không đổi, diff nested/array/file/null/xóa field,
+  kiểm soát chủ hồ sơ/cán bộ, lỗi thiếu comment/checklist, version cũ, FIFO/phân trang,
+  unique version, nhận/nộp lại đồng thời chỉ một request thành công.
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1: PASS, 0 warning, 0 error.
+- dotnet test WardMate.sln -c Release --no-restore -m:1: PASS 200/200, 0 fail, 0 skipped.
+  ProcedureCatalog 96; DocumentForm 75; ApplicationWorkflow 29 (19 cũ + 10 mới).
+- dotnet ef migrations has-pending-model-changes (Workflow, Release): không có thay đổi model chưa migration.
+- PostgreSQL 16 test containers tạm được test fixture dọn sau kiểm thử; không build Docker image ứng dụng.
+
+### Hướng dẫn FE / bàn giao
+
+- docs/api-guide.md đã giải thích 8 API, ví dụ body, trình tự dùng, quyền, kết quả và cách sửa lỗi.
+- Gửi targetId dạng JSON Pointer với FORM_FIELD, UUID checklist với CHECKLIST_ITEM.
+- Resubmit gửi toàn bộ form và checklist, không chỉ các ô thay đổi; gửi expectedVersionNumber đang xem.
+- 409 cần tải lại dữ liệu; 422 hiển thị missingItems; không điều khiển giao diện dựa trên câu tiếng Việt.
+- Giữ JWT trong Authorization; không thêm cookie/CSRF flow mới cho Workflow.
+- Gợi ý nhóm thông điệp Conventional Commits cho Antigravity (tách từng file theo quy định):
+  feat(workflow): add application review and revision snapshots
+  feat(gateway): route officer application endpoints
+  test(workflow): cover review resubmission diff and migration
+  docs(workflow): document application review APIs
