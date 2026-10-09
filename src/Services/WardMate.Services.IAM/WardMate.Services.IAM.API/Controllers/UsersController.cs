@@ -13,7 +13,7 @@ namespace WardMate.Services.IAM.API.Controllers;
 [ApiController, Authorize, Route("api/v1/users")]
 public sealed class UsersController(ISender sender) : ControllerBase
 {
-    [HttpGet, Authorize(Policy = AccountManagementRequirement.Policy)]
+    [HttpGet, Authorize(Policy = AccountManagementRequirement.Policy), Authorize(Policy = "iam.accounts.read")]
     [ProducesResponseType<ManagedUserPage>(200)]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
     {
@@ -30,3 +30,5 @@ public sealed class UsersController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 }
+
+

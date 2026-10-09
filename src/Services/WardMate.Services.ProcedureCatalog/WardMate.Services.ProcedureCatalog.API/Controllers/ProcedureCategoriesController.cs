@@ -7,7 +7,7 @@ using WardMate.Services.ProcedureCatalog.Application.Management;
 
 namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 
-[ApiController, Route("api/v1/procedure-manager/categories"), Authorize(Policy = "ProcedureManager")]
+[ApiController, Route("api/v1/procedure-manager/categories"), Authorize(Policy = "procedure.categories.manage")]
 [ProducesResponseType<ProblemDetails>(400)]
 [ProducesResponseType<ProblemDetails>(401)]
 [ProducesResponseType<ProblemDetails>(403)]
@@ -43,3 +43,4 @@ public sealed class ProcedureCategoriesController(ISender sender) : ControllerBa
         return new ObjectResult(problem) { StatusCode = e.Status, ContentTypes = { "application/problem+json" } };
     }
 }
+

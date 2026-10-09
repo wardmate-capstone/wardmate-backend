@@ -13,7 +13,7 @@ public sealed class StaffAdministrationController(ISender sender) : ControllerBa
 {
     private Guid ActorId => Guid.Parse(User.FindFirstValue("sub")!);
 
-    [HttpPost("front-desk")]
+    [HttpPost("front-desk"), Authorize(Policy = "iam.accounts.manage")]
     [ProducesResponseType<ManagedUserDto>(201)]
     public async Task<IActionResult> Create(CreateFrontDeskInput input, CancellationToken ct)
     {
@@ -21,7 +21,7 @@ public sealed class StaffAdministrationController(ISender sender) : ControllerBa
         return result.IsSuccess ? Created($"/api/v1/accounts/{result.Value!.Id}", result.Value) : result.ToProblem(HttpContext);
     }
 
-    [HttpGet("wards")]
+    [HttpGet("wards"), Authorize(Policy = "iam.wards.read")]
     [ProducesResponseType<WardDto[]>(200)]
     public async Task<IActionResult> Wards(CancellationToken ct)
     {
@@ -30,7 +30,7 @@ public sealed class StaffAdministrationController(ISender sender) : ControllerBa
     }
 
     public sealed record WardInput(string Code, string Name);
-    [HttpPost("wards"), Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [HttpPost("wards"), Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.wards.manage")]
     [ProducesResponseType<WardDto>(201)]
     public async Task<IActionResult> CreateWard(WardInput input, CancellationToken ct)
     {
@@ -39,7 +39,7 @@ public sealed class StaffAdministrationController(ISender sender) : ControllerBa
     }
 
     public sealed record AssignWardInput(Guid? WardId);
-    [HttpPut("{userId:guid}/ward"), Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [HttpPut("{userId:guid}/ward"), Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.wards.manage")]
     [ProducesResponseType(204)]
     public async Task<IActionResult> Assign(Guid userId, AssignWardInput input, CancellationToken ct)
     {
@@ -47,3 +47,4 @@ public sealed class StaffAdministrationController(ISender sender) : ControllerBa
         return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
     }
 }
+

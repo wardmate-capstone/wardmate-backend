@@ -19,6 +19,7 @@ namespace WardMate.Services.IAM.API.Controllers;
 [ProducesResponseType<ProblemDetails>(409)]
 public sealed class AdminProfilesController(ISender sender, IManagementScope scope) : ControllerBase
 {
+    [Authorize(Policy = "iam.accounts.read")]
     [HttpGet("/api/v1/users/profiles")]
     [ProducesResponseType<ProfilePage>(200)]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
@@ -27,6 +28,7 @@ public sealed class AdminProfilesController(ISender sender, IManagementScope sco
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
+    [Authorize(Policy = "iam.accounts.read")]
     [HttpGet]
     [ProducesResponseType<UserProfileDto>(200)]
     public async Task<IActionResult> Get(Guid userId, CancellationToken ct)
@@ -35,6 +37,7 @@ public sealed class AdminProfilesController(ISender sender, IManagementScope sco
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
+    [Authorize(Policy = "iam.accounts.manage")]
     [HttpPost]
     [ProducesResponseType<UserProfileDto>(201)]
     public async Task<IActionResult> Create(Guid userId, ProfileInput input, CancellationToken ct)
@@ -43,6 +46,7 @@ public sealed class AdminProfilesController(ISender sender, IManagementScope sco
         return result.IsSuccess ? CreatedAtAction(nameof(Get), new { userId }, result.Value) : result.ToProblem(HttpContext);
     }
 
+    [Authorize(Policy = "iam.accounts.manage")]
     [HttpPut]
     [ProducesResponseType<UserProfileDto>(200)]
     public async Task<IActionResult> Update(Guid userId, ProfileInput input, CancellationToken ct)
@@ -51,6 +55,7 @@ public sealed class AdminProfilesController(ISender sender, IManagementScope sco
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
+    [Authorize(Policy = "iam.accounts.manage")]
     [HttpDelete]
     [ProducesResponseType(204)]
     public async Task<IActionResult> Delete(Guid userId, CancellationToken ct)
@@ -59,3 +64,4 @@ public sealed class AdminProfilesController(ISender sender, IManagementScope sco
         return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
     }
 }
+
