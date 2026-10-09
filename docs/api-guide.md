@@ -2622,3 +2622,31 @@ Nếu môi trường mới dùng tên `wardmate_application_db` trong đặc t�
 và chạy migration của Workflow. Không trỏ vào database IAM/Procedure.
 Chưa áp dụng migration trên Azure trong task này.
 
+
+## FE Vercel — cấu hình truy cập API (09/10/2026)
+
+Origin được cho phép: `https://wardmate-frontend.vercel.app` (không dấu `/` cuối).
+Policy dùng chung ở Gateway, IAM, Workflow, Procedure và DocumentForm; cho phép credentials,
+GET/POST/PUT/PATCH/DELETE/OPTIONS và Content-Type/Authorization/X-CSRF-Protection.
+Development vẫn mặc định hỗ trợ localhost:5173 và localhost:3000.
+Nếu có Cors__AllowedOrigins__* trên Azure, danh sách đó thay thế mặc định: phải thêm domain Vercel vào đó.
+
+IAM mặc định SameSite=None, HttpOnly và Secure. FE gọi login/refresh/logout với `credentials: 'include'`
+(axios: `withCredentials: true`) và `X-CSRF-Protection: 1` cho các POST auth.
+API cần quyền vẫn phải có Bearer token; CORS không cấp role hoặc bỏ authorization.
+Dùng một API origin nhất quán cho toàn bộ auth, ưu tiên Gateway và route `/api/v1/auth/...`.
+Cookie host-only không chuyển từ IAM trực tiếp sang Gateway. Trình duyệt chặn cookie bên thứ ba
+vẫn có thể chặn refresh; khi đó cần kiến trúc proxy/domain cùng site.
+
+Azure: cập nhật/deploy lại image chứa SharedKernel cho Gateway/IAM/Workflow/Procedure/DocumentForm.
+Nếu môi trường đã override cấu hình, đặt:
+
+```text
+Cors__AllowedOrigins__0=https://wardmate-frontend.vercel.app
+AuthCookie__SameSite=None
+AuthCookie__AllowInsecureLocalhost=false
+```
+
+Hai biến AuthCookie chỉ đặt tại IAM. Không cần thêm domain Azure API vào allowlist chỉ để Swagger cùng origin.
+Local HTTP nếu chủ động bật AllowInsecureLocalhost=true phải override SameSite=Strict hoặc Lax;
+không dùng cấu hình đó cho FE Vercel gọi Azure. Không có endpoint/DTO mới trong lần cập nhật này.

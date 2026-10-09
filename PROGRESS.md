@@ -1827,3 +1827,29 @@ Các API mới trả 200 khi thành công; đều cần JWT. Các route officer 
   feat(gateway): route officer application endpoints
   test(workflow): cover review resubmission diff and migration
   docs(workflow): document application review APIs
+
+## FE-CORS-001 — Cho phép FE Vercel gọi Backend
+
+- Hoàn thành cấu hình local: 2026-10-09 15:58 Asia/Saigon (UTC+07:00).
+- Origin chính xác: https://wardmate-frontend.vercel.app, không wildcard.
+- File sửa:
+  - src/BuildingBlocks/WardMate.SharedKernel/Web/BrowserCorsExtensions.cs
+  - src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/appsettings.json
+  - src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Program.cs
+  - src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Program.cs
+  - docs/iam-httponly.md
+  - docs/api-guide.md
+  - PROGRESS.md
+- Shared CORS mặc định cho phép Vercel; Development giữ localhost:5173/3000. Explicit Cors:AllowedOrigins
+  vẫn ghi đè mặc định. Gateway/IAM/Workflow đã dùng policy; Procedure/DocumentForm nay đăng ký và chạy policy.
+- IAM appsettings SameSite=None, AllowInsecureLocalhost=false; cookie vẫn HttpOnly/Secure/host-only.
+  Giữ CSRF header và kiểm origin theo cùng CORS policy.
+- Không thêm endpoint/DTO/status code nghiệp vụ. FE gửi credentials:include và X-CSRF-Protection:1 cho POST auth,
+  Bearer cho API bảo vệ. CORS không cấp quyền nghiệp vụ.
+- Build solution Release --no-restore -warnaserror -m:1: PASS 0 errors, 0 warnings.
+- Không viết test mới. Full suite bị dừng do Docker Desktop Linux Engine pipe không tồn tại;
+  chưa xác nhận integration tests trong phiên này. Không sử dụng số 200/200 của phiên trước để kết luận.
+- Chưa deploy hoặc xác minh preflight/cookie trên Azure. Antigravity cần rebuild/deploy các API liên quan và Gateway;
+  kiểm tra Azure overrides Cors__AllowedOrigins__* / AuthCookie__SameSite=None / AuthCookie__AllowInsecureLocalhost=false.
+- Không chạy Git, không build Docker. Commit gợi ý: fix(cors): allow deployed Vercel frontend and cross-site auth cookies.
+- Lượt test chỉ chọn WorkflowUnitTests/ReviewDiffTests cũng dừng ở bước khởi chạy test, không trả kết quả; đã hủy lượt chạy. Không có số test pass được xác nhận cho phiên này.
