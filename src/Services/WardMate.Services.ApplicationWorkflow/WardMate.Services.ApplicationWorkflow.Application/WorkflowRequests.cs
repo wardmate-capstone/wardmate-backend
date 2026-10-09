@@ -9,7 +9,7 @@ public sealed record ListApplicationsQuery(Guid UserId, int Page = 1, int PageSi
 public sealed record UpdateChecklistCommand(Guid UserId, Guid Id, Guid ChecklistId, UpdateChecklistInput Input) : IRequest<WorkflowResult<ApplicationDto>>;
 public sealed record SubmitApplicationCommand(Guid UserId, Guid Id) : IRequest<WorkflowResult<ApplicationDto>>;
 
-public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogClient catalog, TimeProvider clock) :
+public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogClient catalog, TimeProvider clock, IWorkflowDirectory directory) :
     IRequestHandler<CreateApplicationCommand, WorkflowResult<ApplicationDto>>,
     IRequestHandler<GetApplicationQuery, WorkflowResult<ApplicationDto>>,
     IRequestHandler<ListApplicationsQuery, ApplicationPage>,
@@ -18,6 +18,13 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
 {
     public async Task<WorkflowResult<ApplicationDto>> Handle(CreateApplicationCommand r, CancellationToken ct)
     {
+        var ward = r.Input.WardCode!.Trim().ToUpperInvariant();
+        try
+        {
+            if (!await directory.WardExists(ward, ct)) return WorkflowResult<ApplicationDto>.Fail(400, "application.invalid_ward", "Phường/xã tiếp nhận không tồn tại.");
+        }
+        catch (Exception e) when (e is HttpRequestException or System.Text.Json.JsonException || e is OperationCanceledException && !ct.IsCancellationRequested)
+        { return WorkflowResult<ApplicationDto>.Fail(503, "application.iam_unavailable", "Chưa thể xác minh phường/xã với IAM."); }
         var source = await catalog.Get(r.Input.ProcedureId, ct);
         if (source.Error is not null) return new(null, source.Error);
         var procedure = source.Value!;
@@ -36,7 +43,7 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
         if (selected.Select(x => x.ChecklistId).Distinct(StringComparer.Ordinal).Count() != selected.Length)
             return WorkflowResult<ApplicationDto>.Fail(502, "application.invalid_schema", "Mã checklist của thủ tục bị trùng.");
         var now = clock.GetUtcNow().UtcDateTime;
-        var application = new ApplicationRecord { ApplicationCode = await store.NextCode(now, ct), UserId = r.UserId, ProcedureId = procedure.Id,
+        var application = new ApplicationRecord { WardCode = ward, ApplicationCode = await store.NextCode(now, ct), UserId = r.UserId, ProcedureId = procedure.Id,
             ProcedureTitle = procedure.Title, CaseCode = caseCode, FormData = r.Input.FormData.GetRawText(), CreatedAt = now, UpdatedAt = now };
         application.Checklists.AddRange(selected.Select(x => new ApplicationChecklist { ApplicationId = application.Id,
             Code = x.ChecklistId, Title = x.ItemName, IsRequired = x.IsMandatory!.Value, CreatedAt = now, UpdatedAt = now }));
@@ -70,6 +77,7 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
         store.WithLock(r.UserId, r.Id, async application =>
         {
             if (application.Status != ApplicationStates.Draft) return NotDraft();
+            if (string.IsNullOrWhiteSpace(application.WardCode)) return WorkflowResult<ApplicationDto>.Fail(409, "application.ward_required", "Hồ sơ cũ chưa có phường tiếp nhận; cần bổ sung trước khi nộp.");
             var missing = application.Checklists.Where(x => x.IsRequired && x.Status != ChecklistStates.Completed)
                 .OrderBy(x => x.Code).Select(x => new { x.Id, x.Code, x.Title, x.Status }).ToArray();
             if (missing.Length > 0) return WorkflowResult<ApplicationDto>.Fail(422, "application.checklist_incomplete",
@@ -86,5 +94,6 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
     private static WorkflowResult<ApplicationDto> NotDraft() => WorkflowResult<ApplicationDto>.Fail(409,
         "application.invalid_status", "Chỉ được sửa hoặc nộp hồ sơ ở trạng thái DRAFT.");
 }
+
 
 

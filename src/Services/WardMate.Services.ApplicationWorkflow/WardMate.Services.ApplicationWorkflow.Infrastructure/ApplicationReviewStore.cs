@@ -8,12 +8,12 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
 {
     public Task<ApplicationRecord?> Read(ReviewActor actor, Guid id, CancellationToken ct) => db.Applications.AsNoTracking()
         .Include(x => x.Versions).Include(x => x.Comments).AsSplitQuery()
-        .SingleOrDefaultAsync(x => x.Id == id && (x.UserId == actor.Id || actor.IsOfficer && x.AssignedOfficerId == actor.Id), ct);
+        .SingleOrDefaultAsync(x => x.Id == id && (x.UserId == actor.Id || actor.IsOfficer && actor.WardCode != null && x.WardCode == actor.WardCode && x.AssignedOfficerId == actor.Id), ct);
 
     public async Task<ApplicationPage> Pending(ReviewActor actor, OfficerPendingInput input, CancellationToken ct)
     {
-        if (!actor.IsOfficer) return new([], input.Page, input.PageSize, 0);
-        var q = db.Applications.AsNoTracking().Where(x => x.UserId != actor.Id
+        if (!actor.IsOfficer || string.IsNullOrEmpty(actor.WardCode)) return new([], input.Page, input.PageSize, 0);
+        var q = db.Applications.AsNoTracking().Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id
             && (x.Status == ApplicationStates.Submitted || x.Status == ApplicationStates.UnderReview)
             && (x.AssignedOfficerId == null || x.AssignedOfficerId == actor.Id));
         if (input.Status is not null) q = q.Where(x => x.Status == input.Status);
@@ -22,7 +22,7 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
         if (input.SubmittedTo is not null) q = q.Where(x => x.SubmittedAt <= input.SubmittedTo.Value.UtcDateTime);
         var total = await q.CountAsync(ct);
         var items = await q.OrderBy(x => x.SubmittedAt).ThenBy(x => x.Id).Skip((input.Page - 1) * input.PageSize).Take(input.PageSize)
-            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt)).ToArrayAsync(ct);
+            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode)).ToArrayAsync(ct);
         return new(items, input.Page, input.PageSize, total);
     }
 
@@ -48,3 +48,5 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
         return result;
     }
 }
+
+

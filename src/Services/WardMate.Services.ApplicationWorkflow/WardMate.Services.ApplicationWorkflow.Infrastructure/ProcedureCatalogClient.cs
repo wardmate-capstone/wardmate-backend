@@ -41,6 +41,12 @@ public static class WorkflowInfrastructureRegistration
         services.AddScoped<IApplicationStore, ApplicationStore>();
         services.AddScoped<IApplicationReviewStore, ApplicationReviewStore>();
         services.AddSingleton(TimeProvider.System);
+        services.AddHttpClient<IWorkflowDirectory, WorkflowDirectory>(http =>
+        {
+            http.BaseAddress = new Uri((config["Iam:BaseUrl"] ?? "http://localhost:5001/").TrimEnd('/') + "/");
+            http.Timeout = TimeSpan.FromSeconds(10);
+            http.MaxResponseContentBufferSize = 2 * 1024 * 1024;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddHttpClient<IProcedureCatalogClient, ProcedureCatalogClient>(http =>
         {
             var endpoint = config["ProcedureCatalog:BaseUrl"] ?? "http://localhost:5002/";
@@ -53,3 +59,4 @@ public static class WorkflowInfrastructureRegistration
         return services;
     }
 }
+

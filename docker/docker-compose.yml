@@ -27,11 +27,14 @@ services:
       Jwt__Key: ${JWT_KEY}
       Database__AutoMigrate: "true"
       ProcedureCatalog__BaseUrl: http://procedure-catalog:8080/
+      Iam__BaseUrl: http://iam-api:8080/
     ports:
       - "5003:8080"
     depends_on:
       workflow-db:
         condition: service_healthy
+      iam-api:
+        condition: service_started
 
   # Independent database for Procedure Catalog; no shared initialization scripts.
   procedure-db:
@@ -235,3 +238,5 @@ volumes:
   iam-data:
   postgres_data:
   redis_data:
+
+

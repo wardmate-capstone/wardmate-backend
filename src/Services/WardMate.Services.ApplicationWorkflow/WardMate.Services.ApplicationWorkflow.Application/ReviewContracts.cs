@@ -5,7 +5,7 @@ using WardMate.Services.ApplicationWorkflow.Domain;
 
 namespace WardMate.Services.ApplicationWorkflow.Application;
 
-public sealed record ReviewActor(Guid Id, bool IsOfficer);
+public sealed record ReviewActor(Guid Id, bool IsOfficer, string? WardCode = null);
 public sealed record AddCommentInput(int VersionNumber, string TargetType, string TargetId, string FieldLabel, string CommentText);
 public sealed record RequestRevisionInput(string Reason);
 public sealed record ResubmitChecklistInput(Guid Id, string Status, string? FileUrl, string? Note);
@@ -43,7 +43,7 @@ public static class ApplicationSnapshots
         ApplicationId = a.Id, VersionNumber = a.ResubmitCount + 1, SubmittedBy = actor, SubmittedAt = now,
         SnapshotData = JsonSerializer.Serialize(new
         {
-            a.Id, a.ApplicationCode, a.UserId, a.ProcedureId, a.ProcedureTitle, a.CaseCode,
+            a.Id, a.ApplicationCode, a.WardCode, a.UserId, a.ProcedureId, a.ProcedureTitle, a.CaseCode,
             formData = JsonSerializer.Deserialize<JsonElement>(a.FormData),
             checklists = a.Checklists.OrderBy(x => x.Id).Select(x => new { x.Id, x.Code, x.Title, x.IsRequired, x.Status, x.FileUrl, x.Note })
         }, Options)
@@ -92,3 +92,4 @@ public static class ApplicationSnapshots
         }).Where(x => x.HasChanged).ToArray();
     }
 }
+

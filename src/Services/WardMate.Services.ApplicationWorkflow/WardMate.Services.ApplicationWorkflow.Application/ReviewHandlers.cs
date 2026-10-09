@@ -19,7 +19,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         new(ApplicationDto.From(a), a.AssignedOfficerId, a.ResubmitCount, a.Versions.Max(x => x.VersionNumber)));
     private static WorkflowResult<ReviewResultDto> Fail(int status, string code, string message) =>
         WorkflowResult<ReviewResultDto>.Fail(status, "application." + code, message);
-    private static bool Assigned(ApplicationRecord a, ReviewActor actor) => actor.IsOfficer && a.AssignedOfficerId == actor.Id && a.UserId != actor.Id;
+    private static bool Assigned(ApplicationRecord a, ReviewActor actor) => actor.IsOfficer && !string.IsNullOrEmpty(actor.WardCode) && a.WardCode == actor.WardCode && a.AssignedOfficerId == actor.Id && a.UserId != actor.Id;
     private static void Transition(ApplicationRecord a, string state, Guid actor, DateTime now, string? reason = null)
     {
         a.History.Add(new() { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = state, ChangedBy = actor, Reason = reason, CreatedAt = now });
@@ -27,7 +27,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
     }
     public Task<WorkflowResult<ReviewResultDto>> Handle(AssignOfficerCommand r, CancellationToken ct) => store.Mutate(r.Id, a =>
     {
-        if (!r.Actor.IsOfficer || a.UserId == r.Actor.Id) return Fail(403, "forbidden", "Bạn không được thẩm định hồ sơ này.");
+        if (!r.Actor.IsOfficer || string.IsNullOrEmpty(r.Actor.WardCode) || a.WardCode != r.Actor.WardCode || a.UserId == r.Actor.Id) return Fail(403, "forbidden", "Bạn không được thẩm định hồ sơ này.");
         if (a.Status != ApplicationStates.Submitted || (a.AssignedOfficerId is not null && a.AssignedOfficerId != r.Actor.Id))
             return Fail(409, "invalid_status", "Hồ sơ không còn chờ tiếp nhận hoặc đã có cán bộ khác thụ lý.");
         if (a.Versions.Count == 0) return Fail(409, "snapshot_missing", "Hồ sơ cũ chưa có snapshot nộp; cần kiểm tra dữ liệu trước khi thụ lý.");
@@ -124,3 +124,4 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         return WorkflowResult<FieldDiffDto[]>.Ok(ApplicationSnapshots.Compare(from, to, comments));
     }
 }
+

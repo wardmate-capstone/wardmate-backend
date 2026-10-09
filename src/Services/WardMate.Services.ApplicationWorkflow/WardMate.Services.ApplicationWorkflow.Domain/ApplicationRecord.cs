@@ -6,6 +6,7 @@ public static class ApplicationStates
     public const string Submitted = "SUBMITTED";
     public const string UnderReview = "UNDER_REVIEW";
     public const string NeedRevision = "NEED_REVISION";
+    public const string Rejected = "REJECTED";
     public const string Approved = "APPROVED";
     public const string Cancelled = "CANCELLED";
 }
@@ -23,6 +24,7 @@ public sealed class ApplicationRecord
     public string ApplicationCode { get; set; } = string.Empty;
     public Guid UserId { get; set; }
     public Guid ProcedureId { get; set; }
+    public string? WardCode { get; set; }
     public string ProcedureTitle { get; set; } = string.Empty;
     public string? CaseCode { get; set; }
     public string Status { get; set; } = ApplicationStates.Draft;
@@ -75,4 +77,5 @@ public sealed class ApplicationStatusHistory
     public string? Reason { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+
 

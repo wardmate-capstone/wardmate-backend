@@ -16,8 +16,10 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
     {
         b.HasSequence<long>("application_code_sequence");
         var a = b.Entity<ApplicationRecord>();
-        a.ToTable("applications", t => t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','APPROVED','CANCELLED')"));
+        a.ToTable("applications", t => t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','APPROVED','CANCELLED','REJECTED')"));
         a.HasKey(x => x.Id);
+        a.Property(x => x.WardCode).HasMaxLength(50);
+        a.HasIndex(x => new { x.WardCode, x.Status, x.SubmittedAt });
         a.Property(x => x.ApplicationCode).HasMaxLength(50);
         a.HasIndex(x => x.ApplicationCode).IsUnique();
         a.HasIndex(x => new { x.UserId, x.CreatedAt });
@@ -84,3 +86,4 @@ public sealed class WorkflowDbContextFactory : IDesignTimeDbContextFactory<Workf
             ?? "Host=localhost;Port=5435;Database=wardmate_workflow_db;Username=wardmate_workflow")
         .UseSnakeCaseNamingConvention().Options);
 }
+
