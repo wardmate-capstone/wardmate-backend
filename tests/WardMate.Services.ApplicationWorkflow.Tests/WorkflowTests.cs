@@ -14,7 +14,7 @@ public sealed class WorkflowTests(WorkflowFixture fixture) : IClassFixture<Workf
     private static async Task<ApplicationDto> Create(HttpClient client, Guid? procedureId = null, string? caseCode = "A")
     {
         var response = await client.PostAsJsonAsync("/api/v1/applications", new
-        { procedureId = procedureId ?? WorkflowFixture.ProcedureId, caseCode, formData = new { fullName = "Dữ liệu giả", nested = new { values = new[] { 1, 2 } } } });
+        { wardCode = "WARD_A", procedureId = procedureId ?? WorkflowFixture.ProcedureId, caseCode, formData = new { fullName = "Dữ liệu giả", nested = new { values = new[] { 1, 2 } } } });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<ApplicationDto>())!;
     }
@@ -132,7 +132,7 @@ public sealed class WorkflowTests(WorkflowFixture fixture) : IClassFixture<Workf
         var first = await (await client.PostAsync($"/api/v1/applications/{a.Id}/submit", null)).Content.ReadFromJsonAsync<ApplicationDto>();
         var second = await (await client.PostAsync($"/api/v1/applications/{b.Id}/submit", null)).Content.ReadFromJsonAsync<ApplicationDto>();
         Assert.NotNull(first!.ApplicationCode); Assert.NotEqual(first.ApplicationCode, second!.ApplicationCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/v1/applications", new { procedureId = Guid.NewGuid(), formData = new { } })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/v1/applications", new { wardCode = "WARD_A", procedureId = Guid.NewGuid(), formData = new { } })).StatusCode);
     }
 
     [Fact]
@@ -141,13 +141,14 @@ public sealed class WorkflowTests(WorkflowFixture fixture) : IClassFixture<Workf
         using var anonymous = fixture.Factory.CreateClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/v1/applications")).StatusCode);
         using var client = fixture.Client(Guid.NewGuid());
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/applications", new { procedureId = WorkflowFixture.ProcedureId, formData = new { } })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/applications", new { procedureId = WorkflowFixture.ProcedureId, caseCode = "A", formData = "not an object" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/applications", new { wardCode = "WARD_A", procedureId = WorkflowFixture.ProcedureId, formData = new { } })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/applications", new { wardCode = "WARD_A", procedureId = WorkflowFixture.ProcedureId, caseCode = "A", formData = "not an object" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/v1/applications?pageSize=101")).StatusCode);
         var a = await Create(client);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PatchAsJsonAsync($"/api/v1/applications/{a.Id}/checklists/{a.Checklists[0].Id}", new { status = "APPROVED" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PatchAsJsonAsync($"/api/v1/applications/{a.Id}/checklists/{a.Checklists[0].Id}", new { status = "COMPLETED", fileUrl = "http://example.invalid/a" })).StatusCode);
     }
 }
+
 
 

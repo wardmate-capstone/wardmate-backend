@@ -85,6 +85,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WardMate.Services.DocumentF
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WardMate.Services.ApplicationWorkflow.Tests", "tests\WardMate.Services.ApplicationWorkflow.Tests\WardMate.Services.ApplicationWorkflow.Tests.csproj", "{3E0F6F58-6B62-4BEC-AE74-3A5A1F1A5132}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WardMate.Services.IAM.Tests", "tests\WardMate.Services.IAM.Tests\WardMate.Services.IAM.Tests.csproj", "{BF9264A4-013D-48C2-99BC-2A01AE230CA3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -455,6 +457,18 @@ Global
 		{3E0F6F58-6B62-4BEC-AE74-3A5A1F1A5132}.Release|x64.Build.0 = Release|Any CPU
 		{3E0F6F58-6B62-4BEC-AE74-3A5A1F1A5132}.Release|x86.ActiveCfg = Release|Any CPU
 		{3E0F6F58-6B62-4BEC-AE74-3A5A1F1A5132}.Release|x86.Build.0 = Release|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Debug|x64.Build.0 = Debug|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Debug|x86.Build.0 = Debug|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Release|x64.ActiveCfg = Release|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Release|x64.Build.0 = Release|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Release|x86.ActiveCfg = Release|Any CPU
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -499,5 +513,6 @@ Global
 		{1A68FE2A-BC5E-4B95-B2A7-9D38A60E9D62} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{4C9D0934-0202-4245-9169-DAEC129141EB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{3E0F6F58-6B62-4BEC-AE74-3A5A1F1A5132} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{BF9264A4-013D-48C2-99BC-2A01AE230CA3} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

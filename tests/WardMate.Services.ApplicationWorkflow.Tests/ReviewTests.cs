@@ -15,7 +15,7 @@ public sealed class ReviewTests(WorkflowFixture fixture) : IClassFixture<Workflo
     {
         var response = await owner.PostAsJsonAsync("/api/v1/applications", new
         {
-            procedureId = checklist ? WorkflowFixture.ProcedureId : WorkflowFixture.EmptyProcedureId,
+            wardCode = "WARD_A", procedureId = checklist ? WorkflowFixture.ProcedureId : WorkflowFixture.EmptyProcedureId,
             caseCode = checklist ? "A" : null, formData = new { name = "Tên cũ", address = new { city = "Cũ" }, values = new[] { 1, 2 } }
         });
         response.EnsureSuccessStatusCode();
@@ -164,3 +164,4 @@ public sealed class ReviewTests(WorkflowFixture fixture) : IClassFixture<Workflo
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
 }
+

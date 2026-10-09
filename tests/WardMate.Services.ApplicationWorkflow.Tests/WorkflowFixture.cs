@@ -22,6 +22,7 @@ public sealed class WorkflowFixture : IAsyncLifetime
     private readonly PostgreSqlContainer postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine")
         .WithDatabase("workflow_test").WithUsername("workflow_test").WithPassword(Guid.NewGuid().ToString("N")).Build();
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
+    public FakeDirectory Directory { get; } = new();
     public static readonly Guid ProcedureId = Guid.Parse("00000000-0000-0000-0000-000000000001");
     public static readonly Guid EmptyProcedureId = Guid.Parse("00000000-0000-0000-0000-000000000002");
 
@@ -42,13 +43,18 @@ public sealed class WorkflowFixture : IAsyncLifetime
                 s.AddDbContext<WorkflowDbContext>(o => o.UseNpgsql(postgres.GetConnectionString()).UseSnakeCaseNamingConvention());
                 s.RemoveAll<IProcedureCatalogClient>();
                 s.AddSingleton<IProcedureCatalogClient, FakeCatalog>();
+                s.RemoveAll<IWorkflowDirectory>(); s.AddSingleton<IWorkflowDirectory>(Directory);
             });
         });
         using var client = Factory.CreateClient();
         (await client.GetAsync("/health")).EnsureSuccessStatusCode();
     }
-    public HttpClient Client(Guid userId, bool admin = false, bool officer = false)
+    public HttpClient Client(Guid userId, bool admin = false, bool officer = false, string? wardCode = "WARD_A", string[]? permissions = null)
     {
+        var role = officer ? "FRONT_DESK_OFFICER" : admin ? "IT_ADMIN" : "REGISTERED_CITIZEN";
+        var rights = permissions ?? WardMate.SharedKernel.Web.FeaturePermissions.Workflow.Where(p => officer ||
+            p is "workflow.create" or "workflow.read" or "workflow.checklist.write" or "workflow.submit" or "workflow.resubmit" or "workflow.comments.read" or "workflow.versions.read" or "workflow.diff.read").ToArray();
+        Directory.Users[userId] = new(userId, wardCode, [role], rights);
         var token = new JwtSecurityToken("wardmate", "wardmate-client",
             [new Claim("sub", userId.ToString()), new Claim("role", officer ? "FRONT_DESK_OFFICER" : admin ? "IT_ADMIN" : "REGISTERED_CITIZEN")],
             DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow.AddMinutes(10),
@@ -59,6 +65,18 @@ public sealed class WorkflowFixture : IAsyncLifetime
     }
     public async Task DisposeAsync() { await Factory.DisposeAsync(); await postgres.DisposeAsync(); }
 
+    public sealed class FakeDirectory : IWorkflowDirectory
+    {
+        public System.Collections.Concurrent.ConcurrentDictionary<Guid, WorkflowAccess> Users { get; } = new();
+        public bool Unavailable { get; set; }
+        public Task<WorkflowAccess?> Access(string token, CancellationToken ct)
+        {
+            if (Unavailable) throw new HttpRequestException("IAM unavailable");
+            var id = Guid.Parse(new JwtSecurityTokenHandler().ReadJwtToken(token).Subject);
+            return Task.FromResult(Users.TryGetValue(id, out var value) ? value : null);
+        }
+        public Task<bool> WardExists(string code, CancellationToken ct) => Task.FromResult(code is "WARD_A" or "WARD_B");
+    }
     private sealed class FakeCatalog : IProcedureCatalogClient
     {
         public Task<WorkflowResult<ProcedureSnapshot>> Get(Guid id, CancellationToken ct) => Task.FromResult(
@@ -70,4 +88,5 @@ public sealed class WorkflowFixture : IAsyncLifetime
             : WorkflowResult<ProcedureSnapshot>.Fail(404, "application.procedure_not_found", "Không tìm thấy thủ tục."));
     }
 }
+
 
