@@ -1853,3 +1853,157 @@ Các API mới trả 200 khi thành công; đều cần JWT. Các route officer 
   kiểm tra Azure overrides Cors__AllowedOrigins__* / AuthCookie__SameSite=None / AuthCookie__AllowInsecureLocalhost=false.
 - Không chạy Git, không build Docker. Commit gợi ý: fix(cors): allow deployed Vercel frontend and cross-site auth cookies.
 - Lượt test chỉ chọn WorkflowUnitTests/ReviewDiffTests cũng dừng ở bước khởi chạy test, không trả kết quả; đã hủy lượt chạy. Không có số test pass được xác nhận cho phiên này.
+
+## W1-W4-CLOSEOUT-001 — IAM directory, permission chi tiết, hàng đợi theo phường và quyết định cuối
+
+- Hoàn thành code/kiểm thử local: 2026-10-09 17:07 Asia/Saigon (UTC+07:00).
+- Phạm vi: 3 mục trong yêu cầu hoàn thiện Tuần 1–4. Không tuyên bố hoàn thành các backlog khác
+  ngoài yêu cầu này (QR, xuất kết quả, RAG, Analytics, v.v.). Không sửa API DocumentForm của BE khác.
+- Không chạy bất kỳ lệnh Git nào. Không build/deploy image và không cập nhật database Azure.
+
+### Kết quả
+
+1. GET /api/v1/manager/officers: Manager + iam.accounts.read, phạm vi phường từ DB trước phân trang;
+   bộ lọc WardCode/AssignedCategory/Search/Role, page/pageSize. Cán bộ có role đặc quyền ngoài FD/Citizen
+   vẫn bị loại theo ManagementScope hiện có.
+2. GET /api/v1/admin/users: IT_ADMIN + iam.accounts.read, tra họ tên/email/CCCD, role, phân trang,
+   hỗ trợ thêm phường/category; có cả tài khoản inactive, không trả hash/token.
+3. PUT /api/v1/manager/officers/{userId}/categories: iam.accounts.manage + scope; body {categories:[1,2]},
+   204. Metadata int[] theo ID Procedure category, không FK xuyên database và không khóa luồng FD theo lĩnh vực.
+4. GET /api/v1/wards public: {id,code,name}[] cho công dân chọn phường.
+5. GET /api/v1/users/access-context authenticated: quyền/phường/role hiện hành của chính token,
+   no-store, 401 tài khoản không khả dụng. Không nhận userId từ request.
+6. IAM endpoints accounts/users/profiles/RBAC/wards thêm permission tương ứng, giữ chống leo thang
+   và phạm vi phường. Procedure quản trị thay policy role chung bằng 15 permission đã có.
+7. Application.WardCode, migration/index; POST create bắt buộc wardCode được xác minh qua IAM.
+   Snapshot mới, detail và summary có wardCode. Ward null của dữ liệu cũ không lọt vào queue.
+8. Workflow lấy AccessContext từ IAM trước authorization trên mỗi request authenticated, ghi đè claims
+   role/permissions/ward cũ; lỗi IAM trả 503, bị khóa trả 401. Thay phường/thu hồi quyền có hiệu lực request kế tiếp.
+9. Queue, assign, comment, request-revision, versions/comments/diff và quyết định cuối chặn FD khác phường.
+10. POST /api/v1/officer/applications/{id}/approve (không body): workflow.approve, FD thụ lý đúng phường,
+    UNDER_REVIEW, không OPEN comment; APPROVED + ApprovedAt UTC + history trong transaction.
+11. POST /api/v1/officer/applications/{id}/reject body {reason}: workflow.reject, cùng phạm vi,
+    UNDER_REVIEW → REJECTED, lý do bắt buộc, lưu notes/history. APPROVED/REJECTED khóa mọi mutation cũ.
+12. Row locks tuần tự hóa quyết định đồng thời; giữ nguyên snapshot đã nộp.
+
+### DTO, status code và hướng dẫn FE
+
+- DirectoryFilter: search?, role?, wardCode?, assignedCategory? (integer ID), page=1, pageSize=20 (1–100).
+- DirectoryPage: items/page/pageSize/total; DirectoryUser: id/username/email/fullName/identityNumber/
+  isActive/wardCode/roles/assignedCategories. Search dùng ILIKE với escape wildcard; không bỏ dấu.
+- POST create Application thêm WardCode bắt buộc, uppercase/trim; không cho FE đổi phường khi resubmit.
+- API đọc/create/approve/reject trả 200 hoặc 201 như mô tả trong docs/api-guide.md; categories PUT 204.
+- 400 validation hoặc phường không tồn tại; 401 token/tài khoản; 403 permission/phạm vi;
+  404 user/hồ sơ ngoài phạm vi hoặc không có; 409 trạng thái/OPEN comment/thiếu phường legacy;
+  503 IAM không khả dụng. Workflow errors application.*; IAM errors theo Result/validation hiện có.
+- IAM và Workflow dùng quyền hiện hành; Procedure dùng permission JWT, cần refresh/login sau đổi quyền.
+- Workflow thêm 14 permission bằng migration IAM; 8 quyền cá nhân/đọc trong phạm vi cho 5 role chuẩn,
+  6 quyền thẩm định chỉ cấp FRONT_DESK_OFFICER. Admin/Manager không tự có quyền duyệt mọi hồ sơ.
+- IAM__BaseUrl trên Workflow trỏ về IAM origin (key chính xác: Iam__BaseUrl); Compose đã cấu hình
+  http://iam-api:8080/ và depends_on iam-api. Không dùng địa chỉ frontend cho cấu hình này.
+- Triển khai IAM + migration trước Workflow; sau đó Procedure/Gateway và FE chọn phường.
+
+### Migration và lưu ý dữ liệu cũ
+
+- IAM: 20261009095945_OfficerDirectoryCategories, thêm assigned_categories integer[] mặc định rỗng,
+  seed permission/grants idempotent theo code/role_name, khóa cùng RbacStore; không xóa quyền tùy chỉnh.
+  Down chỉ gỡ cột, không tự thu hồi các permission đã có thể được gán cho role tùy chỉnh.
+- Workflow: 20261009095949_WardScopedFinalDecisions, ward_code nullable cho bản ghi legacy,
+  index (ward_code,status,submitted_at), check constraint thêm REJECTED.
+- Không tự suy đoán phường cho hồ sơ cũ. Bản ghi legacy thiếu ward bị chặn queue/submit; phải đối soát
+  và bổ sung địa bàn có kiểm soát trước khi dùng lại. Chưa có endpoint chuyển phường hồ sơ trong task này.
+- AssignedCategories chỉ kiểm integer dương/không trùng/tối đa 100, chưa gọi Procedure để xác minh tồn tại;
+  FE chọn từ danh mục thật. Đây là metadata bộ lọc, không quyết định authorization.
+
+### Kiểm thử và chất lượng
+
+- Tạo project IAM.Tests theo yêu cầu mới của user cho Unit/Integration Tests.
+- Thêm 17 test cases: IAM 7 (bao gồm validator unit), Workflow 7, Procedure permission 3.
+- Full solution: dotnet test WardMate.sln -c Release --no-restore -m:1 PASS 218/218,
+  0 failed, 0 skipped: Procedure 99, DocumentForm 76, Workflow 36, IAM 7.
+- Test PostgreSQL16 bằng container riêng tạm, đã được fixtures dọn; không sửa DB local đang sử dụng.
+- Bao phủ ward/category/search/paging, role không có permission không được vượt kiểm tra,
+  revoke quyền cùng token, đổi phường cùng token, IAM unavailable fail closed,
+  DRAFT→SUBMITTED→UNDER_REVIEW→APPROVED/REJECTED, reason rỗng, OPEN comment,
+  freeze sau kết thúc và approve/reject đồng thời một winner.
+- Một lượt đầu fail do fixture Ward không uppercase như API thật; đã sửa fixture và chạy toàn suite PASS.
+- Final Release build --no-restore -warnaserror -m:1: PASS 0 errors, 0 warnings.
+- EF has-pending-model-changes cho IAM/Workflow: không có thay đổi model thiếu migration.
+
+### Danh sách file tạo/sửa (tương đối từ repository)
+
+Shared/Gateway/config:
+- src/BuildingBlocks/WardMate.SharedKernel/Web/FeaturePermissions.cs (mới)
+- src/Gateways/WardMate.YarpGateway/appsettings.json
+- docker/docker-compose.yml
+- WardMate.sln
+
+IAM, dưới src/Services/WardMate.Services.IAM/:
+- WardMate.Services.IAM.Domain/Entities/User.cs
+- WardMate.Services.IAM.Application/Accounts/UserDirectory.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/UserDirectory.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/Configurations/IdentityConfigurations.cs
+- WardMate.Services.IAM.Infrastructure/DependencyInjection.cs
+- WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261009095945_OfficerDirectoryCategories.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261009095945_OfficerDirectoryCategories.Designer.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/Migrations/IamDbContextModelSnapshot.cs
+- WardMate.Services.IAM.API/Controllers/UserDirectoryController.cs (mới)
+- WardMate.Services.IAM.API/Controllers/UsersController.cs
+- WardMate.Services.IAM.API/Controllers/AccountsController.cs
+- WardMate.Services.IAM.API/Controllers/AdminProfilesController.cs
+- WardMate.Services.IAM.API/Controllers/StaffAdministrationController.cs
+- WardMate.Services.IAM.API/Controllers/RbacController.cs
+- WardMate.Services.IAM.API/Authorization/PermissionAuthorization.cs
+
+Workflow, dưới src/Services/WardMate.Services.ApplicationWorkflow/:
+- WardMate.Services.ApplicationWorkflow.Domain/ApplicationRecord.cs
+- WardMate.Services.ApplicationWorkflow.Application/IWorkflowDirectory.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Application/FinalDecisionRequests.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Application/WorkflowContracts.cs
+- WardMate.Services.ApplicationWorkflow.Application/WorkflowValidation.cs
+- WardMate.Services.ApplicationWorkflow.Application/WorkflowRequests.cs
+- WardMate.Services.ApplicationWorkflow.Application/ReviewContracts.cs
+- WardMate.Services.ApplicationWorkflow.Application/ReviewHandlers.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDirectory.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/ProcedureCatalogClient.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/ApplicationStore.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/ApplicationReviewStore.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDbContext.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261009095949_WardScopedFinalDecisions.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261009095949_WardScopedFinalDecisions.Designer.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/WorkflowDbContextModelSnapshot.cs
+- WardMate.Services.ApplicationWorkflow.API/WorkflowAccessMiddleware.cs (mới)
+- WardMate.Services.ApplicationWorkflow.API/WorkflowSecurity.cs
+- WardMate.Services.ApplicationWorkflow.API/Program.cs
+- WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationsController.cs
+- WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationReviewController.cs
+
+Procedure, dưới src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/:
+- Security/ProcedureAuthentication.cs
+- Controllers/ProcedureManagerController.cs
+- Controllers/ProcedureDraftsController.cs
+- Controllers/ProcedureCategoriesController.cs
+- Controllers/ProcedureDocumentFormsController.cs
+
+Tests/tài liệu:
+- tests/WardMate.Services.IAM.Tests/WardMate.Services.IAM.Tests.csproj (mới)
+- tests/WardMate.Services.IAM.Tests/IamFixture.cs (mới)
+- tests/WardMate.Services.IAM.Tests/UserDirectoryTests.cs (mới)
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowFixture.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowTests.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/ReviewTests.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WardDecisionTests.cs (mới)
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureFixture.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/PermissionTests.cs (mới)
+- docs/api-guide.md
+- PROGRESS.md
+
+### Commit gợi ý cho Antigravity
+
+- feat(iam): add scoped user directory and officer category filters
+- feat(auth): enforce granular IAM and procedure permissions
+- feat(workflow): enforce live ward scope and final decisions
+- test: cover scoped directories permissions and final workflow states
+- docs: document week 1-4 completion and migration handoff
+
+Giữ quy tắc commit từng file/thay đổi chức năng; không squash. Codex không chạy Git.

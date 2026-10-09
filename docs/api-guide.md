@@ -2650,3 +2650,176 @@ AuthCookie__AllowInsecureLocalhost=false
 Hai biến AuthCookie chỉ đặt tại IAM. Không cần thêm domain Azure API vào allowlist chỉ để Swagger cùng origin.
 Local HTTP nếu chủ động bật AllowInsecureLocalhost=true phải override SameSite=Strict hoặc Lax;
 không dùng cấu hình đó cho FE Vercel gọi Azure. Không có endpoint/DTO mới trong lần cập nhật này.
+
+## Hoàn thiện Tuần 1–4 — IAM directory, permission và hồ sơ theo phường (09/10/2026)
+
+Mục này cập nhật các giới hạn của TASK-11 phía trên: hàng đợi nay đã phân theo phường,
+đã có APPROVED/REJECTED và kiểm permission theo từng chức năng.
+Không thay đổi API DocumentForm của BE khác trong đợt này.
+
+### GET /api/v1/manager/officers
+
+**Mục đích:** Manager tìm cán bộ Một cửa do phường mình quản lý.
+
+**Quyền:** tài khoản MANAGER đang hoạt động, đã gán phường, có `iam.accounts.read`.
+Phạm vi được lấy từ database IAM; không tin WardCode do FE gửi để mở rộng quyền.
+
+**Cách gọi:** không body. Ví dụ:
+`/api/v1/manager/officers?wardCode=WARD_A&assignedCategory=1&page=1&pageSize=20`.
+Query tùy chọn: wardCode, assignedCategory (ID số nguyên của danh mục Procedure), search, role;
+page mặc định 1, pageSize mặc định 20 (tối đa 100).
+AssignedCategory lọc metadata lĩnh vực, không giới hạn cán bộ chỉ được thụ lý lĩnh vực đó.
+
+**Kết quả:** 200 `{items,page,pageSize,total}`. Mỗi item: id, username, email, fullName,
+identityNumber, isActive, wardCode, roles[], assignedCategories[]. Không trả passwordHash/token.
+Chỉ cán bộ thuộc phường Manager và không kiêm vai trò đặc quyền ngoài FD/Citizen được hiển thị.
+Lọc sang phường khác trả danh sách rỗng; phạm vi áp dụng trước total/phân trang.
+
+**Dùng sai:** 400 khi page/pageSize/category sai; 401 chưa đăng nhập/tài khoản bị khóa;
+403 thiếu permission, không phải Manager hoặc chưa có phường. Kiểm tra tài khoản/phường với Admin.
+
+### GET /api/v1/admin/users
+
+**Mục đích:** IT_ADMIN tra cứu toàn bộ người dùng kể cả tài khoản bị khóa.
+
+**Quyền:** IT_ADMIN có `iam.accounts.read`. Manager không dùng API này.
+
+**Cách gọi:** không body; query `search` tìm chuỗi trong họ tên, email hoặc CCCD,
+`role=FRONT_DESK_OFFICER`, `page`, `pageSize`; có thể thêm wardCode/assignedCategory.
+Search không phân biệt hoa thường; `%` và `_` được hiểu là ký tự tìm kiếm, không là wildcard.
+
+**Kết quả:** 200 DirectoryPage giống API cán bộ; tìm không có kết quả trả items rỗng, total=0.
+
+**Dùng sai:** 403 thiếu quyền/không phải IT_ADMIN; 400 từ khóa quá 255 ký tự hoặc phân trang sai.
+Không sử dụng API này để lấy mật khẩu hay dữ liệu token.
+
+### PUT /api/v1/manager/officers/{userId}/categories
+
+**Mục đích:** Manager/Admin cập nhật metadata lĩnh vực phụ trách phục vụ bộ lọc cán bộ.
+
+**Quyền:** `iam.accounts.manage` và phạm vi quản lý hiện có; Manager chỉ sửa FD của phường mình.
+
+**Cách gọi:** body `{"categories":[1,2]}`. Mã là ID danh mục từ Procedure Catalog.
+Mảng thay thế toàn bộ metadata hiện tại; `[]` xóa danh sách lĩnh vực.
+Đây là logical reference, không tạo khóa ngoại sang database Procedure và không giới hạn queue theo lĩnh vực.
+Backend kiểm mã nguyên dương, không trùng, tối đa 100; chưa xác minh sự tồn tại qua service Procedure.
+FE nên chọn từ API danh mục thay vì nhập ID tự do.
+
+**Kết quả:** 204 không body; gọi lại danh sách cán bộ để thấy thay đổi.
+
+**Dùng sai:** 400 mảng null/mã âm/trùng/quá giới hạn; 404 không có FD trong phạm vi được phép;
+403 thiếu permission. Không dùng API này để chuyển phường hoặc cấp role.
+
+### GET /api/v1/wards
+
+**Mục đích:** cung cấp danh sách phường/xã tiếp nhận để công dân chọn khi tạo hồ sơ.
+
+**Cách gọi:** công khai, không body. Trả 200 `[{id,code,name}]` sắp xếp theo code.
+Đây là các phường đã tạo trong IAM, không tự đồng bộ danh mục hành chính quốc gia.
+Danh sách rỗng cần Admin tạo phường qua API quản trị hiện có.
+
+### GET /api/v1/users/access-context
+
+**Mục đích:** Workflow xác minh quyền và phường hiện hành của người đang gửi request.
+
+**Cách gọi:** Bearer token IAM; không nhận userId/ward từ query hoặc body.
+
+**Kết quả:** 200 `{userId,wardCode,roles,permissions}`, Cache-Control no-store.
+401 nếu token không hợp lệ hoặc tài khoản bị khóa/không tồn tại.
+Đây là ngữ cảnh của chính người đăng nhập, không phải API tra quyền tùy ý của người khác.
+
+### Tạo hồ sơ và hàng đợi theo phường
+
+`POST /api/v1/applications` vẫn dùng workflow.create, nay **bắt buộc wardCode**:
+
+```json
+{
+  "procedureId": "11111111-1111-1111-1111-111111111111",
+  "wardCode": "WARD_A",
+  "caseCode": null,
+  "formData": { "fullName": "Nguyễn Văn A" }
+}
+```
+
+Chọn mã thật từ GET /api/v1/wards; thay procedureId bằng ID thủ tục đang hoạt động.
+Mã được trim/viết hoa. 400 application.invalid_ward nếu không tồn tại;
+503 application.iam_unavailable nếu không xác minh được IAM, không bỏ qua kiểm tra.
+WardCode lưu vào hồ sơ, snapshot mới, detail và summary. Không lấy phường cư trú của công dân
+làm phường tiếp nhận tự động và không cho FE thay phường khi resubmit.
+
+GET /api/v1/officer/applications/pending chỉ thấy SUBMITTED/UNDER_REVIEW đúng WardCode hiện hành,
+chưa có cán bộ hoặc đã thuộc chính cán bộ đó. Bộ lọc status/procedure/date/paging/FIFO giữ nguyên.
+Thiếu phường trả danh sách rỗng; cán bộ khác phường không được assign, comment, request-revision,
+approve/reject hoặc đọc phiên bản/diff của hồ sơ không thuộc mình.
+
+Workflow gọi IAM bằng token của request để cập nhật permissions/ward/roles trước authorization.
+Chuyển phường/thu hồi quyền/khóa tài khoản có hiệu lực ở request tiếp theo, không chờ token hết hạn.
+IAM không truy cập được trả 503; không quay về dùng quyền/phường cũ trong JWT.
+Cấu hình Workflow `Iam__BaseUrl` (Compose: http://iam-api:8080/; chạy trực tiếp mặc định localhost:5001).
+
+Hồ sơ cũ được giữ WardCode=null vì không đủ dữ liệu xác định phường. Các hồ sơ này bị loại khỏi queue,
+DRAFT thiếu phường không được submit (409 application.ward_required). Cần kế hoạch bổ sung địa bàn
+có kiểm chứng trước khi đưa hồ sơ cũ vào vận hành; migration không tự gán toàn bộ vào một phường.
+
+### POST /api/v1/officer/applications/{id}/approve
+
+**Mục đích:** chấp thuận chính thức hồ sơ đã được thẩm định.
+
+**Quyền:** `workflow.approve`, cán bộ FD đang thụ lý và cùng phường tiếp nhận;
+không được duyệt hồ sơ của chính mình.
+
+**Cách gọi:** không body. Hồ sơ phải UNDER_REVIEW và không có nhận xét OPEN của version hiện tại.
+
+**Kết quả:** 200 ReviewResultDto, status APPROVED, approvedAt UTC; ghi một dòng lịch sử cùng transaction.
+Giữ nguyên snapshot đã nộp và đóng mọi đường sửa/checklist/comment/nộp lại của hồ sơ đã duyệt.
+
+**Dùng sai:** 403 sai quyền/phường/người thụ lý; 404 không có hồ sơ;
+409 sai trạng thái, thiếu snapshot hoặc application.open_comments.
+Nếu còn lỗi, dùng request-revision để công dân sửa; không tự đánh dấu đã duyệt khi nhận 409.
+
+### POST /api/v1/officer/applications/{id}/reject
+
+**Mục đích:** từ chối chính thức và kết thúc hồ sơ, khác yêu cầu sửa để nộp lại.
+
+**Quyền:** `workflow.reject`, FD thụ lý đúng phường, không là chủ hồ sơ.
+
+**Cách gọi:** ở UNDER_REVIEW, body `{"reason":"Không đáp ứng điều kiện theo quy định."}`.
+Reason bắt buộc, không chỉ khoảng trắng, tối đa 4000 ký tự.
+
+**Kết quả:** 200 ReviewResultDto, status REJECTED, notes/lịch sử có lý do, approvedAt vẫn null.
+Không cho nộp lại hồ sơ REJECTED. Nếu cần bổ sung thì dùng request-revision thay vì reject.
+
+**Dùng sai:** 400 thiếu lý do; 403 sai phạm vi/quyền; 409 không còn UNDER_REVIEW.
+Hai quyết định đồng thời chỉ một thành công; yêu cầu còn lại 409, FE tải lại kết quả.
+
+### Permission đang được thực thi
+
+IAM kiểm quyền từ DB tại request; giữ các ràng buộc phạm vi/anti-escalation có sẵn.
+- Xem tài khoản/người dùng/hồ sơ quản trị: iam.accounts.read.
+- Tạo FD, sửa trạng thái/hồ sơ, cấp/gỡ role FD, gán lĩnh vực: iam.accounts.manage.
+- Xem phường quản trị: iam.wards.read; tạo/gán phường: iam.wards.manage.
+- Quản trị role/permission: iam.rbac.manage; audit: iam.audit.read.
+- Hồ sơ cá nhân vẫn iam.profile.read/iam.profile.write.
+
+Procedure không còn cho phép role IT_ADMIN/PROCEDURE_MANAGER tự vượt kiểm tra permission.
+Dùng 15 mã đã seed: procedure.read/create/update/publish/status, procedure.versions.read,
+procedure.rollback, procedure.source.read, procedure.categories.manage,
+procedure.drafts.read/upload/update/extract/publish/delete.
+API biểu mẫu chọn cho Procedure dùng procedure.read; API public vẫn công khai.
+Procedure đọc permissions từ JWT: đăng nhập/refresh sau khi thay grant; token cũ có quyền cũ đến hết hạn.
+
+Workflow dùng 14 mã mới: workflow.create/read/checklist.write/submit/resubmit,
+workflow.comments.read/versions.read/diff.read, workflow.queue.read/assign/comments.write,
+workflow.revision.request/approve/reject. Mỗi endpoint cần mã tương ứng cùng phạm vi chủ hồ sơ/cán bộ.
+Migration IAM cấp 8 quyền cá nhân/đọc trong phạm vi cho 5 role chuẩn; 6 quyền thẩm định chỉ cho FD.
+IT_ADMIN/MANAGER không tự có quyền thẩm định toàn hệ thống.
+
+### Triển khai thay đổi
+
+1. Áp dụng migration IAM OfficerDirectoryCategories: assigned_categories và 14 permission Workflow.
+2. Deploy IAM có access-context/wards trước khi deploy Workflow phụ thuộc hai API này.
+3. Áp dụng migration Workflow WardScopedFinalDecisions (WardCode, index, trạng thái REJECTED).
+4. Cấu hình Iam__BaseUrl đúng origin IAM trên môi trường đích; deploy Workflow/Procedure/Gateway mới.
+5. FE bổ sung chọn phường khi tạo hồ sơ, bộ lọc cán bộ và xử lý hai trạng thái cuối.
+
+Các bước trên là hướng dẫn bàn giao; chưa được chạy trên Azure trong phiên này.
