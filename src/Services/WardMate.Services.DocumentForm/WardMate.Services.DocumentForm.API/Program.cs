@@ -34,6 +34,7 @@ try
 
     // ── Health / Exception handling ──────────────────────────────────────────
     builder.Services.AddHealthChecks();
+    builder.Services.AddWardMateBrowserCors(builder.Configuration, builder.Environment);
     builder.Services.AddGlobalExceptionHandling();
     builder.Services.Configure<ProblemDetailsOptions>(options =>
         options.CustomizeProblemDetails = context =>
@@ -93,6 +94,7 @@ try
         });
     }
 
+    app.UseCors(BrowserCorsExtensions.PolicyName);
     app.MapControllers();
     app.MapHealthChecks("/health");
     app.MapGet("/", () => Results.Ok(new

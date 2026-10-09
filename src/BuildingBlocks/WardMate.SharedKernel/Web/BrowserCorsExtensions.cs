@@ -11,7 +11,9 @@ public static class BrowserCorsExtensions
     public static IServiceCollection AddWardMateBrowserCors(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? (environment.IsDevelopment() ? ["http://localhost:5173", "http://localhost:3000"] : Array.Empty<string>());
+            ?? (environment.IsDevelopment()
+                ? ["http://localhost:5173", "http://localhost:3000", "https://wardmate-frontend.vercel.app"]
+                : ["https://wardmate-frontend.vercel.app"]);
         foreach (var origin in origins)
         {
             if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) ||

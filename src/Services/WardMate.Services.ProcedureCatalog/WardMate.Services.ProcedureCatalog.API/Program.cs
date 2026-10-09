@@ -13,6 +13,7 @@ builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializ
 builder.Services.AddProcedureApplication();
 builder.Services.AddProcedureInfrastructure(builder.Configuration);
 builder.Services.AddProcedureAuthentication(builder.Configuration);
+builder.Services.AddWardMateBrowserCors(builder.Configuration, builder.Environment);
 builder.Services.Configure<ApiBehaviorOptions>(options => options.InvalidModelStateResponseFactory = context =>
 {
     var errors = context.ModelState.Where(x => x.Value?.Errors.Count > 0).ToDictionary(x => x.Key,
@@ -41,6 +42,7 @@ if (builder.Configuration.GetValue("Database:AutoMigrate", false))
 
 app.UseGlobalExceptionHandling();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+app.UseCors(BrowserCorsExtensions.PolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
