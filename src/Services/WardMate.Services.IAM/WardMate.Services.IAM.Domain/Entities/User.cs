@@ -7,6 +7,7 @@ public sealed class User
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
+    public int[] AssignedCategories { get; set; } = [];
     public Guid? WardId { get; set; }
     public Ward? Ward { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -14,3 +15,4 @@ public sealed class User
     public UserProfile Profile { get; set; } = null!;
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 }
+

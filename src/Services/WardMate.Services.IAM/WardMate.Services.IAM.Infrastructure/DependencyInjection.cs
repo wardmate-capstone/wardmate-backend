@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IIdentityStore, IdentityStore>();
         services.AddScoped<IProfileStore, ProfileStore>();
         services.AddScoped<ManagementScope>();
+        services.AddScoped<WardMate.Services.IAM.Application.Accounts.IUserDirectory, UserDirectory>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.IManagementScope>(sp => sp.GetRequiredService<ManagementScope>());
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.IStaffAdministration, StaffAdministration>();
         services.AddScoped<WardMate.Services.IAM.Application.Rbac.IRbacStore, RbacStore>();
@@ -57,3 +58,4 @@ public static class DependencyInjection
         return services;
     }
 }
+
