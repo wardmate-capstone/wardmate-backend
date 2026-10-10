@@ -1,6 +1,45 @@
 name: wardmate
 
 services:
+  notifications-db:
+    profiles: [notifications]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: wardmate_notifications_db
+      POSTGRES_USER: wardmate_notifications
+      POSTGRES_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:-}
+    ports:
+      - "127.0.0.1:5436:5432"
+    volumes:
+      - notifications-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wardmate_notifications -d wardmate_notifications_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  analytics-system:
+    profiles: [notifications]
+    build:
+      context: ..
+      dockerfile: src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__NotificationsDatabase: Host=notifications-db;Port=5432;Database=wardmate_notifications_db;Username=wardmate_notifications;Password=${NOTIFICATIONS_DB_PASSWORD:-}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: wardmate
+      Jwt__Audience: wardmate-client
+      Iam__BaseUrl: http://iam-api:8080/
+      Database__AutoMigrate: "true"
+    ports:
+      - "5006:8080"
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+      iam-api:
+        condition: service_started
+
   workflow-db:
     image: postgres:16-alpine
     environment:
@@ -233,6 +272,7 @@ services:
       - "8080"
 
 volumes:
+  notifications-data:
   workflow-data:
   procedure-data:
   iam-data:
