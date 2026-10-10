@@ -2007,3 +2007,15 @@ Tests/tài liệu:
 - docs: document week 1-4 completion and migration handoff
 
 Giữ quy tắc commit từng file/thay đổi chức năng; không squash. Codex không chạy Git.
+
+## DRAFT-CONFIG-001 — Cấu hình upload PDF local và bàn giao Azure
+
+- Thời gian: 2026-10-10 09:43 UTC+07:00 (Asia/Saigon).
+- Thay đổi: docker/.env (local, không commit), docs/azure-deployment.md, PROGRESS.md.
+- Bổ sung biến Blob để chủ dự án điền connection string thật; bật PROCEDURE_EXTRACTION_ENABLED; bảo đảm khóa AIOCR nội bộ tối thiểu 32 ký tự, sinh ngẫu nhiên nếu thiếu/không đủ. Không in giá trị secret.
+- Endpoint không thay đổi: POST /api/v1/procedure-manager/drafts, multipart File, 202 khi lưu thành công; 503 draft.storage_not_configured nếu thiếu Blob. GET /api/v1/procedure-manager/drafts/{id} lấy trạng thái, nội dung và cảnh báo. DTO/token không thay đổi; cần permission upload/read tương ứng.
+- Chưa hoàn tất kết nối Blob: connection string thật chưa có trong local. Chưa chạy Docker, chưa deploy hoặc kiểm thử Azure. Hướng dẫn Azure có trong docs/azure-deployment.md; chỉ bật PDF text extraction, chưa bật AI/OCR.
+- Tests: 0 test mới, không chạy suite vì chỉ sửa cấu hình/tài liệu. Release build đang được kiểm tra; kết quả ghi tiếp bên dưới.
+- Commit gợi ý (chỉ tài liệu, không docker/.env): docs(deploy): document PDF draft storage and extraction configuration.
+
+- Kết quả cuối (2026-10-10 09:47:32 +07:00, Asia/Saigon): dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 thành công, 0 errors, 0 warnings. Không chạy tests/Docker/Git. Blob vẫn cần chủ dự án điền connection string thật.

@@ -269,3 +269,39 @@ Hãy tuân thủ nghiêm ngặt quy trình trong file AGENTS.md và PROGRESS.md:
 5. Không commit secret, mật khẩu hay file môi trường thực tế.
 6. Cập nhật đầy đủ file PROGRESS.md sau khi hoàn thành.
 ```
+
+## PDF drafts: cấu hình local và Azure (2026-10-10)
+
+Local: điền AZURE_BLOB_CONNECTION_STRING trong docker/.env bằng connection string thật của Storage Account. Không commit file này. PROCEDURE_EXTRACTION_ENABLED=true bật xử lý nền; AIOCR_SERVICE_KEY là khóa nội bộ dùng chung cho hai service, tối thiểu 32 ký tự. Compose đã ánh xạ các biến này. File .env không tự áp dụng cho dotnet run hoặc Azure.
+
+Sau khi điền Blob, chủ dự án tự chạy từ thư mục gốc:
+
+```bash
+docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --no-build --force-recreate ai-ocr procedure-catalog
+```
+
+Azure cần image Procedure Catalog có ProcedureDraftsController và worker, cùng image AIOCR có trình đọc PDF. Nếu các image đang chạy đã có phần này, chỉ cần cập nhật cấu hình và tạo revision mới, không cần build lại.
+
+Storage Account: container procedure-sources để Private; kết nối phải cho phép service truy cập mạng và ghi/đọc Blob. Lưu connection string trong secret Azure Container Apps, không trong source.
+
+Procedure Catalog Container App:
+
+| Biến môi trường | Giá trị |
+| --- | --- |
+| AzureBlob__ConnectionString | Secret reference tới connection string thật |
+| ProcedureDrafts__ExtractionEnabled | true |
+| ProcedureDrafts__AiOcrUrl | URL HTTPS thực tế của Container App AIOCR, không dùng localhost |
+| ProcedureDrafts__ServiceKey | Secret reference tới khóa nội bộ ít nhất 32 ký tự |
+
+AIOCR Container App:
+
+| Biến môi trường | Giá trị |
+| --- | --- |
+| ServiceAuthentication__Key | Secret reference tới đúng khóa nội bộ của Procedure Catalog |
+| Extraction__Enabled | true |
+| Extraction__UseAI | false |
+| Extraction__OcrFallbackEnabled | false |
+
+AIOCR phải có ingress phù hợp để Procedure Catalog gọi được; target port theo image (Compose hiện dùng 8080). Giữ nguyên JWT và connection string database Procedure đang hoạt động. Database cần có migration bảng bản nháp; dùng quy trình migration hiện tại trước khi kiểm thử. Cấu hình trên chỉ bật đọc PDF có lớp chữ, không bật AI hoặc OCR ảnh.
+
+Kiểm thử bằng tài khoản có procedure.drafts.upload và procedure.drafts.read: POST /api/v1/procedure-manager/drafts với multipart File (PDF <=20 MB) trả 202 và id. GET /api/v1/procedure-manager/drafts/{id} theo dõi Queued/Processing -> NeedsReview hoặc Failed; xem warnings/failureCode nếu thất bại. NeedsReview chưa có nghĩa AI đã điền đủ payload. API preview không lưu Blob nên chạy được không chứng minh cấu hình upload đã đúng. POST /drafts trả 503 draft.storage_not_configured khi thiếu connection string Blob.
