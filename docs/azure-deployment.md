@@ -305,3 +305,31 @@ AIOCR Container App:
 AIOCR phải có ingress phù hợp để Procedure Catalog gọi được; target port theo image (Compose hiện dùng 8080). Giữ nguyên JWT và connection string database Procedure đang hoạt động. Database cần có migration bảng bản nháp; dùng quy trình migration hiện tại trước khi kiểm thử. Cấu hình trên chỉ bật đọc PDF có lớp chữ, không bật AI hoặc OCR ảnh.
 
 Kiểm thử bằng tài khoản có procedure.drafts.upload và procedure.drafts.read: POST /api/v1/procedure-manager/drafts với multipart File (PDF <=20 MB) trả 202 và id. GET /api/v1/procedure-manager/drafts/{id} theo dõi Queued/Processing -> NeedsReview hoặc Failed; xem warnings/failureCode nếu thất bại. NeedsReview chưa có nghĩa AI đã điền đủ payload. API preview không lưu Blob nên chạy được không chứng minh cấu hình upload đã đúng. POST /drafts trả 503 draft.storage_not_configured khi thiếu connection string Blob.
+
+## TASK-25: AnalyticsSystem Notifications
+
+Service local chạy cổng 5006; Hub /hubs/notifications. Dùng database riêng wardmate_notifications_db, không FK vật lý sang IAM/Workflow. Migration: 20261010040428_InitialNotifications.
+
+### Local bằng Compose (chủ dự án tự chạy)
+
+Điền mật khẩu riêng NOTIFICATIONS_DB_PASSWORD vào docker/.env. Profile notifications không bật mặc định. Không dùng mật khẩu rỗng; PostgreSQL mới sẽ từ chối khởi tạo. Sau đó:
+
+```bash
+docker compose --env-file docker/.env -f docker/docker-compose.yml --profile notifications up -d --build analytics-system
+```
+
+Lệnh này build image AnalyticsSystem, khởi động database riêng và IAM dependency. Source Dockerfile đã có, Codex chưa build image. Compose bật auto migration. Giữ JWT_KEY giống IAM. Nếu đã tồn tại volume DB, đổi biến mật khẩu không tự đổi mật khẩu trong PostgreSQL.
+
+### Azure Container App
+
+- Build/push image từ src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/Dockerfile theo quy trình của chủ dự án.
+- Tạo database PostgreSQL riêng và cấu hình ConnectionStrings__NotificationsDatabase bằng secret reference.
+- Cấu hình Jwt__Key (secret giống IAM), Jwt__Issuer=wardmate, Jwt__Audience=wardmate-client.
+- Cấu hình Iam__BaseUrl=https://<domain-IAM>/ có dấu / cuối; IAM cần truy cập được từ service.
+- Áp dụng migration bằng EF tooling/CI trước khi chạy hoặc Database__AutoMigrate=true cho lần triển khai có kiểm soát; không nhiều replica cùng migrate.
+- Ingress target port 8080, HTTPS/WebSockets, replica tối đa 1 khi chưa có backplane/Azure SignalR.
+- Cors__AllowedOrigins__0=https://wardmate-frontend.vercel.app (mặc định đã có domain này). Shared CORS đã cho phép X-SignalR-User-Agent; gateway dùng bản shared mới nếu FE đi qua gateway.
+- Nếu dùng YARP, cấu hình ReverseProxy__Clusters__analytics-system__Destinations__primary__Address=https://<domain-analytics>/; route /api/analytics-system/{**catch-all} có sẵn và bỏ prefix trước khi forward.
+- Không log query access_token ở ingress, gateway hay application. /health chỉ kiểm tra tiến trình, không xác nhận IAM/DB đang sẵn sàng.
+
+Kiểm thử: đăng nhập -> SignalR connect -> nhận UpdateUnreadCount -> gọi GetNotifications. Swagger không phải công cụ thử Hub. Luồng tự tạo thông báo từ Workflow/RabbitMQ sẽ tích hợp ở task tiếp theo; hiện không có endpoint công khai để tạo thông báo tùy ý.

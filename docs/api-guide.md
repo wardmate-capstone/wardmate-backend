@@ -2823,3 +2823,75 @@ IT_ADMIN/MANAGER không tự có quyền thẩm định toàn hệ thống.
 5. FE bổ sung chọn phường khi tạo hồ sơ, bộ lọc cán bộ và xử lý hai trạng thái cuối.
 
 Các bước trên là hướng dẫn bàn giao; chưa được chạy trên Azure trong phiên này.
+
+## TASK-25 — Thông báo trong ứng dụng (AnalyticsSystem / SignalR)
+
+### Kết nối thông báo realtime
+
+Địa chỉ local trực tiếp: `http://localhost:5006/hubs/notifications`.
+Qua YARP hiện có: `http://localhost:5000/api/analytics-system/hubs/notifications`.
+Đây là SignalR Hub, không phải REST controller; Swagger không liệt kê các hub methods.
+
+Dành cho người dùng đã đăng nhập. FE dùng **access token** IAM, không dùng refresh cookie làm token kết nối. JWT key/issuer/audience của AnalyticsSystem phải khớp IAM. Khi kết nối, backend kiểm tra tài khoản qua IAM `/api/v1/users/access-context`; IAM không truy cập được hoặc tài khoản bị khóa thì kết nối bị đóng.
+
+- `POST /hubs/notifications/negotiate?negotiateVersion=1`: SignalR SDK tự gọi, không có body nghiệp vụ; thành công 200 với thông tin transport, thiếu/sai/hết hạn JWT trả 401.
+- `GET /hubs/notifications`: SDK thiết lập WebSocket (101 khi nâng cấp thành công); SSE/Long Polling do SDK quản lý nếu cần.
+- Browser WebSocket/SSE gửi JWT qua query `access_token`; backend chỉ chấp nhận cách này ở đường dẫn hub. Không ghi URL có token vào log/telemetry. Dùng HTTPS trên Azure.
+- Mỗi connection được vào `user_{userId}` từ JWT. Nhiều tab/thiết bị của cùng người dùng đều nhận thông báo.
+- Chỉ `FRONT_DESK_OFFICER` hoặc `MANAGER` có phường trong ngữ cảnh IAM được thêm vào `ward_{wardCode}`. Không có phương thức để client tự tham gia nhóm.
+- Nhóm phường được xác định tại thời điểm kết nối; khi đổi phường/role cần ngắt và kết nối lại. Token hết hạn thì backend đóng kết nối. Task này chưa cung cấp cơ chế thu hồi ngay mọi connection đang mở khi IAM thay đổi quyền.
+
+### Các thao tác FE gọi trên Hub
+
+**`GetNotifications(page, pageSize)` — Lấy thông báo của chính mình**
+
+Dùng khi mở danh sách thông báo hoặc kết nối lại sau mất mạng. Gọi `connection.invoke("GetNotifications", 1, 20)`. Trả mảng `NotificationDto`, mới nhất trước, chỉ kênh IN_APP. Không có tham số userId; không thể đọc thông báo của người khác. Trang từ 1 đến 1000000, pageSize từ 1 đến 100; sai giới hạn thì promise bị reject với thông báo tiếng Việt. Trang không có dữ liệu trả mảng rỗng.
+
+**`GetUnreadCount()` — Lấy số thông báo chưa đọc**
+
+Gọi khi cần đồng bộ lại huy hiệu chuông. Trả số nguyên của chính người đang kết nối. Khi connect và sau thay đổi, server còn tự gửi event `UpdateUnreadCount`. Realtime có thể ngắt hoặc các sự kiện đồng thời đến khác thứ tự; khi mở chuông/reconnect nên đọc lại số từ DB bằng phương thức này.
+
+**`MarkRead(notificationId)` — Đánh dấu một thông báo đã đọc**
+
+Gọi khi người dùng mở thông báo. Thành công promise hoàn tất, server cập nhật `is_read`, `read_at` UTC và phát `UpdateUnreadCount` tới các connection cùng người dùng. Gọi lại cùng id không đổi thời điểm đọc lần đầu. Id không tồn tại hoặc thuộc người khác đều trả lỗi “Không tìm thấy thông báo của bạn”; FE tải lại danh sách thay vì thử id của người khác. Hub invocation errors dùng cơ chế lỗi SignalR, không phải HTTP ProblemDetails cho từng phương thức.
+
+### Event backend gửi tới FE
+
+- `ReceiveNotification(notification)`: có thông báo mới đã lưu thành công vào DB. Thêm vào danh sách theo `id` (khử trùng nếu đã có).
+- `UpdateUnreadCount(unreadCount)`: cập nhật số ở chuông thông báo.
+
+`NotificationDto` gồm `id`, `recipientUserId`, `applicationId` (nullable), `title`, `content`, `type`, `channel`, `isRead`, `readAt` (nullable), `actionUrl` (nullable), `createdAt`. Thời gian là UTC. Render title/content như text, không render HTML trực tiếp. `actionUrl` là đường dẫn tương đối nội bộ FE; nó không thay thế kiểm tra quyền ở API hồ sơ.
+
+Ví dụ với package FE `@microsoft/signalr`:
+
+```javascript
+import * as signalR from "@microsoft/signalr";
+
+const connection = new signalR.HubConnectionBuilder()
+  .withUrl("http://localhost:5006/hubs/notifications", {
+    accessTokenFactory: () => getCurrentAccessToken(),
+  })
+  .withAutomaticReconnect()
+  .build();
+
+connection.on("ReceiveNotification", item => showNotification(item));
+connection.on("UpdateUnreadCount", count => updateBellCount(count));
+connection.onreconnected(async () => {
+  renderNotifications(await connection.invoke("GetNotifications", 1, 20));
+  updateBellCount(await connection.invoke("GetUnreadCount"));
+});
+await connection.start();
+renderNotifications(await connection.invoke("GetNotifications", 1, 20));
+// Khi người dùng mở một thông báo:
+// await connection.invoke("MarkRead", notificationId);
+```
+
+Các hàm `getCurrentAccessToken`, `showNotification`, `updateBellCount`, `renderNotifications` do FE cung cấp. AccessTokenFactory phải lấy token mới sau refresh. AutomaticReconnect không tự retry lần `start()` đầu thất bại; FE cần hiển thị trạng thái và cho thử lại. Khi logout, gọi `connection.stop()` và xóa dữ liệu thông báo đang hiển thị.
+
+### Phạm vi đã triển khai
+
+`INotificationService.CreateAsync` là hợp đồng nội bộ của AnalyticsSystem: kiểm tra dữ liệu, lưu DB trước, rồi gửi tới nhóm người nhận và cập nhật count. Không mở API công khai để browser tự tạo thông báo cho user tùy ý. Người đang offline vẫn lấy được thông báo đã lưu khi kết nối lại. Lỗi transport không rollback dữ liệu đã lưu; chưa có đảm bảo giao nhận exactly-once hoặc outbox.
+
+Đã có nhóm phường để backend sử dụng ở các task tiếp theo. Chưa tự sinh thông báo từ thao tác Workflow và chưa có RabbitMQ consumer, SMS hay Email. Không broadcast một DTO riêng tư của công dân tới cả nhóm phường. Muốn lưu thông báo cho nhiều cán bộ cần tạo bản ghi riêng cho từng người nhận được phép.
+
+Hiện Hub dùng bộ nhớ một instance. Chạy 1 replica cho tới khi có Azure SignalR hoặc Redis backplane và cấu hình scale-out phù hợp; nếu nhiều replica, lưu DB vẫn hoạt động nhưng realtime có thể không tới connection ở replica khác.

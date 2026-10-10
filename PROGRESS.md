@@ -2019,3 +2019,61 @@ Giữ quy tắc commit từng file/thay đổi chức năng; không squash. Code
 - Commit gợi ý (chỉ tài liệu, không docker/.env): docs(deploy): document PDF draft storage and extraction configuration.
 
 - Kết quả cuối (2026-10-10 09:47:32 +07:00, Asia/Saigon): dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 thành công, 0 errors, 0 warnings. Không chạy tests/Docker/Git. Blob vẫn cần chủ dự án điền connection string thật.
+
+## TASK-25 — Thực thể thông báo và SignalR Hub realtime
+
+- Hoàn thành local: 2026-10-10 11:10 UTC+07:00 (Asia/Saigon).
+- Service: WardMate.Services.AnalyticsSystem (.NET 8, Clean Architecture), database riêng wardmate_notifications_db.
+- Notification đủ các trường yêu cầu; logical references sang IAM/Workflow, không cross-service FK. Migration InitialNotifications tạo bảng, UUID mặc định, UTC timestamps, chỉ mục recipient/read + created_at + recipient/created_at/id và ràng buộc type/channel/read state.
+- NotificationHub kế thừa Hub<INotificationClient>, JWT HS256 kiểm tra issuer/audience/lifetime/sub. Query access_token chỉ được nhận ở /hubs/notifications. Đóng connection khi token hết hạn.
+- Nhóm user lấy từ JWT; nhóm ward chỉ cho FD/Manager. Do JWT hiện không có ward_code, OnConnected kiểm tra live IAM access-context để lấy phường và trạng thái tài khoản, fail closed khi IAM lỗi. Không có JoinGroup hoặc Send tùy ý cho browser.
+- Hợp đồng tạo thông báo nội bộ lưu DB trước rồi phát ReceiveNotification/UpdateUnreadCount. Lỗi realtime không rollback dữ liệu. Hub cho phép người dùng truy vấn lại dữ liệu khi reconnect và đánh dấu đã đọc idempotent, chỉ trên bản ghi của chính mình.
+- Profile Compose notifications gồm PostgreSQL riêng cổng local 5436 và AnalyticsSystem 5006; NOTIFICATIONS_DB_PASSWORD phải điền trước khi bật. Có Dockerfile nhưng chưa build image/deploy. Profile không bật mặc định; không thay docker/.env trong task này.
+
+### Danh sách file mới/thay đổi
+
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Domain/Notification.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Application/Notifications.cs (mới: DTO và interfaces)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationDbContext.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationDirectory.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationHub.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationService.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/DependencyInjection.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/20261010040428_InitialNotifications.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/20261010040428_InitialNotifications.Designer.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/NotificationDbContextModelSnapshot.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/WardMate.Services.AnalyticsSystem.Infrastructure.csproj
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/NotificationSecurity.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/Dockerfile (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/Program.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/WardMate.Services.AnalyticsSystem.API.csproj
+- src/BuildingBlocks/WardMate.SharedKernel/Web/BrowserCorsExtensions.cs (cho phép header X-SignalR-User-Agent)
+- docker/docker-compose.yml
+- docker/.env.example
+- docs/api-guide.md
+- docs/azure-deployment.md
+- PROGRESS.md
+
+### API/Hub và FE
+
+- POST /hubs/notifications/negotiate?negotiateVersion=1: SDK tự gọi, không body nghiệp vụ; 200 transport metadata hoặc 401 JWT không hợp lệ.
+- GET /hubs/notifications: WebSocket upgrade 101 khi thành công; transport fallback do SignalR SDK quản lý.
+- Hub methods: GetNotifications(page=1,pageSize=20) -> NotificationDto[]; GetUnreadCount() -> int; MarkRead(notificationId) -> hoàn tất hoặc HubException tiếng Việt. Không phải REST endpoints và không hiển thị trong Swagger.
+- Event contract: ReceiveNotification(NotificationDto), UpdateUnreadCount(int). DTO có recipient/application id, title/content/type/channel/read/readAt/actionUrl/createdAt. FE render text, dùng accessTokenFactory với access token mới; refresh cookie không phải token Hub. Invocation errors theo SignalR, không phải HTTP ProblemDetails.
+- Gateway dùng route có sẵn /api/analytics-system/hubs/notifications; local trực tiếp http://localhost:5006/hubs/notifications. Docs hướng dẫn reconnect/refetch/unread đồng bộ, logout stop connection.
+
+### Kết quả kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1: PASS, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-restore -m:1: 218/218 PASS, 0 failed, 0 skipped (Procedure 99, DocumentForm 76, Workflow 36, IAM 7).
+- Không tạo test project trong repository theo AGENTS.md. Harness tạm ngoài repository chạy PostgreSQL 16 + Kestrel + WebSocket thật: 20/20 checks PASS. Bao gồm migration và model aligned, persistence/defaults/UTC, unread isolation, JWT/expired/query-token restriction, CORS, hub list, validation, mark-read ownership/idempotency, private delivery, ward A/B và citizen isolation. PostgreSQL test container đã được hủy sau kiểm tra; không dùng dữ liệu thật.
+- docker compose --env-file docker/.env -f docker/docker-compose.yml --profile notifications config --quiet: PASS; không khởi động ứng dụng qua Compose.
+
+### Giới hạn / bàn giao
+
+- Chưa nối sự kiện Workflow/RabbitMQ (TASK-27); không tự phát sinh thông báo từ thao tác phê duyệt hiện tại. SMS/Email không thuộc task này.
+- Chưa có Redis backplane/Azure SignalR: triển khai tối đa 1 replica cho realtime hiện tại.
+- Nhóm/phường kiểm tra tại connect; đổi quyền/phường cần reconnect, chưa có đẩy thu hồi tức thì tới connection đang mở. Token hết hạn được đóng tự động.
+- Chưa có outbox/retry/exactly-once realtime; dữ liệu DB cho phép tải lại khi offline. DB local ứng dụng/Azure chưa migrate bởi Codex, chỉ test DB đã migrate.
+- Không chạy Git, không build/push Docker image, không deploy Azure.
+- Commit gợi ý cho Antigravity: feat(notifications): add persisted in-app notifications and authenticated SignalR hub. Tách từng file/thay đổi chức năng theo quy tắc hiện hành; chỉ là gợi ý, Codex không commit.
