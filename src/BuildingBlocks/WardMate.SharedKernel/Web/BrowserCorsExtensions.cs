@@ -25,7 +25,7 @@ public static class BrowserCorsExtensions
         {
             if (origins.Length > 0) policy.WithOrigins(origins);
             policy.WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .WithHeaders("Content-Type", "Authorization", "X-CSRF-Protection").AllowCredentials();
+                .WithHeaders("Content-Type", "Authorization", "X-CSRF-Protection", "X-SignalR-User-Agent").AllowCredentials();
         }));
         return services;
     }
