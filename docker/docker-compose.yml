@@ -32,6 +32,20 @@ services:
       Jwt__Audience: wardmate-client
       Iam__BaseUrl: http://iam-api:8080/
       Database__AutoMigrate: "true"
+      RabbitMq__Enabled: ${NOTIFICATIONS_ENABLED:-false}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__User: ${RABBITMQ_USER:-wardmate_admin}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-}
+      Notifications__WorkersEnabled: ${NOTIFICATIONS_ENABLED:-false}
+      Notifications__ServiceKey: ${NOTIFICATIONS_SERVICE_KEY:-}
+      Notifications__RevalidateSeconds: "15"
+      Email__Enabled: ${NOTIFICATION_EMAIL_ENABLED:-false}
+      Email__Host: ${NOTIFICATION_EMAIL_HOST:-}
+      Email__Port: ${NOTIFICATION_EMAIL_PORT:-587}
+      Email__From: ${NOTIFICATION_EMAIL_FROM:-}
+      Email__Username: ${NOTIFICATION_EMAIL_USERNAME:-}
+      Email__Password: ${NOTIFICATION_EMAIL_PASSWORD:-}
+      Sms__Enabled: "false"
     ports:
       - "5006:8080"
     depends_on:
@@ -67,6 +81,10 @@ services:
       Database__AutoMigrate: "true"
       ProcedureCatalog__BaseUrl: http://procedure-catalog:8080/
       Iam__BaseUrl: http://iam-api:8080/
+      RabbitMq__Enabled: ${NOTIFICATIONS_ENABLED:-false}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__User: ${RABBITMQ_USER:-wardmate_admin}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-}
     ports:
       - "5003:8080"
     depends_on:
@@ -166,6 +184,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Database: Host=iam-db;Port=5432;Database=wardmate_iam_db;Username=wardmate;Password=${IAM_DB_PASSWORD:-wardmate_secret}
+      Notifications__ServiceKey: ${NOTIFICATIONS_SERVICE_KEY:-}
       Database__AutoMigrate: "true"
       Jwt__Key: ${JWT_KEY}
     ports:
@@ -244,8 +263,10 @@ services:
     container_name: wardmate_rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: wardmate_admin
-      RABBITMQ_DEFAULT_PASS: wardmate_secret
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-wardmate_admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     ports:
       - "5672:5672"   # Cổng kết nối AMQP
       - "15672:15672" # Cổng Dashboard Web (user/pass: wardmate_admin / wardmate_secret)
@@ -272,6 +293,7 @@ services:
       - "8080"
 
 volumes:
+  rabbitmq-data:
   notifications-data:
   workflow-data:
   procedure-data:
