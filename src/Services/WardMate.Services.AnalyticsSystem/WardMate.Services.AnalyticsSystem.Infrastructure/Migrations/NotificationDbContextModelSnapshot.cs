@@ -72,6 +72,15 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("recipient_user_id");
 
+                    b.Property<string>("RecipientWardCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("recipient_ward_code");
+
+                    b.Property<Guid?>("SourceEventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_event_id");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -92,6 +101,9 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
 
                     b.HasIndex("RecipientUserId", "CreatedAt", "Id");
 
+                    b.HasIndex("SourceEventId", "RecipientUserId", "Channel")
+                        .IsUnique();
+
                     b.ToTable("notifications", null, t =>
                         {
                             t.HasCheckConstraint("ck_notifications_channel", "channel IN ('IN_APP','SMS','EMAIL')");
@@ -100,6 +112,92 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
 
                             t.HasCheckConstraint("ck_notifications_type", "type IN ('APPLICATION_STATUS_CHANGED','INLINE_COMMENT_ADDED','ASSIGNED_OFFICER','SYSTEM_ALERT')");
                         });
+                });
+
+            modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Infrastructure.NotificationDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("NotificationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NotificationId", "Channel")
+                        .IsUnique();
+
+                    b.HasIndex("State", "NextAttemptAt");
+
+                    b.ToTable("notification_deliveries", (string)null);
+                });
+
+            modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Infrastructure.NotificationInbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("State", "NextAttemptAt");
+
+                    b.ToTable("notification_inbox", (string)null);
+                });
+
+            modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Infrastructure.NotificationDelivery", b =>
+                {
+                    b.HasOne("WardMate.Services.AnalyticsSystem.Domain.Notification", null)
+                        .WithMany()
+                        .HasForeignKey("NotificationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
