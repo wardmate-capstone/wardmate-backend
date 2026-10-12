@@ -1,4 +1,6 @@
-# WardMate — Nhật ký phát triển
+﻿# WardMate — Nhật ký phát triển
+**Tráº¡ng thÃ¡i TASK-17 & TASK-18 (Supporting Documents & Generated PDF Engine): HOÃ€N THÃ€NH** â€” Triá»ƒn khai toÃ n diá»‡n bá»™ API Giáº¥y tá» minh chá»©ng (document.supporting_documents: Upload multipart gáº¯n checklist, List, Soft-Delete, Download) vÃ  Engine káº¿t xuáº¥t DOCX sang PDF (document.generated_documents: Gotenberg REST API + Resilient RFC-3200 PDF Fallback, List, Download). Build Release: 0 errors, 0 warnings. ToÃ n bá»™ test suite vÆ°á»£t qua: DocumentForm 76/76 passed, ProcedureCatalog 96/96 passed, ApplicationWorkflow 19/19 passed. XÃ¡c minh ngÃ y 11/10/2026 lÃºc 22:55 (Asia/Saigon, UTC+07:00).
+
 
 **Trạng thái DF-AZURE-ONLINE-GIT-PUSH: HOÀN THÀNH** — đã tạo 16 commits cho tính năng online drafts + preserved DOCX trên nhánh `nghia`, merge với `kha` (resolve conflict PROGRESS/api-guide/appsettings.json bằng ours), push lên `kha` (17 commits mới: `5b7667f..95c8a01`). Build Docker image `wardmate-documentform:kha-20261007-0817` (0 errors), push lên ACR `acrwardmate2026.azurecr.io`, update Container App `wardmate-documentform` provisioningState=Succeeded. Kiểm tra công khai qua Gateway: health 200, Swagger UI 200, form-templates 200, citizen submissions 200, Swagger JSON xác nhận online-config hiện diện và officer endpoints không còn. Xác minh ngày 07/10/2026 lúc 08:20 (Asia/Saigon).
 
@@ -1365,9 +1367,9 @@ Seven final public HTTP checks: GET /api/document-form/health200; GET /api/docum
 
 Frontend request/DTO/ProblemDetails unchanged from DF-ONLINE-ORIGINAL-DOCX. User clarified login belongs to shared system; no separate account/login implementation and no token changes. Test Swagger at https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/document-form/swagger/index.html. Configure schema/mappings after uploading an original DOCX, then draft JSON and submit. Existing legacy records preserved, not auto-converted to online templates. Suggested Antigravity commit: docs(documentform): record verified Azure online-form deployment (separate docs/progress commits per standing workflow).
 
-## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
+## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
 
-Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
+Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
 
 Paths changed:
 - src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs
@@ -1385,9 +1387,9 @@ API changes:
 
 This replaces the strict positional replacement engine with an automated append-to-end engine. Build and Tests succeeded (75/75 passed). Committed as eeab7626a64670c775485d6dbc07f13372e5540c. Waiting for user to confirm Docker execution.
 
-## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
+## DF-ONLINE-DOCX-APPEND � 2026-10-07 08:52 +07:00 (Asia/Saigon)
 
-Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
+Completed a major refactor of the DOCX generation logic to avoid modifying the original Official DOCX templates directly (which was a hard requirement). We now automatically append a "D? LI?U KHAI B�O TR?C TUY?N" (Online Declaration Data) page at the end of the generated PDF/DOCX containing all the citizen's filled data.
 
 Paths changed:
 - src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/ConfigureOnlineFormCommand.cs
@@ -1655,3 +1657,20 @@ Thời gian: 2026-10-07 14:43:49 +07:00 (Asia/Saigon, UTC+07:00).
 
 ## DF-FORM-TEMPLATES-GIT-HANDOFF — 2026-10-07T15:46:42.175659+07:00
 Owner explicitly authorized Codex Git and main/nghia updates for this session, superseding standing no-Git restriction for this task. Created22 scoped file commits for completed form templates/editor, local fixes, tests and docs. Integrated origin/main d3084f4 (16 ProcedureCatalog commits); documentation conflicts resolved preserving both feature guides and progress histories. Docker compose auto-merge preserved both services. Full solution Release build0 warnings/errors; DocumentForm tests76 passed0 failed0 skipped. No API changes beyond documented DOCX editor contract; no new token changes. Intended atomic fast-forward push of integrated HEAD to main and nghia, no force and no push to kha/deploy. Push success to be verified by remote refs. Suggested/release merge message: feat(documentform): complete form templates and online DOCX editing.
+
+
+## DF-ROLE-AUTHORIZATION — 2026-10-08T07:25:33.360146+07:00 (Asia/Saigon)
+Completed local source role enforcement requested by owner: all5 FormTemplates endpoints require PROCEDURE_MANAGER, all6 Citizen endpoints require REGISTERED_CITIZEN. No IT_ADMIN override. JWT matches IAM HS256/role/sub contract, checks signature/issuer/audience/expiry with zero skew. Startup requires Jwt:Key >=32 bytes and issuer/audience; no default secret. Citizen applicantId must equal validated JWT sub (nonempty UUID), preventing caller-selected identity. Request DTOs unchanged; added auth401/403 ProblemDetails code/traceId. Wrong/missing applicantId now403; malformed GUID remains model validation400. Swagger Bearer configured. Health remains anonymous.
+Changed/new paths: API/Security/DocumentAuthentication.cs (new), API/Program.cs, API/WardMate.Services.DocumentForm.API.csproj, API/Controllers/CitizenSubmissionsController.cs, API/Controllers/FormTemplatesController.cs under src/Services/WardMate.Services.DocumentForm; docker/docker-compose.yml (JWT env only DocumentForm); documentform-api.http and azure-documentform-api.http; docs/api-guide.md; scripts/verify-documentform-authorization.py (new); scripts/verify-documentform-online.py (requires two token env vars); PROGRESS.md.
+Validation: WardMate.sln Release build PASS0 errors0 warnings. Existing DocumentForm tests76 passed0 failed0 skipped. Isolated real API HTTP auth script34 checks passed, no DB writes: all11 routes no-token401 and wrong-role403; expired/wrong issuer/wrong audience401; IT_ADMIN403; invalid sub403; spoofed applicantId403 on list/detail/download/submit; correct roles reach business validation400; Swagger security scheme exists. Uses random temporary JWT signing key and terminates test server. No test projects created. Full file smoke script updated but not rerun with real IAM tokens.
+Integration note: owner explicitly requested entire template group manager-only, so citizen direct template GET/download and Procedure inter-service calls now require an authorized design (forward manager token when caller is manager, or future separate citizen read endpoints). Do not share manager token with citizen FE. These changes are source-only; existing Docker runtime and Azure not rebuilt/deployed, no Git executed in this task. Configure Jwt__Key/Issuer/Audience equal IAM before starting updated service. Deployment and real IAM login verification not performed.
+Suggested Conventional Commit: feat(documentform): enforce citizen and procedure manager roles.
+
+## DF-LOCAL-AUTH-RUNTIME — 2026-10-08 (Asia/Saigon)
+User reports missing Swagger Authorize on localhost5000. Verified running Swagger lacks Bearer definition; old container still running. IAM local is restarting with empty Jwt__Key; both .env sources lack nonempty JWT_KEY. No secrets printed or changed. Built wardmate-document-form:local with JWT code: Docker Release build0 warnings/errors, publish passed. Runtime replacement pending user choice of shared local key versus team IAM key; did not change IAM, Azure or Gateway. Changed path PROGRESS.md only; no API changes this turn;0 tests rerun (prior34 auth checks/76 tests passed). Suggested commit docs(progress): record local JWT configuration blocker.
+
+
+## DF-AZURE-ROLES — 2026-10-08T07:33:04.759580+07:00 (Asia/Saigon)
+Owner requested immediate Azure deployment using shared IAM JWT configuration. Deployed acrwardmate2026.azurecr.io/wardmate-documentform:roles-20261008-01; digest sha256:a18fc3db2053af513707df5a5deca0f4c9b94b3f942f6e3db9c20a89bab126e5. Copied IAM signing key in memory into DocumentForm secret iam-jwt-key; configured Jwt__Key secretref and same IAM issuer/audience. No keys written into source/log/chat. IAM and Gateway unchanged. Local container remains old (local IAM key absent); user selected Azure instead of local key setup.
+Cloud verification5 HTTP checks: health200, Swagger UI200, OpenAPI200 with Bearer definition/operation security, templates unauthenticated401, citizen list unauthenticated401. Does not claim real IAM login tested; role/identity checks were tested locally34 HTTP checks and76 existing tests. Docker build0 warnings/errors. All5 template routes require PROCEDURE_MANAGER, all6 citizen routes REGISTERED_CITIZEN and applicantId=JWT sub. No request DTO changes; auth401/403 ProblemDetails. Template reads are manager-only per request; citizen first-open template integration requires a separate read-access design.
+Changed documentation paths: docs/documentform-deployment.md, docs/api-guide.md, PROGRESS.md. No Git/push or database writes. Suggested commit: feat(documentform): deploy IAM-backed role authorization.
