@@ -3,6 +3,7 @@ using WardMate.Services.DocumentForm.Application.DTOs;
 using WardMate.Services.DocumentForm.Application.Interfaces;
 using WardMate.Services.DocumentForm.Domain.Entities;
 using WardMate.Services.DocumentForm.Domain.Errors;
+using WardMate.Services.DocumentForm.Domain.Models;
 using WardMate.SharedKernel.Blob;
 using WardMate.SharedKernel.Common;
 using WardMate.SharedKernel.CQRS;
@@ -15,7 +16,9 @@ public sealed record GeneratePdfDocumentCommand(
     Guid? SubmissionId = null,
     Stream? FileStream = null,
     string? FileName = null,
-    string? CreatedBy = null) : ICommand<GeneratedDocumentDto>;
+    string? CreatedBy = null,
+    Guid? CallerUserId = null,
+    bool IsOfficer = false) : ICommand<GeneratedDocumentDto>;
 
 public sealed class GeneratePdfDocumentCommandHandler
     : ICommandHandler<GeneratePdfDocumentCommand, GeneratedDocumentDto>
@@ -43,38 +46,69 @@ public sealed class GeneratePdfDocumentCommandHandler
             return Error.Validation("document.invalid_application_id", "Application ID cannot be empty.");
         }
 
+        // 1. Tìm hồ sơ UserSubmission theo SubmissionId nếu cung cấp, hoặc theo ApplicationId
+        UserSubmission? submission = null;
+        if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
+        {
+            submission = await _dbContext.UserSubmissions
+                .FirstOrDefaultAsync(s => s.Id == request.SubmissionId.Value && !s.IsDeleted, cancellationToken);
+        }
+
+        submission ??= await _dbContext.UserSubmissions
+            .Where(s => (s.Id == request.ApplicationId || s.ApplicantId == request.ApplicationId) && !s.IsDeleted)
+            .OrderByDescending(s => s.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (submission is null)
+        {
+            return DocumentFormErrors.SubmissionNotFound(request.SubmissionId ?? request.ApplicationId);
+        }
+
+        // 2. Phân quyền và Kiểm tra Trạng thái phê duyệt
+        // Nếu người gọi là người dân:
+        // - Phải là chủ sở hữu hồ sơ (ApplicantId trùng khớp)
+        // - Hồ sơ PHẢI có Status là Approved (đã được cán bộ duyệt)
+        if (!request.IsOfficer)
+        {
+            if (request.CallerUserId.HasValue && request.CallerUserId.Value != Guid.Empty && submission.ApplicantId != request.CallerUserId.Value)
+            {
+                return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.CallerUserId.Value);
+            }
+
+            if (submission.Status != SubmissionStatus.Approved)
+            {
+                return DocumentFormErrors.SubmissionNotApproved(submission.Id, submission.Status.ToString());
+            }
+        }
+        else
+        {
+            // Nếu là cán bộ: Không thể xuất PDF nếu hồ sơ vẫn là bản nháp chưa nộp
+            if (submission.Status == SubmissionStatus.Draft)
+            {
+                return Error.Validation("document.submission_still_draft",
+                    $"Hồ sơ '{submission.Id}' vẫn đang ở trạng thái bản nháp (Draft), chưa được người dân nộp chính thức.");
+            }
+        }
+
         Stream? docxStream = null;
-        var fileName = request.FileName ?? "submission.docx";
+        var fileName = request.FileName;
 
         try
         {
-            // 1. Lấy Stream DOCX
+            // 3. Lấy Stream DOCX
             if (request.FileStream is not null && request.FileStream.Length > 0)
             {
                 docxStream = request.FileStream;
+                fileName ??= submission.FileName;
             }
             else
             {
-                // Tìm theo SubmissionId nếu được cung cấp, hoặc theo ApplicationId
-                UserSubmission? submission = null;
-                if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
+                if (string.IsNullOrWhiteSpace(submission.BlobUrl))
                 {
-                    submission = await _dbContext.UserSubmissions
-                        .FirstOrDefaultAsync(s => s.Id == request.SubmissionId.Value && !s.IsDeleted, cancellationToken);
+                    return DocumentFormErrors.SubmissionFileNotFound(submission.Id);
                 }
 
-                submission ??= await _dbContext.UserSubmissions
-                    .Where(s => (s.Id == request.ApplicationId || s.ApplicantId == request.ApplicationId) && !s.IsDeleted)
-                    .OrderByDescending(s => s.CreatedAtUtc)
-                    .FirstOrDefaultAsync(cancellationToken);
-
-                if (submission is null || string.IsNullOrWhiteSpace(submission.BlobUrl))
-                {
-                    return DocumentFormErrors.SubmissionFileNotFound(
-                        request.SubmissionId ?? request.ApplicationId);
-                }
-
-                fileName = submission.FileName;
+                fileName ??= submission.FileName;
                 var blobName = ExtractBlobName(submission.BlobUrl);
                 docxStream = await _blobClient.DownloadAsync(blobName, ct: cancellationToken);
 
@@ -83,6 +117,8 @@ public sealed class GeneratePdfDocumentCommandHandler
                     return DocumentFormErrors.SubmissionFileNotFound(submission.Id);
                 }
             }
+
+            fileName = string.IsNullOrWhiteSpace(fileName) ? "submission.docx" : fileName;
 
             // 2. Chuyển đổi DOCX sang PDF bằng Render Engine
             Stream pdfStream;
