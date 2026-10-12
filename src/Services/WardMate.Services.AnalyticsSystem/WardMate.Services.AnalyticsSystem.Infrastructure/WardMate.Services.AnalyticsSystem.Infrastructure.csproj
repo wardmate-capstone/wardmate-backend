@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <ProjectReference Include="../../../BuildingBlocks/WardMate.EventBus/WardMate.EventBus.csproj" />
     <ProjectReference Include="../WardMate.Services.AnalyticsSystem.Application/WardMate.Services.AnalyticsSystem.Application.csproj" />
   </ItemGroup>
   <ItemGroup>

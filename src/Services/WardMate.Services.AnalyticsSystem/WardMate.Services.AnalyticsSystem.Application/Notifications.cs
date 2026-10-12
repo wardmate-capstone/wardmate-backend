@@ -17,12 +17,12 @@ public interface INotificationClient
 public interface INotificationService
 {
     Task<NotificationDto> CreateAsync(CreateNotification request, CancellationToken ct = default);
-    Task<int> UnreadCountAsync(Guid recipient, CancellationToken ct = default);
-    Task<IReadOnlyList<NotificationDto>> ListAsync(Guid recipient, int page, int pageSize, CancellationToken ct = default);
-    Task<bool> MarkReadAsync(Guid recipient, Guid notificationId, CancellationToken ct = default);
+    Task<int> UnreadCountAsync(Guid recipient, CancellationToken ct = default, string? wardCode = null);
+    Task<IReadOnlyList<NotificationDto>> ListAsync(Guid recipient, int page, int pageSize, CancellationToken ct = default, string? wardCode = null);
+    Task<bool> MarkReadAsync(Guid recipient, Guid notificationId, CancellationToken ct = default, string? wardCode = null);
 }
 
-public sealed record NotificationAccess(Guid UserId, string? WardCode, string[] Roles);
+public sealed record NotificationAccess(Guid UserId, string? WardCode, string[] Roles, string[]? Permissions = null);
 public interface INotificationDirectory
 {
     Task<NotificationAccess?> GetAsync(string accessToken, CancellationToken ct);
