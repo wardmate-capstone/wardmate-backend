@@ -333,3 +333,7 @@ Lệnh này build image AnalyticsSystem, khởi động database riêng và IAM 
 - Không log query access_token ở ingress, gateway hay application. /health chỉ kiểm tra tiến trình, không xác nhận IAM/DB đang sẵn sàng.
 
 Kiểm thử: đăng nhập -> SignalR connect -> nhận UpdateUnreadCount -> gọi GetNotifications. Swagger không phải công cụ thử Hub. Luồng tự tạo thông báo từ Workflow/RabbitMQ sẽ tích hợp ở task tiếp theo; hiện không có endpoint công khai để tạo thông báo tùy ý.
+
+## Bổ sung TASK-26/TASK-27 (2026-10-12)
+
+Workflow đã có Outbox và Notifications đã có RabbitMQ consumer/Inbox/delivery worker. Hướng dẫn cấu hình, thứ tự migration, retry/DLQ, Email/SMS và checklist kiểm thử Azure nằm tại [notifications-operations.md](notifications-operations.md). Nội dung này thay thế nhận định TASK-25 trước đó về việc chưa tích hợp sự kiện Workflow.

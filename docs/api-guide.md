@@ -2895,3 +2895,40 @@ Các hàm `getCurrentAccessToken`, `showNotification`, `updateBellCount`, `rende
 Đã có nhóm phường để backend sử dụng ở các task tiếp theo. Chưa tự sinh thông báo từ thao tác Workflow và chưa có RabbitMQ consumer, SMS hay Email. Không broadcast một DTO riêng tư của công dân tới cả nhóm phường. Muốn lưu thông báo cho nhiều cán bộ cần tạo bản ghi riêng cho từng người nhận được phép.
 
 Hiện Hub dùng bộ nhớ một instance. Chạy 1 replica cho tới khi có Azure SignalR hoặc Redis backplane và cấu hình scale-out phù hợp; nếu nhiều replica, lưu DB vẫn hoạt động nhưng realtime có thể không tới connection ở replica khác.
+
+## TASK-26 / TASK-27 — Thông báo tự động từ Workflow (2026-10-12)
+
+Mục này thay thế các ghi chú TASK-25 trước đây về việc chưa nối Workflow, chưa có Outbox và chưa thu hồi connection. Chức năng mới cần triển khai IAM, Workflow và AnalyticsSystem cùng các migration/config tương ứng; code local không tự cập nhật Azure.
+
+### Khi nào có thông báo?
+
+- Nộp/nộp lại: công dân nhận xác nhận. Nếu chưa phân công, cán bộ FRONT_DESK_OFFICER đang hoạt động, cùng phường và có workflow.queue.read nhận thông báo tiếp nhận; nếu đã phân công, chỉ cán bộ được phân công còn đủ điều kiện nhận.
+- Tiếp nhận UNDER_REVIEW: công dân nhận cập nhật, cán bộ được phân công nhận ASSIGNED_OFFICER.
+- Thêm nhận xét: công dân nhận INLINE_COMMENT_ADDED; không đưa nội dung nhận xét/form hay CCCD vào RabbitMQ.
+- Yêu cầu bổ sung/phê duyệt/từ chối: công dân nhận cập nhật trạng thái và đường dẫn mở hồ sơ. DRAFT không phát thông báo.
+- Không gửi cho tài khoản inactive. Quyền/phường cán bộ được xác minh lại qua IAM trước khi xác định người nhận và trước khi gửi.
+
+Thông báo thuộc phường cũ không còn hiển thị/count/mark-read sau khi cán bộ chuyển phường hoặc không còn quyền đọc hàng chờ. Thông báo cá nhân vẫn theo userId. Guard kiểm tra IAM trước mỗi hub invocation, trước gửi IN_APP qua worker và định kỳ mặc định 15 giây (cấu hình 5–300 giây). Khi bị khóa, đổi role/permission/phường hoặc IAM không khả dụng, connection bị loại khỏi group và đóng; FE reconnect bằng token hiện hành. Đây là polling có độ trễ, không phải cơ chế thu hồi tức thì bằng event từ IAM.
+
+### Hợp đồng FE giữ nguyên
+
+Hub và các methods/events TASK-25 giữ nguyên, không thêm API cho client tự gửi thông báo đến người khác. CreateAsync nội bộ giờ lưu notification + delivery trong cùng transaction; worker gửi sau commit. FE khử trùng theo notification.id, vì realtime có thể được gửi lại khi process chết sau send nhưng trước khi ghi nhận Sent. Khi reconnect, gọi lại danh sách/count; không dựa vào việc mỗi event chỉ đến một lần. Hub errors vẫn là SignalR invocation errors tiếng Việt.
+
+### API nội bộ IAM — không dùng từ trình duyệt
+
+POST /internal/v1/notification-recipients
+
+Mục đích: AnalyticsSystem lấy người nhận đang hoạt động và địa chỉ Email/SMS theo dữ liệu IAM; không truy vấn thẳng database IAM.
+
+- Xác thực: header X-Notification-Service-Key, khóa riêng >=32 ký tự khớp Notifications:ServiceKey của IAM. Không dùng JWT_KEY hoặc AIOCR_SERVICE_KEY thay thế; không đưa khóa này cho FE. Endpoint không liệt kê trong Swagger công khai.
+- Body: { "userIds": ["<uuid>"], "wardCode": "<mã phường hoặc null>", "page": 1 }. Tối đa 10 userIds; mỗi trang tối đa 200 người, sắp theo id. WardCode chuẩn hóa uppercase/trim. UserIds lấy người đang active; nhánh ward chỉ lấy FD cùng phường có workflow.queue.read.
+- 200: mảng { userId, email, phoneNumber, wardCode, isOfficer }. Hết dữ liệu trả mảng rỗng; kết quả không cache.
+- 400: bộ lọc/id/page sai; 401: thiếu/sai service key; 503: IAM chưa cấu hình service key. Kiểm tra cấu hình BE, không yêu cầu người dân thử tài khoản khác.
+
+### Email và SMS
+
+Email: adapter SMTP STARTTLS đã có, mặc định tắt. Cần host/port/from/username/password hợp lệ; TLS bắt buộc. Sent nghĩa SMTP server chấp nhận, không phải biên nhận người dùng đọc hay xác nhận inbox. SMTP timeout có thể xảy ra sau khi server đã nhận thư nên retry có thể gửi trùng; X-WardMate-Delivery-Id phục vụ đối soát, không bảo đảm nhà cung cấp chống trùng.
+
+SMS: đã có ISmsSender và hàng đợi/trạng thái, nhưng chủ dự án chưa chọn nhà cung cấp Brandname. Adapter mặc định trả Blocked, tuyệt đối không trả Sent giả. Chưa có gửi SMS thật hoặc delivery receipt. Khi chọn nhà cung cấp cần triển khai ISmsSender đúng hợp đồng của họ, kiểm thử bằng sandbox và dùng deliveryId làm idempotency key nếu được hỗ trợ.
+
+Tham khảo cấu hình, retry, DLQ và các bước kiểm thử deploy trong docs/notifications-operations.md.
