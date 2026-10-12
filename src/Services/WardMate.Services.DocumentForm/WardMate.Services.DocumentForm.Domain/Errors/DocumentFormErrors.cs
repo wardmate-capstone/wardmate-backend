@@ -75,4 +75,8 @@ public static class DocumentFormErrors
     public static Error PdfRenderFailed(string detail) =>
         Error.Failure("document.pdf_render_failed",
             $"Failed to render PDF: {detail}");
+
+    public static Error SubmissionNotApproved(Guid submissionId, string currentStatus) =>
+        Error.Validation("document.submission_not_approved",
+            $"Hồ sơ '{submissionId}' chưa được phê duyệt (trạng thái hiện tại: {currentStatus}). Người dân chỉ được phép xuất file PDF khi hồ sơ đã được cán bộ kiểm tra và phê duyệt (Status = Approved).");
 }
