@@ -2077,3 +2077,99 @@ Giữ quy tắc commit từng file/thay đổi chức năng; không squash. Code
 - Chưa có outbox/retry/exactly-once realtime; dữ liệu DB cho phép tải lại khi offline. DB local ứng dụng/Azure chưa migrate bởi Codex, chỉ test DB đã migrate.
 - Không chạy Git, không build/push Docker image, không deploy Azure.
 - Commit gợi ý cho Antigravity: feat(notifications): add persisted in-app notifications and authenticated SignalR hub. Tách từng file/thay đổi chức năng theo quy tắc hiện hành; chỉ là gợi ý, Codex không commit.
+
+## TASK-27 / TASK-26 / NOTIFY-AUTH-001 — Outbox, RabbitMQ, retry và thu hồi kết nối
+
+- Hoàn tất phần code có thể triển khai local: 2026-10-12 08:23 UTC+07:00 (Asia/Saigon).
+- Chủ dự án xác nhận chưa chọn nhà cung cấp SMS/Email. TASK-26 chưa hoàn tất tích hợp nhà cung cấp: SMTP adapter có code, SMS có interface/Blocked adapter; chưa gửi thật, chưa kiểm chứng sandbox/provider. Không gắn nhãn SMS đã hoàn thành.
+- TASK-27 đã có Workflow -> Outbox -> RabbitMQ -> Inbox -> notification/delivery -> SignalR, kiểm thử broker/PostgreSQL/WebSocket thật. Không tạo/gửi dữ liệu thật.
+
+### Nghiệp vụ / tính toàn vẹn
+
+- Workflow SaveChangesAsync ghi event trong cùng transaction với status history/comment mới. DRAFT không phát event. Submit, resubmit, assign/UNDER_REVIEW, revision request, approve, reject và comment mới đều được capture qua history/comment; không phát lại lịch sử cũ.
+- Event v1 chỉ chứa mã định danh/phường/trạng thái/thời điểm, không chứa nội dung form, CCCD, email/phone hoặc JWT.
+- Outbox publisher persistent messages + mandatory routing + publisher confirms (deadline 10 giây). Broker gián đoạn không làm fail nghiệp vụ Workflow; Outbox giữ và retry khi bật lại.
+- Consumer ACK sau lưu Inbox; EventId PK chống giao trùng. Invalid schema/version đi broker dead queue; lỗi xử lý đã vào Inbox giữ Pending/Dead trong DB. Inbox và delivery worker retry tối đa 10 lần với backoff tới 300 giây. Outbox không tự bỏ sự kiện chưa gửi.
+- Notification và các delivery tạo trong cùng transaction, unique index chống trùng. CreateAsync nội bộ cũng lưu IN_APP delivery để worker gửi sau commit. Trạng thái gửi: Pending/Sent/Blocked/Suppressed/Dead. Sent là transport chấp nhận, không phải xác nhận người nhận đọc và không bảo đảm exactly-once.
+- IAM directory nội bộ dùng khóa riêng constant-time, chỉ active users; danh sách theo phường chỉ FD có workflow.queue.read. Trước gửi kiểm tra lại tài khoản/phường; không còn phù hợp thì Suppressed. Danh sách/unread/mark-read loại thông báo thuộc phường cũ.
+- Connection guard kiểm IAM trước invocation, trước worker gửi realtime, và mỗi 15 giây (5–300 cấu hình): role/permission/phường thay đổi, khóa tài khoản, IAM unavailable -> remove groups + abort. Không gọi đây là thu hồi tức thì; bounded polling còn phụ thuộc timeout/số connection.
+- Email SMTP dùng STARTTLS, mặc định disabled; cấu hình thiếu -> Blocked, lỗi gửi -> retry/Dead. Chưa có delivery receipts. Timeout SMTP có thể gây gửi trùng khi retry.
+- SMS mặc định disabled, ISmsSender chưa gắn nhà cung cấp; adapter trả Blocked. Không giả lập Sent.
+
+### API / DTO / FE
+
+- Hub /hubs/notifications và methods/events giữ hợp đồng TASK-25. FE khử trùng notification.id, reconnect bằng access token hiện hành, refetch danh sách/count sau reconnect. SignalR invocation errors tiếng Việt, không phải ProblemDetails mỗi message.
+- POST /internal/v1/notification-recipients mới trên IAM: header X-Notification-Service-Key; body {userIds: Guid[] tối đa 10, wardCode?: string <=50, page: int 1..10000}; mỗi trang 200, active users. 200 -> [{userId,email,phoneNumber,wardCode,isOfficer}], 400 filter sai, 401 khóa sai/thiếu, 503 chưa cấu hình khóa. Không dành cho browser, ẩn khỏi Swagger công khai; Cache-Control no-store. WardCode chuẩn hóa trim/uppercase.
+- Không có endpoint công khai tự tạo thông báo hay replay. Hướng dẫn DBA requeue từng Dead/Blocked đã đối soát nằm trong docs/notifications-operations.md; không reset Sent/Processed.
+
+### File mới/chỉnh sửa (tương đối từ repository)
+
+BuildingBlocks:
+- src/BuildingBlocks/WardMate.EventBus/WardMate.EventBus.csproj
+- src/BuildingBlocks/WardMate.EventBus/WorkflowEvent.cs (mới)
+- src/BuildingBlocks/WardMate.EventBus/RabbitTransport.cs (mới)
+
+Workflow (prefix src/Services/WardMate.Services.ApplicationWorkflow/):
+- WardMate.Services.ApplicationWorkflow.API/WardMate.Services.ApplicationWorkflow.API.csproj
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WardMate.Services.ApplicationWorkflow.Infrastructure.csproj
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDbContext.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/ProcedureCatalogClient.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowOutbox.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261012010910_WorkflowNotificationOutbox.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261012010910_WorkflowNotificationOutbox.Designer.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/WorkflowDbContextModelSnapshot.cs
+
+AnalyticsSystem (prefix src/Services/WardMate.Services.AnalyticsSystem/):
+- WardMate.Services.AnalyticsSystem.Domain/Notification.cs
+- WardMate.Services.AnalyticsSystem.Application/Notifications.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/WardMate.Services.AnalyticsSystem.Infrastructure.csproj
+- WardMate.Services.AnalyticsSystem.Infrastructure/DependencyInjection.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationDbContext.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationService.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationHub.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationPipelineModels.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/WorkflowNotificationConsumer.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationInboxWorker.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationDeliveryWorker.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/ExternalNotificationSender.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationConnectionGuard.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/20261012010837_ReliableNotificationDelivery.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/20261012010837_ReliableNotificationDelivery.Designer.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/NotificationDbContextModelSnapshot.cs
+
+IAM (prefix src/Services/WardMate.Services.IAM/):
+- WardMate.Services.IAM.Application/Accounts/NotificationRecipients.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/NotificationRecipients.cs (mới)
+- WardMate.Services.IAM.Infrastructure/DependencyInjection.cs
+- WardMate.Services.IAM.API/Controllers/NotificationRecipientsController.cs (mới)
+
+Kiểm thử/cấu hình/tài liệu:
+- tests/WardMate.Services.ApplicationWorkflow.Tests/NotificationOutboxTests.cs (mới, 3 cases)
+- tests/WardMate.Services.IAM.Tests/NotificationRecipientsTests.cs (mới, 1 case)
+- tests/WardMate.Services.IAM.Tests/IamFixture.cs
+- docker/docker-compose.yml
+- docker/.env.example
+- docs/api-guide.md
+- docs/azure-deployment.md
+- docs/notifications-operations.md (mới)
+- PROGRESS.md
+
+### Kiểm chứng
+
+- Release build toàn solution --no-restore -warnaserror -m:1: 0 errors, 0 warnings.
+- Suite cuối: 222/222 PASS, 0 failed/0 skipped (Procedure 99, DocumentForm 76, Workflow 39, IAM 8). Thêm 4 integration cases trong projects hiện có; không tạo test project mới trong repository.
+- Harness tạm ngoài repository: 23/23 checks PASS với PostgreSQL16 riêng theo service, RabbitMQ thật và Kestrel/SignalR WebSocket. IAM contact lookup được stub trong harness; endpoint IAM được test riêng ở suite, không tuyên bố toàn bộ service IAM thật nằm trong lượt harness.
+- Harness kiểm chứng: DRAFT không event; submit atomic; event đi broker; đúng owner/ward; duplicate EventId; invalid message DLQ; durable deliveries; realtime; SMTP/SMS unconfigured Blocked; transfer/ban/permission changes đóng connection; lọc lịch sử phường; retry/exhaustion/replay; dừng/khởi động RabbitMQ giữ và phục hồi Outbox; delivery backoff và retry.
+- EF has-pending-model-changes Workflow/Analytics: không có thay đổi model thiếu migration. EF Analytics dùng design-time factory do không cung cấp connection string runtime cho CLI; không tác động DB deploy.
+- docker compose --env-file docker/.env -f docker/docker-compose.yml --profile notifications config --quiet: PASS.
+- Lượt đầu tests lỗi vì Docker Engine tắt; đã khởi động Engine và chạy lại. Lỗi chuẩn hóa WardCode trong test mới được sửa trước lượt cuối. Harness readiness RabbitMQ được sửa để không tạo Erlang cookie bằng root trong lúc startup; retry test chờ đúng hàng của nhiều kênh. Không giấu các lượt chưa đạt.
+- Test containers được dọn sau test; không build Docker image ứng dụng, không khởi động stack ứng dụng bằng Compose, không chạy Git.
+
+### Bàn giao / việc còn thiếu
+
+- Chưa deploy Azure hoặc migrate database ứng dụng đang dùng. Phải triển khai IAM + secret S2S, hai migration, broker persistent và cấu hình workers trước khi kiểm thử cloud.
+- Chưa có nhà cung cấp/credentials Email/SMS: cần xác nhận nhà cung cấp, From/Brandname, sandbox, adapter SMS và receipt contract. TASK-26 là hoàn thành hạ tầng/SMTP adapter local, chưa hoàn thành dịch vụ gửi thật.
+- Kiểm thử tích hợp trên môi trường deploy chưa làm vì code/images mới chưa được triển khai bởi chủ dự án/Antigravity. Checklist có tại docs/notifications-operations.md.
+- Single replica SignalR vẫn là giới hạn; chưa có backplane/Azure SignalR. Chưa có retention job hoặc API quản trị queue; không tự xóa Inbox chống trùng.
+- docker/.env không bị sửa trong task này. Điền NOTIFICATIONS_ENABLED, NOTIFICATIONS_SERVICE_KEY, RABBITMQ_PASSWORD và password DB theo runbook; Email/SMS giữ tắt khi chưa có provider.
+- Commit gợi ý cho Antigravity (tách mỗi file/chức năng theo quy tắc): feat(notifications): add durable workflow event pipeline and connection revalidation; feat(notifications): add configurable SMTP delivery and SMS provider contract; test(notifications): verify transactional outbox and scoped recipients; docs(notifications): document retry and deployment operations.
