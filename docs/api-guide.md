@@ -1241,6 +1241,24 @@ thủ tục đó, không tự ký URL ngoài hoặc URL tùy ý trong snapshot.
 
 ## 3. Document & Form Service — chỉnh sửa DOCX trên web
 
+**Phân quyền từ 08/10/2026:** toàn bộ 5 API `/api/v1/form-templates` và các route con yêu cầu
+Bearer JWT có role `PROCEDURE_MANAGER`; toàn bộ 6 API `/api/v1/citizen/submissions` và các route con
+đòi role `REGISTERED_CITIZEN`. Không tự cấp quyền cho IT_ADMIN. Request/body và status thành công
+ở bảng dưới giữ nguyên. Mọi API trong hai bảng có thể trả **401** (thiếu/sai/hết hạn token: đăng nhập lại)
+hoặc **403** (sai role: dùng tài khoản đúng quyền). Lỗi auth là ProblemDetails có code/traceId.
+
+`applicantId` vẫn có trong query/multipart/JSON nhưng phải bằng claim `sub` (UUID khác rỗng) trong JWT
+đã xác thực; không dùng UUID giả khi test với token thật. Sai applicantId trả403 trước khi đọc/ghi đơn.
+Swagger: đăng nhập IAM lấy access token → Authorize → dán token; đổi token khi chuyển cụm API.
+DocumentForm cấu hình `Jwt__Key` (>=32 byte), `Jwt__Issuer`, `Jwt__Audience` giống IAM; Docker Compose
+đọc khóa từ `JWT_KEY`. Không có khóa mặc định; thiếu cấu hình thì startup từ chối chạy.
+
+Với yêu cầu khóa cả cụm FormTemplates, người dân không gọi được GET mẫu/download mẫu ở cụm này.
+Luồng FE mở mẫu lần đầu và client nội bộ Procedure gọi FormTemplates phải được thiết kế lại quyền đọc
+hoặc endpoint citizen riêng trước khi tích hợp luồng đó. Không đưa token quản lý vào FE người dân.
+Health vẫn không yêu cầu token. Đã deploy phân quyền lên Azure ngày 08/10/2026 (image roles-20261008-01); Swagger Bearer và request không token401 đã được xác minh.
+
+
 Luồng hiện tại (07/10/2026): admin upload mẫu DOCX nguyên bản; FE tải binary vào editor Word trên web;
 người dân sửa trong editor; FE export DOCX và gửi lại khi lưu nháp. Backend lưu nguyên byte, không sinh
 trang khai báo bổ sung, không yêu cầu schema, mapping hay placeholder. File người dân nằm ở blob riêng.
@@ -1265,7 +1283,7 @@ thành phần hồ sơ; Workflow có thể tham chiếu submissionId khi hoàn t
 |---|---|---|---|
 | `POST /api/v1/citizen/submissions/draft` | FE lần đầu lưu: multipart `templateId`, `applicantId`, `file` (DOCX export từ editor). | 201 `{submissionId,status:"Draft",fileName,fileSizeBytes,updatedAt,message}` | 400 file/ID không hợp lệ; 404 mẫu chưa upload/không có; 409 mẫu inactive; 415 gửi JSON: đổi multipart; 503 Blob lỗi: thử lại. |
 | `PUT /api/v1/citizen/submissions/{submissionId}/draft` | FE lưu tiếp: multipart `applicantId`, `file`. Không đổi templateId. | 200 cùng DTO lưu nháp; file mới được lưu nguyên byte | 400 đơn đã chốt/file lỗi; 403 sai chủ; 404 thiếu đơn/mẫu; 409 xung đột: tải lại trước khi lưu; 503 Blob lỗi. |
-| `GET /api/v1/citizen/submissions?applicantId=...` | FE màn hình “Đơn của tôi”; thêm status,page,pageSize nếu cần. | 200 phân trang metadata | 400 thiếu applicantId hoặc page/pageSize/status sai: sửa query. |
+| `GET /api/v1/citizen/submissions?applicantId=...` | FE màn hình “Đơn của tôi”; thêm status,page,pageSize nếu cần. | 200 phân trang metadata | 403 applicantId thiếu/không khớp JWT; 400 page/pageSize/status sai: sửa query. |
 | `GET /api/v1/citizen/submissions/{submissionId}?applicantId=...` | FE mở lại đơn, đọc status trước khi mở editor. | 200 metadata (id,templateId,applicantId,fileName,fileSizeBytes,status,…); không formData/schema | 403 sai chủ; 404 không tồn tại: kiểm tra ID. |
 | `GET /api/v1/citizen/submissions/{submissionId}/download-docx?applicantId=...` | FE mở **bản đã sửa**, kể cả sau khi admin đổi mẫu; có thể dùng để tải/in. | 200 binary đúng file đã lưu gần nhất | 403 sai chủ; 404 thiếu đơn/blob: kiểm tra ID hoặc khôi phục file. |
 | `POST /api/v1/citizen/submissions/{submissionId}/submit` | Sau khi lưu thành công và người dân xác nhận hoàn thành; JSON `{ "applicantId":"UUID" }`. | 200 status=Submitted, khóa sửa nháp | 400 đã chốt; 403 sai chủ; 404 thiếu đơn/file; 409 xung đột: mở lại kiểm tra. |
@@ -1281,6 +1299,23 @@ Lỗi nhóm Citizen dùng ProblemDetails (`status,title,detail,code,traceId`); m
 ValidationProblemDetails. Nhóm template giữ `{code,message}` cho lỗi nghiệp vụ. FE đọc HTTP status trước.
 Hiện applicantId vẫn theo hợp đồng tích hợp sẵn có; controller chưa tự xác thực JWT/Authorize.
 Danh tính này cần đến từ lớp xác thực tin cậy của hệ thống, không coi việc có UUID là xác thực.
+
+### 3.3. Nhóm Giấy tờ Minh chứng (TASK-17 — Supporting Documents)
+
+| API | Ai gọi, lúc nào và request | Thành công | Lỗi thường gặp và cách xử lý |
+|---|---|---|---|
+| `POST /api/v1/applications/{applicationId}/supporting-documents` | Người dân/cán bộ đính kèm file minh chứng (CCCD, giấy khai sinh...); multipart `file` + optional `checklistId`. | 201 `{id, applicationId, checklistId, fileName, blobUrl, fileSizeBytes, contentType, createdAtUtc}` | 400 file rỗng, > 20MB, đuôi file không hỗ trợ (.pdf, .jpg, .jpeg, .png, .doc, .docx); 503 Blob upload lỗi. |
+| `GET /api/v1/applications/{applicationId}/supporting-documents` | FE hiển thị danh sách toàn bộ giấy tờ minh chứng đã tải lên của hồ sơ. | 200 danh sách `SupportingDocumentDto` | 401 chưa đăng nhập; 400 applicationId không hợp lệ. |
+| `DELETE /api/v1/supporting-documents/{documentId}` | Người dân/cán bộ xóa 1 giấy tờ minh chứng (soft-delete). | 204 No Content | 404 không tìm thấy file minh chứng; 401 chưa đăng nhập. |
+| `GET /api/v1/supporting-documents/{documentId}/download` | FE tải về hoặc mở xem file minh chứng trực tiếp từ Azure Blob. | 200 binary stream (`application/octet-stream` hoặc MIME gốc) | 404 không tìm thấy file hoặc blob bị xóa; 401 chưa đăng nhập. |
+
+### 3.4. Nhóm Văn bản kết xuất PDF (TASK-18 — Generated Documents)
+
+| API | Ai gọi, lúc nào và request | Thành công | Lỗi thường gặp và cách xử lý |
+|---|---|---|---|
+| `POST /api/v1/applications/{applicationId}/generate-pdf` | Kích hoạt engine render DOCX sang PDF chính thức; multipart: optional `file` (từ editor), `documentType` (mặc định ORIGINAL_SUBMISSION), optional `submissionId`. | 200 `{id, applicationId, documentType, pdfBlobUrl, createdAtUtc}` | 400 thiếu file/đơn; 404 không tìm thấy submission; 503 Blob upload lỗi. |
+| `GET /api/v1/applications/{applicationId}/generated-documents` | FE lấy danh sách các văn bản PDF đã được sinh cho hồ sơ này. | 200 danh sách `GeneratedDocumentDto` | 401 chưa đăng nhập; 400 applicationId không hợp lệ. |
+| `GET /api/v1/generated-documents/{documentId}/download` | Người dân/cán bộ tải file PDF chính thức để in hoặc đóng dấu. | 200 binary stream `application/pdf` | 404 không tìm thấy document hoặc blob bị xóa. |
 
 ## 4. AIOCR Service (Trích xuất dữ liệu PDF)
 
@@ -2130,6 +2165,9 @@ Base local qua Gateway: `http://localhost:5000/api/document-form`.
 Swagger: `http://localhost:5000/api/document-form/swagger/index.html`.
 Các route API bên dưới nối tiếp base bằng `/api/v1/...`.
 
+Các bước FE dưới đây mô tả luồng DOCX; quyền GET mẫu hiện giới hạn PROCEDURE_MANAGER.
+Không sử dụng token admin để chạy trên màn hình công dân.
+
 1. **Admin / Quản lý mẫu:** POST tạo code/title → upload-docx multipart → GET chi tiết thấy onlineReady=true.
 2. **Chi tiết thủ tục:** service Procedure trả thành phần giấy tờ có templateId; FE hiển thị nút “Điền đơn”.
 3. **Mở đơn mới:** GET template, GET template/download-docx → đọc arrayBuffer/blob → editor import DOCX.
@@ -2170,7 +2208,8 @@ Editor FE phải hỗ trợ import/export DOCX; backend bảo toàn bytes nhận
 mọi font/bảng/ngắt trang giống Word. Kiểm tra hiển thị với file mẫu thực tế ở FE là bước tích hợp riêng.
 
 Test local: `python scripts/verify-documentform-online.py http://localhost:5000/api/document-form`.
-Script tạo dữ liệu tổng hợp riêng với code DOCX-* và applicantId ngẫu nhiên; không gọi Azure.
+Script cần DOCUMENTFORM_MANAGER_TOKEN và DOCUMENTFORM_CITIZEN_TOKEN từ IAM local; dùng sub của token công dân, tạo code DOCX-*; không gọi Azure.
+Kiểm tra auth độc lập, không ghi DB: `python scripts/verify-documentform-authorization.py` (sau Release build).
 Có thể truyền đường dẫn DOCX làm đối số thứ hai để kiểm tra round-trip trên mẫu thật.
 
 ## 7. AIOCR: API nội bộ
