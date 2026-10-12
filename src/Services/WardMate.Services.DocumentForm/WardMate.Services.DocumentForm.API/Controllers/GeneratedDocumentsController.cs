@@ -50,7 +50,9 @@ public sealed class GeneratedDocumentsController : ControllerBase
             request.SubmissionId,
             fileStream,
             fileName,
-            User.Identity?.Name);
+            User.Identity?.Name,
+            CallerUserId,
+            IsOfficer);
 
         var result = await _mediator.Send(command, cancellationToken);
 
@@ -72,7 +74,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
-            new GetGeneratedDocumentsQuery(applicationId),
+            new GetGeneratedDocumentsQuery(applicationId, CallerUserId, IsOfficer),
             cancellationToken);
 
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
@@ -89,7 +91,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
-            new DownloadGeneratedDocumentQuery(documentId),
+            new DownloadGeneratedDocumentQuery(documentId, CallerUserId, IsOfficer),
             cancellationToken);
 
         if (!result.IsSuccess)
@@ -99,6 +101,12 @@ public sealed class GeneratedDocumentsController : ControllerBase
 
         return File(result.Value.FileStream, result.Value.ContentType, result.Value.FileName);
     }
+
+    private Guid? CallerUserId => Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : null;
+    private bool IsOfficer => User.IsInRole("FRONT_DESK_OFFICER")
+                           || User.IsInRole("MANAGER")
+                           || User.IsInRole("PROCEDURE_MANAGER")
+                           || User.IsInRole("IT_ADMIN");
 
     private ObjectResult Failure(Error error)
     {
