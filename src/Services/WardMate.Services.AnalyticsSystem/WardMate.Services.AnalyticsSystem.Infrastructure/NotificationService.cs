@@ -20,47 +20,38 @@ public sealed class NotificationService(NotificationDbContext db, IHubContext<No
 
         var entity = new Notification
         {
+            Id = Guid.NewGuid(),
             RecipientUserId = request.RecipientUserId, ApplicationId = request.ApplicationId,
             Title = request.Title.Trim(), Content = request.Content, Type = request.Type,
             ActionUrl = request.ActionUrl, CreatedAt = clock.GetUtcNow().UtcDateTime
         };
         db.Notifications.Add(entity);
+        db.Deliveries.Add(new() { NotificationId = entity.Id });
         await db.SaveChangesAsync(ct);
-        var dto = ToDto(entity);
-        // Persistence succeeds independently of the recipient being connected or transport delivery failing.
-        try
-        {
-            var client = hub.Clients.Group(NotificationHub.UserGroup(entity.RecipientUserId));
-            await client.ReceiveNotification(dto);
-            await client.UpdateUnreadCount(await UnreadCountAsync(entity.RecipientUserId, ct));
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(exception, "Không gửi được realtime cho thông báo {NotificationId}; bản ghi đã được lưu.", entity.Id);
-        }
-        return dto;
+        // A worker sends only after commit; a process crash cannot lose the pending delivery.
+        return ToDto(entity);
     }
 
-    public Task<int> UnreadCountAsync(Guid recipient, CancellationToken ct = default) =>
-        db.Notifications.CountAsync(x => x.RecipientUserId == recipient && x.Channel == "IN_APP" && !x.IsRead, ct);
+    public Task<int> UnreadCountAsync(Guid recipient, CancellationToken ct = default, string? wardCode = null) =>
+        db.Notifications.CountAsync(x => x.RecipientUserId == recipient && x.Channel == "IN_APP" && !x.IsRead && (x.RecipientWardCode == null || x.RecipientWardCode == wardCode), ct);
 
-    public async Task<IReadOnlyList<NotificationDto>> ListAsync(Guid recipient, int page, int pageSize, CancellationToken ct = default)
+    public async Task<IReadOnlyList<NotificationDto>> ListAsync(Guid recipient, int page, int pageSize, CancellationToken ct = default, string? wardCode = null)
     {
         if (page < 1 || page > 1_000_000 || pageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(page));
-        return await db.Notifications.AsNoTracking().Where(x => x.RecipientUserId == recipient && x.Channel == "IN_APP")
+        return await db.Notifications.AsNoTracking().Where(x => x.RecipientUserId == recipient && x.Channel == "IN_APP" && (x.RecipientWardCode == null || x.RecipientWardCode == wardCode))
             .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip((page - 1) * pageSize).Take(pageSize)
             .Select(x => new NotificationDto(x.Id, x.RecipientUserId, x.ApplicationId, x.Title, x.Content,
                 x.Type, x.Channel, x.IsRead, x.ReadAt, x.ActionUrl, x.CreatedAt)).ToListAsync(ct);
     }
 
-    public async Task<bool> MarkReadAsync(Guid recipient, Guid notificationId, CancellationToken ct = default)
+    public async Task<bool> MarkReadAsync(Guid recipient, Guid notificationId, CancellationToken ct = default, string? wardCode = null)
     {
-        var owned = db.Notifications.Where(x => x.Id == notificationId && x.RecipientUserId == recipient && x.Channel == "IN_APP");
+        var owned = db.Notifications.Where(x => x.Id == notificationId && x.RecipientUserId == recipient && x.Channel == "IN_APP" && (x.RecipientWardCode == null || x.RecipientWardCode == wardCode));
         var now = clock.GetUtcNow().UtcDateTime;
         var changed = await owned.Where(x => !x.IsRead).ExecuteUpdateAsync(set => set
             .SetProperty(x => x.IsRead, true).SetProperty(x => x.ReadAt, now), ct);
         if (changed == 0 && !await owned.AnyAsync(ct)) return false;
-        try { await hub.Clients.Group(NotificationHub.UserGroup(recipient)).UpdateUnreadCount(await UnreadCountAsync(recipient, ct)); }
+        try { await hub.Clients.Group(NotificationHub.UserGroup(recipient)).UpdateUnreadCount(await UnreadCountAsync(recipient, ct, wardCode)); }
         catch (Exception exception) { logger.LogWarning(exception, "Không cập nhật được bộ đếm realtime; trạng thái đã đọc đã được lưu."); }
         return true;
     }
