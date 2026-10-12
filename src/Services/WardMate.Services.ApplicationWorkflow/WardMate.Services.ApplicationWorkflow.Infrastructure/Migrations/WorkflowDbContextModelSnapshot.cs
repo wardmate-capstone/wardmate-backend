@@ -356,6 +356,48 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Infrastructure.WorkflowOutbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_workflow_outbox");
+
+                    b.HasIndex("PublishedAt", "NextAttemptAt")
+                        .HasDatabaseName("ix_workflow_outbox_published_at_next_attempt_at");
+
+                    b.ToTable("workflow_outbox", (string)null);
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationChecklist", b =>
                 {
                     b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", null)
