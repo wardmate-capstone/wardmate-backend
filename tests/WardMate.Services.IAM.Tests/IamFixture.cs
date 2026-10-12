@@ -18,6 +18,7 @@ namespace WardMate.Services.IAM.Tests;
 
 public sealed class IamFixture : IAsyncLifetime
 {
+    public string NotificationKey { get; } = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
     private readonly string key = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48));
     private readonly PostgreSqlContainer postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine")
         .WithDatabase("iam_test").WithUsername("iam_test").WithPassword(Guid.NewGuid().ToString("N")).Build();
@@ -29,7 +30,7 @@ public sealed class IamFixture : IAsyncLifetime
         {
             b.UseEnvironment("Development");
             b.ConfigureAppConfiguration((_, c) => c.AddInMemoryCollection(new Dictionary<string, string?>
-            { ["Jwt:Key"] = key, ["Database:AutoMigrate"] = "true" }));
+            { ["Jwt:Key"] = key, ["Database:AutoMigrate"] = "true", ["Notifications:ServiceKey"] = NotificationKey }));
             b.ConfigureServices(s =>
             {
                 s.RemoveAll<DbContextOptions<IamDbContext>>(); s.RemoveAll<IamDbContext>();
