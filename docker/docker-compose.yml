@@ -60,6 +60,9 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: wardmate
+      Jwt__Audience: wardmate-client
       ConnectionStrings__DocumentDb: Host=postgres;Port=5432;Database=wardmate_documentform_db;Username=wardmate_admin;Password=wardmate_secret
       Database__AutoMigrate: "true"
       AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://host.docker.internal}
