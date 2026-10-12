@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WardMate.Services.DocumentForm.Application.Interfaces;
 using WardMate.Services.DocumentForm.Domain.Errors;
+using WardMate.Services.DocumentForm.Domain.Models;
 using WardMate.SharedKernel.Blob;
 using WardMate.SharedKernel.Common;
 using WardMate.SharedKernel.CQRS;
@@ -14,7 +15,10 @@ public sealed record DownloadGeneratedDocumentResult
     public string ContentType { get; init; } = "application/pdf";
 }
 
-public sealed record DownloadGeneratedDocumentQuery(Guid DocumentId)
+public sealed record DownloadGeneratedDocumentQuery(
+    Guid DocumentId,
+    Guid? CallerUserId = null,
+    bool IsOfficer = false)
     : IQuery<DownloadGeneratedDocumentResult>;
 
 public sealed class DownloadGeneratedDocumentQueryHandler
@@ -42,6 +46,27 @@ public sealed class DownloadGeneratedDocumentQueryHandler
         if (doc is null)
         {
             return DocumentFormErrors.GeneratedDocumentNotFound(request.DocumentId);
+        }
+
+        // Kiểm tra quyền sở hữu & trạng thái phê duyệt nếu người gọi là người dân
+        if (!request.IsOfficer && request.CallerUserId.HasValue && request.CallerUserId.Value != Guid.Empty)
+        {
+            var submission = await _dbContext.UserSubmissions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => (s.Id == doc.ApplicationId || s.ApplicantId == doc.ApplicationId) && !s.IsDeleted, cancellationToken);
+
+            if (submission is not null)
+            {
+                if (submission.ApplicantId != request.CallerUserId.Value)
+                {
+                    return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.CallerUserId.Value);
+                }
+
+                if (submission.Status != SubmissionStatus.Approved)
+                {
+                    return DocumentFormErrors.SubmissionNotApproved(submission.Id, submission.Status.ToString());
+                }
+            }
         }
 
         var blobName = ExtractBlobName(doc.PdfBlobUrl);
