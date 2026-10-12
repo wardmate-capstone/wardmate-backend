@@ -1,3 +1,7 @@
+# JWT: use IAM tokens; applicantId must equal citizen JWT sub.
+# Authorization change is local source only until deployed.
+@managerToken = REPLACE_MANAGER_ACCESS_TOKEN
+@citizenToken = REPLACE_CITIZEN_ACCESS_TOKEN
 ### DOCX editor workflow; replace IDs and local file paths before running.
 @baseUrl = http://localhost:5000/api/document-form
 @templateId = REPLACE_TEMPLATE_ID
@@ -6,12 +10,14 @@
 
 ### Admin create -> copy returned id into templateId (201)
 POST {{baseUrl}}/api/v1/form-templates
+Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"code":"DOCX_EDITOR_DEMO","title":"Mẫu đơn chính thức"}
 
 ### Admin upload original unchanged (200). Replace file path below.
 POST {{baseUrl}}/api/v1/form-templates/{{templateId}}/upload-docx
+Authorization: Bearer {{managerToken}}
 Content-Type: multipart/form-data; boundary=DocumentBoundary
 
 --DocumentBoundary
@@ -23,15 +29,19 @@ Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 ### Admin list (200)
 GET {{baseUrl}}/api/v1/form-templates?page=1&pageSize=20
+Authorization: Bearer {{managerToken}}
 
 ### FE metadata: onlineReady=true after upload (200)
 GET {{baseUrl}}/api/v1/form-templates/{{templateId}}
+Authorization: Bearer {{managerToken}}
 
 ### FE imports this binary into Word editor (200)
 GET {{baseUrl}}/api/v1/form-templates/{{templateId}}/download-docx
+Authorization: Bearer {{managerToken}}
 
 ### FE saves exported DOCX; copy submissionId from 201 response
 POST {{baseUrl}}/api/v1/citizen/submissions/draft
+Authorization: Bearer {{citizenToken}}
 Content-Type: multipart/form-data; boundary=DocumentBoundary
 
 --DocumentBoundary
@@ -51,15 +61,19 @@ Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 ### List saved forms (200)
 GET {{baseUrl}}/api/v1/citizen/submissions?applicantId={{applicantId}}
+Authorization: Bearer {{citizenToken}}
 
 ### Reopen metadata (200)
 GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}?applicantId={{applicantId}}
+Authorization: Bearer {{citizenToken}}
 
 ### Reopen saved DOCX in editor (200)
 GET {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/download-docx?applicantId={{applicantId}}
+Authorization: Bearer {{citizenToken}}
 
 ### Save updated exported DOCX (200)
 PUT {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/draft
+Authorization: Bearer {{citizenToken}}
 Content-Type: multipart/form-data; boundary=DocumentBoundary
 
 --DocumentBoundary
@@ -75,6 +89,7 @@ Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 ### Confirm completion AFTER save succeeds (200). Later PUT draft -> 400.
 POST {{baseUrl}}/api/v1/citizen/submissions/{{submissionId}}/submit
+Authorization: Bearer {{citizenToken}}
 Content-Type: application/json
 
 {"applicantId":"{{applicantId}}"}
