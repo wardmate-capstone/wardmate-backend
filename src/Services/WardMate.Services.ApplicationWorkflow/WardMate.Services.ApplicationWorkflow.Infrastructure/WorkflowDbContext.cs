@@ -6,6 +6,12 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 
 public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> options) : DbContext(options)
 {
+    public DbSet<WorkflowOutbox> Outbox => Set<WorkflowOutbox>();
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        WorkflowOutboxCapture.Capture(this);
+        return base.SaveChangesAsync(cancellationToken);
+    }
     public DbSet<ApplicationRecord> Applications => Set<ApplicationRecord>();
     public DbSet<ApplicationChecklist> Checklists => Set<ApplicationChecklist>();
     public DbSet<ApplicationStatusHistory> StatusHistory => Set<ApplicationStatusHistory>();
@@ -14,6 +20,10 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        var o = b.Entity<WorkflowOutbox>();
+        o.ToTable("workflow_outbox"); o.HasKey(x => x.Id);
+        o.Property(x => x.Payload).HasColumnType("jsonb"); o.Property(x => x.LastError).HasMaxLength(100);
+        o.HasIndex(x => new { x.PublishedAt, x.NextAttemptAt });
         b.HasSequence<long>("application_code_sequence");
         var a = b.Entity<ApplicationRecord>();
         a.ToTable("applications", t => t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','APPROVED','CANCELLED','REJECTED')"));

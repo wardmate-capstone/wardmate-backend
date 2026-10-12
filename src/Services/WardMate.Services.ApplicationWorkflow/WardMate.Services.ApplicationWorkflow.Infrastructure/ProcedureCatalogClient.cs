@@ -41,6 +41,8 @@ public static class WorkflowInfrastructureRegistration
         services.AddScoped<IApplicationStore, ApplicationStore>();
         services.AddScoped<IApplicationReviewStore, ApplicationReviewStore>();
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(config.GetSection("RabbitMq").Get<WardMate.EventBus.RabbitOptions>() ?? new());
+        services.AddHostedService<WorkflowOutboxWorker>();
         services.AddHttpClient<IWorkflowDirectory, WorkflowDirectory>(http =>
         {
             http.BaseAddress = new Uri((config["Iam:BaseUrl"] ?? "http://localhost:5001/").TrimEnd('/') + "/");
