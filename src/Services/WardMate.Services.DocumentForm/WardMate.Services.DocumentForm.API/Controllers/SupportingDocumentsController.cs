@@ -9,7 +9,7 @@ using WardMate.SharedKernel.Common;
 namespace WardMate.Services.DocumentForm.API.Controllers;
 
 [ApiController]
-[Authorize(Policy = "DocumentUser")]
+[Authorize(Policy = "DocumentCitizen")]
 [Route("api/v1")]
 [Produces("application/json")]
 [Tags("Supporting Documents — Giấy tờ minh chứng")]
