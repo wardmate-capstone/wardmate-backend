@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using System.ComponentModel.DataAnnotations;
 using MediatR;
 using WardMate.Services.DocumentForm.Application.DTOs;
@@ -9,6 +10,7 @@ namespace WardMate.Services.DocumentForm.API.Controllers;
 
 /// <summary>Đơn điện tử thuộc một bộ hồ sơ; người dân chỉnh sửa DOCX bằng editor trên web.</summary>
 [ApiController]
+[Authorize(Policy = "DocumentCitizen")]
 [Route("api/v1/citizen/submissions")]
 [Produces("application/json")]
 [Tags("Citizen — Đơn điện tử online")]
@@ -20,6 +22,7 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
         [FromQuery] string? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        if (!OwnsIdentity(applicantId)) return Forbid();
         var result = await mediator.Send(new GetMySubmissionsQuery(applicantId, status, page, pageSize), cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
@@ -29,6 +32,7 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
     [ProducesResponseType(typeof(UserSubmissionSummaryDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(Guid submissionId, [FromQuery] Guid applicantId, CancellationToken ct)
     {
+        if (!OwnsIdentity(applicantId)) return Forbid();
         var result = await mediator.Send(new GetSubmissionByIdQuery(submissionId, applicantId), ct);
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
@@ -39,6 +43,7 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateDraft([FromForm] CreateOnlineDraftRequest request, CancellationToken ct)
     {
+        if (!OwnsIdentity(request.ApplicantId)) return Forbid();
         using var stream = request.File.OpenReadStream();
         var result = await mediator.Send(new SaveDraftSubmissionCommand(null, request.TemplateId,
             request.ApplicantId, stream, request.File.FileName, request.File.Length, User.Identity?.Name), ct);
@@ -52,6 +57,7 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UpdateDraft(Guid submissionId, [FromForm] UpdateOnlineDraftRequest request, CancellationToken ct)
     {
+        if (!OwnsIdentity(request.ApplicantId)) return Forbid();
         using var stream = request.File.OpenReadStream();
         var result = await mediator.Send(new SaveDraftSubmissionCommand(submissionId, Guid.Empty,
             request.ApplicantId, stream, request.File.FileName, request.File.Length, User.Identity?.Name), ct);
@@ -63,6 +69,7 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
     [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Submit(Guid submissionId, [FromBody] CitizenSubmitRequest request, CancellationToken ct)
     {
+        if (!OwnsIdentity(request.ApplicantId)) return Forbid();
         var result = await mediator.Send(new SubmitSubmissionCommand(submissionId, request.ApplicantId, User.Identity?.Name), ct);
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
@@ -71,9 +78,13 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
     [HttpGet("{submissionId:guid}/download-docx")]
     public async Task<IActionResult> DownloadDocx(Guid submissionId, [FromQuery] Guid applicantId, CancellationToken ct)
     {
+        if (!OwnsIdentity(applicantId)) return Forbid();
         var result = await mediator.Send(new DownloadSubmissionDocxQuery(submissionId, applicantId), ct);
         return result.IsSuccess ? File(result.Value.FileStream, result.Value.ContentType, result.Value.FileName) : Failure(result.Error);
     }
+
+    private bool OwnsIdentity(Guid applicantId) => Guid.TryParse(User.FindFirst("sub")?.Value, out var subject)
+        && subject != Guid.Empty && applicantId == subject;
 
     private ObjectResult Failure(Error error)
     {
