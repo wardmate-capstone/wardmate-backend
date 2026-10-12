@@ -1,5 +1,24 @@
 # DocumentForm deployment history
 
+## TASK-17 & TASK-18 deployment (Supporting & Generated Documents) — 2026-10-12 07:31:00 +07:00
+
+User requested Azure deployment for supporting documents and PDF generation features. Deployed image
+`acrwardmate2026.azurecr.io/wardmate-documentform:task17-18-20261012-01`, digest
+`sha256:3b3971e41d4200775cb48db828c67e71f3d484d9b3a5c812022a9bfe5d2d58eb`.
+Container App `wardmate-documentform` in `rg-wardmate-prod` reports `provisioningState=Succeeded`, `runningStatus=Running`.
+Built image locally and pushed to ACR; updated image only, preserved existing secrets/config.
+All public endpoints verified:
+- `/health` -> 200 Healthy
+- Swagger JSON confirms endpoints:
+  - `POST /api/v1/applications/{applicationId}/supporting-documents`
+  - `GET /api/v1/applications/{applicationId}/supporting-documents`
+  - `DELETE /api/v1/supporting-documents/{documentId}`
+  - `GET /api/v1/supporting-documents/{documentId}/download`
+  - `POST /api/v1/applications/{applicationId}/generate-pdf`
+  - `GET /api/v1/applications/{applicationId}/generated-documents`
+  - `GET /api/v1/generated-documents/{documentId}/download`
+Swagger: https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/document-form/swagger/index.html
+
 ## DOCX editor deployment — 2026-10-07 15:40:24 +07:00
 
 User approved local tests and explicitly requested Azure deployment. Deployed image
