@@ -2173,3 +2173,55 @@ Kiểm thử/cấu hình/tài liệu:
 - Single replica SignalR vẫn là giới hạn; chưa có backplane/Azure SignalR. Chưa có retention job hoặc API quản trị queue; không tự xóa Inbox chống trùng.
 - docker/.env không bị sửa trong task này. Điền NOTIFICATIONS_ENABLED, NOTIFICATIONS_SERVICE_KEY, RABBITMQ_PASSWORD và password DB theo runbook; Email/SMS giữ tắt khi chưa có provider.
 - Commit gợi ý cho Antigravity (tách mỗi file/chức năng theo quy tắc): feat(notifications): add durable workflow event pipeline and connection revalidation; feat(notifications): add configurable SMTP delivery and SMS provider contract; test(notifications): verify transactional outbox and scoped recipients; docs(notifications): document retry and deployment operations.
+
+## BE-TASK-PROCEDURE-GEMINI-AI — Kết nối Gemini cho bóc tách thủ tục
+- Hoàn thành phần adapter/cấu hình: 2026-10-12 23:53 +07:00 (Asia/Saigon).
+- Sửa: src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/AzureProcedureDocumentExtractor.cs;
+  docker/docker-compose.yml; docker/.env.example; docs/api-guide.md; PROGRESS.md.
+- Tạo: tests/WardMate.Services.ProcedureCatalog.IntegrationTests/GeminiExtractionTests.cs.
+- Chọn Extraction:Provider=Gemini, dùng Gemini:Key/Model riêng, endpoint Google cố định và Bearer;
+  mặc định AzureOpenAI giữ hành vi cũ. Từ chối choices rỗng và kết quả bị cắt.
+- Không thêm endpoint/migration; preview POST multipart PDF trả 200, tạo draft POST multipart PDF trả 202.
+  Giữ quyền/token và luồng review/publish. FE hiển thị warnings và chọn categoryId.
+- Build Release --no-restore -warnaserror: 0 lỗi, 0 cảnh báo.
+- Test mới 3 cases; kiểm thử adapter Azure/Gemini 6/6; toàn solution 225/225 passed
+  (Procedure 102, DocumentForm 76, Workflow 39, IAM 8).
+- Lần test sandbox ban đầu không hoàn tất; dừng và chạy lại thành công ngoài sandbox.
+- Chưa gọi Gemini thật (chưa có key/model), chưa đánh giá độ chính xác với PDF thật;
+  chưa deploy, chưa build Docker, không chạy Git. OCR scan vẫn cần provider OCR riêng.
+- Không cam kết AI luôn trả đủ dữ liệu hoặc gói miễn phí; cần test thực tế sau khi cấu hình.
+
+## FIX-PDF-SPARSE-PAGES — Không chặn AI vì trang ít chữ
+- Hoàn thành 2026-10-13 00:18 UTC+07:00 (Asia/Saigon).
+- Sửa src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/TextFirstProcedureExtractor.cs:
+  tiếp tục map văn bản sang payload khi OCR tắt và tổng chữ/số >=20; giữ cảnh báo trang thiếu chữ.
+  Phân biệt cảnh báo quota, key/quyền, timeout, lỗi AI; không lộ response/key nhà cung cấp.
+- Sửa tests/WardMate.Services.ProcedureCatalog.IntegrationTests/TextPdfExtractionTests.cs:
+  cập nhật 2 cases PDF trống không gọi AI và PDF hỗn hợp vẫn điền title từ AI, giữ cảnh báo.
+- Sửa docs/api-guide.md và PROGRESS.md. Không thêm API/migration; request/status/quyền không đổi.
+- Release build: 0 lỗi, 0 cảnh báo. Toàn solution 225/225 passed; không tạo test project mới.
+- FE dùng payload điền form, hiển thị warnings, chọn categoryId và đối soát trước publish.
+- Chưa test gọi Gemini thật với PDF của người dùng; tests dùng HTTP giả lập. Không build Docker, deploy hoặc Git.
+
+## FIX-AI-TRANSIENT — Chẩn đoán và retry Gemini 503
+- Hoàn thành sửa local: 2026-10-13 00:50 UTC+07:00 (Asia/Saigon).
+- Log container xác nhận 3 lần 503. Request chẩn đoán rất ngắn dùng key/model từ .env trả HTTP 200;
+  không in secret, không đổi model/billing. Chưa xác nhận request PDF 30 trang thành công.
+- Sửa AzureProcedureDocumentExtractor.cs và TextFirstProcedureExtractor.cs tại
+  src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/:
+  retry 502/503/504 tối đa 2 lần, chờ 2/4 giây, giữ cancellation; cảnh báo 503 cụ thể.
+- Sửa tests/WardMate.Services.ProcedureCatalog.IntegrationTests/GeminiExtractionTests.cs:
+  thêm 1 case hai lần 503 rồi 200. Toàn solution 226/226 passed. Release build 0 lỗi/0 cảnh báo.
+- Cập nhật docs/api-guide.md và PROGRESS.md. Không đổi endpoint/request/status/token/quyền;
+  FE tiếp tục hiển thị warnings khi AI không trả payload. Không retry quota hoặc tự bật billing.
+- Không Git, không build Docker, không deploy. Cần người dùng rebuild AIOCR và kiểm thử PDF thực tế.
+
+## AI-RESPONSE-DIAGNOSTICS — 2026-10-13 01:06:42 +07:00 (Asia/Saigon)
+- Lỗi mới: provider HTTP 200 nhưng MapText rơi vào fallback; không còn là 503.
+- Tái hiện trực tiếp cùng extractedText: HTTP 200, finish_reason stop, payload/warnings hợp lệ,
+  procedureCode 1.116905. Chưa tái hiện exception của request container; không khẳng định đã sửa nguyên nhân.
+- Sửa TextFirstProcedureExtractor.cs: cảnh báo riêng JSON sai, thiếu trường, InvalidDataException
+  (thông báo kiểm tra nội bộ), cấu hình/kiểu dữ liệu sai. Không in key/response thô.
+- Release build 0 lỗi/0 cảnh báo; 14/14 tests PDF/adapter passed, không thêm tests.
+- Cập nhật docs/api-guide.md và PROGRESS.md. API/status/token không đổi. FE cần hiển thị warnings.
+- Chưa build Docker/Git/deploy. Cần xác minh request qua container sau cập nhật.

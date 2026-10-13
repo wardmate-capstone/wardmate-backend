@@ -2932,3 +2932,52 @@ Email: adapter SMTP STARTTLS đã có, mặc định tắt. Cần host/port/from
 SMS: đã có ISmsSender và hàng đợi/trạng thái, nhưng chủ dự án chưa chọn nhà cung cấp Brandname. Adapter mặc định trả Blocked, tuyệt đối không trả Sent giả. Chưa có gửi SMS thật hoặc delivery receipt. Khi chọn nhà cung cấp cần triển khai ISmsSender đúng hợp đồng của họ, kiểm thử bằng sandbox và dùng deliveryId làm idempotency key nếu được hỗ trợ.
 
 Tham khảo cấu hình, retry, DLQ và các bước kiểm thử deploy trong docs/notifications-operations.md.
+
+## Bóc tách bằng Gemini (BE-TASK-PROCEDURE-GEMINI-AI)
+
+PDF có lớp chữ được đọc bằng PdfPig rồi gửi văn bản tới Gemini khi bật AI.
+Không thay đổi API, quyền truy cập hoặc bước cán bộ đối soát/xuất bản.
+
+Cấu hình trên container **AIOCR**:
+- Extraction__Enabled=true
+- Extraction__UseAI=true
+- Extraction__Provider=Gemini
+- Gemini__Key: tham chiếu Secret chứa API key Google, không đưa vào source.
+- Gemini__Model: tên model đang khả dụng trong dự án Google của bạn.
+- Extraction__OcrFallbackEnabled=false nếu chưa cấu hình Azure Document Intelligence.
+
+Docker Compose dùng PROCEDURE_EXTRACTION_ENABLED=true, PROCEDURE_USE_AI=true,
+PROCEDURE_AI_PROVIDER=Gemini, GEMINI_API_KEY và GEMINI_MODEL trong docker/.env.
+Giữ ProcedureDrafts__ExtractionEnabled=true, AiOcrUrl và ServiceKey đúng ở Procedure Catalog.
+Upload bản nháp vẫn cần Azure Blob. Không có migration mới.
+Endpoint Gemini được cố định theo API chính thức; không cần điền AzureOpenAI__Endpoint khi dùng Gemini.
+AzureOpenAI vẫn là nhà cung cấp mặc định để bảo toàn cấu hình cũ.
+
+POST /api/v1/procedure-manager/drafts/extract-preview nhận multipart PDF và trả 200
+với payload, extractedText, warnings để xem thử; không tạo bản nháp lưu trữ.
+POST /api/v1/procedure-manager/drafts nhận multipart PDF, trả 202 để theo dõi bản nháp
+bằng GET /api/v1/procedure-manager/drafts/{id}. Cán bộ sửa/lưu rồi gọi publish như trước.
+AI lỗi hoặc hết hạn mức khi xử lý PDF có chữ: trả dữ liệu thủ công và cảnh báo,
+giữ extractedText. FE phải hiển thị warnings, không coi HTTP 200 là mọi trường đã được AI điền.
+Kết quả bị cắt hoặc không có lựa chọn bị từ chối. CategoryId vẫn cần cán bộ chọn.
+PDF scan cần OCR riêng; bật Gemini không tự bật OCR.
+Chưa kiểm thử Gemini thật khi chưa có key/model; không cam kết miễn phí hoặc hạn mức cố định.
+
+### PDF có trang ít chữ — cập nhật 2026-10-13
+Preview và worker bản nháp tiếp tục gửi phần văn bản đọc được sang AI khi OCR tắt,
+kể cả có trang trống/ít chữ. Warnings vẫn ghi số trang cần đối soát; không bảo đảm
+đã đọc nội dung ảnh. PDF có tổng dưới 20 ký tự chữ/số vẫn cần nhập thủ công/OCR.
+Payload do AI đề xuất dùng để điền form; cán bộ phải kiểm tra, chọn danh mục và lưu trước publish.
+Khi AI lỗi, cảnh báo phân biệt hạn mức (429), key/quyền (401/403), timeout và lỗi khác;
+không hiển thị key hoặc phản hồi thô của nhà cung cấp. Hết quota Free Tier hãy chờ rồi retry.
+Không đổi route, quyền, request hoặc status code API.
+
+### Retry AI tạm thời — 2026-10-13
+AIOCR thử lại tối đa 2 lần khi AI trả HTTP 502/503/504, chờ 2 rồi 4 giây,
+trong giới hạn timeout/cancellation hiện có. Không retry tự động HTTP 429 (quota),
+401/403 hoặc lỗi dữ liệu. Nếu vẫn 503, warnings nêu rõ mã lỗi và giữ văn bản để đối soát.
+Không đổi model, billing, route hoặc hợp đồng API. Retry không bảo đảm nhà cung cấp phục hồi.
+
+Cảnh báo AI HTTP 200 không đọc được dữ liệu hiện phân biệt JSON không hợp lệ,
+thiếu trường, kết quả bị cắt và cấu hình/kiểu dữ liệu sai. FE hiển thị nguyên warnings
+để cán bộ biết lý do payload chưa được điền; không coi HTTP 200 là bóc tách thành công.
