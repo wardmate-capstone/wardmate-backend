@@ -65,7 +65,7 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         completion.Content = JsonContent.Create(new
         {
             model = deployment,
-            response_format = new { type = "json_object" },
+            response_format = ProcedureAiContract.ResponseFormat,
             messages = new[] { new { role = "system", content = Prompt }, new { role = "user", content } }
         });
         using var completed = await http.SendAsync(completion, ct);
@@ -77,6 +77,8 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
             continue;
         }
         completed.EnsureSuccessStatusCode();
+        try
+        {
         using var chat = await JsonDocument.ParseAsync(await completed.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
         var choices = chat.RootElement.GetProperty("choices");
         if (choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0)
@@ -89,8 +91,15 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         if (output.RootElement.ValueKind != JsonValueKind.Object ||
             !output.RootElement.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
             throw new InvalidDataException("Kết quả AI thiếu payload hoặc payload không phải object JSON.");
-        var warnings = NormalizeWarnings(output.RootElement);
+        var warnings = NormalizeWarnings(output.RootElement).ToList();
+        payload = ProcedureAiContract.Normalize(payload, warnings);
         return new(payload.Clone(), content, warnings.Append("Dữ liệu do AI đề xuất; cán bộ phải kiểm tra PDF gốc. CategoryId phải chọn từ danh mục hệ thống.").ToArray());
+        }
+        catch (Exception e) when (attempt < 1 && e is JsonException or InvalidDataException or KeyNotFoundException or InvalidOperationException)
+        {
+            // Retry once from the original source; never repair truncated JSON by guessing.
+            continue;
+        }
     }
     }
     private static string[] NormalizeWarnings(JsonElement root)
