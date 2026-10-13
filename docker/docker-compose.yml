@@ -286,6 +286,9 @@ services:
       ServiceAuthentication__Key: ${AIOCR_SERVICE_KEY:-}
       DocumentIntelligence__Endpoint: ${DOCUMENT_INTELLIGENCE_ENDPOINT:-}
       DocumentIntelligence__Key: ${DOCUMENT_INTELLIGENCE_KEY:-}
+      Extraction__Provider: ${PROCEDURE_AI_PROVIDER:-AzureOpenAI}
+      Gemini__Key: ${GEMINI_API_KEY:-}
+      Gemini__Model: ${GEMINI_MODEL:-}
       AzureOpenAI__Endpoint: ${AZURE_OPENAI_ENDPOINT:-}
       AzureOpenAI__Key: ${AZURE_OPENAI_KEY:-}
       AzureOpenAI__Deployment: ${AZURE_OPENAI_DEPLOYMENT:-}
