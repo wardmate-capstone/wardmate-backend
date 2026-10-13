@@ -150,8 +150,11 @@ public sealed class DownloadSubmissionDocxQueryHandler
         if (submission is null)
             return DocumentFormErrors.SubmissionNotFound(request.SubmissionId);
 
-        if (request.ApplicantId == Guid.Empty || submission.ApplicantId != request.ApplicantId)
+        // Nếu ApplicantId được cung cấp (người dân gọi), kiểm tra ownership
+        // Nếu Guid.Empty (cán bộ gọi), bỏ qua kiểm tra ownership
+        if (request.ApplicantId != Guid.Empty && submission.ApplicantId != request.ApplicantId)
             return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.ApplicantId);
+
         if (string.IsNullOrWhiteSpace(submission.BlobUrl))
             return DocumentFormErrors.SubmissionFileNotFound(request.SubmissionId);
 
