@@ -1311,11 +1311,44 @@ Danh tính này cần đến từ lớp xác thực tin cậy của hệ thống
 
 ### 3.4. Nhóm Văn bản kết xuất PDF (TASK-18 — Generated Documents)
 
+**Validation bắt buộc:** Người dân chỉ được xuất PDF khi hồ sơ đã được cán bộ duyệt (`Status = Approved`). Cán bộ (officer) không bị giới hạn này nhưng không thể xuất PDF khi hồ sơ vẫn là `Draft`.
+
+PDF xuất ra **không chứa comment của cán bộ**: backend dùng `DocxCommentStripper` (OpenXML SDK) để xóa toàn bộ Word comments (`CommentRangeStart`, `CommentRangeEnd`, `CommentReference`, `WordprocessingCommentsPart`) khỏi DOCX trước khi gửi sang Gotenberg. Người dân in PDF sạch để nộp giấy tờ.
+
 | API | Ai gọi, lúc nào và request | Thành công | Lỗi thường gặp và cách xử lý |
 |---|---|---|---|
-| `POST /api/v1/applications/{applicationId}/generate-pdf` | Kích hoạt engine render DOCX sang PDF chính thức; multipart: optional `file` (từ editor), `documentType` (mặc định ORIGINAL_SUBMISSION), optional `submissionId`. | 200 `{id, applicationId, documentType, pdfBlobUrl, createdAtUtc}` | 400 thiếu file/đơn; 404 không tìm thấy submission; 503 Blob upload lỗi. |
-| `GET /api/v1/applications/{applicationId}/generated-documents` | FE lấy danh sách các văn bản PDF đã được sinh cho hồ sơ này. | 200 danh sách `GeneratedDocumentDto` | 401 chưa đăng nhập; 400 applicationId không hợp lệ. |
-| `GET /api/v1/generated-documents/{documentId}/download` | Người dân/cán bộ tải file PDF chính thức để in hoặc đóng dấu. | 200 binary stream `application/pdf` | 404 không tìm thấy document hoặc blob bị xóa. |
+| `POST /api/v1/applications/{applicationId}/generate-pdf` | **Người dân** kích hoạt sau khi hồ sơ được cán bộ duyệt (`Status=Approved`). Multipart: optional `file` (từ editor), `documentType` (mặc định `ORIGINAL_SUBMISSION`), optional `submissionId`. | 200 `{id, applicationId, documentType, pdfBlobUrl, createdAtUtc}` | 400 `document.submission_not_approved` — hồ sơ chưa được duyệt; 403 không phải chủ hồ sơ; 404 không tìm thấy submission; 503 Blob/Render lỗi. |
+| `GET /api/v1/applications/{applicationId}/generated-documents` | FE lấy danh sách PDF đã sinh cho hồ sơ. | 200 danh sách `GeneratedDocumentDto` | 401 chưa đăng nhập; 400 applicationId không hợp lệ. |
+| `GET /api/v1/generated-documents/{documentId}/download` | Người dân/cán bộ tải file PDF chính thức để in hoặc đóng dấu. | 200 binary stream `application/pdf` | 404 không tìm thấy document hoặc blob bị xóa; 400 hồ sơ chưa được duyệt (người dân). |
+
+### 3.5. Nhóm Cán bộ xét duyệt hồ sơ (Officer Review Flow)
+
+**Ai sử dụng:** Cán bộ phòng tiếp nhận (`FRONT_DESK_OFFICER`), Quản lý (`MANAGER`), Quản lý thủ tục (`PROCEDURE_MANAGER`), IT Admin (`IT_ADMIN`). Tất cả đều cần JWT Bearer token hợp lệ với đúng role.
+
+**Luồng đầy đủ:**
+1. Người dân điền DOCX trên web editor → lưu nháp → nộp hồ sơ (`Status: Submitted`)
+2. Cán bộ tải DOCX về (`GET .../download-docx`) → mở trên web editor → thêm comment/ghi chú
+3. Cán bộ lưu DOCX có comment về backend (`PUT .../annotate-docx`) — `Status` **không thay đổi**
+4a. Nếu cần sửa: cán bộ gọi `POST .../request-revision` → `Status: RevisionRequested`  
+    → Người dân tải DOCX về, **thấy comment của cán bộ** → sửa → lưu lại → nộp lại  
+4b. Nếu OK: cán bộ gọi `POST .../approve` → `Status: Approved`
+5. Người dân gọi `generate-pdf` → BE strip comment → PDF sạch → in & nộp
+
+**Base path:** `/api/v1/officer/submissions`  
+**Auth:** Bearer + role officer (xem danh sách trên)
+
+| API | Mô tả | Request | Thành công | Lỗi thường gặp |
+|---|---|---|---|---|
+| `GET /{submissionId}/download-docx` | Cán bộ tải DOCX hiện tại của hồ sơ (có thể đã có comment nếu đã annotate trước). Dùng để mở trong web editor, đọc nội dung người dân điền, thêm comment. | — | 200 binary DOCX stream | 403 không phải officer; 404 không tìm thấy hồ sơ; 400 blob bị xóa. |
+| `PUT /{submissionId}/annotate-docx` | Cán bộ lưu lại DOCX **có comment** từ web editor. DOCX mới thay thế bản hiện tại trong Blob. `Status` giữ nguyên (`Submitted` hoặc `RevisionRequested`). Người dân sẽ thấy comment khi mở lại. | `multipart/form-data`: trường `file` (DOCX ≤ 20MB) | 200 `{submissionId, status, fileName, fileSizeBytes, updatedAt, message}` | 403 không phải officer; 404 hồ sơ không tồn tại; 400 file rỗng/không hợp lệ/không phải DOCX; 400 status không phải `Submitted`/`RevisionRequested`; 503 Blob upload lỗi. |
+| `POST /{submissionId}/request-revision` | Cán bộ trả hồ sơ lại và yêu cầu người dân sửa. Thường gọi **sau** `annotate-docx` để người dân biết cần mở lại file có comment. `Status: Submitted → RevisionRequested`. | JSON: `{ "comment": "Cần bổ sung giấy khai sinh." }` | 200 `{submissionId, status, ...}` | 403 không phải officer; 404 hồ sơ không tồn tại; 400 status không phải `Submitted`; 400 comment rỗng. |
+| `POST /{submissionId}/approve` | Cán bộ phê duyệt hồ sơ. `Status: Submitted → Approved`. Sau bước này người dân mới được gọi `generate-pdf`. | JSON: `{}` (officerId lấy tự động từ JWT `sub` claim) | 200 `{submissionId, status: "Approved", ...}` | 403 không phải officer; 404 hồ sơ không tồn tại; 400 status không phải `Submitted`. |
+
+**Lưu ý quan trọng cho FE:**
+- **Thứ tự annotate → request-revision:** Cán bộ nên `PUT annotate-docx` trước rồi mới `POST request-revision`. Có thể gọi `request-revision` mà không annotate nếu chỉ cần comment text qua trường `comment`.
+- **Người dân download DOCX sau revision:** Citizen dùng `GET /api/v1/citizen/submissions/{id}/download-docx` (endpoint của citizen) để tải về DOCX có comment của cán bộ — đây là cùng một file blob vừa được officer annotate.
+- **PDF không có comment:** Comment của cán bộ chỉ tồn tại trong DOCX. Khi người dân `generate-pdf`, backend tự động xóa trước khi render. Comment không cần phải được xóa thủ công.
+
 
 ## 4. AIOCR Service (Trích xuất dữ liệu PDF)
 
