@@ -60,4 +60,23 @@ public static class DocumentFormErrors
     public static Error FormDataRequired =>
         Error.Validation("document.form_data_required",
             "Form data must contain at least one field value.");
+
+    public static Error SupportingDocumentNotFound(Guid documentId) =>
+        Error.NotFound("document.supporting_document_not_found",
+            $"Supporting document with ID '{documentId}' was not found.");
+
+    public static Error GeneratedDocumentNotFound(Guid documentId) =>
+        Error.NotFound("document.generated_document_not_found",
+            $"Generated document with ID '{documentId}' was not found.");
+
+    public static Error UnsupportedFileType(string details) =>
+        Error.Validation("document.unsupported_file_type", details);
+
+    public static Error PdfRenderFailed(string detail) =>
+        Error.Failure("document.pdf_render_failed",
+            $"Failed to render PDF: {detail}");
+
+    public static Error SubmissionNotApproved(Guid submissionId, string currentStatus) =>
+        Error.Validation("document.submission_not_approved",
+            $"Hồ sơ '{submissionId}' chưa được phê duyệt (trạng thái hiện tại: {currentStatus}). Người dân chỉ được phép xuất file PDF khi hồ sơ đã được cán bộ kiểm tra và phê duyệt (Status = Approved).");
 }

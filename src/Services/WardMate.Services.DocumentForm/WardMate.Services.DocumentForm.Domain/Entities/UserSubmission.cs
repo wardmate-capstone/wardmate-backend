@@ -131,6 +131,25 @@ public sealed class UserSubmission : BaseEntity
     }
 
     /// <summary>
+    /// Cán bộ lưu lại DOCX đã được annotate (có thêm comment/ghi chú) mà không thay đổi Status.
+    /// Cho phép ở cả Submitted và RevisionRequested để cán bộ có thể cập nhật comment nhiều lần.
+    /// </summary>
+    public void AnnotateDocx(string blobUrl, string fileName, long fileSizeBytes, string? updatedBy = null)
+    {
+        if (Status != SubmissionStatus.Submitted && Status != SubmissionStatus.RevisionRequested)
+            throw new InvalidOperationException($"Cannot annotate DOCX when submission status is '{Status}'.");
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(blobUrl);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        BlobUrl = blobUrl.Trim();
+        FileName = fileName.Trim();
+        FileSizeBytes = fileSizeBytes;
+        UpdatedBy = updatedBy;
+        SetUpdated(DateTime.UtcNow);
+    }
+
+    /// <summary>
     /// Cán bộ yêu cầu sửa lại, kèm comment hướng dẫn.
     /// </summary>
     public void RequestRevision(Guid officerId, string comment, string? updatedBy = null)

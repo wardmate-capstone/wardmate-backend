@@ -1,0 +1,152 @@
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using WardMate.Services.DocumentForm.Application.Commands;
+using WardMate.Services.DocumentForm.Application.DTOs;
+using WardMate.Services.DocumentForm.Application.Queries;
+using WardMate.SharedKernel.Common;
+
+namespace WardMate.Services.DocumentForm.API.Controllers;
+
+[ApiController]
+[Authorize(Policy = "DocumentCitizen")]
+[Route("api/v1")]
+[Produces("application/json")]
+[Tags("Supporting Documents — Giấy tờ minh chứng")]
+public sealed class SupportingDocumentsController : ControllerBase
+{
+    private readonly IMediator _mediator;
+
+    public SupportingDocumentsController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    /// <summary>
+    /// Tải lên một giấy tờ minh chứng đính kèm hồ sơ theo checklist.
+    /// </summary>
+    [HttpPost("applications/{applicationId:guid}/supporting-documents")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(SupportingDocumentDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UploadSupportingDocument(
+        Guid applicationId,
+        [FromForm] UploadSupportingDocumentRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.File is null || request.File.Length == 0)
+        {
+            return Failure(Error.Validation("document.empty_file", "File upload is required."));
+        }
+
+        await using var stream = request.File.OpenReadStream();
+        var command = new UploadSupportingDocumentCommand(
+            applicationId,
+            stream,
+            request.File.FileName,
+            request.File.ContentType,
+            request.File.Length,
+            request.ChecklistId,
+            User.Identity?.Name);
+
+        var result = await _mediator.Send(command, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return Failure(result.Error);
+        }
+
+        return CreatedAtAction(
+            nameof(GetSupportingDocuments),
+            new { applicationId },
+            result.Value);
+    }
+
+    /// <summary>
+    /// Lấy danh sách toàn bộ giấy tờ minh chứng đã tải lên của một hồ sơ.
+    /// </summary>
+    [HttpGet("applications/{applicationId:guid}/supporting-documents")]
+    [ProducesResponseType(typeof(IReadOnlyList<SupportingDocumentDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSupportingDocuments(
+        Guid applicationId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new GetSupportingDocumentsQuery(applicationId),
+            cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
+    }
+
+    /// <summary>
+    /// Xóa một giấy tờ minh chứng (soft-delete).
+    /// </summary>
+    [HttpDelete("supporting-documents/{documentId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteSupportingDocument(
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new DeleteSupportingDocumentCommand(documentId, User.Identity?.Name),
+            cancellationToken);
+
+        return result.IsSuccess ? NoContent() : Failure(result.Error);
+    }
+
+    /// <summary>
+    /// Tải xuống file giấy tờ minh chứng từ Azure Blob Storage.
+    /// </summary>
+    [HttpGet("supporting-documents/{documentId:guid}/download")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadSupportingDocument(
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new DownloadSupportingDocumentQuery(documentId),
+            cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            return Failure(result.Error);
+        }
+
+        return File(result.Value.FileStream, result.Value.ContentType, result.Value.FileName);
+    }
+
+    private ObjectResult Failure(Error error)
+    {
+        var status = error.Type switch
+        {
+            ErrorType.NotFound => 404,
+            ErrorType.Forbidden => 403,
+            ErrorType.Conflict => 409,
+            ErrorType.Failure => 503,
+            _ => 400
+        };
+
+        var problem = new ProblemDetails
+        {
+            Status = status,
+            Title = error.Code,
+            Detail = error.Description,
+            Instance = HttpContext.Request.Path
+        };
+        problem.Extensions["code"] = error.Code;
+        problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+
+        return new ObjectResult(problem)
+        {
+            StatusCode = status,
+            ContentTypes = { "application/problem+json" }
+        };
+    }
+}
+
+public sealed class UploadSupportingDocumentRequest
+{
+    public IFormFile File { get; set; } = null!;
+    public Guid? ChecklistId { get; set; }
+}

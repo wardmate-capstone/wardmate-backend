@@ -3,6 +3,8 @@ Start the new API with local PostgreSQL + Azurite and run: python scripts/verify
 No third-party Python packages required. Does not run against Azure.
 """
 import io
+import os
+import base64
 from pathlib import Path
 import json
 import sys
@@ -16,12 +18,18 @@ import xml.etree.ElementTree as ET
 base = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:15014"
 assert urllib.parse.urlparse(base).hostname in ("localhost", "127.0.0.1"), "Local API only"
 checks = 0
+manager_token = os.environ.get("DOCUMENTFORM_MANAGER_TOKEN")
+citizen_token = os.environ.get("DOCUMENTFORM_CITIZEN_TOKEN")
+assert manager_token and citizen_token, "Set DOCUMENTFORM_MANAGER_TOKEN and DOCUMENTFORM_CITIZEN_TOKEN to local IAM access tokens"
+claims_part = citizen_token.split(".")[1]
+claims = json.loads(base64.urlsafe_b64decode(claims_part + "=" * (-len(claims_part) % 4)))
+
 
 
 def call(method, path, body=None, expected=200, content_type="application/json", raw=False):
     global checks
     data = body if isinstance(body, bytes) else json.dumps(body).encode() if body is not None else None
-    request = urllib.request.Request(base + path, data=data, method=method, headers={"Content-Type": content_type})
+    request = urllib.request.Request(base + path, data=data, method=method, headers={"Content-Type": content_type, "Authorization": "Bearer " + (citizen_token if "/citizen/" in path else manager_token)})
     try:
         response = urllib.request.urlopen(request, timeout=45)
     except urllib.error.HTTPError as error:
@@ -67,7 +75,7 @@ def edit(data, text):
     return output.getvalue()
 
 
-applicant = str(uuid.uuid4())
+applicant = str(uuid.UUID(claims["sub"]))
 c = "/api/v1/citizen/submissions"
 template = call("POST", "/api/v1/form-templates", {"code": "DOCX-" + uuid.uuid4().hex[:12], "title": "Synthetic editor test"}, 201)["id"]
 t = "/api/v1/form-templates/" + template
@@ -105,8 +113,8 @@ assert call("POST", d + "/submit", {"applicantId": applicant})["status"] == "Sub
 multipart("PUT", d + "/draft", {"applicantId": applicant}, edited, 400)
 call("POST", d + "/submit", {"applicantId": applicant}, 400)
 assert call("GET", d + "/download-docx" + query, raw=True) == updated
-call("GET", c, expected=400)
-assert call("GET", c + query)["totalCount"] == 1
+call("GET", c, expected=403)
+assert any(item["id"] == draft for item in call("GET", c + query)["items"])
 spec = call("GET", "/swagger/v1/swagger.json")
 assert not any(any(x in p for x in ("online-config", "docx-structure", "officer/", "docx-url")) for p in spec["paths"])
 content = spec["paths"][c + "/draft"]["post"]["requestBody"]["content"]

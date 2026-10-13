@@ -1,3 +1,4 @@
+using WardMate.Services.DocumentForm.API.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -33,6 +34,7 @@ try
     });
 
     // ── Health / Exception handling ──────────────────────────────────────────
+    builder.Services.AddDocumentAuthentication(builder.Configuration);
     builder.Services.AddHealthChecks();
     builder.Services.AddWardMateBrowserCors(builder.Configuration, builder.Environment);
     builder.Services.AddGlobalExceptionHandling();
@@ -95,6 +97,8 @@ try
     }
 
     app.UseCors(BrowserCorsExtensions.PolicyName);
+    app.UseAuthentication();
+    app.UseAuthorization();
     app.MapControllers();
     app.MapHealthChecks("/health");
     app.MapGet("/", () => Results.Ok(new

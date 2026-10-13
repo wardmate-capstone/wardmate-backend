@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using WardMate.Services.DocumentForm.Application.Commands;
@@ -8,6 +9,7 @@ using WardMate.SharedKernel.Common;
 namespace WardMate.Services.DocumentForm.API.Controllers;
 
 [ApiController]
+[Authorize(Policy = "DocumentManager")]
 [Route("api/v1/form-templates")]
 [Produces("application/json")]
 public sealed class FormTemplatesController : ControllerBase
