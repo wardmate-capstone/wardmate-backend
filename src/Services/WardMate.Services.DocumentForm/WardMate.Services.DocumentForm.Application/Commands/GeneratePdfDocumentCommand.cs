@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WardMate.Services.DocumentForm.Application.DTOs;
 using WardMate.Services.DocumentForm.Application.Interfaces;
+using WardMate.Services.DocumentForm.Application.Services;
 using WardMate.Services.DocumentForm.Domain.Entities;
 using WardMate.Services.DocumentForm.Domain.Errors;
 using WardMate.Services.DocumentForm.Domain.Models;
@@ -120,11 +121,16 @@ public sealed class GeneratePdfDocumentCommandHandler
 
             fileName = string.IsNullOrWhiteSpace(fileName) ? "submission.docx" : fileName;
 
-            // 2. Chuyển đổi DOCX sang PDF bằng Render Engine
+            // 4. Strip toàn bộ Word comments khỏi DOCX trước khi render PDF
+            // Cán bộ có thể đã thêm comment/ghi chú lên DOCX để hướng dẫn người dân,
+            // nhưng file PDF xuất ra cho người dân in phải sạch, không chứa comment nội bộ.
+            var cleanDocxStream = DocxCommentStripper.Strip(docxStream);
+
+            // 5. Chuyển đổi DOCX sang PDF bằng Render Engine
             Stream pdfStream;
             try
             {
-                pdfStream = await _pdfRenderEngine.RenderDocxToPdfAsync(docxStream, fileName, cancellationToken);
+                pdfStream = await _pdfRenderEngine.RenderDocxToPdfAsync(cleanDocxStream, fileName, cancellationToken);
             }
             catch (Exception ex)
             {
