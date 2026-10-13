@@ -2299,3 +2299,20 @@ Owner explicitly approved push main after Docker handoff. Fetched origin; main w
   - `GET /health` -> 200 OK (Healthy).
   - `POST /internal/v1/procedure-extractions` -> 200 OK.
 
+
+## AI-PARTIAL-DRAFT — Schema và bảo toàn dữ liệu từng trường (2026-10-14 00:36:45 +07:00, Asia/Saigon)
+- Tạo src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/ProcedureAiContract.cs:
+  một contract sinh JSON Schema strict và chuẩn hóa payload đệ quy. Scalar thiếu/sai kiểu -> null + cảnh báo đường dẫn;
+  object/array giữ cấu trúc, không dùng mặc định phí/ngày. categoryId=0, bỏ các khóa ngoài contract.
+  Cảnh báo caseCode checklist/form không liên kết được với cases. Không khẳng định dữ liệu đúng/đủ nghiệp vụ.
+- Sửa AzureProcedureDocumentExtractor.cs cùng thư mục: gửi json_schema; retry lỗi cấu trúc tối đa một lần,
+  giới hạn tổng request cùng retry HTTP hiện có; không tự hạ schema, đổi model hoặc billing.
+- Sửa tests/WardMate.Services.ProcedureCatalog.IntegrationTests/AiWarningsTests.cs và GeminiExtractionTests.cs:
+  thêm 2 cases (partial fields/liên kết case, retry JSON sai), kiểm tra request schema.
+- Sửa docs/api-guide.md, PROGRESS.md. Không thay route/request/status/token/quyền/migration;
+  áp dụng preview và draft worker; FE phải biểu diễn null là chưa điền và hiển thị warnings.
+- Build Release --no-restore -warnaserror: 0 lỗi/0 cảnh báo; suite cuối 243/243 PASS
+  (Procedure 120, DocumentForm 76, Workflow 39, IAM 8).
+- Chưa kiểm chứng schema với Gemini thật/Azure trong phiên này. Model cần hỗ trợ json_schema;
+  provider từ chối sẽ có fallback thủ công như trước. Chưa chia tài liệu theo mục nghiệp vụ (giai đoạn sau).
+- Không Git, build Docker, deploy. Commit gợi ý: feat(aiocr): enforce structured output and preserve partial draft fields.

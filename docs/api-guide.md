@@ -3061,3 +3061,16 @@ hoặc có phần tử không hợp lệ, thêm cảnh báo đối soát thay v�
 Vẫn từ chối JSON hỏng, payload thiếu/không phải object hoặc kết quả bị cắt.
 Không bảo đảm payload đúng nghiệp vụ chỉ vì parse thành công; cán bộ vẫn phải kiểm tra và publish.
 Không đổi route/request/status/quyền; áp dụng cả preview và worker draft qua adapter AI chung.
+
+### Bản nháp một phần và JSON Schema (2026-10-14)
+AIOCR gửi response_format=json_schema với hợp đồng đầy đủ payload/warnings.
+Model phải hỗ trợ structured outputs; không tự hạ xuống JSON tự do khi provider từ chối schema.
+Trường scalar không biết được phép null; danh sách giữ dạng array. Backend chuẩn hóa từng trường:
+đúng kiểu giữ nguyên, thiếu/sai kiểu để null hoặc cấu trúc rỗng và cảnh báo đường dẫn cụ thể.
+categoryId luôn 0 để cán bộ chọn; AI không được cung cấp URL PDF/ID template ngoài hợp đồng.
+Checklist/form có caseCode không thuộc cases sẽ có cảnh báo liên kết, không tự gán sang case khác.
+JSON hỏng/thiếu payload/kết quả bị cắt được thử lại tối đa một lần trong budget tổng tối đa 3 request;
+lỗi HTTP 502/503/504 vẫn có retry như trước, không retry quota. Khi vẫn lỗi, trả bản nháp thủ công.
+FE phải hiển thị null như ô chưa điền, không đổi thành phí 0 hoặc ngày 1; warnings là string[].
+Áp dụng preview và draft worker; không đổi endpoint/request/status/token/quyền hoặc tự publish.
+Chưa triển khai chia tài liệu theo mục nghiệp vụ; dữ liệu đúng cấu trúc không đảm bảo đủ nội dung.
