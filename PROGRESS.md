@@ -2285,4 +2285,17 @@ In-progress application-document linkage is preserved separately in stash (messa
 Main remote push awaits owner Docker acceptance under AGENTS.md release gate; local main may advance by fast-forward to this merge. No force-push. Suggested/used Conventional Commit: chore(repo): merge main and nghia service updates.
 
 ## MAIN-PUSH-CONFIRMED — 2026-10-14T00:00:32.815165+07:00 (Asia/Saigon)
-Owner explicitly approved push main after Docker handoff. Fetched origin; main was0 behind/44 ahead and working tree clean. Normal push succeeded: origin/main advanced4e9f046 -> c7b43bc (chore(repo): merge main and nghia service updates). No force push; no nghia/deploy branch push. Previous verification remains solution Release0 warnings/0 errors,226 tests passed, Docker build succeeded, HTTP smoke health200/OpenAPI200/no-token templates401. This follow-up changes only PROGRESS.md; no API/DTO/token changes, no additional tests needed for documentation. WIP application-document linking remains saved in stash and excluded from main. Azure/CI deployment not verified or claimed. Follow-up commit: docs(progress): record confirmed main synchronization.
+Owner explicitly approved push main after Docker handoff. Fetched origin; main was0 behind/44 ahead and working tree clean. Normal push succeeded: origin/main advanced4e9f046 -> c7b43bc (chore(repo): merge main and nghia service updates). No force push; no nghia/deploy branch push. Previous verification remains solution Release0 warnings/0 errors,226 tests passed, Docker build succeeded, HTTP smoke health200/OpenAPI200/no-token templates401. This follow-up changes only PROGRESS.md; no API/DTO/token changes, no additional tests needed for documentation. WIP application-document linkage remains saved in stash and excluded from main. Azure/CI deployment not verified or claimed. Follow-up commit: docs(progress): record confirmed main synchronization.
+
+## AIOCR-V9-AZURE-DEPLOY — Đồng bộ main/deploy & Build image AIOCR v9 (2026-10-14 00:15:00 +07:00, Asia/Saigon)
+- Đồng bộ origin/main vào kha (tích hợp DocumentForm, giải quyết conflict PROGRESS.md tuần tự), Release build 0 lỗi/0 cảnh báo, 241/241 tests passed.
+- Đã push đầy đủ lên cả 3 nhánh remote: `kha`, `main`, `deploy` (`b33c98f`).
+- Build Docker image AIOCR từ mã nguồn mới nhất: `acrwardmate2026.azurecr.io/wardmate-aiocr:v9-gemini` (--no-cache, 0 warnings/errors).
+  - ACR Tag: `v9-gemini` (tag mới chưa từng sử dụng trước đó).
+  - Digest: `sha256:b0f99cdbadf7c6b09c2e8b1663632138a6574a2657d02e763a00289e275ee603`.
+- Đã push thành công image lên ACR `acrwardmate2026.azurecr.io`.
+- Giữ nguyên cấu hình billing và model Gemini (`gemini-3.1-flash-lite`, Provider `Gemini`).
+- Đã kiểm tra trực tiếp endpoint Azure Container App `wardmate-aiocr`:
+  - `GET /health` -> 200 OK (Healthy).
+  - `POST /internal/v1/procedure-extractions` -> 200 OK.
+
