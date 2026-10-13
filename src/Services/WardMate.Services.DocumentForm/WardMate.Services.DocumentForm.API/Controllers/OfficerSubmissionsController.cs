@@ -104,6 +104,76 @@ public sealed class OfficerSubmissionsController : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
 
+    /// <summary>
+    /// [Cán bộ] Lưu lại file DOCX đã được thêm comment/ghi chú trực tiếp trên web editor.
+    /// DOCX mới (có comment) thay thế bản hiện có. Status hồ sơ KHÔNG thay đổi.
+    /// Người dân khi mở lại file (download-docx) sẽ thấy toàn bộ comment của cán bộ để sửa cho đúng.
+    /// Sau khi annotate, cán bộ nên gọi request-revision để thông báo người dân cần sửa.
+    /// </summary>
+    [HttpPut("{submissionId:guid}/annotate-docx")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AnnotateDocx(
+        Guid submissionId,
+        [FromForm] OfficerAnnotateDocxRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsOfficer)
+            return Forbid();
+
+        if (request.File is null || request.File.Length == 0)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = 400,
+                Title = "document.empty_file",
+                Detail = "File DOCX không được để trống."
+            });
+        }
+
+        var officerId = CallerUserId ?? Guid.Empty;
+        using var stream = request.File.OpenReadStream();
+
+        var command = new SaveOfficerAnnotatedDocxCommand(
+            submissionId,
+            stream,
+            request.File.FileName,
+            request.File.Length,
+            officerId,
+            User.Identity?.Name);
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
+    }
+
+    /// <summary>
+    /// [Cán bộ] Tải file DOCX hiện tại của hồ sơ (bao gồm comment đã thêm nếu có).
+    /// Dùng để mở lại trong web editor để đọc nội dung người dân điền, thêm comment rồi lưu lại.
+    /// </summary>
+    [HttpGet("{submissionId:guid}/download-docx")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadDocx(
+        Guid submissionId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsOfficer)
+            return Forbid();
+
+        var result = await _mediator.Send(
+            new WardMate.Services.DocumentForm.Application.Queries.DownloadSubmissionDocxQuery(
+                submissionId, Guid.Empty), cancellationToken);
+
+        if (!result.IsSuccess)
+            return Failure(result.Error);
+
+        return File(result.Value.FileStream, result.Value.ContentType, result.Value.FileName);
+    }
+
     private Guid? CallerUserId => Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : null;
     private bool IsOfficer => User.IsInRole("FRONT_DESK_OFFICER")
                            || User.IsInRole("MANAGER")
@@ -148,4 +218,10 @@ public sealed record OfficerRevisionRequest
 public sealed record OfficerApproveRequest
 {
     public Guid? OfficerId { get; init; }
+}
+
+public sealed class OfficerAnnotateDocxRequest
+{
+    /// <summary>File DOCX đã được cán bộ thêm comment/ghi chú trên web editor.</summary>
+    public IFormFile? File { get; set; }
 }
