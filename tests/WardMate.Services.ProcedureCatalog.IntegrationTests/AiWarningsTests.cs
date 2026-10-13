@@ -49,6 +49,23 @@ public sealed class AiWarningsTests
         await Assert.ThrowsAnyAsync<JsonException>(() => Extractor(http).MapText("Văn bản", default));
     }
 
+    [Fact]
+    public async Task PartialFieldsSurviveAndUnknownCaseIsFlagged()
+    {
+        using var http = new HttpClient(new ResponseHandler("""
+        {"payload":{"procedureCode":"1.2","title":42,"categoryId":123,
+        "contentPayload":{"cases":[{"caseCode":"A","caseName":"Case A","steps":[]}]},
+        "checklistSchema":[{"caseCode":"B","quantity":"wrong","itemName":"Paper"}]},"warnings":[]}
+        """));
+        var result = await Extractor(http).MapText("Văn bản", default);
+        Assert.Equal("1.2", result.Payload.GetProperty("procedureCode").GetString());
+        Assert.Equal(JsonValueKind.Null, result.Payload.GetProperty("title").ValueKind);
+        Assert.Equal(0, result.Payload.GetProperty("categoryId").GetInt32());
+        Assert.Equal("Paper", result.Payload.GetProperty("checklistSchema")[0].GetProperty("itemName").GetString());
+        Assert.Equal(JsonValueKind.Null, result.Payload.GetProperty("checklistSchema")[0].GetProperty("quantity").ValueKind);
+        Assert.Contains(result.Warnings, x => x.Contains("Không khớp trường hợp"));
+        Assert.Contains(result.Warnings, x => x.Contains("payload.title"));
+    }
     private static AzureProcedureDocumentExtractor Extractor(HttpClient http) => new(http,
         new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {

@@ -12,6 +12,7 @@ public sealed class GeminiExtractionTests
     [Theory]
     [InlineData("stop", true)]
     [InlineData("retry", true)]
+    [InlineData("json_retry", true)]
     [InlineData("length", false)]
     [InlineData("empty", false)]
     public async Task GeminiUsesDedicatedCredentialsAndRejectsIncompleteResults(string finish, bool succeeds)
@@ -46,13 +47,14 @@ public sealed class GeminiExtractionTests
             Assert.False(request.Headers.Contains("api-key"));
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
             Assert.Equal("test-model", body.RootElement.GetProperty("model").GetString());
+            Assert.Equal("json_schema", body.RootElement.GetProperty("response_format").GetProperty("type").GetString());
             return new(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new
                 {
                     choices = finish == "empty" ? [] : new[]
                     {
-                        new { finish_reason = finish == "retry" ? "stop" : finish, message = new { content = "{\"payload\":{\"procedureCode\":\"1.234\"},\"warnings\":[]}" } }
+                        new { finish_reason = finish is "retry" or "json_retry" ? "stop" : finish, message = new { content = finish == "json_retry" && ++calls == 1 ? "{}" : "{\"payload\":{\"procedureCode\":\"1.234\"},\"warnings\":[]}" } }
                     }
                 })
             };
