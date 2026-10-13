@@ -2225,3 +2225,31 @@ Kiểm thử/cấu hình/tài liệu:
 - Release build 0 lỗi/0 cảnh báo; 14/14 tests PDF/adapter passed, không thêm tests.
 - Cập nhật docs/api-guide.md và PROGRESS.md. API/status/token không đổi. FE cần hiển thị warnings.
 - Chưa build Docker/Git/deploy. Cần xác minh request qua container sau cập nhật.
+
+## WEEK-05-REVIEW — Đối chiếu các việc còn thiếu (2026-10-13 17:04:04 +07:00, Asia/Saigon)
+- Phạm vi tạm xác định theo task gần nhất: Tuần 5, TASK-25/26/27; chưa có bảng phân công tuần mới.
+- TASK-25: entity/migration/SignalR/nhóm user-phường/read-unread và kiểm thử local đã có.
+- TASK-27: Workflow Outbox -> RabbitMQ -> Inbox/delivery, chống trùng/retry, guard thu hồi kết nối đã có; chưa xác minh deploy.
+- TASK-26: SMTP STARTTLS adapter đã có; chưa có thông tin nhà cung cấp/key/sender để gửi thật.
+  SMS chỉ có UnconfiguredSmsSender trả Blocked, chưa có adapter Brandname thật.
+- Đã hỏi chủ dự án chọn hướng SMTP thật hoặc kiểm thử máy chủ local, không tự đăng ký dịch vụ/billing.
+- Giới hạn vận hành: Analytics tối đa 1 replica khi chưa có backplane; chưa retention/replay API.
+  Đây là phần mở rộng vận hành, không tự coi là yêu cầu bắt buộc của TASK-25/27.
+- Procedure: chủ dự án chấp nhận chuyển sang task khác; preview AI đã có payload theo response được cung cấp.
+  Upload draft 202 Queued đã được quan sát; chưa xác minh publish/end-to-end Azure.
+- Phiên rà soát chỉ sửa PROGRESS.md; không đổi API/code/config, không chạy build/test/Git/Docker.
+  Không tuyên bố TASK-26 hoặc kiểm thử deploy đã hoàn tất. Hướng dẫn vận hành hiện có: docs/notifications-operations.md.
+
+## FIX-AI-WARNINGS — Chuẩn hóa cảnh báo AI (2026-10-13 23:05:11 +07:00, Asia/Saigon)
+- Sửa src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/AzureProcedureDocumentExtractor.cs:
+  warnings string[]/object field+reason/mixed -> string[]; thiếu/null/sai kiểu thêm cảnh báo chuẩn,
+  không mất payload chỉ vì lỗi warnings. Payload thiếu/không phải object vẫn bị từ chối; không sửa JSON hỏng.
+- Sửa cùng thư mục TextFirstProcedureExtractor.cs: cập nhật thông báo lỗi parser cho hợp đồng mới.
+- Tạo tests/WardMate.Services.ProcedureCatalog.IntegrationTests/AiWarningsTests.cs: 15 cases.
+- Sửa docs/api-guide.md và PROGRESS.md. Route/request/status/permission không đổi; FE vẫn nhận warnings string[].
+- Release build --no-restore -warnaserror: 0 lỗi/0 cảnh báo. Test suite cuối 241/241 passed
+  (Procedure 118, DocumentForm 76, Workflow 39, IAM 8).
+- Lượt đầu 1 assertion lỗi do JsonReaderException kế thừa JsonException; sửa ThrowsAnyAsync và chạy lại đạt.
+- Chưa xác minh Azure hoặc gọi AI thật trong phiên này; chỉ kiểm thử phản hồi giả lập.
+  Không khẳng định đây là nguyên nhân duy nhất trên Azure. Không Git/build Docker/deploy.
+- Commit gợi ý: fix(aiocr): normalize AI warnings without discarding valid payloads.

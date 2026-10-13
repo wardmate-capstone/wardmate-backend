@@ -2981,3 +2981,11 @@ Không đổi model, billing, route hoặc hợp đồng API. Retry không bảo
 Cảnh báo AI HTTP 200 không đọc được dữ liệu hiện phân biệt JSON không hợp lệ,
 thiếu trường, kết quả bị cắt và cấu hình/kiểu dữ liệu sai. FE hiển thị nguyên warnings
 để cán bộ biết lý do payload chưa được điền; không coi HTTP 200 là bóc tách thành công.
+
+### Chuẩn hóa warnings của AI
+Backend chấp nhận warnings là mảng chuỗi hoặc mảng object có field/reason là chuỗi,
+chuyển object thành "field: reason". FE luôn nhận string[]. Nếu warnings thiếu/null/sai kiểu
+hoặc có phần tử không hợp lệ, thêm cảnh báo đối soát thay vì bỏ payload chỉ vì lỗi warnings.
+Vẫn từ chối JSON hỏng, payload thiếu/không phải object hoặc kết quả bị cắt.
+Không bảo đảm payload đúng nghiệp vụ chỉ vì parse thành công; cán bộ vẫn phải kiểm tra và publish.
+Không đổi route/request/status/quyền; áp dụng cả preview và worker draft qua adapter AI chung.
