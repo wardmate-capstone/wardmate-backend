@@ -7,13 +7,14 @@ using WardMate.Services.ProcedureCatalog.Application.Management;
 
 namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 
-[ApiController, Route("api/v1/procedure-manager/drafts"), Authorize(Policy = "ProcedureManager")]
+[ApiController, Route("api/v1/procedure-manager/drafts"), Authorize]
 public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IProcedureExtractor extractor, ISender sender) : ControllerBase
 {
     private string Actor => User.FindFirstValue("sub") ?? User.Identity!.Name ?? "unknown";
 
     [HttpPost("extract-preview"), Consumes("multipart/form-data"), RequestSizeLimit(21 * 1024 * 1024)]
     [ProducesResponseType<ExtractionResult>(200)]
+    [Authorize(Policy = "procedure.drafts.extract")]
     public async Task<IActionResult> Preview([FromForm] UploadPdfInput input, CancellationToken ct)
     {
         Response.Headers.CacheControl = "no-store";
@@ -36,6 +37,7 @@ public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IPr
 
     [HttpPost, Consumes("multipart/form-data"), RequestSizeLimit(21 * 1024 * 1024)]
     [ProducesResponseType<DraftDto>(202)]
+    [Authorize(Policy = "procedure.drafts.upload")]
     public async Task<IActionResult> Upload([FromForm] UploadPdfInput input, CancellationToken ct)
     {
         if (input.File is null || input.File.Length is < 5 or > 20971520)
@@ -45,6 +47,7 @@ public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IPr
         return result.IsSuccess ? AcceptedAtAction(nameof(Get), new { id = result.Value!.Id }, result.Value) : Reply(result);
     }
     [HttpGet]
+    [Authorize(Policy = "procedure.drafts.read")]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
     {
         if (page is < 1 or > 100000 || pageSize is < 1 or > 50)
@@ -52,14 +55,19 @@ public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IPr
         return Ok(await drafts.List(page, pageSize, ct));
     }
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = "procedure.drafts.read")]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct) => Reply(await drafts.Get(id, ct));
     [HttpPut("{id:guid}"), RequestSizeLimit(1024 * 1024)]
+    [Authorize(Policy = "procedure.drafts.update")]
     public async Task<IActionResult> Save(Guid id, SaveDraftInput input, CancellationToken ct) => Reply(await drafts.Save(id, input, ct));
     [HttpPost("{id:guid}/retry")]
+    [Authorize(Policy = "procedure.drafts.extract")]
     public async Task<IActionResult> Retry(Guid id, DraftRevisionInput input, CancellationToken ct) => Reply(await drafts.Retry(id, input.Revision, ct));
     [HttpPost("{id:guid}/publish")]
+    [Authorize(Policy = "procedure.drafts.publish")]
     public async Task<IActionResult> Publish(Guid id, ConfirmDraftInput input, CancellationToken ct) => Reply(await drafts.Publish(id, input, Actor, ct));
     [HttpGet("{id:guid}/source")]
+    [Authorize(Policy = "procedure.drafts.read")]
     public async Task<IActionResult> Source(Guid id, CancellationToken ct)
     {
         Response.Headers.CacheControl = "no-store";
@@ -69,6 +77,7 @@ public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IPr
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(204)]
     [ProducesResponseType<ProblemDetails>(503)]
+    [Authorize(Policy = "procedure.drafts.delete")]
     public async Task<IActionResult> Discard(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DiscardDraftCommand(id), ct);
@@ -85,3 +94,4 @@ public sealed class ProcedureDraftsController(IProcedureDraftService drafts, IPr
 }
 public sealed class UploadPdfInput { public IFormFile? File { get; set; } }
 public sealed record DraftRevisionInput(Guid Revision);
+

@@ -15,6 +15,7 @@ public sealed class CreateApplicationValidator : AbstractValidator<CreateApplica
         RuleFor(x => x.Input).NotNull().WithMessage("Thông tin hồ sơ không được để trống.");
         When(x => x.Input is not null, () =>
         {
+            RuleFor(x => x.Input.WardCode).NotEmpty().WithMessage("Phải chọn phường/xã tiếp nhận.").MaximumLength(50).WithMessage("Mã phường tối đa 50 ký tự.");
             RuleFor(x => x.Input.ProcedureId).NotEmpty().WithMessage("Mã thủ tục không được để trống.");
             RuleFor(x => x.Input.CaseCode).MaximumLength(100).WithMessage("Mã trường hợp tối đa 100 ký tự.");
             RuleFor(x => x.Input.FormData).Must(x => x.ValueKind == JsonValueKind.Object
@@ -71,3 +72,4 @@ public static class WorkflowApplicationRegistration
         return services;
     }
 }
+

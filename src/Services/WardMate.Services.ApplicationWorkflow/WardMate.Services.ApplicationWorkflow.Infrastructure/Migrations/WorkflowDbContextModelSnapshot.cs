@@ -90,6 +90,78 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<Guid>("ApplicationVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_version_id");
+
+                    b.Property<string>("CommentText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("comment_text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FieldLabel")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("field_label");
+
+                    b.Property<Guid>("OfficerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("officer_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("OPEN")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TargetId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("target_id");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("target_type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_application_comments");
+
+                    b.HasIndex("ApplicationId", "ApplicationVersionId", "Status")
+                        .HasDatabaseName("ix_application_comments_application_id_application_version_id_");
+
+                    b.ToTable("application_comments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_application_comments_status", "status IN ('OPEN','RESOLVED')");
+
+                            t.HasCheckConstraint("ck_application_comments_target", "target_type IN ('FORM_FIELD','CHECKLIST_ITEM')");
+                        });
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -98,9 +170,18 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnName("id");
 
                     b.Property<string>("ApplicationCode")
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("application_code");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("AssignedOfficerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_officer_id");
 
                     b.Property<string>("CaseCode")
                         .HasMaxLength(100)
@@ -116,6 +197,10 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("form_data");
 
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
                     b.Property<Guid>("ProcedureId")
                         .HasColumnType("uuid")
                         .HasColumnName("procedure_id");
@@ -126,11 +211,17 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("procedure_title");
 
+                    b.Property<int>("ResubmitCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("resubmit_count");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasDefaultValue("DRAFT")
                         .HasColumnName("status");
 
@@ -146,6 +237,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<string>("WardCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("ward_code");
+
                     b.HasKey("Id")
                         .HasName("pk_applications");
 
@@ -153,12 +249,21 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_applications_application_code");
 
+                    b.HasIndex("AssignedOfficerId")
+                        .HasDatabaseName("ix_applications_assigned_officer_id");
+
                     b.HasIndex("UserId", "CreatedAt")
                         .HasDatabaseName("ix_applications_user_id_created_at");
 
+                    b.HasIndex("Status", "SubmittedAt", "Id")
+                        .HasDatabaseName("ix_applications_status_submitted_at_id");
+
+                    b.HasIndex("WardCode", "Status", "SubmittedAt")
+                        .HasDatabaseName("ix_applications_ward_code_status_submitted_at");
+
                     b.ToTable("applications", null, t =>
                         {
-                            t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED')");
+                            t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','APPROVED','CANCELLED','REJECTED')");
                         });
                 });
 
@@ -184,8 +289,8 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("FromStatus")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("from_status");
 
                     b.Property<string>("Reason")
@@ -194,8 +299,8 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.Property<string>("ToStatus")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("to_status");
 
                     b.HasKey("Id")
@@ -205,6 +310,92 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasDatabaseName("ix_application_status_history_application_id_created_at");
 
                     b.ToTable("application_status_history", (string)null);
+                });
+
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<string>("SnapshotData")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("snapshot_data");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<Guid>("SubmittedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_number");
+
+                    b.HasKey("Id")
+                        .HasName("pk_application_versions");
+
+                    b.HasAlternateKey("ApplicationId", "Id")
+                        .HasName("ak_application_versions_application_id_id");
+
+                    b.HasIndex("ApplicationId", "VersionNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_application_versions_application_id_version_number");
+
+                    b.ToTable("application_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_application_versions_number", "version_number > 0");
+                        });
+                });
+
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Infrastructure.WorkflowOutbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_workflow_outbox");
+
+                    b.HasIndex("PublishedAt", "NextAttemptAt")
+                        .HasDatabaseName("ix_workflow_outbox_published_at_next_attempt_at");
+
+                    b.ToTable("workflow_outbox", (string)null);
                 });
 
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationChecklist", b =>
@@ -217,6 +408,24 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasConstraintName("fk_application_checklists_applications_application_id");
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationComment", b =>
+                {
+                    b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", null)
+                        .WithMany("Comments")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_application_comments_applications_application_id");
+
+                    b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.ApplicationVersion", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicationId", "ApplicationVersionId")
+                        .HasPrincipalKey("ApplicationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_application_comments_application_versions_application_id_ap");
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationStatusHistory", b =>
                 {
                     b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", null)
@@ -227,11 +436,25 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasConstraintName("fk_application_status_history_applications_application_id");
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationVersion", b =>
+                {
+                    b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", null)
+                        .WithMany("Versions")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_application_versions_applications_application_id");
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", b =>
                 {
                     b.Navigation("Checklists");
 
+                    b.Navigation("Comments");
+
                     b.Navigation("History");
+
+                    b.Navigation("Versions");
                 });
 #pragma warning restore 612, 618
         }

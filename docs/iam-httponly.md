@@ -78,10 +78,10 @@ Axios tương đương: `withCredentials: true`; thêm header CSRF cho auth. Cá
 
 ## Cookie và môi trường
 
-- Tên `refreshToken`; `HttpOnly=true`; `Path=/api/v1/auth`; host-only (không đặt Domain); Expires bằng hạn refresh token; `SameSite=Strict` mặc định. Login/refresh/logout response có `Cache-Control: no-store`.
+- Tên `refreshToken`; `HttpOnly=true`; `Path=/api/v1/auth`; host-only (không đặt Domain); Expires bằng hạn refresh token; `SameSite=None` mặc định trong appsettings để hỗ trợ FE Vercel khác site. Login/refresh/logout response có `Cache-Control: no-store`.
 - Development trên localhost/127.0.0.1 cho phép cookie không Secure để dùng HTTP. Có thể bật Secure local bằng `AuthCookie__AllowInsecureLocalhost=false` và dùng HTTPS. Ngoài Development Secure luôn bật; cấu hình cho phép insecure ở production bị chặn khi startup.
 - Local FE mặc định cho phép **http://localhost:5173** và **http://localhost:3000**, áp dụng cho IAM và Gateway. Không trộn localhost với 127.0.0.1; cookie phân biệt host, không phân biệt port. Dùng nhất quán một base URL.
-- Chưa có domain deploy nên không hardcode domain production. Khi có, cấu hình **cùng danh sách** `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, ... ở IAM/Gateway, giá trị origin HTTPS chính xác, không dấu `/` cuối, không wildcard. CORS dùng AllowCredentials, không AllowAnyOrigin.
+- Origin deploy mặc định là `https://wardmate-frontend.vercel.app`. Khi override bằng biến môi trường, cấu hình **cùng danh sách** `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, ... ở IAM/Gateway, giá trị origin HTTPS chính xác, không dấu `/` cuối, không wildcard. CORS dùng AllowCredentials, không AllowAnyOrigin.
 - Nếu FE/API khác site thực sự, Strict sẽ chặn gửi cookie. Khi đó cân nhắc proxy cùng site; hoặc cấu hình `AuthCookie__SameSite=None` với Secure và allowlist đúng. Third-party cookie có thể bị browser chặn dù SameSite=None. Không bật None với local insecure (startup sẽ từ chối).
 - YARP chuyển tiếp Cookie và Set-Cookie; public HTTPS ở reverse proxy vẫn nhận Secure cookie vì ngoài Development không phụ thuộc Request.IsHttps nội bộ.
 
@@ -123,3 +123,4 @@ Giữ ForwardLimit mặc định 1: dùng giá trị bên phải của chuỗi f
 Tài liệu Microsoft: https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0
 
 Script scripts/verify-iam-cookie.ps1 bổ sung regression checks cho origin Azure giả lập qua HTTP local: cùng host/proto forwarded thành công dù không nằm allowlist; bỏ forwarded headers thì bị từ chối; thiếu CSRF hoặc origin lạ vẫn403; FE trong allowlist vẫn có credentialed CORS. Đây là kiểm thử local, không phải xác nhận đã deploy/sửa thành công trên Azure. Sau deploy cần kiểm tra revision mới và Execute trên Swagger thật. Swagger vẫn chỉ bật trong Development theo cấu hình cũ; bản sửa không bật Swagger ở Production.
+

@@ -18,7 +18,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
 {
     private Guid ActorId => Guid.Parse(User.FindFirstValue("sub")!);
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpGet("roles"), ProducesResponseType<RbacPage<RoleDto>>(200)]
     public async Task<IActionResult> Roles([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
     {
@@ -26,7 +26,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpGet("roles/{roleId:int}"), ProducesResponseType<RoleDto>(200)]
     public async Task<IActionResult> Role(int roleId, CancellationToken ct)
     {
@@ -34,7 +34,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpPost("roles"), ProducesResponseType<RoleDto>(201)]
     public async Task<IActionResult> CreateRole(RoleInput input, CancellationToken ct)
     {
@@ -42,7 +42,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? CreatedAtAction(nameof(Role), new { roleId = result.Value!.Id }, result.Value) : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpPut("roles/{roleId:int}"), ProducesResponseType<RoleDto>(200)]
     public async Task<IActionResult> UpdateRole(int roleId, RoleInput input, CancellationToken ct)
     {
@@ -50,7 +50,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpDelete("roles/{roleId:int}"), ProducesResponseType(204)]
     public async Task<IActionResult> DeleteRole(int roleId, CancellationToken ct)
     {
@@ -58,7 +58,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpGet("permissions"), ProducesResponseType<PermissionDto[]>(200)]
     public async Task<IActionResult> Permissions(CancellationToken ct)
     {
@@ -66,7 +66,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpGet("roles/{roleId:int}/permissions"), ProducesResponseType<PermissionDto[]>(200)]
     public async Task<IActionResult> RolePermissions(int roleId, CancellationToken ct)
     {
@@ -74,7 +74,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value!.Permissions) : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpPut("roles/{roleId:int}/permissions/{permissionId:int}"), ProducesResponseType(204)]
     public async Task<IActionResult> GrantPermission(int roleId, int permissionId, CancellationToken ct)
     {
@@ -82,7 +82,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpDelete("roles/{roleId:int}/permissions/{permissionId:int}"), ProducesResponseType(204)]
     public async Task<IActionResult> RevokePermission(int roleId, int permissionId, CancellationToken ct)
     {
@@ -90,7 +90,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.rbac.manage")]
     [HttpGet("users/{userId:guid}/roles"), ProducesResponseType<RoleDto[]>(200)]
     public async Task<IActionResult> UserRoles(Guid userId, CancellationToken ct)
     {
@@ -98,7 +98,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = AccountManagementRequirement.Policy)]
+    [Authorize(Policy = AccountManagementRequirement.Policy), Authorize(Policy = "iam.accounts.manage")]
     [HttpPut("users/{userId:guid}/roles/{roleId:int}"), ProducesResponseType(204)]
     public async Task<IActionResult> GrantRole(Guid userId, int roleId, CancellationToken ct)
     {
@@ -106,7 +106,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = AccountManagementRequirement.Policy)]
+    [Authorize(Policy = AccountManagementRequirement.Policy), Authorize(Policy = "iam.accounts.manage")]
     [HttpDelete("users/{userId:guid}/roles/{roleId:int}"), ProducesResponseType(204)]
     public async Task<IActionResult> RevokeRole(Guid userId, int roleId, CancellationToken ct)
     {
@@ -114,7 +114,7 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
     }
 
-    [Authorize(Policy = RbacAdministratorRequirement.Policy)]
+    [Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.audit.read")]
     [HttpGet("audit-logs"), ProducesResponseType<RbacPage<AuditDto>>(200)]
     public async Task<IActionResult> Audit([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
     {
@@ -122,3 +122,5 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 }
+
+

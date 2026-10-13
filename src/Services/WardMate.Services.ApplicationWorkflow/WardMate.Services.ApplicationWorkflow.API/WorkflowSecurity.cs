@@ -51,7 +51,7 @@ public static class WorkflowSecurity
                 }
             };
         });
-        services.AddAuthorization();
+        WardMate.SharedKernel.Web.FeaturePermissions.AddClaimPermissions(services, WardMate.SharedKernel.Web.FeaturePermissions.Workflow);
         services.AddSwaggerGen(options =>
         {
             options.SwaggerDoc("v1", new() { Title = "WardMate Application Workflow", Version = "v1" });
@@ -75,3 +75,4 @@ public sealed class WorkflowValidationExceptionHandler : IExceptionHandler
         return true;
     }
 }
+

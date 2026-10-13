@@ -318,6 +318,13 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<int[]>("AssignedCategories")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer[]")
+                        .HasColumnName("assigned_categories")
+                        .HasDefaultValueSql("ARRAY[]::integer[]");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");

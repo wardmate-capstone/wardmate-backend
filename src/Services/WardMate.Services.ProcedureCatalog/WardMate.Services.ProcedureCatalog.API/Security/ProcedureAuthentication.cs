@@ -38,14 +38,13 @@ public static class ProcedureAuthentication
                     OnForbidden = context => WriteProblem(context.HttpContext, 403, "auth.forbidden", "Bạn không có quyền quản lý thủ tục.")
                 };
             });
-        services.AddAuthorization(options => options.AddPolicy("ProcedureManager", policy =>
-            policy.RequireAuthenticatedUser().RequireRole("PROCEDURE_MANAGER", "IT_ADMIN")));
+        WardMate.SharedKernel.Web.FeaturePermissions.AddClaimPermissions(services, WardMate.SharedKernel.Web.FeaturePermissions.Procedure);
         services.AddSwaggerGen(options =>
         {
             options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
                 Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT",
-                Description = "Nhập Access Token từ IAM. API quản lý yêu cầu vai trò PROCEDURE_MANAGER hoặc IT_ADMIN."
+                Description = "Nhập Access Token từ IAM. API quản lý yêu cầu permission tương ứng trong token."
             });
             options.OperationFilter<ManagerSecurityOperationFilter>();
         });
@@ -69,3 +68,4 @@ public sealed class ProcedureJwtOptions
     public string Issuer { get; set; } = "wardmate";
     public string Audience { get; set; } = "wardmate-client";
 }
+

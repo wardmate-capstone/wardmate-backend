@@ -24,8 +24,10 @@ public static class DependencyInjection
             .ValidateOnStart();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IIdentityStore, IdentityStore>();
+        services.AddScoped<WardMate.Services.IAM.Application.Accounts.INotificationRecipients, NotificationRecipients>();
         services.AddScoped<IProfileStore, ProfileStore>();
         services.AddScoped<ManagementScope>();
+        services.AddScoped<WardMate.Services.IAM.Application.Accounts.IUserDirectory, UserDirectory>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.IManagementScope>(sp => sp.GetRequiredService<ManagementScope>());
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.IStaffAdministration, StaffAdministration>();
         services.AddScoped<WardMate.Services.IAM.Application.Rbac.IRbacStore, RbacStore>();
@@ -57,3 +59,4 @@ public static class DependencyInjection
         return services;
     }
 }
+

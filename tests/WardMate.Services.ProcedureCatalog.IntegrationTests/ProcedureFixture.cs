@@ -47,11 +47,12 @@ public sealed class ProcedureFixture : IAsyncLifetime
         using var client = Factory.CreateClient();
         (await client.GetAsync("/health")).EnsureSuccessStatusCode();
     }
-    public HttpClient ManagerClient(string role = "PROCEDURE_MANAGER", bool expired = false, bool invalidSignature = false)
+    public HttpClient ManagerClient(string role = "PROCEDURE_MANAGER", bool expired = false, bool invalidSignature = false, string[]? permissions = null)
     {
         var key = invalidSignature ? Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48)) : signingKey;
         var token = new JwtSecurityToken("wardmate", "wardmate-client",
-            [new Claim("sub", Guid.NewGuid().ToString()), new Claim("role", role)],
+            new[] { new Claim("sub", Guid.NewGuid().ToString()), new Claim("role", role) }.Concat(
+                (permissions ?? (role is "PROCEDURE_MANAGER" or "IT_ADMIN" ? WardMate.SharedKernel.Web.FeaturePermissions.Procedure : [])).Select(p => new Claim("permissions", p))),
             DateTime.UtcNow.AddMinutes(-10), DateTime.UtcNow.AddMinutes(expired ? -1 : 10),
             new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)), SecurityAlgorithms.HmacSha256));
         var client = Factory.CreateClient();
@@ -64,3 +65,5 @@ public sealed class ProcedureFixture : IAsyncLifetime
         await postgres.DisposeAsync();
     }
 }
+
+

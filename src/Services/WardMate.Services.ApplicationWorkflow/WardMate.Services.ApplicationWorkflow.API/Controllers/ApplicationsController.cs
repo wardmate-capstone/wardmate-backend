@@ -17,6 +17,7 @@ public sealed class ApplicationsController(ISender sender) : ControllerBase
 
     [HttpPost, RequestSizeLimit(128 * 1024)]
     [ProducesResponseType<ApplicationDto>(201)]
+    [Authorize(Policy = "workflow.create")]
     public async Task<IActionResult> Create(CreateApplicationInput input, CancellationToken ct)
     {
         var result = await sender.Send(new CreateApplicationCommand(Actor, input), ct);
@@ -25,22 +26,26 @@ public sealed class ApplicationsController(ISender sender) : ControllerBase
 
     [HttpGet]
     [ProducesResponseType<ApplicationPage>(200)]
+    [Authorize(Policy = "workflow.read")]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default) =>
         Ok(await sender.Send(new ListApplicationsQuery(Actor, page, pageSize), ct));
 
     [HttpGet("{id:guid}")]
     [ProducesResponseType<ApplicationDto>(200)]
+    [Authorize(Policy = "workflow.read")]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct) =>
         Respond(await sender.Send(new GetApplicationQuery(Actor, id), ct));
 
     [HttpPatch("{id:guid}/checklists/{checklistId:guid}"), RequestSizeLimit(128 * 1024)]
     [ProducesResponseType<ApplicationDto>(200)]
+    [Authorize(Policy = "workflow.checklist.write")]
     public async Task<IActionResult> UpdateChecklist(Guid id, Guid checklistId, UpdateChecklistInput input, CancellationToken ct) =>
         Respond(await sender.Send(new UpdateChecklistCommand(Actor, id, checklistId, input), ct));
 
     [HttpPost("{id:guid}/submit")]
     [ProducesResponseType<ApplicationDto>(200)]
     [ProducesResponseType<ProblemDetails>(422)]
+    [Authorize(Policy = "workflow.submit")]
     public async Task<IActionResult> Submit(Guid id, CancellationToken ct) =>
         Respond(await sender.Send(new SubmitApplicationCommand(Actor, id), ct));
 
@@ -54,3 +59,4 @@ public sealed class ApplicationsController(ISender sender) : ControllerBase
         return new ObjectResult(problem) { StatusCode = error.Status, ContentTypes = { "application/problem+json" } };
     }
 }
+

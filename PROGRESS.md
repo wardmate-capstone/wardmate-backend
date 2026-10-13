@@ -1678,3 +1678,581 @@ User reports missing Swagger Authorize on localhost5000. Verified running Swagge
 Owner requested immediate Azure deployment using shared IAM JWT configuration. Deployed acrwardmate2026.azurecr.io/wardmate-documentform:roles-20261008-01; digest sha256:a18fc3db2053af513707df5a5deca0f4c9b94b3f942f6e3db9c20a89bab126e5. Copied IAM signing key in memory into DocumentForm secret iam-jwt-key; configured Jwt__Key secretref and same IAM issuer/audience. No keys written into source/log/chat. IAM and Gateway unchanged. Local container remains old (local IAM key absent); user selected Azure instead of local key setup.
 Cloud verification5 HTTP checks: health200, Swagger UI200, OpenAPI200 with Bearer definition/operation security, templates unauthenticated401, citizen list unauthenticated401. Does not claim real IAM login tested; role/identity checks were tested locally34 HTTP checks and76 existing tests. Docker build0 warnings/errors. All5 template routes require PROCEDURE_MANAGER, all6 citizen routes REGISTERED_CITIZEN and applicantId=JWT sub. No request DTO changes; auth401/403 ProblemDetails. Template reads are manager-only per request; citizen first-open template integration requires a separate read-access design.
 Changed documentation paths: docs/documentform-deployment.md, docs/api-guide.md, PROGRESS.md. No Git/push or database writes. Suggested commit: feat(documentform): deploy IAM-backed role authorization.
+
+## IAM-RBAC-DEPLOYED-001 — Bổ sung danh mục quyền cho chức năng đã deploy
+
+Hoàn thành: 2026-10-07 16:07:47 +07:00 (Asia/Saigon, UTC+07:00).
+
+### Phạm vi và đối chiếu
+
+- Đọc OpenAPI Azure của IAM, ProcedureCatalog và DocumentForm qua Gateway. IAM gồm quản lý tài khoản/
+  phường/RBAC; Procedure có CRUD/draft/category/rollback/source; DocumentForm có templates và citizen submissions.
+- Chỉ bổ sung dữ liệu RBAC tương ứng các chức năng đã thấy trên deploy. Không thêm quyền Analytics/RAG/SMS
+  hoặc ApplicationWorkflow khi chưa xác nhận endpoint deploy của chúng trong phiên này.
+- Danh mục tăng từ 3 lên 30 permission: 6 IAM quản trị có phạm vi, 15 ProcedureCatalog, 6 DocumentForm.
+  Tên quyền tiếng Việt; mapping chi tiết trong docs/api-guide.md.
+- Phân quyền mặc định: IT_ADMIN có quyền nghiệp vụ toàn danh mục; PROCEDURE_MANAGER quản trị thủ tục/mẫu;
+  MANAGER chỉ bổ sung account/ward read theo phạm vi; mỗi role có nhóm biểu mẫu và đơn điện tử của chính mình.
+- SQL dùng permission_code/role_name để tra ID, ON CONFLICT DO NOTHING, cùng advisory lock RBAC hiện hữu.
+  Đồng bộ sequence permissions để không trùng ID seed. Không overwrite tên/quyền custom đã có.
+- Migration chạy một lần, không tự tái cấp permission đã bị Admin thu hồi mỗi lần restart.
+  Down chủ động chặn rollback tự động tránh xóa các quyền đã được quản trị tùy chỉnh; muốn thu hồi cần
+  migration điều chỉnh có đối soát hoặc API RBAC hiện hữu.
+
+### Kiểm chứng và cập nhật database deploy
+
+- Connection được người dùng trực tiếp cung cấp để cập nhật IAM deploy. Chỉ truyền qua environment của
+  tiến trình; không ghi vào source/config/docs hoặc file credential. Không ghi secret vào báo cáo.
+- Read-only preflight xác nhận public.roles, permissions, role_permissions, users và các IAM migrations.
+  Database postgres hiện dùng chung IAM/Procedure; migration mới không chạm bảng Procedure hoặc user.
+- Pending IAM trước áp dụng đúng một migration mới; nếu có migration khác, công cụ đã cấu hình dừng.
+- Smoke PostgreSQL16 tạm: fresh migration PASS, 30 permission, sequence không trùng seed, không cấp
+  iam.manage/Procedure quyền cho Manager trên DB sạch, citizen chỉ quyền cá nhân/đọc mẫu, chạy migrate lại
+  không tái cấp quyền đã thu hồi. Sáu nhóm assertion PASS. Không tạo project test mới.
+- Release solution build --no-restore -warnaserror -m:1: PASS 0 errors, 0 warnings.
+- EF has-pending-model-changes: không còn thay đổi model ngoài migration.
+- Áp dụng thành công migration 20261007090139_DeployedFeaturePermissionCatalog trên DB deploy.
+  Trước: 3 permissions, 12 role_permissions. Sau: 30 permissions, 78 role_permissions.
+  Added 27 permissions và 66 grants; assertion mọi permission definition và role grant cũ còn nguyên PASS.
+- Tổng quyền theo role deploy: REGISTERED_CITIZEN 7, FRONT_DESK_OFFICER 7, MANAGER 11,
+  PROCEDURE_MANAGER 23, IT_ADMIN 30. Manager có một grant cũ khác DB seed sạch, giữ nguyên theo yêu cầu
+  bảo toàn cấu hình, không tự ý thu hồi. Còn 0 pending IAM migrations.
+- Không chạy lại full suite: thay đổi chỉ migration dữ liệu, đã kiểm tra thực tế trên PostgreSQL tạm và
+  đọc lại dữ liệu deploy. Không tuyên bố test HTTP đăng nhập/RBAC trên deploy (không có phiên đăng nhập test).
+
+### File thay đổi
+
+- Mới: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261007090139_DeployedFeaturePermissionCatalog.cs
+- Mới: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261007090139_DeployedFeaturePermissionCatalog.Designer.cs
+- EF tái sinh IamDbContextModelSnapshot.cs cùng thư mục (không có model schema change).
+- docs/api-guide.md: danh mục quyền, mapping role, hiệu lực và cách refresh thông tin quyền.
+- PROGRESS.md. Công cụ smoke nằm trong thư mục tạm ngoài repository, không chứa connection string.
+
+### Hướng dẫn FE và giới hạn hiệu lực
+
+- Không thêm/sửa endpoint hay request/response DTO. GET /api/v1/rbac/permissions (Admin) nay đọc 30 quyền;
+  GET /api/v1/rbac/roles/{roleId}/permissions phản ánh grants; các status code/token handling giữ nguyên.
+- Đăng nhập/refresh để nhận permissions mới trong JWT; tải GET /api/v1/users/me để cập nhật giao diện.
+- Đây là catalog và gán quyền DB; không đổi chính sách authorization runtime. Procedure vẫn kiểm role,
+  gỡ riêng permission mới chưa chặn endpoint. DocumentForm chưa kiểm JWT/ownership từ token; bổ sung quyền
+  không được coi là đã bảo vệ API. IAM giữ nguyên kiểm tra phạm vi phường hiện có.
+- Không deploy image, không chạy bất kỳ lệnh Git nào. Database đã được cập nhật theo yêu cầu trực tiếp.
+- Credential đã gửi trong chat: đề nghị người dùng rotate và cập nhật secrets liên quan sau công việc;
+  không tự rotate gây ngắt kết nối các service.
+- Gợi ý Conventional Commit: feat(iam): seed deployed feature permission catalog.
+
+## TASK-11 — Thẩm định hồ sơ, nhận xét in-line và diff phiên bản
+
+- Hoàn thành local: 2026-10-08 07:54 (Asia/Saigon, UTC+07:00).
+- Kết quả: triển khai chu trình SUBMITTED → UNDER_REVIEW → NEED_REVISION → SUBMITTED;
+  tự tiếp nhận, nhận xét theo version/ô/checklist, nộp lại, snapshot JSONB và diff.
+- Không chạy lệnh Git, không build/deploy image và không thay database Azure.
+
+### Domain, dữ liệu và tính toàn vẹn
+
+- Thêm ApplicationComment, ApplicationVersion; bổ sung AssignedOfficerId, ResubmitCount,
+  Notes, ApprovedAt và các trạng thái cho ApplicationRecord.
+- Giữ UserId (CitizenId) và History/ChangedBy hiện có để tương thích hợp đồng cũ.
+- ApplicationCode nay varchar(50), unique, NOT NULL; cấp ngay lúc tạo DRAFT, giữ mã khi nộp lại.
+- Version 1 tạo cùng transaction với lần submit đầu. Các lần nộp lại tăng ResubmitCount,
+  chụp version kế tiếp, đóng nhận xét version trước và ghi lịch sử cùng transaction.
+- SELECT FOR UPDATE tuần tự hóa tiếp nhận/nộp lại. Unique(application_id, version_number),
+  FK kép application_id/application_version_id ngăn nhận xét trỏ sang version hồ sơ khác.
+- Migration 20261008004706_ApplicationReviewVersions: backfill mã cho DRAFT cũ, snapshot cho
+  SUBMITTED cũ dựa trên dữ liệu đã được API cũ khóa sửa. Không ghi snapshot giả cho draft.
+- Không đổi tên database local đang tồn tại wardmate_workflow_db. ConnectionStrings__WorkflowDatabase
+  có thể trỏ đến database độc lập wardmate_application_db theo đặc tả ở môi trường mới.
+
+### API, DTO và HTTP
+
+Các API mới trả 200 khi thành công; đều cần JWT. Các route officer yêu cầu FRONT_DESK_OFFICER.
+
+- GET /api/v1/officer/applications/pending — query status, procedureId, submittedFrom, submittedTo,
+  page/pageSize; trả ApplicationPage {items,page,pageSize,total}, FIFO theo SubmittedAt + Id.
+- POST /api/v1/officer/applications/{id}/assign — không body; tự nhận bằng sub, trả ReviewResultDto.
+- POST /api/v1/officer/applications/{id}/comments — body
+  {versionNumber,targetType,targetId,fieldLabel,commentText}, trả ReviewResultDto.
+- POST /api/v1/officer/applications/{id}/request-revision — body {reason}, trả ReviewResultDto;
+  phải có ít nhất một OPEN comment của version hiện tại.
+- POST /api/v1/applications/{id}/resubmit — body {expectedVersionNumber,formData,checklists:[{id,status,fileUrl,note}]},
+  trả ReviewResultDto; yêu cầu đủ checklist và các mục bắt buộc COMPLETED.
+- GET /api/v1/applications/{id}/comments — query versionNumber/status tùy chọn, trả CommentDto[].
+- GET /api/v1/applications/{id}/versions — không body, trả VersionDto[] gồm snapshotData.
+- GET /api/v1/applications/{id}/diff — query fromVersion/toVersion, trả FieldDiffDto[] chỉ các thay đổi.
+- ReviewResultDto: application, assignedOfficerId, resubmitCount, currentVersionNumber.
+- ApplicationDto hiện có bổ sung assignedOfficerId/resubmitCount/currentVersionNumber/notes/approvedAt.
+- Lỗi: 400 validation/target/checklist sai; 401 JWT sai; 403 sai role/cán bộ thụ lý;
+  404 ngoài phạm vi/không có hồ sơ/version; 409 trạng thái hoặc version xung đột/thiếu comment;
+  422 thiếu checklist bắt buộc (missingItems). Lỗi nghiệp vụ có code application.* và traceId;
+  validation dùng validation.failed. Role middleware 403 hiện không có ProblemDetails body.
+
+### Quyền và giới hạn
+
+- Công dân chỉ nộp lại hồ sơ của mình. Cán bộ chỉ bắt lỗi/yêu cầu sửa trên hồ sơ mình thụ lý,
+  không được tự thẩm định hồ sơ của mình. Cán bộ khác không đọc versions/comments/diff.
+- Hàng chờ gồm hồ sơ chưa phân công và của cán bộ hiện tại. Chưa có WardId nhận hồ sơ trong
+  Application; chưa triển khai phạm vi phường cho hàng chờ. Không tuyên bố cách ly dữ liệu theo phường.
+- JWT dùng role hiện có; không chỉnh RBAC deploy trong task này. Không tự cấp quyền thẩm định cho Admin/Manager.
+- APPROVED/CANCELLED mới được khai báo trong schema, không có endpoint duyệt/hủy trong TASK-11.
+- Snapshot đóng băng form/checklist/URL, không sao chép binary file. Chưa kiểm chứng file từ DocumentForm.
+- RESOLVED là đã nộp lại, không đồng nghĩa cán bộ đã duyệt thay đổi.
+
+### File mới (đường dẫn tương đối từ repository)
+
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Domain/ApplicationReview.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewContracts.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewHandlers.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewValidation.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/ApplicationReviewStore.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261008004706_ApplicationReviewVersions.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261008004706_ApplicationReviewVersions.Designer.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationReviewController.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/ReviewTests.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/ReviewDiffTests.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/ReviewMigrationTests.cs
+
+### File sửa
+
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Domain/ApplicationRecord.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WorkflowContracts.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WorkflowRequests.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/ApplicationStore.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDbContext.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/ProcedureCatalogClient.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/WorkflowDbContextModelSnapshot.cs
+- src/Gateways/WardMate.YarpGateway/appsettings.json
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowFixture.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowTests.cs
+- docs/api-guide.md
+- PROGRESS.md
+
+### Kiểm thử
+
+- Thêm 10 tests vào project có sẵn theo yêu cầu task: 7 API/integration, 2 unit diff,
+  1 upgrade migration PostgreSQL thật. Không tạo test project mới.
+- Kiểm tra cả chu trình hai lần nộp lại, snapshot cũ không đổi, diff nested/array/file/null/xóa field,
+  kiểm soát chủ hồ sơ/cán bộ, lỗi thiếu comment/checklist, version cũ, FIFO/phân trang,
+  unique version, nhận/nộp lại đồng thời chỉ một request thành công.
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1: PASS, 0 warning, 0 error.
+- dotnet test WardMate.sln -c Release --no-restore -m:1: PASS 200/200, 0 fail, 0 skipped.
+  ProcedureCatalog 96; DocumentForm 75; ApplicationWorkflow 29 (19 cũ + 10 mới).
+- dotnet ef migrations has-pending-model-changes (Workflow, Release): không có thay đổi model chưa migration.
+- PostgreSQL 16 test containers tạm được test fixture dọn sau kiểm thử; không build Docker image ứng dụng.
+
+### Hướng dẫn FE / bàn giao
+
+- docs/api-guide.md đã giải thích 8 API, ví dụ body, trình tự dùng, quyền, kết quả và cách sửa lỗi.
+- Gửi targetId dạng JSON Pointer với FORM_FIELD, UUID checklist với CHECKLIST_ITEM.
+- Resubmit gửi toàn bộ form và checklist, không chỉ các ô thay đổi; gửi expectedVersionNumber đang xem.
+- 409 cần tải lại dữ liệu; 422 hiển thị missingItems; không điều khiển giao diện dựa trên câu tiếng Việt.
+- Giữ JWT trong Authorization; không thêm cookie/CSRF flow mới cho Workflow.
+- Gợi ý nhóm thông điệp Conventional Commits cho Antigravity (tách từng file theo quy định):
+  feat(workflow): add application review and revision snapshots
+  feat(gateway): route officer application endpoints
+  test(workflow): cover review resubmission diff and migration
+  docs(workflow): document application review APIs
+
+## FE-CORS-001 — Cho phép FE Vercel gọi Backend
+
+- Hoàn thành cấu hình local: 2026-10-09 15:58 Asia/Saigon (UTC+07:00).
+- Origin chính xác: https://wardmate-frontend.vercel.app, không wildcard.
+- File sửa:
+  - src/BuildingBlocks/WardMate.SharedKernel/Web/BrowserCorsExtensions.cs
+  - src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/appsettings.json
+  - src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Program.cs
+  - src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Program.cs
+  - docs/iam-httponly.md
+  - docs/api-guide.md
+  - PROGRESS.md
+- Shared CORS mặc định cho phép Vercel; Development giữ localhost:5173/3000. Explicit Cors:AllowedOrigins
+  vẫn ghi đè mặc định. Gateway/IAM/Workflow đã dùng policy; Procedure/DocumentForm nay đăng ký và chạy policy.
+- IAM appsettings SameSite=None, AllowInsecureLocalhost=false; cookie vẫn HttpOnly/Secure/host-only.
+  Giữ CSRF header và kiểm origin theo cùng CORS policy.
+- Không thêm endpoint/DTO/status code nghiệp vụ. FE gửi credentials:include và X-CSRF-Protection:1 cho POST auth,
+  Bearer cho API bảo vệ. CORS không cấp quyền nghiệp vụ.
+- Build solution Release --no-restore -warnaserror -m:1: PASS 0 errors, 0 warnings.
+- Không viết test mới. Full suite bị dừng do Docker Desktop Linux Engine pipe không tồn tại;
+  chưa xác nhận integration tests trong phiên này. Không sử dụng số 200/200 của phiên trước để kết luận.
+- Chưa deploy hoặc xác minh preflight/cookie trên Azure. Antigravity cần rebuild/deploy các API liên quan và Gateway;
+  kiểm tra Azure overrides Cors__AllowedOrigins__* / AuthCookie__SameSite=None / AuthCookie__AllowInsecureLocalhost=false.
+- Không chạy Git, không build Docker. Commit gợi ý: fix(cors): allow deployed Vercel frontend and cross-site auth cookies.
+- Lượt test chỉ chọn WorkflowUnitTests/ReviewDiffTests cũng dừng ở bước khởi chạy test, không trả kết quả; đã hủy lượt chạy. Không có số test pass được xác nhận cho phiên này.
+
+## W1-W4-CLOSEOUT-001 — IAM directory, permission chi tiết, hàng đợi theo phường và quyết định cuối
+
+- Hoàn thành code/kiểm thử local: 2026-10-09 17:07 Asia/Saigon (UTC+07:00).
+- Phạm vi: 3 mục trong yêu cầu hoàn thiện Tuần 1–4. Không tuyên bố hoàn thành các backlog khác
+  ngoài yêu cầu này (QR, xuất kết quả, RAG, Analytics, v.v.). Không sửa API DocumentForm của BE khác.
+- Không chạy bất kỳ lệnh Git nào. Không build/deploy image và không cập nhật database Azure.
+
+### Kết quả
+
+1. GET /api/v1/manager/officers: Manager + iam.accounts.read, phạm vi phường từ DB trước phân trang;
+   bộ lọc WardCode/AssignedCategory/Search/Role, page/pageSize. Cán bộ có role đặc quyền ngoài FD/Citizen
+   vẫn bị loại theo ManagementScope hiện có.
+2. GET /api/v1/admin/users: IT_ADMIN + iam.accounts.read, tra họ tên/email/CCCD, role, phân trang,
+   hỗ trợ thêm phường/category; có cả tài khoản inactive, không trả hash/token.
+3. PUT /api/v1/manager/officers/{userId}/categories: iam.accounts.manage + scope; body {categories:[1,2]},
+   204. Metadata int[] theo ID Procedure category, không FK xuyên database và không khóa luồng FD theo lĩnh vực.
+4. GET /api/v1/wards public: {id,code,name}[] cho công dân chọn phường.
+5. GET /api/v1/users/access-context authenticated: quyền/phường/role hiện hành của chính token,
+   no-store, 401 tài khoản không khả dụng. Không nhận userId từ request.
+6. IAM endpoints accounts/users/profiles/RBAC/wards thêm permission tương ứng, giữ chống leo thang
+   và phạm vi phường. Procedure quản trị thay policy role chung bằng 15 permission đã có.
+7. Application.WardCode, migration/index; POST create bắt buộc wardCode được xác minh qua IAM.
+   Snapshot mới, detail và summary có wardCode. Ward null của dữ liệu cũ không lọt vào queue.
+8. Workflow lấy AccessContext từ IAM trước authorization trên mỗi request authenticated, ghi đè claims
+   role/permissions/ward cũ; lỗi IAM trả 503, bị khóa trả 401. Thay phường/thu hồi quyền có hiệu lực request kế tiếp.
+9. Queue, assign, comment, request-revision, versions/comments/diff và quyết định cuối chặn FD khác phường.
+10. POST /api/v1/officer/applications/{id}/approve (không body): workflow.approve, FD thụ lý đúng phường,
+    UNDER_REVIEW, không OPEN comment; APPROVED + ApprovedAt UTC + history trong transaction.
+11. POST /api/v1/officer/applications/{id}/reject body {reason}: workflow.reject, cùng phạm vi,
+    UNDER_REVIEW → REJECTED, lý do bắt buộc, lưu notes/history. APPROVED/REJECTED khóa mọi mutation cũ.
+12. Row locks tuần tự hóa quyết định đồng thời; giữ nguyên snapshot đã nộp.
+
+### DTO, status code và hướng dẫn FE
+
+- DirectoryFilter: search?, role?, wardCode?, assignedCategory? (integer ID), page=1, pageSize=20 (1–100).
+- DirectoryPage: items/page/pageSize/total; DirectoryUser: id/username/email/fullName/identityNumber/
+  isActive/wardCode/roles/assignedCategories. Search dùng ILIKE với escape wildcard; không bỏ dấu.
+- POST create Application thêm WardCode bắt buộc, uppercase/trim; không cho FE đổi phường khi resubmit.
+- API đọc/create/approve/reject trả 200 hoặc 201 như mô tả trong docs/api-guide.md; categories PUT 204.
+- 400 validation hoặc phường không tồn tại; 401 token/tài khoản; 403 permission/phạm vi;
+  404 user/hồ sơ ngoài phạm vi hoặc không có; 409 trạng thái/OPEN comment/thiếu phường legacy;
+  503 IAM không khả dụng. Workflow errors application.*; IAM errors theo Result/validation hiện có.
+- IAM và Workflow dùng quyền hiện hành; Procedure dùng permission JWT, cần refresh/login sau đổi quyền.
+- Workflow thêm 14 permission bằng migration IAM; 8 quyền cá nhân/đọc trong phạm vi cho 5 role chuẩn,
+  6 quyền thẩm định chỉ cấp FRONT_DESK_OFFICER. Admin/Manager không tự có quyền duyệt mọi hồ sơ.
+- IAM__BaseUrl trên Workflow trỏ về IAM origin (key chính xác: Iam__BaseUrl); Compose đã cấu hình
+  http://iam-api:8080/ và depends_on iam-api. Không dùng địa chỉ frontend cho cấu hình này.
+- Triển khai IAM + migration trước Workflow; sau đó Procedure/Gateway và FE chọn phường.
+
+### Migration và lưu ý dữ liệu cũ
+
+- IAM: 20261009095945_OfficerDirectoryCategories, thêm assigned_categories integer[] mặc định rỗng,
+  seed permission/grants idempotent theo code/role_name, khóa cùng RbacStore; không xóa quyền tùy chỉnh.
+  Down chỉ gỡ cột, không tự thu hồi các permission đã có thể được gán cho role tùy chỉnh.
+- Workflow: 20261009095949_WardScopedFinalDecisions, ward_code nullable cho bản ghi legacy,
+  index (ward_code,status,submitted_at), check constraint thêm REJECTED.
+- Không tự suy đoán phường cho hồ sơ cũ. Bản ghi legacy thiếu ward bị chặn queue/submit; phải đối soát
+  và bổ sung địa bàn có kiểm soát trước khi dùng lại. Chưa có endpoint chuyển phường hồ sơ trong task này.
+- AssignedCategories chỉ kiểm integer dương/không trùng/tối đa 100, chưa gọi Procedure để xác minh tồn tại;
+  FE chọn từ danh mục thật. Đây là metadata bộ lọc, không quyết định authorization.
+
+### Kiểm thử và chất lượng
+
+- Tạo project IAM.Tests theo yêu cầu mới của user cho Unit/Integration Tests.
+- Thêm 17 test cases: IAM 7 (bao gồm validator unit), Workflow 7, Procedure permission 3.
+- Full solution: dotnet test WardMate.sln -c Release --no-restore -m:1 PASS 218/218,
+  0 failed, 0 skipped: Procedure 99, DocumentForm 76, Workflow 36, IAM 7.
+- Test PostgreSQL16 bằng container riêng tạm, đã được fixtures dọn; không sửa DB local đang sử dụng.
+- Bao phủ ward/category/search/paging, role không có permission không được vượt kiểm tra,
+  revoke quyền cùng token, đổi phường cùng token, IAM unavailable fail closed,
+  DRAFT→SUBMITTED→UNDER_REVIEW→APPROVED/REJECTED, reason rỗng, OPEN comment,
+  freeze sau kết thúc và approve/reject đồng thời một winner.
+- Một lượt đầu fail do fixture Ward không uppercase như API thật; đã sửa fixture và chạy toàn suite PASS.
+- Final Release build --no-restore -warnaserror -m:1: PASS 0 errors, 0 warnings.
+- EF has-pending-model-changes cho IAM/Workflow: không có thay đổi model thiếu migration.
+
+### Danh sách file tạo/sửa (tương đối từ repository)
+
+Shared/Gateway/config:
+- src/BuildingBlocks/WardMate.SharedKernel/Web/FeaturePermissions.cs (mới)
+- src/Gateways/WardMate.YarpGateway/appsettings.json
+- docker/docker-compose.yml
+- WardMate.sln
+
+IAM, dưới src/Services/WardMate.Services.IAM/:
+- WardMate.Services.IAM.Domain/Entities/User.cs
+- WardMate.Services.IAM.Application/Accounts/UserDirectory.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/UserDirectory.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/Configurations/IdentityConfigurations.cs
+- WardMate.Services.IAM.Infrastructure/DependencyInjection.cs
+- WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261009095945_OfficerDirectoryCategories.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261009095945_OfficerDirectoryCategories.Designer.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/Migrations/IamDbContextModelSnapshot.cs
+- WardMate.Services.IAM.API/Controllers/UserDirectoryController.cs (mới)
+- WardMate.Services.IAM.API/Controllers/UsersController.cs
+- WardMate.Services.IAM.API/Controllers/AccountsController.cs
+- WardMate.Services.IAM.API/Controllers/AdminProfilesController.cs
+- WardMate.Services.IAM.API/Controllers/StaffAdministrationController.cs
+- WardMate.Services.IAM.API/Controllers/RbacController.cs
+- WardMate.Services.IAM.API/Authorization/PermissionAuthorization.cs
+
+Workflow, dưới src/Services/WardMate.Services.ApplicationWorkflow/:
+- WardMate.Services.ApplicationWorkflow.Domain/ApplicationRecord.cs
+- WardMate.Services.ApplicationWorkflow.Application/IWorkflowDirectory.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Application/FinalDecisionRequests.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Application/WorkflowContracts.cs
+- WardMate.Services.ApplicationWorkflow.Application/WorkflowValidation.cs
+- WardMate.Services.ApplicationWorkflow.Application/WorkflowRequests.cs
+- WardMate.Services.ApplicationWorkflow.Application/ReviewContracts.cs
+- WardMate.Services.ApplicationWorkflow.Application/ReviewHandlers.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDirectory.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/ProcedureCatalogClient.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/ApplicationStore.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/ApplicationReviewStore.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDbContext.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261009095949_WardScopedFinalDecisions.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261009095949_WardScopedFinalDecisions.Designer.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/WorkflowDbContextModelSnapshot.cs
+- WardMate.Services.ApplicationWorkflow.API/WorkflowAccessMiddleware.cs (mới)
+- WardMate.Services.ApplicationWorkflow.API/WorkflowSecurity.cs
+- WardMate.Services.ApplicationWorkflow.API/Program.cs
+- WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationsController.cs
+- WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationReviewController.cs
+
+Procedure, dưới src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/:
+- Security/ProcedureAuthentication.cs
+- Controllers/ProcedureManagerController.cs
+- Controllers/ProcedureDraftsController.cs
+- Controllers/ProcedureCategoriesController.cs
+- Controllers/ProcedureDocumentFormsController.cs
+
+Tests/tài liệu:
+- tests/WardMate.Services.IAM.Tests/WardMate.Services.IAM.Tests.csproj (mới)
+- tests/WardMate.Services.IAM.Tests/IamFixture.cs (mới)
+- tests/WardMate.Services.IAM.Tests/UserDirectoryTests.cs (mới)
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowFixture.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowTests.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/ReviewTests.cs
+- tests/WardMate.Services.ApplicationWorkflow.Tests/WardDecisionTests.cs (mới)
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureFixture.cs
+- tests/WardMate.Services.ProcedureCatalog.IntegrationTests/PermissionTests.cs (mới)
+- docs/api-guide.md
+- PROGRESS.md
+
+### Commit gợi ý cho Antigravity
+
+- feat(iam): add scoped user directory and officer category filters
+- feat(auth): enforce granular IAM and procedure permissions
+- feat(workflow): enforce live ward scope and final decisions
+- test: cover scoped directories permissions and final workflow states
+- docs: document week 1-4 completion and migration handoff
+
+Giữ quy tắc commit từng file/thay đổi chức năng; không squash. Codex không chạy Git.
+
+## DRAFT-CONFIG-001 — Cấu hình upload PDF local và bàn giao Azure
+
+- Thời gian: 2026-10-10 09:43 UTC+07:00 (Asia/Saigon).
+- Thay đổi: docker/.env (local, không commit), docs/azure-deployment.md, PROGRESS.md.
+- Bổ sung biến Blob để chủ dự án điền connection string thật; bật PROCEDURE_EXTRACTION_ENABLED; bảo đảm khóa AIOCR nội bộ tối thiểu 32 ký tự, sinh ngẫu nhiên nếu thiếu/không đủ. Không in giá trị secret.
+- Endpoint không thay đổi: POST /api/v1/procedure-manager/drafts, multipart File, 202 khi lưu thành công; 503 draft.storage_not_configured nếu thiếu Blob. GET /api/v1/procedure-manager/drafts/{id} lấy trạng thái, nội dung và cảnh báo. DTO/token không thay đổi; cần permission upload/read tương ứng.
+- Chưa hoàn tất kết nối Blob: connection string thật chưa có trong local. Chưa chạy Docker, chưa deploy hoặc kiểm thử Azure. Hướng dẫn Azure có trong docs/azure-deployment.md; chỉ bật PDF text extraction, chưa bật AI/OCR.
+- Tests: 0 test mới, không chạy suite vì chỉ sửa cấu hình/tài liệu. Release build đang được kiểm tra; kết quả ghi tiếp bên dưới.
+- Commit gợi ý (chỉ tài liệu, không docker/.env): docs(deploy): document PDF draft storage and extraction configuration.
+
+- Kết quả cuối (2026-10-10 09:47:32 +07:00, Asia/Saigon): dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 thành công, 0 errors, 0 warnings. Không chạy tests/Docker/Git. Blob vẫn cần chủ dự án điền connection string thật.
+
+## TASK-25 — Thực thể thông báo và SignalR Hub realtime
+
+- Hoàn thành local: 2026-10-10 11:10 UTC+07:00 (Asia/Saigon).
+- Service: WardMate.Services.AnalyticsSystem (.NET 8, Clean Architecture), database riêng wardmate_notifications_db.
+- Notification đủ các trường yêu cầu; logical references sang IAM/Workflow, không cross-service FK. Migration InitialNotifications tạo bảng, UUID mặc định, UTC timestamps, chỉ mục recipient/read + created_at + recipient/created_at/id và ràng buộc type/channel/read state.
+- NotificationHub kế thừa Hub<INotificationClient>, JWT HS256 kiểm tra issuer/audience/lifetime/sub. Query access_token chỉ được nhận ở /hubs/notifications. Đóng connection khi token hết hạn.
+- Nhóm user lấy từ JWT; nhóm ward chỉ cho FD/Manager. Do JWT hiện không có ward_code, OnConnected kiểm tra live IAM access-context để lấy phường và trạng thái tài khoản, fail closed khi IAM lỗi. Không có JoinGroup hoặc Send tùy ý cho browser.
+- Hợp đồng tạo thông báo nội bộ lưu DB trước rồi phát ReceiveNotification/UpdateUnreadCount. Lỗi realtime không rollback dữ liệu. Hub cho phép người dùng truy vấn lại dữ liệu khi reconnect và đánh dấu đã đọc idempotent, chỉ trên bản ghi của chính mình.
+- Profile Compose notifications gồm PostgreSQL riêng cổng local 5436 và AnalyticsSystem 5006; NOTIFICATIONS_DB_PASSWORD phải điền trước khi bật. Có Dockerfile nhưng chưa build image/deploy. Profile không bật mặc định; không thay docker/.env trong task này.
+
+### Danh sách file mới/thay đổi
+
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Domain/Notification.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Application/Notifications.cs (mới: DTO và interfaces)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationDbContext.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationDirectory.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationHub.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationService.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/DependencyInjection.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/20261010040428_InitialNotifications.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/20261010040428_InitialNotifications.Designer.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/NotificationDbContextModelSnapshot.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/WardMate.Services.AnalyticsSystem.Infrastructure.csproj
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/NotificationSecurity.cs (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/Dockerfile (mới)
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/Program.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/WardMate.Services.AnalyticsSystem.API.csproj
+- src/BuildingBlocks/WardMate.SharedKernel/Web/BrowserCorsExtensions.cs (cho phép header X-SignalR-User-Agent)
+- docker/docker-compose.yml
+- docker/.env.example
+- docs/api-guide.md
+- docs/azure-deployment.md
+- PROGRESS.md
+
+### API/Hub và FE
+
+- POST /hubs/notifications/negotiate?negotiateVersion=1: SDK tự gọi, không body nghiệp vụ; 200 transport metadata hoặc 401 JWT không hợp lệ.
+- GET /hubs/notifications: WebSocket upgrade 101 khi thành công; transport fallback do SignalR SDK quản lý.
+- Hub methods: GetNotifications(page=1,pageSize=20) -> NotificationDto[]; GetUnreadCount() -> int; MarkRead(notificationId) -> hoàn tất hoặc HubException tiếng Việt. Không phải REST endpoints và không hiển thị trong Swagger.
+- Event contract: ReceiveNotification(NotificationDto), UpdateUnreadCount(int). DTO có recipient/application id, title/content/type/channel/read/readAt/actionUrl/createdAt. FE render text, dùng accessTokenFactory với access token mới; refresh cookie không phải token Hub. Invocation errors theo SignalR, không phải HTTP ProblemDetails.
+- Gateway dùng route có sẵn /api/analytics-system/hubs/notifications; local trực tiếp http://localhost:5006/hubs/notifications. Docs hướng dẫn reconnect/refetch/unread đồng bộ, logout stop connection.
+
+### Kết quả kiểm chứng
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1: PASS, 0 errors, 0 warnings.
+- dotnet test WardMate.sln -c Release --no-restore -m:1: 218/218 PASS, 0 failed, 0 skipped (Procedure 99, DocumentForm 76, Workflow 36, IAM 7).
+- Không tạo test project trong repository theo AGENTS.md. Harness tạm ngoài repository chạy PostgreSQL 16 + Kestrel + WebSocket thật: 20/20 checks PASS. Bao gồm migration và model aligned, persistence/defaults/UTC, unread isolation, JWT/expired/query-token restriction, CORS, hub list, validation, mark-read ownership/idempotency, private delivery, ward A/B và citizen isolation. PostgreSQL test container đã được hủy sau kiểm tra; không dùng dữ liệu thật.
+- docker compose --env-file docker/.env -f docker/docker-compose.yml --profile notifications config --quiet: PASS; không khởi động ứng dụng qua Compose.
+
+### Giới hạn / bàn giao
+
+- Chưa nối sự kiện Workflow/RabbitMQ (TASK-27); không tự phát sinh thông báo từ thao tác phê duyệt hiện tại. SMS/Email không thuộc task này.
+- Chưa có Redis backplane/Azure SignalR: triển khai tối đa 1 replica cho realtime hiện tại.
+- Nhóm/phường kiểm tra tại connect; đổi quyền/phường cần reconnect, chưa có đẩy thu hồi tức thì tới connection đang mở. Token hết hạn được đóng tự động.
+- Chưa có outbox/retry/exactly-once realtime; dữ liệu DB cho phép tải lại khi offline. DB local ứng dụng/Azure chưa migrate bởi Codex, chỉ test DB đã migrate.
+- Không chạy Git, không build/push Docker image, không deploy Azure.
+- Commit gợi ý cho Antigravity: feat(notifications): add persisted in-app notifications and authenticated SignalR hub. Tách từng file/thay đổi chức năng theo quy tắc hiện hành; chỉ là gợi ý, Codex không commit.
+
+## TASK-27 / TASK-26 / NOTIFY-AUTH-001 — Outbox, RabbitMQ, retry và thu hồi kết nối
+
+- Hoàn tất phần code có thể triển khai local: 2026-10-12 08:23 UTC+07:00 (Asia/Saigon).
+- Chủ dự án xác nhận chưa chọn nhà cung cấp SMS/Email. TASK-26 chưa hoàn tất tích hợp nhà cung cấp: SMTP adapter có code, SMS có interface/Blocked adapter; chưa gửi thật, chưa kiểm chứng sandbox/provider. Không gắn nhãn SMS đã hoàn thành.
+- TASK-27 đã có Workflow -> Outbox -> RabbitMQ -> Inbox -> notification/delivery -> SignalR, kiểm thử broker/PostgreSQL/WebSocket thật. Không tạo/gửi dữ liệu thật.
+
+### Nghiệp vụ / tính toàn vẹn
+
+- Workflow SaveChangesAsync ghi event trong cùng transaction với status history/comment mới. DRAFT không phát event. Submit, resubmit, assign/UNDER_REVIEW, revision request, approve, reject và comment mới đều được capture qua history/comment; không phát lại lịch sử cũ.
+- Event v1 chỉ chứa mã định danh/phường/trạng thái/thời điểm, không chứa nội dung form, CCCD, email/phone hoặc JWT.
+- Outbox publisher persistent messages + mandatory routing + publisher confirms (deadline 10 giây). Broker gián đoạn không làm fail nghiệp vụ Workflow; Outbox giữ và retry khi bật lại.
+- Consumer ACK sau lưu Inbox; EventId PK chống giao trùng. Invalid schema/version đi broker dead queue; lỗi xử lý đã vào Inbox giữ Pending/Dead trong DB. Inbox và delivery worker retry tối đa 10 lần với backoff tới 300 giây. Outbox không tự bỏ sự kiện chưa gửi.
+- Notification và các delivery tạo trong cùng transaction, unique index chống trùng. CreateAsync nội bộ cũng lưu IN_APP delivery để worker gửi sau commit. Trạng thái gửi: Pending/Sent/Blocked/Suppressed/Dead. Sent là transport chấp nhận, không phải xác nhận người nhận đọc và không bảo đảm exactly-once.
+- IAM directory nội bộ dùng khóa riêng constant-time, chỉ active users; danh sách theo phường chỉ FD có workflow.queue.read. Trước gửi kiểm tra lại tài khoản/phường; không còn phù hợp thì Suppressed. Danh sách/unread/mark-read loại thông báo thuộc phường cũ.
+- Connection guard kiểm IAM trước invocation, trước worker gửi realtime, và mỗi 15 giây (5–300 cấu hình): role/permission/phường thay đổi, khóa tài khoản, IAM unavailable -> remove groups + abort. Không gọi đây là thu hồi tức thì; bounded polling còn phụ thuộc timeout/số connection.
+- Email SMTP dùng STARTTLS, mặc định disabled; cấu hình thiếu -> Blocked, lỗi gửi -> retry/Dead. Chưa có delivery receipts. Timeout SMTP có thể gây gửi trùng khi retry.
+- SMS mặc định disabled, ISmsSender chưa gắn nhà cung cấp; adapter trả Blocked. Không giả lập Sent.
+
+### API / DTO / FE
+
+- Hub /hubs/notifications và methods/events giữ hợp đồng TASK-25. FE khử trùng notification.id, reconnect bằng access token hiện hành, refetch danh sách/count sau reconnect. SignalR invocation errors tiếng Việt, không phải ProblemDetails mỗi message.
+- POST /internal/v1/notification-recipients mới trên IAM: header X-Notification-Service-Key; body {userIds: Guid[] tối đa 10, wardCode?: string <=50, page: int 1..10000}; mỗi trang 200, active users. 200 -> [{userId,email,phoneNumber,wardCode,isOfficer}], 400 filter sai, 401 khóa sai/thiếu, 503 chưa cấu hình khóa. Không dành cho browser, ẩn khỏi Swagger công khai; Cache-Control no-store. WardCode chuẩn hóa trim/uppercase.
+- Không có endpoint công khai tự tạo thông báo hay replay. Hướng dẫn DBA requeue từng Dead/Blocked đã đối soát nằm trong docs/notifications-operations.md; không reset Sent/Processed.
+
+### File mới/chỉnh sửa (tương đối từ repository)
+
+BuildingBlocks:
+- src/BuildingBlocks/WardMate.EventBus/WardMate.EventBus.csproj
+- src/BuildingBlocks/WardMate.EventBus/WorkflowEvent.cs (mới)
+- src/BuildingBlocks/WardMate.EventBus/RabbitTransport.cs (mới)
+
+Workflow (prefix src/Services/WardMate.Services.ApplicationWorkflow/):
+- WardMate.Services.ApplicationWorkflow.API/WardMate.Services.ApplicationWorkflow.API.csproj
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WardMate.Services.ApplicationWorkflow.Infrastructure.csproj
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDbContext.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/ProcedureCatalogClient.cs
+- WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowOutbox.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261012010910_WorkflowNotificationOutbox.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261012010910_WorkflowNotificationOutbox.Designer.cs (mới)
+- WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/WorkflowDbContextModelSnapshot.cs
+
+AnalyticsSystem (prefix src/Services/WardMate.Services.AnalyticsSystem/):
+- WardMate.Services.AnalyticsSystem.Domain/Notification.cs
+- WardMate.Services.AnalyticsSystem.Application/Notifications.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/WardMate.Services.AnalyticsSystem.Infrastructure.csproj
+- WardMate.Services.AnalyticsSystem.Infrastructure/DependencyInjection.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationDbContext.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationService.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationHub.cs
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationPipelineModels.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/WorkflowNotificationConsumer.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationInboxWorker.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationDeliveryWorker.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/ExternalNotificationSender.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/NotificationConnectionGuard.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/20261012010837_ReliableNotificationDelivery.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/20261012010837_ReliableNotificationDelivery.Designer.cs (mới)
+- WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/NotificationDbContextModelSnapshot.cs
+
+IAM (prefix src/Services/WardMate.Services.IAM/):
+- WardMate.Services.IAM.Application/Accounts/NotificationRecipients.cs (mới)
+- WardMate.Services.IAM.Infrastructure/Persistence/NotificationRecipients.cs (mới)
+- WardMate.Services.IAM.Infrastructure/DependencyInjection.cs
+- WardMate.Services.IAM.API/Controllers/NotificationRecipientsController.cs (mới)
+
+Kiểm thử/cấu hình/tài liệu:
+- tests/WardMate.Services.ApplicationWorkflow.Tests/NotificationOutboxTests.cs (mới, 3 cases)
+- tests/WardMate.Services.IAM.Tests/NotificationRecipientsTests.cs (mới, 1 case)
+- tests/WardMate.Services.IAM.Tests/IamFixture.cs
+- docker/docker-compose.yml
+- docker/.env.example
+- docs/api-guide.md
+- docs/azure-deployment.md
+- docs/notifications-operations.md (mới)
+- PROGRESS.md
+
+### Kiểm chứng
+
+- Release build toàn solution --no-restore -warnaserror -m:1: 0 errors, 0 warnings.
+- Suite cuối: 222/222 PASS, 0 failed/0 skipped (Procedure 99, DocumentForm 76, Workflow 39, IAM 8). Thêm 4 integration cases trong projects hiện có; không tạo test project mới trong repository.
+- Harness tạm ngoài repository: 23/23 checks PASS với PostgreSQL16 riêng theo service, RabbitMQ thật và Kestrel/SignalR WebSocket. IAM contact lookup được stub trong harness; endpoint IAM được test riêng ở suite, không tuyên bố toàn bộ service IAM thật nằm trong lượt harness.
+- Harness kiểm chứng: DRAFT không event; submit atomic; event đi broker; đúng owner/ward; duplicate EventId; invalid message DLQ; durable deliveries; realtime; SMTP/SMS unconfigured Blocked; transfer/ban/permission changes đóng connection; lọc lịch sử phường; retry/exhaustion/replay; dừng/khởi động RabbitMQ giữ và phục hồi Outbox; delivery backoff và retry.
+- EF has-pending-model-changes Workflow/Analytics: không có thay đổi model thiếu migration. EF Analytics dùng design-time factory do không cung cấp connection string runtime cho CLI; không tác động DB deploy.
+- docker compose --env-file docker/.env -f docker/docker-compose.yml --profile notifications config --quiet: PASS.
+- Lượt đầu tests lỗi vì Docker Engine tắt; đã khởi động Engine và chạy lại. Lỗi chuẩn hóa WardCode trong test mới được sửa trước lượt cuối. Harness readiness RabbitMQ được sửa để không tạo Erlang cookie bằng root trong lúc startup; retry test chờ đúng hàng của nhiều kênh. Không giấu các lượt chưa đạt.
+- Test containers được dọn sau test; không build Docker image ứng dụng, không khởi động stack ứng dụng bằng Compose, không chạy Git.
+
+### Bàn giao / việc còn thiếu
+
+- Chưa deploy Azure hoặc migrate database ứng dụng đang dùng. Phải triển khai IAM + secret S2S, hai migration, broker persistent và cấu hình workers trước khi kiểm thử cloud.
+- Chưa có nhà cung cấp/credentials Email/SMS: cần xác nhận nhà cung cấp, From/Brandname, sandbox, adapter SMS và receipt contract. TASK-26 là hoàn thành hạ tầng/SMTP adapter local, chưa hoàn thành dịch vụ gửi thật.
+- Kiểm thử tích hợp trên môi trường deploy chưa làm vì code/images mới chưa được triển khai bởi chủ dự án/Antigravity. Checklist có tại docs/notifications-operations.md.
+- Single replica SignalR vẫn là giới hạn; chưa có backplane/Azure SignalR. Chưa có retention job hoặc API quản trị queue; không tự xóa Inbox chống trùng.
+- docker/.env không bị sửa trong task này. Điền NOTIFICATIONS_ENABLED, NOTIFICATIONS_SERVICE_KEY, RABBITMQ_PASSWORD và password DB theo runbook; Email/SMS giữ tắt khi chưa có provider.
+- Commit gợi ý cho Antigravity (tách mỗi file/chức năng theo quy tắc): feat(notifications): add durable workflow event pipeline and connection revalidation; feat(notifications): add configurable SMTP delivery and SMS provider contract; test(notifications): verify transactional outbox and scoped recipients; docs(notifications): document retry and deployment operations.
+
+## BE-TASK-PROCEDURE-GEMINI-AI — Kết nối Gemini cho bóc tách thủ tục
+- Hoàn thành phần adapter/cấu hình: 2026-10-12 23:53 +07:00 (Asia/Saigon).
+- Sửa: src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/AzureProcedureDocumentExtractor.cs;
+  docker/docker-compose.yml; docker/.env.example; docs/api-guide.md; PROGRESS.md.
+- Tạo: tests/WardMate.Services.ProcedureCatalog.IntegrationTests/GeminiExtractionTests.cs.
+- Chọn Extraction:Provider=Gemini, dùng Gemini:Key/Model riêng, endpoint Google cố định và Bearer;
+  mặc định AzureOpenAI giữ hành vi cũ. Từ chối choices rỗng và kết quả bị cắt.
+- Không thêm endpoint/migration; preview POST multipart PDF trả 200, tạo draft POST multipart PDF trả 202.
+  Giữ quyền/token và luồng review/publish. FE hiển thị warnings và chọn categoryId.
+- Build Release --no-restore -warnaserror: 0 lỗi, 0 cảnh báo.
+- Test mới 3 cases; kiểm thử adapter Azure/Gemini 6/6; toàn solution 225/225 passed
+  (Procedure 102, DocumentForm 76, Workflow 39, IAM 8).
+- Lần test sandbox ban đầu không hoàn tất; dừng và chạy lại thành công ngoài sandbox.
+- Chưa gọi Gemini thật (chưa có key/model), chưa đánh giá độ chính xác với PDF thật;
+  chưa deploy, chưa build Docker, không chạy Git. OCR scan vẫn cần provider OCR riêng.
+- Không cam kết AI luôn trả đủ dữ liệu hoặc gói miễn phí; cần test thực tế sau khi cấu hình.
+
+## FIX-PDF-SPARSE-PAGES — Không chặn AI vì trang ít chữ
+- Hoàn thành 2026-10-13 00:18 UTC+07:00 (Asia/Saigon).
+- Sửa src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/TextFirstProcedureExtractor.cs:
+  tiếp tục map văn bản sang payload khi OCR tắt và tổng chữ/số >=20; giữ cảnh báo trang thiếu chữ.
+  Phân biệt cảnh báo quota, key/quyền, timeout, lỗi AI; không lộ response/key nhà cung cấp.
+- Sửa tests/WardMate.Services.ProcedureCatalog.IntegrationTests/TextPdfExtractionTests.cs:
+  cập nhật 2 cases PDF trống không gọi AI và PDF hỗn hợp vẫn điền title từ AI, giữ cảnh báo.
+- Sửa docs/api-guide.md và PROGRESS.md. Không thêm API/migration; request/status/quyền không đổi.
+- Release build: 0 lỗi, 0 cảnh báo. Toàn solution 225/225 passed; không tạo test project mới.
+- FE dùng payload điền form, hiển thị warnings, chọn categoryId và đối soát trước publish.
+- Chưa test gọi Gemini thật với PDF của người dùng; tests dùng HTTP giả lập. Không build Docker, deploy hoặc Git.
+
+## FIX-AI-TRANSIENT — Chẩn đoán và retry Gemini 503
+- Hoàn thành sửa local: 2026-10-13 00:50 UTC+07:00 (Asia/Saigon).
+- Log container xác nhận 3 lần 503. Request chẩn đoán rất ngắn dùng key/model từ .env trả HTTP 200;
+  không in secret, không đổi model/billing. Chưa xác nhận request PDF 30 trang thành công.
+- Sửa AzureProcedureDocumentExtractor.cs và TextFirstProcedureExtractor.cs tại
+  src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/:
+  retry 502/503/504 tối đa 2 lần, chờ 2/4 giây, giữ cancellation; cảnh báo 503 cụ thể.
+- Sửa tests/WardMate.Services.ProcedureCatalog.IntegrationTests/GeminiExtractionTests.cs:
+  thêm 1 case hai lần 503 rồi 200. Toàn solution 226/226 passed. Release build 0 lỗi/0 cảnh báo.
+- Cập nhật docs/api-guide.md và PROGRESS.md. Không đổi endpoint/request/status/token/quyền;
+  FE tiếp tục hiển thị warnings khi AI không trả payload. Không retry quota hoặc tự bật billing.
+- Không Git, không build Docker, không deploy. Cần người dùng rebuild AIOCR và kiểm thử PDF thực tế.
+
+## AI-RESPONSE-DIAGNOSTICS — 2026-10-13 01:06:42 +07:00 (Asia/Saigon)
+- Lỗi mới: provider HTTP 200 nhưng MapText rơi vào fallback; không còn là 503.
+- Tái hiện trực tiếp cùng extractedText: HTTP 200, finish_reason stop, payload/warnings hợp lệ,
+  procedureCode 1.116905. Chưa tái hiện exception của request container; không khẳng định đã sửa nguyên nhân.
+- Sửa TextFirstProcedureExtractor.cs: cảnh báo riêng JSON sai, thiếu trường, InvalidDataException
+  (thông báo kiểm tra nội bộ), cấu hình/kiểu dữ liệu sai. Không in key/response thô.
+- Release build 0 lỗi/0 cảnh báo; 14/14 tests PDF/adapter passed, không thêm tests.
+- Cập nhật docs/api-guide.md và PROGRESS.md. API/status/token không đổi. FE cần hiển thị warnings.
+- Chưa build Docker/Git/deploy. Cần xác minh request qua container sau cập nhật.
+
+
+## MAIN-NGHIA-SYNC — 2026-10-13T23:57:15.973885+07:00 (Asia/Saigon)
+Owner explicitly authorized Codex Git exception for this synchronization. Fetched origin; nghia had43 commits absent from main and main had35 absent from nghia. Merged origin/main into nghia without squash, preserving all original commits. Resolved PROGRESS history conflict by retaining both histories; DocumentForm API Program.cs retains main CORS before nghia JWT authentication/authorization. docs/api-guide.md auto-merged preserving both service guides. No new business API/DTO/token changes in this merge.
+Verification: solution-wide Release build0 errors/0 warnings; existing tests226 passed,0 failed,0 skipped (ProcedureCatalog103, DocumentForm76, ApplicationWorkflow39, IAM8). Docker wardmate-documentform:main-sync-20261013 built0 errors/0 warnings. Local container wardmate-main-sync-preview localhost15044: health200, OpenAPI200, templates without token401. Uses a temporary local JWT key, migrations disabled; smoke does not claim authenticated business end-to-end acceptance.
+In-progress application-document linkage is preserved separately in stash (message codex: preserve in-progress application document linking before main sync); it is NOT part of this merge or deployed. Must reconcile with the newly fetched Workflow before reapplying, rather than blindly restoring old source. Azure unchanged.
+Main remote push awaits owner Docker acceptance under AGENTS.md release gate; local main may advance by fast-forward to this merge. No force-push. Suggested/used Conventional Commit: chore(repo): merge main and nghia service updates.

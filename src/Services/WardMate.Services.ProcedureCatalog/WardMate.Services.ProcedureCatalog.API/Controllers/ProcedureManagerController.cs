@@ -11,7 +11,7 @@ namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 
 [ApiController]
 [Route("api/v1/procedure-manager/procedures")]
-[Authorize(Policy = "ProcedureManager")]
+[Authorize]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
 public sealed class ProcedureManagerController(ISender sender) : ControllerBase
@@ -20,12 +20,14 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ProcedureDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Policy = "procedure.publish")]
     public async Task<IActionResult> Publish(ReviewedProcedureInput input, CancellationToken ct) =>
         Respond(await sender.Send(new PublishReviewedProcedureCommand(input), ct));
 
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<ProcedureManagerSummaryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = "procedure.read")]
     public async Task<IActionResult> List(CancellationToken ct, [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] int? categoryId = null,
         [FromQuery] bool? isActive = null, [FromQuery] string? levelOfImplementation = null,
@@ -38,6 +40,7 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ProcedureDetailDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Policy = "procedure.create")]
     public async Task<IActionResult> Create(ProcedureInput input, CancellationToken ct)
     {
         var result = await sender.Send(new CreateProcedureCommand(input), ct);
@@ -49,6 +52,7 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Policy = "procedure.update")]
     public async Task<IActionResult> Update(Guid id, UpdateProcedureInput input, CancellationToken ct) =>
         Respond(await sender.Send(new UpdateProcedureCommand(id, input), ct));
 
@@ -56,6 +60,7 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ProcedureStatusDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Policy = "procedure.status")]
     public async Task<IActionResult> Toggle(Guid id, ToggleStatusRequest input, CancellationToken ct)
     {
         if (input.IsActive is null)
@@ -67,20 +72,24 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
     [HttpGet("{id:guid}/versions")]
     [ProducesResponseType(typeof(IReadOnlyList<ProcedureVersionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Policy = "procedure.versions.read")]
     public async Task<IActionResult> Versions(Guid id, CancellationToken ct) =>
         Respond(await sender.Send(new GetProcedureVersionsQuery(id), ct));
 
     [HttpGet("{id:guid}")]
     [ProducesResponseType<ProcedureDetailDto>(200)]
+    [Authorize(Policy = "procedure.read")]
     public async Task<IActionResult> Detail(Guid id, CancellationToken ct) => Respond(await sender.Send(new ManagerDetailQuery(id), ct));
 
     [HttpPost("{id:guid}/versions/{versionNumber:int}/rollback")]
     [ProducesResponseType<ProcedureDetailDto>(200)]
+    [Authorize(Policy = "procedure.rollback")]
     public async Task<IActionResult> Rollback(Guid id, int versionNumber, RollbackInput input, CancellationToken ct) =>
         Respond(await sender.Send(new RollbackProcedureCommand(id, versionNumber, input, User.FindFirstValue("sub") ?? "unknown"), ct));
     [HttpGet("{id:guid}/versions/{versionId:guid}/source")]
     [ProducesResponseType<SourceLinkDto>(200)]
     [ProducesResponseType<ProblemDetails>(503)]
+    [Authorize(Policy = "procedure.source.read")]
     public async Task<IActionResult> Source(Guid id, Guid versionId, CancellationToken ct)
     {
         Response.Headers.CacheControl = "no-store";
@@ -101,4 +110,5 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
 }
 
 public sealed record ToggleStatusRequest(bool? IsActive, string? Reason);
+
 

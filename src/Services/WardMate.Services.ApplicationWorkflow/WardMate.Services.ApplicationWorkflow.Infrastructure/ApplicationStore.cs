@@ -23,7 +23,7 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         var items = await source.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
             .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId,
-                x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt)).ToArrayAsync(ct);
+                x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode)).ToArrayAsync(ct);
         return new(items, page, pageSize, count);
     }
     public async Task<WorkflowResult<ApplicationDto>> WithLock(Guid userId, Guid applicationId,
@@ -41,6 +41,7 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         if (result.Error is not null) return result;
         // New history has an application-generated Guid, so explicitly mark it as an INSERT.
         db.StatusHistory.AddRange(application.History.Where(x => !existingHistoryIds.Contains(x.Id)));
+        db.Versions.AddRange(application.Versions);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return result;
@@ -51,3 +52,4 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         return $"HS-{now.AddHours(7):yyyyMMdd}-{sequence:D8}";
     }
 }
+

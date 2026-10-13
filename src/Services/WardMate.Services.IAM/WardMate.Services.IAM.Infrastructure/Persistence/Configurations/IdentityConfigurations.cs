@@ -12,6 +12,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         b.ToTable("users");
         b.HasKey(x => x.Id);
         b.HasOne(x => x.Ward).WithMany().HasForeignKey(x => x.WardId).OnDelete(DeleteBehavior.Restrict);
+        b.Property(x => x.AssignedCategories).HasColumnType("integer[]").HasDefaultValueSql("ARRAY[]::integer[]");
         b.Property(x => x.Username).HasMaxLength(100).IsRequired();
         b.HasIndex(x => x.Username).IsUnique();
         b.Property(x => x.Email).HasMaxLength(255).IsRequired();
@@ -111,3 +112,4 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
         b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 }
+

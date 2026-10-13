@@ -17,6 +17,7 @@ namespace WardMate.Services.IAM.API.Controllers;
 [ProducesResponseType<ProblemDetails>(409)]
 public sealed class AccountsController(ISender sender) : ControllerBase
 {
+    [Authorize(Policy = "iam.accounts.read")]
     [HttpGet, ProducesResponseType<AccountPage>(200)]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
     {
@@ -24,6 +25,7 @@ public sealed class AccountsController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
     }
 
+    [Authorize(Policy = "iam.accounts.read")]
     [HttpGet("{userId:guid}")]
     [ProducesResponseType<AccountDto>(200)]
     public async Task<IActionResult> Get(Guid userId, CancellationToken ct)
@@ -33,6 +35,7 @@ public sealed class AccountsController(ISender sender) : ControllerBase
     }
 
     public sealed record AccountStatusInput(bool? IsActive);
+    [Authorize(Policy = "iam.accounts.manage")]
     [HttpPut("{userId:guid}/status")]
     [ProducesResponseType(204)]
     public async Task<IActionResult> Status(Guid userId, AccountStatusInput input, CancellationToken ct)
@@ -43,3 +46,4 @@ public sealed class AccountsController(ISender sender) : ControllerBase
         return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
     }
 }
+

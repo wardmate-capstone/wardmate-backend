@@ -1,4 +1,4 @@
-# WardMate — Chức năng và hướng dẫn sử dụng API theo Service
+﻿# WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
 Cập nhật ngày **07/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả các
 API nghiệp vụ hiện có, các endpoint hệ thống và đường dẫn Gateway. Không phải xác nhận tình trạng deploy.
@@ -1416,7 +1416,7 @@ quyền nghiệp vụ. Health/root phục vụ nhận biết tiến trình, khô
     Swagger tương ứng.
 
 
-ApplicationWorkflow và AnalyticsSystem mới có root/health, chưa có API nghiệp vụ. Tổng cộng có 6 root và 7
+ApplicationWorkflow đã có API hồ sơ (xem mục TASK-11 bên dưới); AnalyticsSystem mới có root/health. Tổng cộng có 6 root và 7
 health endpoint theo host.
 
 ### Nhóm 5.2 — Các tuyến chuyển tiếp của Gateway (local: cổng 5000)
@@ -1512,7 +1512,7 @@ Docker/Azure dùng địa chỉ và port đã cấu hình cho môi trường đ�
 
 - **Thành phần:** Application Workflow
   - **Base URL trực tiếp:** `http://localhost:5003`
-  - **Swagger UI khi bật môi trường Development:** Chưa cấu hình
+  - **Swagger UI khi bật môi trường Development:** `http://localhost:5003/swagger`
 
 - **Thành phần:** Document Form
   - **Base URL trực tiếp:** `http://localhost:5004`
@@ -2296,7 +2296,7 @@ IAM, Procedure và DocumentForm bật Swagger trong Development: `GET /swagger/i
 `GET /swagger/v1/swagger.json` (OpenAPI). `/swagger` thường chuyển hướng vào giao diện. Không mặc định Swagger
 có trên Production.
 
-ApplicationWorkflow và AnalyticsSystem mới có root/health, chưa có controller nghiệp vụ. Không có endpoint
+ApplicationWorkflow đã có controller hồ sơ/cán bộ (xem mục TASK-11 bên dưới); AnalyticsSystem mới có root/health. Không có endpoint
 import CSV trong danh mục này.
 
 ## 9. Xử lý lỗi và trình tự tích hợp FE
@@ -2381,3 +2381,675 @@ API nên không dùng loopback của API; mặc định Docker Desktop dùng Dev
 Luồng editor mới không dùng checksum/schema cũ. Không cần cấu hình online-config trước khi tạo draft.
 Tên file có dấu/khoảng trắng được giải mã URL khi tải lại từ Blob. Backend lưu/tải nguyên bytes DOCX
 đã nhận, không thêm trang formData và không ghi đè mẫu khi người dân lưu đơn.
+## Bổ sung RBAC — Danh mục chức năng đã deploy (07/10/2026)
+
+Database IAM deploy đã được bổ sung 27 permission bằng migration DeployedFeaturePermissionCatalog,
+đưa tổng số permission lên 30. Không xóa/sửa ba permission cũ hoặc thu hồi các role-permission đã có.
+Không tạo quyền cho các chức năng chưa xác nhận deploy như Analytics, SMS, RAG hoặc phê duyệt toàn hồ sơ.
+
+Admin gọi GET /api/v1/rbac/permissions để lấy danh mục, GET /api/v1/rbac/roles/{roleId}/permissions
+để xem quyền của role. Dùng các API gán/gỡ permission hiện có; không đoán permissionId, lấy ID từ response.
+Tên quyền mới là tiếng Việt, module là IAM, ProcedureCatalog hoặc DocumentForm.
+
+**Quan trọng về hiệu lực:** Migration này cập nhật danh mục quyền và phân quyền mặc định trong IAM,
+không tự đổi authorization của các service. IAM vẫn dùng policy hiện có và phạm vi phường ở backend.
+Procedure hiện dùng role PROCEDURE_MANAGER/IT_ADMIN; gỡ một permission procedure.* chưa chặn riêng endpoint.
+DocumentForm đang nhận applicantId từ request và chưa tích hợp JWT theo code được kiểm tra; các permission
+DocumentForm mới chưa khắc phục vấn đề đó. Không dùng việc ẩn menu ở FE thay cho bảo vệ API.
+
+Access token đã phát hành không được sửa nội dung. Đăng nhập lại hoặc refresh qua IAM để nhận claim
+permissions cập nhật; GET /api/v1/users/me dùng để tải lại thông tin quyền cho giao diện.
+Dữ liệu public như danh sách thủ tục/danh mục vẫn là public, không yêu cầu thêm permission.
+Quyền document.submissions.* mô tả thao tác trên đơn của chính mình, không cấp quyền xem đơn người khác.
+
+Danh mục bổ sung và role được gán mặc định:
+- `iam.accounts.read` — Xem tài khoản và hồ sơ trong phạm vi quản lý.
+  Role: IT_ADMIN, MANAGER.
+
+- `iam.accounts.manage` — Quản lý tài khoản và hồ sơ trong phạm vi được phép.
+  Role: IT_ADMIN, MANAGER.
+
+- `iam.wards.read` — Xem phường trong phạm vi quản lý.
+  Role: IT_ADMIN, MANAGER.
+
+- `iam.wards.manage` — Tạo phường và phân công phường công tác.
+  Role: IT_ADMIN.
+
+- `iam.rbac.manage` — Quản trị vai trò và quyền toàn hệ thống.
+  Role: IT_ADMIN.
+
+- `iam.audit.read` — Xem nhật ký phân quyền.
+  Role: IT_ADMIN.
+
+- `procedure.read` — Xem toàn bộ thủ tục, kể cả đã ngừng công khai.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.create` — Tạo thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.update` — Cập nhật nội dung thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.publish` — Xuất bản dữ liệu thủ tục đã đối soát.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.status` — Bật hoặc tắt thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.versions.read` — Xem lịch sử phiên bản thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.rollback` — Khôi phục phiên bản thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.source.read` — Đọc PDF gốc của phiên bản lịch sử.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.categories.manage` — Thêm sửa xóa danh mục thủ tục.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.read` — Xem bản nháp và PDF đối soát.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.upload` — Tải PDF tạo bản nháp.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.update` — Sửa dữ liệu bản nháp.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.extract` — Đọc thử PDF và thử trích xuất lại.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.publish` — Xác nhận và xuất bản bản nháp.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `procedure.drafts.delete` — Xóa bản nháp chưa xuất bản.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `document.templates.read` — Tra cứu và tải biểu mẫu gốc.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+- `document.templates.manage` — Tạo biểu mẫu và tải DOCX gốc.
+  Role: IT_ADMIN, PROCEDURE_MANAGER.
+
+- `document.submissions.read` — Xem đơn điện tử của chính mình.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+- `document.submissions.write` — Tạo và sửa nháp đơn điện tử của chính mình.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+- `document.submissions.submit` — Chốt đơn điện tử của chính mình.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+- `document.submissions.download` — Tải DOCX đã điền của chính mình.
+  Role: IT_ADMIN, PROCEDURE_MANAGER, MANAGER, FRONT_DESK_OFFICER, REGISTERED_CITIZEN.
+
+
+## Application Workflow — TASK-11: thẩm định, yêu cầu sửa và nộp lại
+
+Swagger local: `http://localhost:5003/swagger` khi service chạy ở Development.
+Gateway chuyển tiếp nguyên route `/api/v1/applications/...` và
+`/api/v1/officer/applications/...` đến Workflow.
+Tất cả API dưới đây dùng `Authorization: Bearer <accessToken>` của IAM.
+
+### Luồng sử dụng
+
+1. Công dân tạo hồ sơ, hoàn tất checklist rồi gọi API `submit` hiện có.
+2. Lần nộp đầu tạo snapshot version 1 gồm form và toàn bộ checklist/file URL.
+3. Cán bộ Một cửa mở danh sách chờ và tự tiếp nhận bằng `assign`.
+4. Cán bộ xem version, tạo các nhận xét cụ thể, rồi gọi `request-revision`.
+5. Công dân đọc nhận xét, chỉnh dữ liệu trên FE và gửi toàn bộ dữ liệu qua `resubmit`.
+6. Backend tạo version kế tiếp, đóng nhận xét của phiên bản trước, chuyển về SUBMITTED.
+   Cán bộ cũ tiếp nhận lại và dùng `diff` để đối chiếu.
+
+Phạm vi quyền: các API `/officer/...` yêu cầu role `FRONT_DESK_OFFICER`.
+Cán bộ không được tự thẩm định hồ sơ của chính mình, không nhận hồ sơ đang thuộc cán bộ khác.
+API đọc comments/versions/diff chỉ cho chủ hồ sơ hoặc cán bộ đang thụ lý.
+IT_ADMIN/MANAGER không tự động có quyền thẩm định trong task này.
+JWT role được kiểm tra tại service; task này không thêm permission vào IAM deploy.
+
+Hiện Application chưa có phường tiếp nhận và JWT chưa cấp phạm vi phường cho luồng này.
+Danh sách chờ gồm hồ sơ chưa phân công và hồ sơ của chính cán bộ, chưa chia theo phường.
+Không được hiểu đây là cơ chế cách ly hồ sơ giữa các phường đã hoàn chỉnh.
+
+### Thay đổi tương thích của API hồ sơ hiện có
+
+- `POST /api/v1/applications`: vẫn nhận `{procedureId, caseCode?, formData}` và trả 201.
+  Theo yêu cầu ApplicationCode NOT NULL, mã HS nay được cấp ngay khi tạo DRAFT.
+  Mã không đổi khi submit/nộp lại; có thể có khoảng trống trong dãy mã.
+- `POST /api/v1/applications/{id}/submit`: vẫn trả 200, yêu cầu DRAFT và checklist
+  bắt buộc COMPLETED; nay lưu snapshot version 1 cùng transaction với lịch sử.
+- `GET /api/v1/applications/{id}`: chủ hồ sơ đọc được `assignedOfficerId`,
+  `resubmitCount`, `currentVersionNumber`, `notes`, `approvedAt` bổ sung.
+  DRAFT có currentVersionNumber = 0. Không chuyển form/checklist thành dữ liệu dùng chung.
+- API PATCH checklist cũ vẫn chỉ sửa DRAFT. Khi NEED_REVISION, FE gửi dữ liệu sửa
+  bằng resubmit để form và checklist được kiểm tra/lưu cùng nhau.
+- `userId` hiện có chính là CitizenId trong đặc tả; `history[].changedBy` là người
+  chuyển trạng thái. Giữ tên cũ để không phá hợp đồng FE.
+
+### GET /api/v1/officer/applications/pending
+
+**Dùng để làm gì:** danh sách công việc chờ của cán bộ, hồ sơ nộp lâu nhất đứng trước.
+
+**Cách gọi:** không có body. Query tùy chọn `status=SUBMITTED` hoặc `UNDER_REVIEW`,
+`procedureId`, `submittedFrom`, `submittedTo` (ISO 8601 có múi giờ), `page=1`, `pageSize=20`.
+Không truyền status lấy cả hai. Khoảng thời gian gồm hai đầu mút; nộp lại dùng thời điểm nộp mới.
+
+**Kết quả:** 200 `{items, page, pageSize, total}`; items là thông tin gọn, không có form/file.
+Trang rỗng vẫn 200. `pageSize` 1–100, page 1–1000000.
+
+**Dùng sai:** 400 nếu status ngoài hai giá trị, phân trang sai hoặc ngày bắt đầu sau ngày kết thúc.
+401 cần đăng nhập lại; 403 cần đúng role. Không dùng API này để lấy hồ sơ đã duyệt.
+
+### POST /api/v1/officer/applications/{id}/assign
+
+**Dùng để làm gì:** cán bộ tự nhận xử lý một hồ sơ SUBMITTED, chuyển sang UNDER_REVIEW.
+
+**Cách gọi:** không body; cán bộ được lấy từ `sub` của JWT, không nhận officerId từ FE.
+
+**Kết quả:** 200 `ReviewResultDto`, gồm `application`, `assignedOfficerId`,
+`resubmitCount`, `currentVersionNumber`. Ghi lịch sử chuyển trạng thái cùng transaction.
+
+**Dùng sai:** 404 không có hồ sơ; 403 tự nhận hồ sơ của mình/thiếu role;
+409 hồ sơ đã được nhận, đang trạng thái khác hoặc không có snapshot hợp lệ.
+Tải lại danh sách khi 409. Hai cán bộ nhận đồng thời chỉ một người thành công.
+
+### POST /api/v1/officer/applications/{id}/comments
+
+**Dùng để làm gì:** đánh dấu chính xác ô nhập hoặc giấy tờ cần sửa trên version hiện tại.
+
+**Cách gọi:** cán bộ đang thụ lý hồ sơ UNDER_REVIEW gửi:
+
+```json
+{
+  "versionNumber": 1,
+  "targetType": "FORM_FIELD",
+  "targetId": "/formData/fullName",
+  "fieldLabel": "Họ và tên",
+  "commentText": "Vui lòng nhập họ tên đúng theo giấy tờ."
+}
+```
+
+FORM_FIELD dùng đường dẫn JSON Pointer: `/formData/address/city`,
+`/formData/children/0/name`. Ký tự `/` trong tên key viết `~1`, `~` viết `~0`.
+Đích phải tồn tại trong snapshot và là giá trị lá (hoặc object/array rỗng).
+CHECKLIST_ITEM dùng UUID dòng checklist từ `application.checklists[].id`, không dùng code giấy tờ.
+TargetId tối đa 100 ký tự; label 255; commentText 4000, đều không rỗng.
+
+**Kết quả:** 200 ReviewResultDto; nhận xét OPEN gắn với phiên bản hiện tại.
+Gọi GET comments để lấy id/nội dung nhận xét vừa tạo.
+
+**Dùng sai:** 400 ô/giấy tờ không tồn tại hoặc nội dung sai;
+403 không phải cán bộ thụ lý; 409 trạng thái/version đã thay đổi. Tải lại versions trước khi bắt lỗi.
+Không dùng version cũ để đánh dấu dữ liệu mới.
+
+### POST /api/v1/officer/applications/{id}/request-revision
+
+**Dùng để làm gì:** gửi yêu cầu chỉnh sửa sau khi đã tạo nhận xét chi tiết.
+
+**Cách gọi:** cán bộ thụ lý gửi `{"reason":"Vui lòng bổ sung giấy tờ và sửa các ô đã đánh dấu."}`.
+Reason bắt buộc, tối đa 4000 ký tự.
+
+**Kết quả:** 200 ReviewResultDto, NEED_REVISION; reason lưu vào notes và lịch sử.
+
+**Dùng sai:** 409 nếu chưa có nhận xét OPEN của version hiện tại hoặc không còn UNDER_REVIEW.
+Tạo nhận xét trước. 403 nếu người gọi không thụ lý hồ sơ; 400 nếu lý do rỗng.
+
+### POST /api/v1/applications/{id}/resubmit
+
+**Dùng để làm gì:** chủ hồ sơ gửi dữ liệu đã sửa trong một lần nộp lại.
+
+**Cách gọi:** chỉ ở NEED_REVISION. Gửi toàn bộ formData mới và mọi dòng checklist,
+bao gồm cả dòng tùy chọn và dòng không đổi:
+
+```json
+{
+  "expectedVersionNumber": 1,
+  "formData": { "fullName": "Nguyễn Văn A" },
+  "checklists": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "status": "COMPLETED",
+      "fileUrl": "https://example.invalid/giay-to-da-sua.pdf",
+      "note": "Đã thay giấy tờ"
+    }
+  ]
+}
+```
+
+Dùng id thật của hồ sơ; ví dụ trên chỉ minh họa. Status PENDING hoặc COMPLETED.
+FileUrl HTTPS tối đa 500 ký tự, hoặc null để bỏ liên kết; note tối đa 4000 ký tự.
+FormData là object tối đa 64 KiB. Checklist rỗng `[]` chỉ khi hồ sơ không có checklist.
+Không thể thay đổi tiêu đề, tính bắt buộc hay thêm/bỏ checklist trong API này.
+
+**Kết quả:** 200 ReviewResultDto. ResubmitCount tăng một; snapshot version kế tiếp
+được tạo; nhận xét OPEN của version trước thành RESOLVED; hồ sơ về SUBMITTED,
+giữ cán bộ cũ và mã HS. RESOLVED có nghĩa đã nộp lại, chưa phải cán bộ duyệt nội dung sửa.
+Toàn bộ thao tác cùng transaction, không có trường hợp lưu nửa chừng.
+
+**Dùng sai:** 404 hồ sơ không thuộc bạn; 409 sai trạng thái hoặc expectedVersionNumber cũ;
+400 thiếu/trùng checklist, form không đúng hoặc URL sai; 422 checklist bắt buộc chưa COMPLETED,
+response `missingItems` chỉ ra giấy tờ cần hoàn tất. Không được chỉ gửi các ô đã sửa:
+các ô bị bỏ khỏi formData sẽ được xem là bị xóa và hiển thị trong diff.
+
+API chưa kiểm chứng nội dung file hay liên kết DocumentForm submission; COMPLETED là trạng thái
+đã khai báo. Không xem đây là bằng chứng giấy tờ đã được xác thực.
+
+### GET /api/v1/applications/{id}/comments
+
+**Dùng để làm gì:** công dân biết cần sửa gì; cán bộ xem các nhận xét của mình trên hồ sơ.
+
+**Cách gọi:** không body. Query `versionNumber=1`, `status=OPEN` hoặc `RESOLVED` tùy chọn.
+Không truyền bộ lọc sẽ nhận toàn bộ nhận xét của hồ sơ.
+
+**Kết quả:** 200 mảng CommentDto: id, applicationVersionId, versionNumber, officerId,
+targetType, targetId, fieldLabel, commentText, status, createdAt, updatedAt.
+Không có nhận xét phù hợp trả `[]`.
+
+**Dùng sai:** 404 ngoài phạm vi truy cập hoặc version không thuộc hồ sơ;
+400 số phiên bản/status sai. Nhận xét cũ vẫn còn để đối chiếu, không bị xóa khi nộp lại.
+
+### GET /api/v1/applications/{id}/versions
+
+**Dùng để làm gì:** lấy dữ liệu đóng băng cho màn hình xem hồ sơ và so sánh các lần nộp.
+
+**Cách gọi:** không body; chủ hồ sơ hoặc cán bộ thụ lý. Cán bộ cần assign trước khi đọc.
+
+**Kết quả:** 200 mảng VersionDto tăng dần theo versionNumber, gồm id, versionNumber,
+submittedBy, submittedAt và snapshotData (thông tin hồ sơ, formData, checklists/file URL).
+DRAFT chưa nộp trả `[]`. Snapshot không đổi khi các lần nộp sau sửa dữ liệu.
+
+**Dùng sai:** 404 hồ sơ không tồn tại hoặc không thuộc phạm vi. Không dùng thời điểm updatedAt
+của hồ sơ thay cho submittedAt của phiên bản; không gửi snapshotData vào API sửa trực tiếp.
+
+### GET /api/v1/applications/{id}/diff?fromVersion=1&toVersion=2
+
+**Dùng để làm gì:** xem những ô/giấy tờ đã đổi giữa hai lần nộp.
+
+**Cách gọi:** chọn hai số phiên bản của cùng hồ sơ; toVersion lớn hơn fromVersion.
+Chủ hồ sơ và cán bộ thụ lý được đọc.
+
+**Kết quả:** 200 mảng các thay đổi: fieldKey, fieldLabel, oldValue, newValue,
+hasChanged=true, associatedComments, oldExists, newExists.
+Không có thay đổi trả `[]`. Diff đi sâu vào object/array của form;
+checklist so theo UUID, không theo vị trí trong mảng. File URL đổi có fieldKey
+`/checklists/{uuid}/fileUrl`. Giá trị bị xóa được phân biệt với giá trị null qua cờ Exists.
+FieldLabel dùng nhãn nhận xét khi có, nếu không dùng đường dẫn fieldKey.
+AssociatedComments chỉ gồm nhận xét thuộc hai phiên bản đang đối chiếu.
+
+**Dùng sai:** 400 số phiên bản sai/thứ tự sai; 404 thiếu một phiên bản hoặc không có quyền đọc hồ sơ.
+So sánh chuỗi JSON nguyên văn trên FE có thể tạo khác biệt giả do thứ tự key; dùng kết quả API.
+
+### Migration và môi trường
+
+Migration `20261008004706_ApplicationReviewVersions` tạo application_versions/application_comments,
+FK ràng buộc comment thuộc đúng hồ sơ/version, unique `(application_id, version_number)` và index hàng chờ.
+Hồ sơ SUBMITTED cũ (API cũ đã khóa sửa) được backfill version 1 từ dữ liệu hiện có;
+DRAFT cũ được cấp mã, chưa tạo snapshot. Không tái dựng lịch sử không tồn tại.
+APPROVED/CANCELLED đã là trạng thái hợp lệ trong schema, chưa có API duyệt/hủy trong TASK-11.
+
+Connection key vẫn là `ConnectionStrings__WorkflowDatabase`. Cấu hình local hiện dùng database độc lập
+`wardmate_workflow_db`; giữ tên đang dùng để không làm mất kết nối dữ liệu cũ.
+Nếu môi trường mới dùng tên `wardmate_application_db` trong đặc tả, trỏ connection string đến database đó
+và chạy migration của Workflow. Không trỏ vào database IAM/Procedure.
+Chưa áp dụng migration trên Azure trong task này.
+
+
+## FE Vercel — cấu hình truy cập API (09/10/2026)
+
+Origin được cho phép: `https://wardmate-frontend.vercel.app` (không dấu `/` cuối).
+Policy dùng chung ở Gateway, IAM, Workflow, Procedure và DocumentForm; cho phép credentials,
+GET/POST/PUT/PATCH/DELETE/OPTIONS và Content-Type/Authorization/X-CSRF-Protection.
+Development vẫn mặc định hỗ trợ localhost:5173 và localhost:3000.
+Nếu có Cors__AllowedOrigins__* trên Azure, danh sách đó thay thế mặc định: phải thêm domain Vercel vào đó.
+
+IAM mặc định SameSite=None, HttpOnly và Secure. FE gọi login/refresh/logout với `credentials: 'include'`
+(axios: `withCredentials: true`) và `X-CSRF-Protection: 1` cho các POST auth.
+API cần quyền vẫn phải có Bearer token; CORS không cấp role hoặc bỏ authorization.
+Dùng một API origin nhất quán cho toàn bộ auth, ưu tiên Gateway và route `/api/v1/auth/...`.
+Cookie host-only không chuyển từ IAM trực tiếp sang Gateway. Trình duyệt chặn cookie bên thứ ba
+vẫn có thể chặn refresh; khi đó cần kiến trúc proxy/domain cùng site.
+
+Azure: cập nhật/deploy lại image chứa SharedKernel cho Gateway/IAM/Workflow/Procedure/DocumentForm.
+Nếu môi trường đã override cấu hình, đặt:
+
+```text
+Cors__AllowedOrigins__0=https://wardmate-frontend.vercel.app
+AuthCookie__SameSite=None
+AuthCookie__AllowInsecureLocalhost=false
+```
+
+Hai biến AuthCookie chỉ đặt tại IAM. Không cần thêm domain Azure API vào allowlist chỉ để Swagger cùng origin.
+Local HTTP nếu chủ động bật AllowInsecureLocalhost=true phải override SameSite=Strict hoặc Lax;
+không dùng cấu hình đó cho FE Vercel gọi Azure. Không có endpoint/DTO mới trong lần cập nhật này.
+
+## Hoàn thiện Tuần 1–4 — IAM directory, permission và hồ sơ theo phường (09/10/2026)
+
+Mục này cập nhật các giới hạn của TASK-11 phía trên: hàng đợi nay đã phân theo phường,
+đã có APPROVED/REJECTED và kiểm permission theo từng chức năng.
+Không thay đổi API DocumentForm của BE khác trong đợt này.
+
+### GET /api/v1/manager/officers
+
+**Mục đích:** Manager tìm cán bộ Một cửa do phường mình quản lý.
+
+**Quyền:** tài khoản MANAGER đang hoạt động, đã gán phường, có `iam.accounts.read`.
+Phạm vi được lấy từ database IAM; không tin WardCode do FE gửi để mở rộng quyền.
+
+**Cách gọi:** không body. Ví dụ:
+`/api/v1/manager/officers?wardCode=WARD_A&assignedCategory=1&page=1&pageSize=20`.
+Query tùy chọn: wardCode, assignedCategory (ID số nguyên của danh mục Procedure), search, role;
+page mặc định 1, pageSize mặc định 20 (tối đa 100).
+AssignedCategory lọc metadata lĩnh vực, không giới hạn cán bộ chỉ được thụ lý lĩnh vực đó.
+
+**Kết quả:** 200 `{items,page,pageSize,total}`. Mỗi item: id, username, email, fullName,
+identityNumber, isActive, wardCode, roles[], assignedCategories[]. Không trả passwordHash/token.
+Chỉ cán bộ thuộc phường Manager và không kiêm vai trò đặc quyền ngoài FD/Citizen được hiển thị.
+Lọc sang phường khác trả danh sách rỗng; phạm vi áp dụng trước total/phân trang.
+
+**Dùng sai:** 400 khi page/pageSize/category sai; 401 chưa đăng nhập/tài khoản bị khóa;
+403 thiếu permission, không phải Manager hoặc chưa có phường. Kiểm tra tài khoản/phường với Admin.
+
+### GET /api/v1/admin/users
+
+**Mục đích:** IT_ADMIN tra cứu toàn bộ người dùng kể cả tài khoản bị khóa.
+
+**Quyền:** IT_ADMIN có `iam.accounts.read`. Manager không dùng API này.
+
+**Cách gọi:** không body; query `search` tìm chuỗi trong họ tên, email hoặc CCCD,
+`role=FRONT_DESK_OFFICER`, `page`, `pageSize`; có thể thêm wardCode/assignedCategory.
+Search không phân biệt hoa thường; `%` và `_` được hiểu là ký tự tìm kiếm, không là wildcard.
+
+**Kết quả:** 200 DirectoryPage giống API cán bộ; tìm không có kết quả trả items rỗng, total=0.
+
+**Dùng sai:** 403 thiếu quyền/không phải IT_ADMIN; 400 từ khóa quá 255 ký tự hoặc phân trang sai.
+Không sử dụng API này để lấy mật khẩu hay dữ liệu token.
+
+### PUT /api/v1/manager/officers/{userId}/categories
+
+**Mục đích:** Manager/Admin cập nhật metadata lĩnh vực phụ trách phục vụ bộ lọc cán bộ.
+
+**Quyền:** `iam.accounts.manage` và phạm vi quản lý hiện có; Manager chỉ sửa FD của phường mình.
+
+**Cách gọi:** body `{"categories":[1,2]}`. Mã là ID danh mục từ Procedure Catalog.
+Mảng thay thế toàn bộ metadata hiện tại; `[]` xóa danh sách lĩnh vực.
+Đây là logical reference, không tạo khóa ngoại sang database Procedure và không giới hạn queue theo lĩnh vực.
+Backend kiểm mã nguyên dương, không trùng, tối đa 100; chưa xác minh sự tồn tại qua service Procedure.
+FE nên chọn từ API danh mục thay vì nhập ID tự do.
+
+**Kết quả:** 204 không body; gọi lại danh sách cán bộ để thấy thay đổi.
+
+**Dùng sai:** 400 mảng null/mã âm/trùng/quá giới hạn; 404 không có FD trong phạm vi được phép;
+403 thiếu permission. Không dùng API này để chuyển phường hoặc cấp role.
+
+### GET /api/v1/wards
+
+**Mục đích:** cung cấp danh sách phường/xã tiếp nhận để công dân chọn khi tạo hồ sơ.
+
+**Cách gọi:** công khai, không body. Trả 200 `[{id,code,name}]` sắp xếp theo code.
+Đây là các phường đã tạo trong IAM, không tự đồng bộ danh mục hành chính quốc gia.
+Danh sách rỗng cần Admin tạo phường qua API quản trị hiện có.
+
+### GET /api/v1/users/access-context
+
+**Mục đích:** Workflow xác minh quyền và phường hiện hành của người đang gửi request.
+
+**Cách gọi:** Bearer token IAM; không nhận userId/ward từ query hoặc body.
+
+**Kết quả:** 200 `{userId,wardCode,roles,permissions}`, Cache-Control no-store.
+401 nếu token không hợp lệ hoặc tài khoản bị khóa/không tồn tại.
+Đây là ngữ cảnh của chính người đăng nhập, không phải API tra quyền tùy ý của người khác.
+
+### Tạo hồ sơ và hàng đợi theo phường
+
+`POST /api/v1/applications` vẫn dùng workflow.create, nay **bắt buộc wardCode**:
+
+```json
+{
+  "procedureId": "11111111-1111-1111-1111-111111111111",
+  "wardCode": "WARD_A",
+  "caseCode": null,
+  "formData": { "fullName": "Nguyễn Văn A" }
+}
+```
+
+Chọn mã thật từ GET /api/v1/wards; thay procedureId bằng ID thủ tục đang hoạt động.
+Mã được trim/viết hoa. 400 application.invalid_ward nếu không tồn tại;
+503 application.iam_unavailable nếu không xác minh được IAM, không bỏ qua kiểm tra.
+WardCode lưu vào hồ sơ, snapshot mới, detail và summary. Không lấy phường cư trú của công dân
+làm phường tiếp nhận tự động và không cho FE thay phường khi resubmit.
+
+GET /api/v1/officer/applications/pending chỉ thấy SUBMITTED/UNDER_REVIEW đúng WardCode hiện hành,
+chưa có cán bộ hoặc đã thuộc chính cán bộ đó. Bộ lọc status/procedure/date/paging/FIFO giữ nguyên.
+Thiếu phường trả danh sách rỗng; cán bộ khác phường không được assign, comment, request-revision,
+approve/reject hoặc đọc phiên bản/diff của hồ sơ không thuộc mình.
+
+Workflow gọi IAM bằng token của request để cập nhật permissions/ward/roles trước authorization.
+Chuyển phường/thu hồi quyền/khóa tài khoản có hiệu lực ở request tiếp theo, không chờ token hết hạn.
+IAM không truy cập được trả 503; không quay về dùng quyền/phường cũ trong JWT.
+Cấu hình Workflow `Iam__BaseUrl` (Compose: http://iam-api:8080/; chạy trực tiếp mặc định localhost:5001).
+
+Hồ sơ cũ được giữ WardCode=null vì không đủ dữ liệu xác định phường. Các hồ sơ này bị loại khỏi queue,
+DRAFT thiếu phường không được submit (409 application.ward_required). Cần kế hoạch bổ sung địa bàn
+có kiểm chứng trước khi đưa hồ sơ cũ vào vận hành; migration không tự gán toàn bộ vào một phường.
+
+### POST /api/v1/officer/applications/{id}/approve
+
+**Mục đích:** chấp thuận chính thức hồ sơ đã được thẩm định.
+
+**Quyền:** `workflow.approve`, cán bộ FD đang thụ lý và cùng phường tiếp nhận;
+không được duyệt hồ sơ của chính mình.
+
+**Cách gọi:** không body. Hồ sơ phải UNDER_REVIEW và không có nhận xét OPEN của version hiện tại.
+
+**Kết quả:** 200 ReviewResultDto, status APPROVED, approvedAt UTC; ghi một dòng lịch sử cùng transaction.
+Giữ nguyên snapshot đã nộp và đóng mọi đường sửa/checklist/comment/nộp lại của hồ sơ đã duyệt.
+
+**Dùng sai:** 403 sai quyền/phường/người thụ lý; 404 không có hồ sơ;
+409 sai trạng thái, thiếu snapshot hoặc application.open_comments.
+Nếu còn lỗi, dùng request-revision để công dân sửa; không tự đánh dấu đã duyệt khi nhận 409.
+
+### POST /api/v1/officer/applications/{id}/reject
+
+**Mục đích:** từ chối chính thức và kết thúc hồ sơ, khác yêu cầu sửa để nộp lại.
+
+**Quyền:** `workflow.reject`, FD thụ lý đúng phường, không là chủ hồ sơ.
+
+**Cách gọi:** ở UNDER_REVIEW, body `{"reason":"Không đáp ứng điều kiện theo quy định."}`.
+Reason bắt buộc, không chỉ khoảng trắng, tối đa 4000 ký tự.
+
+**Kết quả:** 200 ReviewResultDto, status REJECTED, notes/lịch sử có lý do, approvedAt vẫn null.
+Không cho nộp lại hồ sơ REJECTED. Nếu cần bổ sung thì dùng request-revision thay vì reject.
+
+**Dùng sai:** 400 thiếu lý do; 403 sai phạm vi/quyền; 409 không còn UNDER_REVIEW.
+Hai quyết định đồng thời chỉ một thành công; yêu cầu còn lại 409, FE tải lại kết quả.
+
+### Permission đang được thực thi
+
+IAM kiểm quyền từ DB tại request; giữ các ràng buộc phạm vi/anti-escalation có sẵn.
+- Xem tài khoản/người dùng/hồ sơ quản trị: iam.accounts.read.
+- Tạo FD, sửa trạng thái/hồ sơ, cấp/gỡ role FD, gán lĩnh vực: iam.accounts.manage.
+- Xem phường quản trị: iam.wards.read; tạo/gán phường: iam.wards.manage.
+- Quản trị role/permission: iam.rbac.manage; audit: iam.audit.read.
+- Hồ sơ cá nhân vẫn iam.profile.read/iam.profile.write.
+
+Procedure không còn cho phép role IT_ADMIN/PROCEDURE_MANAGER tự vượt kiểm tra permission.
+Dùng 15 mã đã seed: procedure.read/create/update/publish/status, procedure.versions.read,
+procedure.rollback, procedure.source.read, procedure.categories.manage,
+procedure.drafts.read/upload/update/extract/publish/delete.
+API biểu mẫu chọn cho Procedure dùng procedure.read; API public vẫn công khai.
+Procedure đọc permissions từ JWT: đăng nhập/refresh sau khi thay grant; token cũ có quyền cũ đến hết hạn.
+
+Workflow dùng 14 mã mới: workflow.create/read/checklist.write/submit/resubmit,
+workflow.comments.read/versions.read/diff.read, workflow.queue.read/assign/comments.write,
+workflow.revision.request/approve/reject. Mỗi endpoint cần mã tương ứng cùng phạm vi chủ hồ sơ/cán bộ.
+Migration IAM cấp 8 quyền cá nhân/đọc trong phạm vi cho 5 role chuẩn; 6 quyền thẩm định chỉ cho FD.
+IT_ADMIN/MANAGER không tự có quyền thẩm định toàn hệ thống.
+
+### Triển khai thay đổi
+
+1. Áp dụng migration IAM OfficerDirectoryCategories: assigned_categories và 14 permission Workflow.
+2. Deploy IAM có access-context/wards trước khi deploy Workflow phụ thuộc hai API này.
+3. Áp dụng migration Workflow WardScopedFinalDecisions (WardCode, index, trạng thái REJECTED).
+4. Cấu hình Iam__BaseUrl đúng origin IAM trên môi trường đích; deploy Workflow/Procedure/Gateway mới.
+5. FE bổ sung chọn phường khi tạo hồ sơ, bộ lọc cán bộ và xử lý hai trạng thái cuối.
+
+Các bước trên là hướng dẫn bàn giao; chưa được chạy trên Azure trong phiên này.
+
+## TASK-25 — Thông báo trong ứng dụng (AnalyticsSystem / SignalR)
+
+### Kết nối thông báo realtime
+
+Địa chỉ local trực tiếp: `http://localhost:5006/hubs/notifications`.
+Qua YARP hiện có: `http://localhost:5000/api/analytics-system/hubs/notifications`.
+Đây là SignalR Hub, không phải REST controller; Swagger không liệt kê các hub methods.
+
+Dành cho người dùng đã đăng nhập. FE dùng **access token** IAM, không dùng refresh cookie làm token kết nối. JWT key/issuer/audience của AnalyticsSystem phải khớp IAM. Khi kết nối, backend kiểm tra tài khoản qua IAM `/api/v1/users/access-context`; IAM không truy cập được hoặc tài khoản bị khóa thì kết nối bị đóng.
+
+- `POST /hubs/notifications/negotiate?negotiateVersion=1`: SignalR SDK tự gọi, không có body nghiệp vụ; thành công 200 với thông tin transport, thiếu/sai/hết hạn JWT trả 401.
+- `GET /hubs/notifications`: SDK thiết lập WebSocket (101 khi nâng cấp thành công); SSE/Long Polling do SDK quản lý nếu cần.
+- Browser WebSocket/SSE gửi JWT qua query `access_token`; backend chỉ chấp nhận cách này ở đường dẫn hub. Không ghi URL có token vào log/telemetry. Dùng HTTPS trên Azure.
+- Mỗi connection được vào `user_{userId}` từ JWT. Nhiều tab/thiết bị của cùng người dùng đều nhận thông báo.
+- Chỉ `FRONT_DESK_OFFICER` hoặc `MANAGER` có phường trong ngữ cảnh IAM được thêm vào `ward_{wardCode}`. Không có phương thức để client tự tham gia nhóm.
+- Nhóm phường được xác định tại thời điểm kết nối; khi đổi phường/role cần ngắt và kết nối lại. Token hết hạn thì backend đóng kết nối. Task này chưa cung cấp cơ chế thu hồi ngay mọi connection đang mở khi IAM thay đổi quyền.
+
+### Các thao tác FE gọi trên Hub
+
+**`GetNotifications(page, pageSize)` — Lấy thông báo của chính mình**
+
+Dùng khi mở danh sách thông báo hoặc kết nối lại sau mất mạng. Gọi `connection.invoke("GetNotifications", 1, 20)`. Trả mảng `NotificationDto`, mới nhất trước, chỉ kênh IN_APP. Không có tham số userId; không thể đọc thông báo của người khác. Trang từ 1 đến 1000000, pageSize từ 1 đến 100; sai giới hạn thì promise bị reject với thông báo tiếng Việt. Trang không có dữ liệu trả mảng rỗng.
+
+**`GetUnreadCount()` — Lấy số thông báo chưa đọc**
+
+Gọi khi cần đồng bộ lại huy hiệu chuông. Trả số nguyên của chính người đang kết nối. Khi connect và sau thay đổi, server còn tự gửi event `UpdateUnreadCount`. Realtime có thể ngắt hoặc các sự kiện đồng thời đến khác thứ tự; khi mở chuông/reconnect nên đọc lại số từ DB bằng phương thức này.
+
+**`MarkRead(notificationId)` — Đánh dấu một thông báo đã đọc**
+
+Gọi khi người dùng mở thông báo. Thành công promise hoàn tất, server cập nhật `is_read`, `read_at` UTC và phát `UpdateUnreadCount` tới các connection cùng người dùng. Gọi lại cùng id không đổi thời điểm đọc lần đầu. Id không tồn tại hoặc thuộc người khác đều trả lỗi “Không tìm thấy thông báo của bạn”; FE tải lại danh sách thay vì thử id của người khác. Hub invocation errors dùng cơ chế lỗi SignalR, không phải HTTP ProblemDetails cho từng phương thức.
+
+### Event backend gửi tới FE
+
+- `ReceiveNotification(notification)`: có thông báo mới đã lưu thành công vào DB. Thêm vào danh sách theo `id` (khử trùng nếu đã có).
+- `UpdateUnreadCount(unreadCount)`: cập nhật số ở chuông thông báo.
+
+`NotificationDto` gồm `id`, `recipientUserId`, `applicationId` (nullable), `title`, `content`, `type`, `channel`, `isRead`, `readAt` (nullable), `actionUrl` (nullable), `createdAt`. Thời gian là UTC. Render title/content như text, không render HTML trực tiếp. `actionUrl` là đường dẫn tương đối nội bộ FE; nó không thay thế kiểm tra quyền ở API hồ sơ.
+
+Ví dụ với package FE `@microsoft/signalr`:
+
+```javascript
+import * as signalR from "@microsoft/signalr";
+
+const connection = new signalR.HubConnectionBuilder()
+  .withUrl("http://localhost:5006/hubs/notifications", {
+    accessTokenFactory: () => getCurrentAccessToken(),
+  })
+  .withAutomaticReconnect()
+  .build();
+
+connection.on("ReceiveNotification", item => showNotification(item));
+connection.on("UpdateUnreadCount", count => updateBellCount(count));
+connection.onreconnected(async () => {
+  renderNotifications(await connection.invoke("GetNotifications", 1, 20));
+  updateBellCount(await connection.invoke("GetUnreadCount"));
+});
+await connection.start();
+renderNotifications(await connection.invoke("GetNotifications", 1, 20));
+// Khi người dùng mở một thông báo:
+// await connection.invoke("MarkRead", notificationId);
+```
+
+Các hàm `getCurrentAccessToken`, `showNotification`, `updateBellCount`, `renderNotifications` do FE cung cấp. AccessTokenFactory phải lấy token mới sau refresh. AutomaticReconnect không tự retry lần `start()` đầu thất bại; FE cần hiển thị trạng thái và cho thử lại. Khi logout, gọi `connection.stop()` và xóa dữ liệu thông báo đang hiển thị.
+
+### Phạm vi đã triển khai
+
+`INotificationService.CreateAsync` là hợp đồng nội bộ của AnalyticsSystem: kiểm tra dữ liệu, lưu DB trước, rồi gửi tới nhóm người nhận và cập nhật count. Không mở API công khai để browser tự tạo thông báo cho user tùy ý. Người đang offline vẫn lấy được thông báo đã lưu khi kết nối lại. Lỗi transport không rollback dữ liệu đã lưu; chưa có đảm bảo giao nhận exactly-once hoặc outbox.
+
+Đã có nhóm phường để backend sử dụng ở các task tiếp theo. Chưa tự sinh thông báo từ thao tác Workflow và chưa có RabbitMQ consumer, SMS hay Email. Không broadcast một DTO riêng tư của công dân tới cả nhóm phường. Muốn lưu thông báo cho nhiều cán bộ cần tạo bản ghi riêng cho từng người nhận được phép.
+
+Hiện Hub dùng bộ nhớ một instance. Chạy 1 replica cho tới khi có Azure SignalR hoặc Redis backplane và cấu hình scale-out phù hợp; nếu nhiều replica, lưu DB vẫn hoạt động nhưng realtime có thể không tới connection ở replica khác.
+
+## TASK-26 / TASK-27 — Thông báo tự động từ Workflow (2026-10-12)
+
+Mục này thay thế các ghi chú TASK-25 trước đây về việc chưa nối Workflow, chưa có Outbox và chưa thu hồi connection. Chức năng mới cần triển khai IAM, Workflow và AnalyticsSystem cùng các migration/config tương ứng; code local không tự cập nhật Azure.
+
+### Khi nào có thông báo?
+
+- Nộp/nộp lại: công dân nhận xác nhận. Nếu chưa phân công, cán bộ FRONT_DESK_OFFICER đang hoạt động, cùng phường và có workflow.queue.read nhận thông báo tiếp nhận; nếu đã phân công, chỉ cán bộ được phân công còn đủ điều kiện nhận.
+- Tiếp nhận UNDER_REVIEW: công dân nhận cập nhật, cán bộ được phân công nhận ASSIGNED_OFFICER.
+- Thêm nhận xét: công dân nhận INLINE_COMMENT_ADDED; không đưa nội dung nhận xét/form hay CCCD vào RabbitMQ.
+- Yêu cầu bổ sung/phê duyệt/từ chối: công dân nhận cập nhật trạng thái và đường dẫn mở hồ sơ. DRAFT không phát thông báo.
+- Không gửi cho tài khoản inactive. Quyền/phường cán bộ được xác minh lại qua IAM trước khi xác định người nhận và trước khi gửi.
+
+Thông báo thuộc phường cũ không còn hiển thị/count/mark-read sau khi cán bộ chuyển phường hoặc không còn quyền đọc hàng chờ. Thông báo cá nhân vẫn theo userId. Guard kiểm tra IAM trước mỗi hub invocation, trước gửi IN_APP qua worker và định kỳ mặc định 15 giây (cấu hình 5–300 giây). Khi bị khóa, đổi role/permission/phường hoặc IAM không khả dụng, connection bị loại khỏi group và đóng; FE reconnect bằng token hiện hành. Đây là polling có độ trễ, không phải cơ chế thu hồi tức thì bằng event từ IAM.
+
+### Hợp đồng FE giữ nguyên
+
+Hub và các methods/events TASK-25 giữ nguyên, không thêm API cho client tự gửi thông báo đến người khác. CreateAsync nội bộ giờ lưu notification + delivery trong cùng transaction; worker gửi sau commit. FE khử trùng theo notification.id, vì realtime có thể được gửi lại khi process chết sau send nhưng trước khi ghi nhận Sent. Khi reconnect, gọi lại danh sách/count; không dựa vào việc mỗi event chỉ đến một lần. Hub errors vẫn là SignalR invocation errors tiếng Việt.
+
+### API nội bộ IAM — không dùng từ trình duyệt
+
+POST /internal/v1/notification-recipients
+
+Mục đích: AnalyticsSystem lấy người nhận đang hoạt động và địa chỉ Email/SMS theo dữ liệu IAM; không truy vấn thẳng database IAM.
+
+- Xác thực: header X-Notification-Service-Key, khóa riêng >=32 ký tự khớp Notifications:ServiceKey của IAM. Không dùng JWT_KEY hoặc AIOCR_SERVICE_KEY thay thế; không đưa khóa này cho FE. Endpoint không liệt kê trong Swagger công khai.
+- Body: { "userIds": ["<uuid>"], "wardCode": "<mã phường hoặc null>", "page": 1 }. Tối đa 10 userIds; mỗi trang tối đa 200 người, sắp theo id. WardCode chuẩn hóa uppercase/trim. UserIds lấy người đang active; nhánh ward chỉ lấy FD cùng phường có workflow.queue.read.
+- 200: mảng { userId, email, phoneNumber, wardCode, isOfficer }. Hết dữ liệu trả mảng rỗng; kết quả không cache.
+- 400: bộ lọc/id/page sai; 401: thiếu/sai service key; 503: IAM chưa cấu hình service key. Kiểm tra cấu hình BE, không yêu cầu người dân thử tài khoản khác.
+
+### Email và SMS
+
+Email: adapter SMTP STARTTLS đã có, mặc định tắt. Cần host/port/from/username/password hợp lệ; TLS bắt buộc. Sent nghĩa SMTP server chấp nhận, không phải biên nhận người dùng đọc hay xác nhận inbox. SMTP timeout có thể xảy ra sau khi server đã nhận thư nên retry có thể gửi trùng; X-WardMate-Delivery-Id phục vụ đối soát, không bảo đảm nhà cung cấp chống trùng.
+
+SMS: đã có ISmsSender và hàng đợi/trạng thái, nhưng chủ dự án chưa chọn nhà cung cấp Brandname. Adapter mặc định trả Blocked, tuyệt đối không trả Sent giả. Chưa có gửi SMS thật hoặc delivery receipt. Khi chọn nhà cung cấp cần triển khai ISmsSender đúng hợp đồng của họ, kiểm thử bằng sandbox và dùng deliveryId làm idempotency key nếu được hỗ trợ.
+
+Tham khảo cấu hình, retry, DLQ và các bước kiểm thử deploy trong docs/notifications-operations.md.
+
+## Bóc tách bằng Gemini (BE-TASK-PROCEDURE-GEMINI-AI)
+
+PDF có lớp chữ được đọc bằng PdfPig rồi gửi văn bản tới Gemini khi bật AI.
+Không thay đổi API, quyền truy cập hoặc bước cán bộ đối soát/xuất bản.
+
+Cấu hình trên container **AIOCR**:
+- Extraction__Enabled=true
+- Extraction__UseAI=true
+- Extraction__Provider=Gemini
+- Gemini__Key: tham chiếu Secret chứa API key Google, không đưa vào source.
+- Gemini__Model: tên model đang khả dụng trong dự án Google của bạn.
+- Extraction__OcrFallbackEnabled=false nếu chưa cấu hình Azure Document Intelligence.
+
+Docker Compose dùng PROCEDURE_EXTRACTION_ENABLED=true, PROCEDURE_USE_AI=true,
+PROCEDURE_AI_PROVIDER=Gemini, GEMINI_API_KEY và GEMINI_MODEL trong docker/.env.
+Giữ ProcedureDrafts__ExtractionEnabled=true, AiOcrUrl và ServiceKey đúng ở Procedure Catalog.
+Upload bản nháp vẫn cần Azure Blob. Không có migration mới.
+Endpoint Gemini được cố định theo API chính thức; không cần điền AzureOpenAI__Endpoint khi dùng Gemini.
+AzureOpenAI vẫn là nhà cung cấp mặc định để bảo toàn cấu hình cũ.
+
+POST /api/v1/procedure-manager/drafts/extract-preview nhận multipart PDF và trả 200
+với payload, extractedText, warnings để xem thử; không tạo bản nháp lưu trữ.
+POST /api/v1/procedure-manager/drafts nhận multipart PDF, trả 202 để theo dõi bản nháp
+bằng GET /api/v1/procedure-manager/drafts/{id}. Cán bộ sửa/lưu rồi gọi publish như trước.
+AI lỗi hoặc hết hạn mức khi xử lý PDF có chữ: trả dữ liệu thủ công và cảnh báo,
+giữ extractedText. FE phải hiển thị warnings, không coi HTTP 200 là mọi trường đã được AI điền.
+Kết quả bị cắt hoặc không có lựa chọn bị từ chối. CategoryId vẫn cần cán bộ chọn.
+PDF scan cần OCR riêng; bật Gemini không tự bật OCR.
+Chưa kiểm thử Gemini thật khi chưa có key/model; không cam kết miễn phí hoặc hạn mức cố định.
+
+### PDF có trang ít chữ — cập nhật 2026-10-13
+Preview và worker bản nháp tiếp tục gửi phần văn bản đọc được sang AI khi OCR tắt,
+kể cả có trang trống/ít chữ. Warnings vẫn ghi số trang cần đối soát; không bảo đảm
+đã đọc nội dung ảnh. PDF có tổng dưới 20 ký tự chữ/số vẫn cần nhập thủ công/OCR.
+Payload do AI đề xuất dùng để điền form; cán bộ phải kiểm tra, chọn danh mục và lưu trước publish.
+Khi AI lỗi, cảnh báo phân biệt hạn mức (429), key/quyền (401/403), timeout và lỗi khác;
+không hiển thị key hoặc phản hồi thô của nhà cung cấp. Hết quota Free Tier hãy chờ rồi retry.
+Không đổi route, quyền, request hoặc status code API.
+
+### Retry AI tạm thời — 2026-10-13
+AIOCR thử lại tối đa 2 lần khi AI trả HTTP 502/503/504, chờ 2 rồi 4 giây,
+trong giới hạn timeout/cancellation hiện có. Không retry tự động HTTP 429 (quota),
+401/403 hoặc lỗi dữ liệu. Nếu vẫn 503, warnings nêu rõ mã lỗi và giữ văn bản để đối soát.
+Không đổi model, billing, route hoặc hợp đồng API. Retry không bảo đảm nhà cung cấp phục hồi.
+
+Cảnh báo AI HTTP 200 không đọc được dữ liệu hiện phân biệt JSON không hợp lệ,
+thiếu trường, kết quả bị cắt và cấu hình/kiểu dữ liệu sai. FE hiển thị nguyên warnings
+để cán bộ biết lý do payload chưa được điền; không coi HTTP 200 là bóc tách thành công.

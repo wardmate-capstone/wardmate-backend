@@ -31,9 +31,10 @@ public static class PermissionAuthorization
             options.AddPolicy(AccountManagementRequirement.Policy, policy => policy.RequireAuthenticatedUser().AddRequirements(new AccountManagementRequirement()));
             options.AddPolicy(RbacAdministratorRequirement.Policy, policy => policy.RequireAuthenticatedUser()
                 .AddRequirements(new RbacAdministratorRequirement()));
-            foreach (var permission in new[] { PermissionCodes.ProfileRead, PermissionCodes.ProfileWrite, PermissionCodes.Manage })
+            foreach (var permission in new[] { PermissionCodes.ProfileRead, PermissionCodes.ProfileWrite, PermissionCodes.Manage }.Concat(WardMate.SharedKernel.Web.FeaturePermissions.Iam))
                 options.AddPolicy(permission, policy => policy.RequireAuthenticatedUser().AddRequirements(new PermissionRequirement(permission)));
         });
         return services;
     }
 }
+
