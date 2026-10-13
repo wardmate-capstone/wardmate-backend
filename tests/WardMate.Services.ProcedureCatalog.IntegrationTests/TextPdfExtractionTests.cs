@@ -47,15 +47,15 @@ public sealed class TextPdfExtractionTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task EmptyOrMixedPdfWarnsAndDoesNotMapPartialTextWithAi(bool mixed)
+    public async Task EmptyPdfSkipsAiButMixedPdfMapsAvailableTextWithWarning(bool mixed)
     {
         using var handler = new AiHandler(); using var http = new HttpClient(handler); var config = Config(true);
         var extractor = new TextFirstProcedureExtractor(new AzureProcedureDocumentExtractor(http, config), config);
         using var pdf = new MemoryStream(mixed ? Pdf(Text, "") : Pdf(""));
         var result = await extractor.Extract(pdf, default);
         Assert.Contains(result.Warnings, x => x.Contains("không có đủ văn bản"));
-        Assert.Equal(0, handler.Calls);
-        if (mixed) Assert.Contains(Text, result.ExtractedText);
+        Assert.Equal(mixed ? 1 : 0, handler.Calls);
+        if (mixed) { Assert.Contains(Text, result.ExtractedText); Assert.Equal("Mapped title", result.Payload.GetProperty("title").GetString()); }
     }
 
     [Fact]

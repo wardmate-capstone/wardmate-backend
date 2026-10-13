@@ -48,11 +48,20 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
     {
         if (string.IsNullOrWhiteSpace(content) || content.Length > 100_000)
             throw new InvalidDataException("Văn bản trống hoặc vượt quá 100.000 ký tự.");
-        var aiEndpoint = Endpoint("AzureOpenAI:Endpoint");
-        var aiKey = Required("AzureOpenAI:Key");
-        var deployment = Required("AzureOpenAI:Deployment");
-        using var completion = new HttpRequestMessage(HttpMethod.Post, aiEndpoint + "/openai/v1/chat/completions");
-        completion.Headers.Add("api-key", aiKey);
+        var provider = configuration["Extraction:Provider"] ?? "AzureOpenAI";
+        var gemini = provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase);
+        if (!gemini && !provider.Equals("AzureOpenAI", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Nhà cung cấp AI không được hỗ trợ.");
+        var aiEndpoint = gemini
+            ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+            : Endpoint("AzureOpenAI:Endpoint") + "/openai/v1/chat/completions";
+        var aiKey = Required(gemini ? "Gemini:Key" : "AzureOpenAI:Key");
+        var deployment = Required(gemini ? "Gemini:Model" : "AzureOpenAI:Deployment");
+        for (var attempt = 0; ; attempt++)
+        {
+        using var completion = new HttpRequestMessage(HttpMethod.Post, aiEndpoint);
+        if (gemini) completion.Headers.Authorization = new("Bearer", aiKey);
+        else completion.Headers.Add("api-key", aiKey);
         completion.Content = JsonContent.Create(new
         {
             model = deployment,
@@ -60,9 +69,19 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
             messages = new[] { new { role = "system", content = Prompt }, new { role = "user", content } }
         });
         using var completed = await http.SendAsync(completion, ct);
+        if (attempt < 2 && completed.StatusCode is System.Net.HttpStatusCode.ServiceUnavailable
+            or System.Net.HttpStatusCode.BadGateway or System.Net.HttpStatusCode.GatewayTimeout)
+        {
+            completed.Dispose();
+            await Task.Delay(TimeSpan.FromSeconds(2 * (attempt + 1)), ct);
+            continue;
+        }
         completed.EnsureSuccessStatusCode();
         using var chat = await JsonDocument.ParseAsync(await completed.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        var choice = chat.RootElement.GetProperty("choices")[0];
+        var choices = chat.RootElement.GetProperty("choices");
+        if (choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0)
+            throw new InvalidDataException("AI không trả kết quả bóc tách.");
+        var choice = choices[0];
         if (choice.GetProperty("finish_reason").GetString() != "stop") throw new InvalidDataException("AI chưa trả đầy đủ dữ liệu; không sử dụng kết quả bị cắt.");
         var json = choice.GetProperty("message").GetProperty("content").GetString() ?? throw new InvalidDataException("AI không trả dữ liệu.");
         if (json.Length > 500_000) throw new InvalidDataException("Kết quả AI quá lớn.");
@@ -71,6 +90,7 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         if (payload.ValueKind != JsonValueKind.Object) throw new InvalidDataException("Kết quả AI không đúng hợp đồng JSON.");
         var warnings = output.RootElement.GetProperty("warnings").Deserialize<string[]>() ?? [];
         return new(payload.Clone(), content, warnings.Append("Dữ liệu do AI đề xuất; cán bộ phải kiểm tra PDF gốc. CategoryId phải chọn từ danh mục hệ thống.").ToArray());
+    }
     }
     private string Required(string key) => string.IsNullOrWhiteSpace(configuration[key])
         ? throw new InvalidOperationException("Chưa cấu hình dịch vụ AI/OCR.") : configuration[key]!;
