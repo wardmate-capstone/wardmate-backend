@@ -9,7 +9,7 @@ using WardMate.SharedKernel.Common;
 namespace WardMate.Services.DocumentForm.API.Controllers;
 
 [ApiController]
-[Authorize(Policy = "DocumentManager")]
+[Authorize(Policy = "DocumentUser")]
 [Route("api/v1/form-templates")]
 [Produces("application/json")]
 public sealed class FormTemplatesController : ControllerBase
@@ -60,6 +60,7 @@ public sealed class FormTemplatesController : ControllerBase
     }
 
     /// <summary>Tạo mới biểu mẫu điện tử (chỉ tạo tên/mã, chưa có file).</summary>
+    [Authorize(Policy = "DocumentManager")]
     [HttpPost]
     [ProducesResponseType(typeof(FormTemplateDetailDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -89,6 +90,7 @@ public sealed class FormTemplatesController : ControllerBase
     }
 
     /// <summary>Upload file Word DOCX phôi mẫu gốc của nhà nước (không cần chỉnh sửa).</summary>
+    [Authorize(Policy = "DocumentManager")]
     [HttpPost("{templateId:guid}/upload-docx")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(UploadDocxResultDto), StatusCodes.Status200OK)]
