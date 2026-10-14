@@ -2320,3 +2320,34 @@ Owner explicitly approved push main after Docker handoff. Fetched origin; main w
 - Chưa kiểm chứng schema với Gemini thật/Azure trong phiên này. Model cần hỗ trợ json_schema;
   provider từ chối sẽ có fallback thủ công như trước. Chưa chia tài liệu theo mục nghiệp vụ (giai đoạn sau).
 - Không Git, build Docker, deploy. Commit gợi ý: feat(aiocr): enforce structured output and preserve partial draft fields.
+
+## DOC-GLOSSARY — 2026-10-14 11:25:29 +07:00 (Asia/Saigon)
+- Tạo docs/wardmate-thuat-ngu.txt UTF-8 cho Notepad: thuật ngữ, vai trò, checklist mẫu/hồ sơ và giới hạn hiện tại.
+- Chỉ cập nhật tài liệu; không thay API/code/config, không chạy build/test/Git/Docker.
+- Commit gợi ý: docs: add Vietnamese WardMate terminology notes.
+
+## PROCEDURE-CHECKLIST — Quản lý checklist thủ tục — 2026-10-14 11:38:01 +07:00 (Asia/Saigon)
+- Tạo `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureChecklist.cs`.
+- Sửa `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProcedureManagerController.cs`, `tests/WardMate.Services.ProcedureCatalog.IntegrationTests/ProcedureManagerTests.cs`, `docs/api-guide.md` và `PROGRESS.md`.
+- API mới: `PUT /api/v1/procedure-manager/procedures/{id}/checklist`, Bearer JWT với permission `procedure.update`.
+- Body: `expectedUpdatedAt`, `decisionNumber`, `effectiveDate`, `items` (toàn bộ danh sách ChecklistItemSchema theo thứ tự mong muốn). Dùng GET chi tiết quản trị hiện có để lấy checklist và updatedAt trước khi lưu.
+- Thêm/sửa/xóa/sắp xếp bằng thay thế toàn bộ danh sách; `items: []` xóa toàn bộ checklist mẫu. Kiểm tra mã trùng, CaseCode tồn tại, loại giấy tờ, số lượng và dữ liệu bắt buộc bằng thông báo tiếng Việt.
+- Lưu snapshot trạng thái cũ vào version kế tiếp và cập nhật checklist trong cùng transaction có khóa hàng. So sánh expectedUpdatedAt để chống ghi đè dữ liệu cũ; chuẩn hóa timestamp tới microsecond tương thích PostgreSQL.
+- Response: 200 ProcedureDetailDto; 400 dữ liệu không hợp lệ; 401 chưa xác thực; 403 thiếu quyền; 404 thủ tục không tồn tại; 409 dữ liệu đã thay đổi. FE gặp 409 cần tải lại và đối soát trước khi lưu.
+- Thêm 1 integration test cho thay danh sách/thứ tự, xóa toàn bộ, CaseCode sai, xung đột và số lượng versions. Toàn bộ suite 244/244 PASS (ProcedureCatalog 121, DocumentForm 76, ApplicationWorkflow 39, IAM 8).
+- `dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1`: 0 errors, 0 warnings. `dotnet test WardMate.sln -c Release --no-restore -v minimal`: thành công.
+- Không cần migration. Không thay checklist của Application đã tạo. Chưa bổ sung metadata/file verification cho Application trong task này; chưa kiểm thử Azure.
+- Không chạy Git hoặc build/deploy Docker. Commit gợi ý: `feat(procedure): add versioned checklist management`.
+
+## APPLICATION-CHECKLIST-LIFECYCLE — Đóng băng checklist hồ sơ & kiểm tra nộp minh chứng — 2026-10-14 12:08:00 +07:00 (Asia/Saigon)
+- Hoàn thành đầy đủ 5 bước vòng đời checklist:
+  1. Procedure Manager: Thêm, sửa, xóa, sắp xếp checklist; quản lý trường hợp áp dụng, số lượng, loại bản sao (`ORIGINAL`, `CERTIFIED_COPY`, `REGULAR_COPY`), hình thức nộp (`NOP`, `XUAT_TRINH`).
+  2. Application: Sao chép snapshot toàn bộ thuộc tính checklist khi tạo hồ sơ (`sortOrder`, `caseCode`, `submissionType`, `documentCopyType`, `quantity`, `conditionNote`). Checklist của hồ sơ được đóng băng độc lập, không bị thay đổi âm thầm khi thủ tục cập nhật sau đó. Migration `SnapshotChecklistRequirements` (ApplicationWorkflow).
+  3. DocumentForm: Bổ sung khai báo thuộc tính giấy tờ minh chứng (`SubmissionType`, `DocumentCopyType`, `Quantity`) khi upload qua `POST /api/v1/applications/{id}/supporting-documents`. Migration `SupportingEvidenceRequirements` (DocumentForm).
+  4. Pre-submit Validation: Kiểm tra phía server trước khi Submit / Resubmit / Đánh dấu hoàn thành: đối soát qua `GET /api/v1/applications/{id}/contents`, kiểm tra file thực sự tồn tại trong Blob Storage (`blobs.ExistsAsync`), khớp loại bản sao, hình thức nộp và tổng số lượng giấy tờ. Trả về ProblemDetails 422 `application.documents_incomplete` kèm `missingChecklistIds`.
+  5. E2E Testing: Viết kịch bản `scripts/verify-checklist-lifecycle.py` kiểm thử toàn luồng tích hợp với 3 service thật (`ProcedureCatalog`, `ApplicationWorkflow`, `DocumentForm`) chạy trên PostgreSQL và Azurite độc lập: xuất bản thủ tục -> tạo hồ sơ -> cập nhật checklist thủ tục (xác nhận hồ sơ không bị đổi) -> nộp file sai loại bản sao (bị từ chối) -> nộp file hợp lệ -> xóa file/mô phỏng mất file blob (bị từ chối submit 422) -> khôi phục blob (submit thành công) -> cán bộ yêu cầu bổ sung -> nộp lại -> cán bộ phê duyệt -> kiểm tra lịch sử snapshot phiên bản. Kết quả: 56/56 HTTP checks PASS!
+- Test suite: 250/250 tests PASS (ProcedureCatalog: 121, DocumentForm: 76, Workflow: 45, IAM: 8).
+- `dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1`: 0 errors, 0 warnings.
+- Chưa push Git, chưa build Docker, chưa deploy Azure.
+
+

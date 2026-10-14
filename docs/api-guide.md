@@ -3168,3 +3168,57 @@ lỗi HTTP 502/503/504 vẫn có retry như trước, không retry quota. Khi v�
 FE phải hiển thị null như ô chưa điền, không đổi thành phí 0 hoặc ngày 1; warnings là string[].
 Áp dụng preview và draft worker; không đổi endpoint/request/status/token/quyền hoặc tự publish.
 Chưa triển khai chia tài liệu theo mục nghiệp vụ; dữ liệu đúng cấu trúc không đảm bảo đủ nội dung.
+
+## Quản lý checklist riêng của thủ tục
+
+Procedure Manager có permission procedure.update dùng PUT /api/v1/procedure-manager/procedures/{id}/checklist.
+Đọc dữ liệu trước bằng GET /api/v1/procedure-manager/procedures/{id} (procedure.read).
+FE lấy checklistSchema để hiển thị, thêm/sửa/xóa dòng hoặc kéo sắp xếp, rồi gửi TOÀN BỘ danh sách items.
+Thứ tự mảng là thứ tự lưu; không cần sortOrder hoặc migration. Đây không phải PATCH từng dòng.
+
+Body mẫu:
+```json
+{
+  "expectedUpdatedAt": "2026-10-14T00:00:00Z",
+  "decisionNumber": "QD-123",
+  "effectiveDate": "2026-10-14",
+  "items": [
+    { "checklistId": "DOC-1", "caseCode": null, "submissionType": "NOP",
+      "itemName": "Tờ khai", "documentCopyType": "ORIGINAL", "quantity": 1,
+      "conditionNote": null, "isMandatory": true }
+  ]
+}
+```
+Thay expectedUpdatedAt bằng giá trị thật từ response mới nhất. items=[] xóa toàn bộ checklist;
+không dùng khi chỉ định xóa một dòng. caseCode null/rỗng là giấy tờ chung; nếu có mã phải thuộc cases.
+200 trả ProcedureDetailDto, giữ lại updatedAt mới cho lần lưu tiếp. 400: dữ liệu sai, trùng mã,
+mã trường hợp không tồn tại, thiếu ngày/quyết định hoặc quá 500 mục. 401/403: kiểm tra token/quyền.
+404: thủ tục không tồn tại. 409 procedure.concurrent_update: người khác đã sửa, GET lại và đối chiếu,
+không tự gửi đè. Mỗi lần lưu thành công chụp trạng thái cũ vào versions trong cùng transaction.
+Không cập nhật bảng Application; các hồ sơ đã tạo giữ checklist riêng. Chỉ hỗ trợ quản lý
+checklist của Procedure chính thức; bản nháp vẫn dùng PUT drafts/{id} và revision hiện có.
+
+## Khai báo giấy tờ minh chứng và kiểm tra điều kiện nộp hồ sơ (Application Checklist)
+
+Khi tạo hồ sơ (`POST /api/v1/applications`), toàn bộ yêu cầu checklist đã duyệt từ thủ tục sẽ được sao chép nguyên vẹn (snapshot) vào hồ sơ, bao gồm: thứ tự sắp xếp (`sortOrder`), trường hợp áp dụng (`caseCode`), hình thức nộp (`submissionType`: `NOP` hoặc `XUAT_TRINH`), loại bản sao (`documentCopyType`: `ORIGINAL`, `CERTIFIED_COPY`, `REGULAR_COPY`), số lượng yêu cầu (`quantity`) và ghi chú điều kiện (`conditionNote`). Nếu thủ tục gốc sau này có thay đổi checklist, hồ sơ đã tạo vẫn giữ nguyên yêu cầu đã chốt.
+
+### 1. Khai báo giấy tờ minh chứng kèm thuộc tính
+Người dân tải lên giấy tờ minh chứng cho hồ sơ thông qua `POST /api/v1/applications/{id}/supporting-documents`:
+- Content-Type: `multipart/form-data`
+- Các trường form data:
+  - `File`: File tài liệu (PDF, PNG, JPG, ...).
+  - `ChecklistId`: Guid của mục checklist trong hồ sơ cần liên kết.
+  - `SubmissionType`: `NOP` (nộp bản chụp/bản điện tử) hoặc `XUAT_TRINH` (xuất trình khi đến nhận kết quả/đối chiếu).
+  - `DocumentCopyType`: `ORIGINAL` (bản chính), `CERTIFIED_COPY` (bản sao chứng thực), `REGULAR_COPY` (bản chụp/sao thường).
+  - `Quantity`: Số lượng bản đính kèm (mặc định là 1, tối thiểu 1).
+
+### 2. Kiểm tra điều kiện nộp hồ sơ phía Server (Pre-submit Validation)
+Khi nộp hồ sơ lần đầu (`POST /api/v1/applications/{id}/submit`) hoặc nộp lại sau bổ sung (`POST /api/v1/applications/{id}/resubmit`):
+- Hệ thống gọi nội bộ sang `DocumentForm` (`GET /api/v1/applications/{id}/contents`) để xác minh thực tế:
+  1. Với mục checklist là Biểu mẫu điện tử (`formTemplateId` có giá trị): Biểu mẫu phải ở trạng thái `Submitted` hoặc `Approved`, file kết xuất DOCX phải tồn tại thực sự trong Blob Storage.
+  2. Với mục checklist là Giấy tờ minh chứng đính kèm: Phải có tài liệu đính kèm liên kết đúng `ChecklistId`, file phải tồn tại thực sự trong Blob Storage, khớp loại hình thức `submissionType`, khớp loại bản sao `documentCopyType`, và tổng số lượng giấy tờ đính kèm phải đạt hoặc vượt số lượng yêu cầu `quantity`.
+- Nếu thiếu giấy tờ hoặc file không tồn tại trong Blob Storage, hệ thống trả về mã `422 Unprocessable Entity` với ProblemDetails:
+  - `code`: `"application.documents_incomplete"`
+  - `missingChecklistIds`: Danh sách các Guid của mục checklist chưa đáp ứng điều kiện.
+  Người dân không thể chỉ đánh dấu trạng thái checklist là `COMPLETED` ở client để vượt qua bước nộp hồ sơ.
+
