@@ -36,8 +36,9 @@ public static class WorkflowInfrastructureRegistration
 {
     public static IServiceCollection AddWorkflowInfrastructure(this IServiceCollection services, IConfiguration config)
     {
-        services.AddDbContext<WorkflowDbContext>(o => o.UseNpgsql(config.GetConnectionString("WorkflowDatabase")
-            ?? throw new InvalidOperationException("Cần cấu hình ConnectionStrings:WorkflowDatabase.")).UseSnakeCaseNamingConvention());
+        var rawConn = config.GetConnectionString("WorkflowDatabase")
+            ?? throw new InvalidOperationException("Cần cấu hình ConnectionStrings:WorkflowDatabase.");
+        services.AddDbContext<WorkflowDbContext>(o => o.UseNpgsql(NormalizeConnectionString(rawConn)).UseSnakeCaseNamingConvention());
         services.AddScoped<IApplicationStore, ApplicationStore>();
         services.AddScoped<IApplicationReviewStore, ApplicationReviewStore>();
         services.AddSingleton(TimeProvider.System);
@@ -59,6 +60,25 @@ public static class WorkflowInfrastructureRegistration
             http.MaxResponseContentBufferSize = 2 * 1024 * 1024;
         });
         return services;
+    }
+
+    public static string NormalizeConnectionString(string connectionString)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString)) return connectionString;
+        if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+            connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        {
+            var uri = new Uri(connectionString);
+            var userInfo = Uri.UnescapeDataString(uri.UserInfo);
+            var parts = userInfo.Split(':', 2);
+            var username = parts[0];
+            var password = parts.Length > 1 ? parts[1] : string.Empty;
+            var database = uri.AbsolutePath.TrimStart('/');
+            if (string.IsNullOrEmpty(database)) database = "postgres";
+            var port = uri.Port > 0 ? uri.Port : 5432;
+            return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true;";
+        }
+        return connectionString;
     }
 }
 

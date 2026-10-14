@@ -92,8 +92,9 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
 public sealed class WorkflowDbContextFactory : IDesignTimeDbContextFactory<WorkflowDbContext>
 {
     public WorkflowDbContext CreateDbContext(string[] args) => new(new DbContextOptionsBuilder<WorkflowDbContext>()
-        .UseNpgsql(Environment.GetEnvironmentVariable("ConnectionStrings__WorkflowDatabase")
-            ?? "Host=localhost;Port=5435;Database=wardmate_workflow_db;Username=wardmate_workflow")
+        .UseNpgsql(WorkflowInfrastructureRegistration.NormalizeConnectionString(
+            Environment.GetEnvironmentVariable("ConnectionStrings__WorkflowDatabase")
+            ?? "Host=localhost;Port=5435;Database=wardmate_workflow_db;Username=wardmate_workflow"))
         .UseSnakeCaseNamingConvention().Options);
 }
 
