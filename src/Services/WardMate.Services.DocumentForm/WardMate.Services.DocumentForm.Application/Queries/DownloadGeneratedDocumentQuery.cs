@@ -53,7 +53,7 @@ public sealed class DownloadGeneratedDocumentQueryHandler
         {
             var submission = await _dbContext.UserSubmissions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => (s.Id == doc.ApplicationId || s.ApplicantId == doc.ApplicationId) && !s.IsDeleted, cancellationToken);
+                .FirstOrDefaultAsync(s => s.ApplicationId == doc.ApplicationId && !s.IsDeleted, cancellationToken);
 
             if (submission is not null)
             {
