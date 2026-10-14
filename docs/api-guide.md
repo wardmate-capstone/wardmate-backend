@@ -3053,3 +3053,99 @@ Không đổi model, billing, route hoặc hợp đồng API. Retry không bảo
 Cảnh báo AI HTTP 200 không đọc được dữ liệu hiện phân biệt JSON không hợp lệ,
 thiếu trường, kết quả bị cắt và cấu hình/kiểu dữ liệu sai. FE hiển thị nguyên warnings
 để cán bộ biết lý do payload chưa được điền; không coi HTTP 200 là bóc tách thành công.
+
+
+## Liên kết hồ sơ – đơn DOCX – giấy tờ (2026-10-14)
+
+Phần này thay thế cách test cũ dùng UUID tự tạo cho applicationId. ApplicationWorkflow sở hữu hồ sơ;
+DocumentForm sở hữu file, không truy vấn database của Workflow. applicantId là UUID người đăng nhập
+(JWT sub), procedureId là loại thủ tục, applicationId là một lần lập hồ sơ, checklistId là mục trong
+hồ sơ, submissionId là đơn đã lưu, documentId là giấy tờ hoặc PDF. Không dùng các ID thay cho nhau.
+
+### Cấu hình và dữ liệu cũ
+- DocumentForm: Services:ApplicationWorkflow:BaseUrl trỏ trực tiếp Workflow; local mặc định localhost:5003.
+- Workflow: Services:DocumentForm:BaseUrl trỏ DocumentForm; local mặc định localhost:5004.
+- Docker Compose đã đặt hai URL nội bộ tương ứng. JWT issuer/audience/key phải thống nhất với IAM;
+  Workflow còn gọi IAM access-context để lấy quyền hiện hành. Không gửi khóa vào FE.
+- Áp dụng migration DocumentForm LinkSubmissionsToApplications và Workflow LinkChecklistFormTemplates
+  trên đúng database từng service. Không có foreign key xuyên database.
+- Đơn cũ có applicationId/checklistId null không tự gán vào hồ sơ. API sửa/chốt trả 409
+  document.legacy_unlinked; cần lập hồ sơ và lưu đơn mới sau khi đối soát, không tự lấy applicantId làm applicationId.
+- Checklist hồ sơ cũ không tự nhận formTemplateId từ thủ tục mới. Tạo hồ sơ mới để test hợp đồng mới.
+
+### Workflow tạo hồ sơ và biết mẫu đơn nào cần mở
+Người dân gọi POST /api/v1/applications với JSON
+`{ "procedureId": "UUID thủ tục", "wardCode": "mã phường IAM", "formData": {}, "caseCode": "mã trường hợp nếu có" }`.
+Thành công 201 trả applicationId ở trường id và checklists[].id. Không nhập mã phường hoặc procedureId giả
+khi dùng IAM/ProcedureCatalog thật; sai trả 400/404, dependency không đáp ứng trả 502/503/504.
+
+Workflow chụp cả checklistSchema và formDefinitions phù hợp caseCode. Nếu formCode bằng checklistId
+(mã cấu hình trong ProcedureCatalog, không phải UUID checklist của hồ sơ), ghép thành một mục;
+khác mã thì tạo mục riêng. Không ghép theo tên hiển thị. Admin cần cấu hình formTemplateId đúng UUID
+FormTemplate để FE mở mẫu và BE bắt buộc nhận đúng mẫu đó. checklists[].formTemplateId trả liên kết này.
+Mẫu có mã trùng hoặc dữ liệu cấu hình không hợp lệ bị từ chối 502 application.invalid_schema.
+Mục không có formTemplateId vẫn dùng luồng giấy tờ; hệ thống không tự đoán mẫu từ tên file.
+
+GET /api/v1/applications/{applicationId} (200) cung cấp thông tin hồ sơ, trạng thái và checklist cho FE.
+Đơn DOCX và file không nằm trong formData của Workflow; lấy bổ sung bằng API contents bên dưới.
+
+### DocumentForm: các API dùng cho màn hình hồ sơ
+Tất cả request người dân dùng Bearer token role REGISTERED_CITIZEN, sub đúng applicantId.
+Thiếu/hết hạn token trả 401; sai role hoặc applicantId trả 403. Workflow phải cho tài khoản quyền đọc hồ sơ.
+
+| API | Khi FE gọi và dữ liệu gửi | Kết quả và lỗi thường gặp |
+|---|---|---|
+| GET /api/v1/form-templates/{templateId} | Khi bấm Điền đơn, dùng checklist.formTemplateId | 200 metadata; 404 sai mẫu. Các GET FormTemplates nhận tài khoản đã đăng nhập; POST quản lý vẫn yêu cầu PROCEDURE_MANAGER. |
+| GET /api/v1/form-templates/{templateId}/download-docx | FE tải binary nguyên mẫu và import vào editor | 200 DOCX; 404 mẫu/file chưa có. FE chịu trách nhiệm render DOCX, không dùng JSON schema để dựng lại mẫu. |
+| POST /api/v1/citizen/submissions/draft | Lưu lần đầu, multipart TemplateId, ApplicantId, ApplicationId, ChecklistId, File (DOCX do editor xuất) | 201 submissionId. 400 checklist/mẫu sai; 404 hồ sơ không thuộc tài khoản; 409 đã có đơn cho mục này thì dùng PUT. |
+| PUT /api/v1/citizen/submissions/{submissionId}/draft | Lưu tiếp, multipart ApplicantId, File | 200 Draft; giữ nguyên liên kết hồ sơ/checklist/mẫu. Chỉ sửa khi Workflow DRAFT hoặc NEED_REVISION; nếu trước đó đơn Submitted, lưu lại đưa đơn về Draft. 409 khi hồ sơ khóa hoặc đơn Approved. |
+| POST /api/v1/citizen/submissions/{submissionId}/submit | Nút Hoàn thành đơn, JSON ApplicantId | 200 Submitted cho đơn, chưa nộp toàn bộ hồ sơ. 409 khi đơn/hồ sơ không cho chốt. BE không suy ra mọi ô đã điền từ DOCX tự do. |
+| GET /api/v1/citizen/submissions | Liệt kê đơn của tài khoản; query applicantId, status?, page, pageSize | 200 phân trang; mỗi item có applicationId/checklistId để phân biệt các hồ sơ. Không dùng danh sách này thay contents khi cần xem một bộ hồ sơ. |
+| GET /api/v1/citizen/submissions/{submissionId} | Mở đơn đã lưu, query applicantId | 200 metadata có applicationId/checklistId; sai chủ sở hữu 403, không tồn tại 404. |
+| GET /api/v1/citizen/submissions/{submissionId}/download-docx | Query applicantId, FE mở lại bản đã lưu | 200 DOCX; mẫu gốc không bị ghi đè. |
+| POST /api/v1/applications/{applicationId}/supporting-documents | Chọn giấy tờ trong checklist, multipart ChecklistId và File | 201 documentId. ChecklistId bắt buộc; sai mục 400. Mục có formTemplateId không được thay bằng supporting document (400 document.template_mismatch). |
+| GET /api/v1/applications/{applicationId}/supporting-documents | Danh sách giấy tờ của hồ sơ | 200 danh sách; 404 hồ sơ không thuộc tài khoản. |
+| GET /api/v1/supporting-documents/{documentId}/download | Mở giấy tờ đã tải lên | 200 binary; 404 không tồn tại/không được xem hồ sơ. |
+| DELETE /api/v1/supporting-documents/{documentId} | Xóa giấy tờ để thay file | 204 soft-delete; 409 nếu hồ sơ không DRAFT/NEED_REVISION. Giấy tờ đã xóa không được tính đủ khi nộp. |
+| GET /api/v1/applications/{applicationId}/contents | Mở/refresh bộ hồ sơ | 200 applicationId, submissions[], supportingDocuments[]; item có id, checklistId, fileName, status, templateId (null với supporting). Trả cả hai loại trong cùng hồ sơ, không phân trang; không trả URL blob. 404 sai chủ hồ sơ, 503 không xác minh được Workflow. |
+
+FE ghép checklists với submissions/supportingDocuments bằng checklistId, hiển thị tên mục và các file bên dưới.
+Nếu submissions có đơn thì mở binary của submission; nếu chưa có thì dùng binary template gốc.
+ID trên một hồ sơ khác không được đưa vào hồ sơ này. Một checklist có tối đa một đơn đang tồn tại;
+được có nhiều giấy tờ đính kèm nếu không phải mục gắn mẫu điện tử.
+
+### Đánh dấu đủ giấy tờ, nộp và sửa lại
+- PATCH /api/v1/applications/{id}/checklists/{checklistId}, JSON `{ "status": "COMPLETED" }`:
+  200 sau khi Workflow xác minh có giấy tờ hoặc đơn Submitted/Approved. Mục có formTemplateId bắt buộc
+  đơn đúng templateId, không dùng file hỗ trợ thay thế. Thiếu trả 422 application.documents_incomplete
+  kèm missingChecklistIds; lưu/chốt đơn hoặc upload file trước rồi thử lại.
+- POST /api/v1/applications/{id}/submit, không có body: 200 SUBMITTED khi checklist bắt buộc đã COMPLETED
+  và tài liệu vẫn còn. Kiểm tra lại các mục bắt buộc và mục đánh dấu COMPLETED, nên xóa file sau khi tick
+  không vượt qua được kiểm tra. 422 checklist_incomplete/documents_incomplete; 409 sai trạng thái.
+- Khi cán bộ yêu cầu sửa qua Workflow, trạng thái NEED_REVISION mở quyền lưu lại DOCX và giấy tờ.
+  PUT draft rồi POST submission/submit để chốt lại đơn. POST /api/v1/applications/{id}/resubmit gửi
+  expectedVersionNumber, formData và đầy đủ checklists (id,status,fileUrl?,note?) theo hợp đồng Workflow:
+  200 SUBMITTED; 422 nếu đơn còn Draft hoặc thiếu giấy tờ, 409 khi version/trạng thái sai.
+- Không dùng fileUrl do FE gửi làm bằng chứng đã upload; API kiểm tra contents của DocumentForm.
+  Địa chỉ file chuẩn cho FE là download endpoint có kiểm tra quyền.
+- DocumentForm/Workflow không kết nối được nhau trả 503, không bỏ qua kiểm tra để nộp. ProblemDetails có code/traceId;
+  FE giữ nội dung editor khi lưu lỗi và cho phép thử lại.
+
+### PDF và phạm vi kiểm chứng
+POST /api/v1/applications/{applicationId}/generate-pdf dùng multipart submissionId (documentType tùy chọn),
+không upload file thay thế: 400 document.use_saved_docx nếu gửi File. submissionId phải thuộc applicationId,
+không lấy applicantId hay submissionId làm applicationId; không khớp trả 404. Điều kiện duyệt đơn hiện có vẫn áp dụng.
+GET /api/v1/applications/{id}/generated-documents và GET /api/v1/generated-documents/{documentId}/download
+xác minh chủ hồ sơ với Workflow cho người dân. Chưa thay thế luồng phân công cán bộ/PDF bằng duyệt toàn hồ sơ.
+
+Giới hạn: kiểm tra hai service là HTTP, chưa phải giao dịch phân tán nguyên tử; cập nhật đồng thời cần đối soát
+trước production. Snapshot Workflow lưu checklist/formTemplateId, chưa chụp phiên bản binary của toàn bộ file.
+Phần kiểm tra local dùng IAM/ProcedureCatalog giả lập và dữ liệu tổng hợp; không chứng minh IAM/Azure thật đã tích hợp.
+
+
+Kiểm tra tự động local: sau Release build chạy `python scripts/verify-application-document-links.py`.
+Để dùng hai image `wardmate-documentform:application-link-local` và
+`wardmate-applicationworkflow:application-link-local`, đặt `$env:WM_TEST_DOCKER='1'` trong PowerShell
+rồi chạy cùng script. Cần Docker và các cổng local 10000,15439,15032,15033,15034 đang trống.
+Script tự tạo/xóa container tạm; IAM/ProcedureCatalog là dữ liệu giả, không thay thế test bằng token thật.
+Đã kiểm tra 43 bước HTTP trên cả DLL local và image Docker.
