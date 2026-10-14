@@ -129,11 +129,19 @@ services:
       AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://host.docker.internal}
       AzureBlob__ContainerName: form-templates
       Services__ApplicationWorkflow__BaseUrl: http://application-workflow:8080/
+      Gotenberg__Url: http://gotenberg:3000
     ports:
       - "5004:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      gotenberg:
+        condition: service_started
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    # Internal conversion service; no public host port.
 
   # Procedure Catalog API Microservice (port 5002)
   procedure-catalog:
