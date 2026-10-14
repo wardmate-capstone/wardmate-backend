@@ -30,6 +30,7 @@ public sealed class GetSupportingDocumentsQueryHandler
             .Select(d => new SupportingDocumentDto
             {
                 Id = d.Id,
+                SubmissionType = d.SubmissionType, DocumentCopyType = d.DocumentCopyType, Quantity = d.Quantity,
                 ApplicationId = d.ApplicationId,
                 ChecklistId = d.ChecklistId,
                 FileName = d.FileName,

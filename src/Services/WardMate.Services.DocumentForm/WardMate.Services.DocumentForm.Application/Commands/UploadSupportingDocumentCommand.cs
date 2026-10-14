@@ -16,7 +16,8 @@ public sealed record UploadSupportingDocumentCommand(
     string ContentType,
     long FileSizeBytes,
     Guid? ChecklistId = null,
-    string? CreatedBy = null) : ICommand<SupportingDocumentDto>;
+    string? CreatedBy = null, string? SubmissionType = null, string? DocumentCopyType = null,
+    int Quantity = 1) : ICommand<SupportingDocumentDto>;
 
 public sealed class UploadSupportingDocumentCommandHandler
     : ICommandHandler<UploadSupportingDocumentCommand, SupportingDocumentDto>
@@ -43,6 +44,9 @@ public sealed class UploadSupportingDocumentCommandHandler
         UploadSupportingDocumentCommand request,
         CancellationToken cancellationToken)
     {
+        if (request.Quantity < 1 || request.SubmissionType is not (null or "NOP" or "XUAT_TRINH")
+            || request.DocumentCopyType is not (null or "ORIGINAL" or "CERTIFIED_COPY" or "REGULAR_COPY"))
+            return Error.Validation("document.invalid_evidence", "Số lượng phải lớn hơn 0; loại bản sao và hình thức nộp/xuất trình không hợp lệ.");
         if (request.ApplicationId == Guid.Empty)
         {
             return Error.Validation("document.invalid_application_id", "Application ID cannot be empty.");
@@ -96,12 +100,14 @@ public sealed class UploadSupportingDocumentCommandHandler
             request.ContentType,
             request.CreatedBy);
 
+        doc.DeclareEvidence(request.SubmissionType, request.DocumentCopyType, request.Quantity);
         _dbContext.SupportingDocuments.Add(doc);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new SupportingDocumentDto
         {
             Id = doc.Id,
+            SubmissionType = doc.SubmissionType, DocumentCopyType = doc.DocumentCopyType, Quantity = doc.Quantity,
             ApplicationId = doc.ApplicationId,
             ChecklistId = doc.ChecklistId,
             FileName = doc.FileName,

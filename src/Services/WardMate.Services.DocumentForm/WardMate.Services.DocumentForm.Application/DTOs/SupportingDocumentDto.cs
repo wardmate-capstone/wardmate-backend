@@ -2,6 +2,9 @@ namespace WardMate.Services.DocumentForm.Application.DTOs;
 
 public sealed record SupportingDocumentDto
 {
+    public string? SubmissionType { get; init; }
+    public string? DocumentCopyType { get; init; }
+    public int Quantity { get; init; } = 1;
     public Guid Id { get; init; }
     public Guid ApplicationId { get; init; }
     public Guid? ChecklistId { get; init; }

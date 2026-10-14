@@ -53,7 +53,7 @@ public sealed class SupportingDocumentsController : ControllerBase
             request.File.ContentType,
             request.File.Length,
             request.ChecklistId,
-            User.Identity?.Name);
+            User.Identity?.Name, request.SubmissionType, request.DocumentCopyType, request.Quantity);
 
         var result = await _mediator.Send(command, cancellationToken);
         if (!result.IsSuccess)
@@ -159,6 +159,9 @@ public sealed class SupportingDocumentsController : ControllerBase
 
 public sealed class UploadSupportingDocumentRequest
 {
+    public string? SubmissionType { get; set; }
+    public string? DocumentCopyType { get; set; }
+    public int Quantity { get; set; } = 1;
     public IFormFile File { get; set; } = null!;
     public Guid? ChecklistId { get; set; }
 }
