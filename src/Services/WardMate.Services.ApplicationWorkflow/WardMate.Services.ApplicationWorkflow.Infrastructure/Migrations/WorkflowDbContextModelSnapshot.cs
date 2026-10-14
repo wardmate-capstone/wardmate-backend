@@ -50,6 +50,10 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("file_url");
 
+                    b.Property<Guid?>("FormTemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("form_template_id");
+
                     b.Property<bool>("IsRequired")
                         .HasColumnType("boolean")
                         .HasColumnName("is_required");

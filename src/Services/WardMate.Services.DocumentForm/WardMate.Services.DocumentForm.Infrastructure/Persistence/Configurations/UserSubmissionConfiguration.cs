@@ -11,6 +11,10 @@ public sealed class UserSubmissionConfiguration : IEntityTypeConfiguration<UserS
     {
         builder.ToTable("user_submissions");
         builder.HasKey(s => s.Id);
+        builder.Property(s => s.ApplicationId).HasColumnName("application_id");
+        builder.Property(s => s.ChecklistId).HasColumnName("checklist_id");
+        builder.HasIndex(s => new { s.ApplicationId, s.ChecklistId }).IsUnique()
+            .HasFilter("application_id IS NOT NULL AND is_deleted = false");
         builder.Property(s => s.FormData).HasColumnName("form_data").HasColumnType("jsonb");
         builder.Property(s => s.TemplateVersionId).HasColumnName("template_version_id");
         builder.HasOne<FormTemplateVersion>().WithMany().HasForeignKey(s => s.TemplateVersionId).OnDelete(DeleteBehavior.Restrict);

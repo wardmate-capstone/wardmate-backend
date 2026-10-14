@@ -45,7 +45,7 @@ public static class ApplicationSnapshots
         {
             a.Id, a.ApplicationCode, a.WardCode, a.UserId, a.ProcedureId, a.ProcedureTitle, a.CaseCode,
             formData = JsonSerializer.Deserialize<JsonElement>(a.FormData),
-            checklists = a.Checklists.OrderBy(x => x.Id).Select(x => new { x.Id, x.Code, x.Title, x.IsRequired, x.Status, x.FileUrl, x.Note })
+            checklists = a.Checklists.OrderBy(x => x.Id).Select(x => new { x.Id, x.Code, x.Title, x.IsRequired, x.Status, x.FileUrl, x.Note, x.FormTemplateId })
         }, Options)
     };
 

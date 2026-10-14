@@ -14,7 +14,7 @@ namespace WardMate.Services.DocumentForm.API.Controllers;
 [Route("api/v1/citizen/submissions")]
 [Produces("application/json")]
 [Tags("Citizen — Đơn điện tử online")]
-public sealed class CitizenSubmissionsController(IMediator mediator) : ControllerBase
+public sealed class CitizenSubmissionsController(IMediator mediator, WardMate.Services.DocumentForm.API.Security.ApplicationAccess access) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<UserSubmissionSummaryDto>), StatusCodes.Status200OK)]
@@ -45,8 +45,10 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
     {
         if (!OwnsIdentity(request.ApplicantId)) return Forbid();
         using var stream = request.File.OpenReadStream();
+        var error = await access.Check(request.ApplicationId, request.ChecklistId, true, ct, request.TemplateId);
+        if (error is not null) return error;
         var result = await mediator.Send(new SaveDraftSubmissionCommand(null, request.TemplateId,
-            request.ApplicantId, stream, request.File.FileName, request.File.Length, User.Identity?.Name), ct);
+            request.ApplicantId, stream, request.File.FileName, request.File.Length, request.ApplicationId, request.ChecklistId, User.Identity?.Name), ct);
         return result.IsSuccess ? CreatedAtAction(nameof(GetById),
             new { submissionId = result.Value.SubmissionId, applicantId = request.ApplicantId }, result.Value) : Failure(result.Error);
     }
@@ -59,8 +61,11 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
     {
         if (!OwnsIdentity(request.ApplicantId)) return Forbid();
         using var stream = request.File.OpenReadStream();
+        var link = await access.Submission(submissionId, true, ct);
+        if (link.Error is not null) return link.Error;
         var result = await mediator.Send(new SaveDraftSubmissionCommand(submissionId, Guid.Empty,
-            request.ApplicantId, stream, request.File.FileName, request.File.Length, User.Identity?.Name), ct);
+            request.ApplicantId, stream, request.File.FileName, request.File.Length, link.ApplicationId, link.ChecklistId, User.Identity?.Name,
+            WorkflowAllowsEdit: true), ct);
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
 
@@ -70,6 +75,8 @@ public sealed class CitizenSubmissionsController(IMediator mediator) : Controlle
     public async Task<IActionResult> Submit(Guid submissionId, [FromBody] CitizenSubmitRequest request, CancellationToken ct)
     {
         if (!OwnsIdentity(request.ApplicantId)) return Forbid();
+        var link = await access.Submission(submissionId, true, ct);
+        if (link.Error is not null) return link.Error;
         var result = await mediator.Send(new SubmitSubmissionCommand(submissionId, request.ApplicantId, User.Identity?.Name), ct);
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
@@ -104,6 +111,8 @@ public sealed record CitizenSubmitRequest(Guid ApplicantId);
 public sealed class CreateOnlineDraftRequest
 {
     public Guid TemplateId { get; init; }
+    public Guid ApplicationId { get; init; }
+    public Guid ChecklistId { get; init; }
     public Guid ApplicantId { get; init; }
     [Required] public IFormFile File { get; init; } = null!;
 }

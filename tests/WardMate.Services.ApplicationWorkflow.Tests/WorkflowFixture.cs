@@ -44,6 +44,9 @@ public sealed class WorkflowFixture : IAsyncLifetime
                 s.RemoveAll<IProcedureCatalogClient>();
                 s.AddSingleton<IProcedureCatalogClient, FakeCatalog>();
                 s.RemoveAll<IWorkflowDirectory>(); s.AddSingleton<IWorkflowDirectory>(Directory);
+                // These tests isolate Workflow. Real evidence validation is exercised by the local two-service smoke script.
+                s.RemoveAll<WardMate.Services.ApplicationWorkflow.API.IDocumentContentsClient>();
+                s.AddSingleton<WardMate.Services.ApplicationWorkflow.API.IDocumentContentsClient, AvailableDocuments>();
             });
         });
         using var client = Factory.CreateClient();
@@ -64,6 +67,12 @@ public sealed class WorkflowFixture : IAsyncLifetime
         return client;
     }
     public async Task DisposeAsync() { await Factory.DisposeAsync(); await postgres.DisposeAsync(); }
+
+    private sealed class AvailableDocuments : WardMate.Services.ApplicationWorkflow.API.IDocumentContentsClient
+    {
+        public Task<Microsoft.AspNetCore.Mvc.ObjectResult?> Validate(Guid applicationId, IEnumerable<ChecklistDto> items, CancellationToken ct) =>
+            Task.FromResult<Microsoft.AspNetCore.Mvc.ObjectResult?>(null);
+    }
 
     public sealed class FakeDirectory : IWorkflowDirectory
     {

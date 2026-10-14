@@ -32,7 +32,7 @@ public sealed class GetGeneratedDocumentsQueryHandler
         {
             var submission = await _dbContext.UserSubmissions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => (s.Id == request.ApplicationId || s.ApplicantId == request.ApplicationId) && !s.IsDeleted, cancellationToken);
+                .FirstOrDefaultAsync(s => s.ApplicationId == request.ApplicationId && !s.IsDeleted, cancellationToken);
 
             if (submission is not null)
             {

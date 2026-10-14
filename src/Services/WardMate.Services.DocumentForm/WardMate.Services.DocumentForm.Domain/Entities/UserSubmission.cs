@@ -58,6 +58,18 @@ public sealed class UserSubmission : BaseEntity
     }
 
     public Guid TemplateId { get; private set; }
+    public Guid? ApplicationId { get; private set; }
+    public Guid? ChecklistId { get; private set; }
+
+    public void LinkApplication(Guid applicationId, Guid checklistId)
+    {
+        if (applicationId == Guid.Empty || checklistId == Guid.Empty)
+            throw new ArgumentException("Application and checklist IDs are required.");
+        if (ApplicationId.HasValue && (ApplicationId != applicationId || ChecklistId != checklistId))
+            throw new InvalidOperationException("A submission cannot move to another application or checklist.");
+        ApplicationId = applicationId;
+        ChecklistId = checklistId;
+    }
 
     /// <summary>ID người dân sở hữu hồ sơ này.</summary>
     public Guid ApplicantId { get; private set; }
@@ -95,9 +107,10 @@ public sealed class UserSubmission : BaseEntity
     /// Cập nhật file nháp (người dùng lưu tiếp sau khi điền thêm).
     /// Chỉ cho phép khi hồ sơ đang ở trạng thái Draft hoặc RevisionRequested.
     /// </summary>
-    public void SaveDraft(string blobUrl, string fileName, long fileSizeBytes, string? updatedBy = null)
+    public void SaveDraft(string blobUrl, string fileName, long fileSizeBytes, string? updatedBy = null, bool workflowAllowsEdit = false)
     {
-        if (Status != SubmissionStatus.Draft && Status != SubmissionStatus.RevisionRequested)
+        if (Status != SubmissionStatus.Draft && Status != SubmissionStatus.RevisionRequested
+            && !(workflowAllowsEdit && Status == SubmissionStatus.Submitted))
             throw new InvalidOperationException($"Cannot save draft when submission status is '{Status}'.");
 
         ArgumentException.ThrowIfNullOrWhiteSpace(blobUrl);
@@ -108,8 +121,7 @@ public sealed class UserSubmission : BaseEntity
         FileSizeBytes = fileSizeBytes;
 
         // Khi người dùng sửa lại sau lần bị trả về, reset status về Draft
-        if (Status == SubmissionStatus.RevisionRequested)
-            Status = SubmissionStatus.Draft;
+        Status = SubmissionStatus.Draft;
 
         UpdatedBy = updatedBy;
         SetUpdated(DateTime.UtcNow);

@@ -80,6 +80,7 @@ services:
       Jwt__Key: ${JWT_KEY}
       Database__AutoMigrate: "true"
       ProcedureCatalog__BaseUrl: http://procedure-catalog:8080/
+      Services__DocumentForm__BaseUrl: http://document-form:8080/
       Iam__BaseUrl: http://iam-api:8080/
       RabbitMq__Enabled: ${NOTIFICATIONS_ENABLED:-false}
       RabbitMq__Host: rabbitmq
@@ -127,6 +128,7 @@ services:
       Database__AutoMigrate: "true"
       AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://host.docker.internal}
       AzureBlob__ContainerName: form-templates
+      Services__ApplicationWorkflow__BaseUrl: http://application-workflow:8080/
     ports:
       - "5004:8080"
     depends_on:

@@ -55,6 +55,7 @@ public sealed class ApplicationRecord
 
 public sealed class ApplicationChecklist
 {
+    public Guid? FormTemplateId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ApplicationId { get; set; }
     public string Code { get; set; } = string.Empty;

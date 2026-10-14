@@ -12,7 +12,8 @@ using WardMate.SharedKernel.CQRS;
 namespace WardMate.Services.DocumentForm.Application.Commands;
 
 public sealed record SaveDraftSubmissionCommand(Guid? SubmissionId, Guid TemplateId, Guid ApplicantId,
-    Stream FileStream, string FileName, long FileSizeBytes, string? SavedBy = null) : ICommand<SaveSubmissionResultDto>;
+    Stream FileStream, string FileName, long FileSizeBytes, Guid ApplicationId, Guid ChecklistId, string? SavedBy = null,
+    bool WorkflowAllowsEdit = false) : ICommand<SaveSubmissionResultDto>;
 
 public sealed class SaveDraftSubmissionCommandHandler(IDocumentDbContext db, IBlobStorageClient blobs,
     Microsoft.Extensions.Logging.ILogger<SaveDraftSubmissionCommandHandler> logger) : ICommandHandler<SaveDraftSubmissionCommand, SaveSubmissionResultDto>
@@ -30,9 +31,16 @@ public sealed class SaveDraftSubmissionCommandHandler(IDocumentDbContext db, IBl
             if (existing is null) return DocumentFormErrors.SubmissionNotFound(request.SubmissionId.Value);
             if (existing.ApplicantId != request.ApplicantId)
                 return DocumentFormErrors.SubmissionNotOwnedByApplicant(existing.Id, request.ApplicantId);
-            if (existing.Status != SubmissionStatus.Draft)
+            if (existing.Status != SubmissionStatus.Draft && existing.Status != SubmissionStatus.RevisionRequested
+                && !(request.WorkflowAllowsEdit && existing.Status == SubmissionStatus.Submitted))
                 return DocumentFormErrors.SubmissionInvalidStatusTransition(existing.Status.ToString(), "SaveDraft");
         }
+        if (request.ApplicationId == Guid.Empty || request.ChecklistId == Guid.Empty)
+            return Error.Validation("document.application_required", "ApplicationId and ChecklistId are required.");
+        if (existing is not null && (existing.ApplicationId != request.ApplicationId || existing.ChecklistId != request.ChecklistId))
+            return Error.Conflict("document.application_mismatch", "The submission is not linked to this application/checklist.");
+        if (existing is null && await db.UserSubmissions.AnyAsync(s => !s.IsDeleted && s.ApplicationId == request.ApplicationId && s.ChecklistId == request.ChecklistId, ct))
+            return Error.Conflict("document.draft_exists", "A submission already exists for this checklist. Update that submission.");
         var templateId = existing?.TemplateId ?? request.TemplateId;
         var template = await db.FormTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Id == templateId && !t.IsDeleted, ct);
         if (template is null) return DocumentFormErrors.TemplateNotFound(templateId);
@@ -48,7 +56,8 @@ public sealed class SaveDraftSubmissionCommandHandler(IDocumentDbContext db, IBl
         catch (Exception ex) when (ex is not OperationCanceledException)
         { return DocumentFormErrors.BlobUploadFailed("Unable to store edited DOCX. Retry saving the draft."); }
         var submission = existing ?? new UserSubmission(templateId, request.ApplicantId, url, fileName, generated.Length, request.SavedBy);
-        if (existing is not null) submission.SaveDraft(url, fileName, generated.Length, request.SavedBy);
+        submission.LinkApplication(request.ApplicationId, request.ChecklistId);
+        if (existing is not null) submission.SaveDraft(url, fileName, generated.Length, request.SavedBy, request.WorkflowAllowsEdit);
         if (existing is null) db.UserSubmissions.Add(submission);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException)

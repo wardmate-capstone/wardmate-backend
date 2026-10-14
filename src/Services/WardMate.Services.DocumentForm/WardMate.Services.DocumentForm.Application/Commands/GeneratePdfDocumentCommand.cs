@@ -47,23 +47,13 @@ public sealed class GeneratePdfDocumentCommandHandler
             return Error.Validation("document.invalid_application_id", "Application ID cannot be empty.");
         }
 
-        // 1. Tìm hồ sơ UserSubmission theo SubmissionId nếu cung cấp, hoặc theo ApplicationId
-        UserSubmission? submission = null;
-        if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
-        {
-            submission = await _dbContext.UserSubmissions
-                .FirstOrDefaultAsync(s => s.Id == request.SubmissionId.Value && !s.IsDeleted, cancellationToken);
-        }
-
-        submission ??= await _dbContext.UserSubmissions
-            .Where(s => (s.Id == request.ApplicationId || s.ApplicantId == request.ApplicationId) && !s.IsDeleted)
-            .OrderByDescending(s => s.CreatedAtUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (submission is null)
-        {
-            return DocumentFormErrors.SubmissionNotFound(request.SubmissionId ?? request.ApplicationId);
-        }
+        if (!request.SubmissionId.HasValue || request.SubmissionId == Guid.Empty)
+            return Error.Validation("document.submission_required", "SubmissionId is required; it is different from ApplicationId.");
+        var submission = await _dbContext.UserSubmissions.FirstOrDefaultAsync(s =>
+            s.Id == request.SubmissionId && s.ApplicationId == request.ApplicationId && !s.IsDeleted, cancellationToken);
+        if (submission is null) return DocumentFormErrors.SubmissionNotFound(request.SubmissionId.Value);
+        if (request.FileStream is not null)
+            return Error.Validation("document.use_saved_docx", "Save the DOCX to the submission before generating PDF.");
 
         // 2. Phân quyền và Kiểm tra Trạng thái phê duyệt
         // Nếu người gọi là người dân:
@@ -71,9 +61,9 @@ public sealed class GeneratePdfDocumentCommandHandler
         // - Hồ sơ PHẢI có Status là Approved (đã được cán bộ duyệt)
         if (!request.IsOfficer)
         {
-            if (request.CallerUserId.HasValue && request.CallerUserId.Value != Guid.Empty && submission.ApplicantId != request.CallerUserId.Value)
+            if (!request.CallerUserId.HasValue || request.CallerUserId == Guid.Empty || submission.ApplicantId != request.CallerUserId)
             {
-                return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.CallerUserId.Value);
+                return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.CallerUserId ?? Guid.Empty);
             }
 
             if (submission.Status != SubmissionStatus.Approved)

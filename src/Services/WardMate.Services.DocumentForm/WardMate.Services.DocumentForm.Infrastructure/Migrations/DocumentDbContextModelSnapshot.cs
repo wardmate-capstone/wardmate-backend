@@ -346,11 +346,19 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("applicant_id");
 
+                    b.Property<Guid?>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
                     b.Property<string>("BlobUrl")
                         .IsRequired()
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)")
                         .HasColumnName("blob_url");
+
+                    b.Property<Guid?>("ChecklistId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("checklist_id");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamptz")
@@ -436,6 +444,11 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
 
                     b.HasIndex("ApplicantId", "Status")
                         .HasDatabaseName("ix_user_submissions_applicant_status");
+
+                    b.HasIndex("ApplicationId", "ChecklistId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_submissions_application_id_checklist_id")
+                        .HasFilter("application_id IS NOT NULL AND is_deleted = false");
 
                     b.ToTable("user_submissions", "document");
                 });
