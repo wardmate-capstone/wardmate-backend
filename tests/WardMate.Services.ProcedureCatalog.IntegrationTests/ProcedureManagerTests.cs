@@ -14,6 +14,35 @@ public sealed class ProcedureManagerTests(ProcedureFixture fixture) : IClassFixt
 {
     private const string Route = "/api/v1/procedure-manager/procedures";
 
+    [Fact]
+    public async Task ChecklistReplacementSupportsOrderDeletionValidationAndConcurrency()
+    {
+        using var client = fixture.ManagerClient();
+        var created = await Create(client, Input());
+        // Read persisted timestamp (PostgreSQL precision) before editing.
+        var current = (await client.GetFromJsonAsync<ProcedureDetailDto>($"{Route}/{created.Id}"))!;
+        var items = new List<WardMate.Services.ProcedureCatalog.Domain.JsonModels.ChecklistItemSchema>
+        {
+            new() { ChecklistId = "B", ItemName = "Giấy tờ B", SubmissionType = "NOP", DocumentCopyType = "ORIGINAL", Quantity = 2 },
+            new() { ChecklistId = "A", ItemName = "Giấy tờ A", SubmissionType = "XUAT_TRINH", DocumentCopyType = "CERTIFIED_COPY", Quantity = 1 }
+        };
+        var request = new ChecklistUpdateInput(current.UpdatedAt, "QD-CHECK", new DateOnly(2026, 10, 14), items);
+        using var saved = await client.PutAsJsonAsync($"{Route}/{created.Id}/checklist", request);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        current = (await client.GetFromJsonAsync<ProcedureDetailDto>($"{Route}/{created.Id}"))!;
+        Assert.Equal(new[] { "B", "A" }, current.ChecklistSchema!.Select(x => x.ChecklistId));
+        using var stale = await client.PutAsJsonAsync($"{Route}/{created.Id}/checklist", request);
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        items[0].CaseCode = "UNKNOWN";
+        using var invalid = await client.PutAsJsonAsync($"{Route}/{created.Id}/checklist", request with { ExpectedUpdatedAt = current.UpdatedAt });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        using var cleared = await client.PutAsJsonAsync($"{Route}/{created.Id}/checklist", request with { ExpectedUpdatedAt = current.UpdatedAt, Items = [] });
+        Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
+        current = (await client.GetFromJsonAsync<ProcedureDetailDto>($"{Route}/{created.Id}"))!;
+        Assert.Empty(current.ChecklistSchema!);
+        var versions = await client.GetFromJsonAsync<JsonElement>($"{Route}/{created.Id}/versions");
+        Assert.Equal(3, versions.GetArrayLength());
+    }
     private static UpdateProcedureInput Input()
     {
         var sample = ProcedureSeed.CreateSample();
