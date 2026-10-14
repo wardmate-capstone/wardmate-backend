@@ -30,9 +30,13 @@ public sealed class DocumentContentsClient(HttpClient http, IConfiguration confi
             if (contents is null || contents.ApplicationId != applicationId || contents.Submissions is null || contents.SupportingDocuments is null)
                 return Problem(503, "application.documents_unavailable", "DocumentForm trả dữ liệu không hợp lệ.");
             var missing = items.Where(item =>
-                !contents.Submissions.Any(s => s.ChecklistId == item.Id && s.Status is ("Submitted" or "Approved")
-                    && (!item.FormTemplateId.HasValue || s.TemplateId == item.FormTemplateId))
-                && (item.FormTemplateId.HasValue || !contents.SupportingDocuments.Any(d => d.ChecklistId == item.Id)))
+                !(item.FormTemplateId.HasValue && contents.Submissions.Any(s => s.ChecklistId == item.Id
+                    && s.FileExists && s.Status is ("Submitted" or "Approved") && s.TemplateId == item.FormTemplateId))
+                && (item.FormTemplateId.HasValue || contents.SupportingDocuments
+                    .Where(d => d.ChecklistId == item.Id && d.FileExists && d.Quantity > 0
+                        && (item.SubmissionType is null || d.SubmissionType == item.SubmissionType)
+                        && (item.DocumentCopyType is null || d.DocumentCopyType == item.DocumentCopyType))
+                    .Sum(d => (long)d.Quantity) < item.Quantity))
                 .Select(item => item.Id).ToArray();
             if (missing.Length == 0) return null;
             var problem = Problem(422, "application.documents_incomplete", "Cần lưu giấy tờ hoặc hoàn thành đơn tương ứng trước khi đánh dấu/nộp hồ sơ.");
@@ -48,5 +52,6 @@ public sealed class DocumentContentsClient(HttpClient http, IConfiguration confi
     { Status = status, Title = title, Extensions = { ["code"] = code, ["traceId"] = context.HttpContext!.TraceIdentifier } })
     { StatusCode = status, ContentTypes = { "application/problem+json" } };
     private sealed record Contents(Guid ApplicationId, Item[] Submissions, Item[] SupportingDocuments);
-    private sealed record Item(Guid Id, Guid? ChecklistId, string Status, Guid? TemplateId);
+    private sealed record Item(Guid Id, Guid? ChecklistId, string Status, Guid? TemplateId,
+        bool FileExists = false, string? SubmissionType = null, string? DocumentCopyType = null, int Quantity = 1);
 }

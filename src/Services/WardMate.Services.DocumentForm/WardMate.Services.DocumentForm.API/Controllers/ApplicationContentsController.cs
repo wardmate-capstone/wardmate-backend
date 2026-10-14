@@ -19,6 +19,11 @@ public sealed class ApplicationContentsController(IMediator mediator, Applicatio
         var error = await access.Check(applicationId, null, false, ct);
         if (error is not null) return error;
         var result = await mediator.Send(new GetApplicationContentsQuery(applicationId, Guid.Parse(User.FindFirst("sub")!.Value)), ct);
+        if (!result.IsSuccess) return new ObjectResult(new ProblemDetails
+        {
+            Status = 503, Title = result.Error.Description,
+            Extensions = { ["code"] = result.Error.Code, ["traceId"] = HttpContext.TraceIdentifier }
+        }) { StatusCode = 503 };
         return Ok(result.Value);
     }
 }
