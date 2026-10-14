@@ -55,6 +55,12 @@ public sealed class ApplicationRecord
 
 public sealed class ApplicationChecklist
 {
+    public int SortOrder { get; set; }
+    public string? CaseCode { get; set; }
+    public string? SubmissionType { get; set; }
+    public string? DocumentCopyType { get; set; }
+    public int Quantity { get; set; } = 1;
+    public string? ConditionNote { get; set; }
     public Guid? FormTemplateId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ApplicationId { get; set; }

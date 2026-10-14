@@ -36,7 +36,9 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
             return WorkflowResult<ApplicationDto>.Fail(400, "application.invalid_case", "Vui lòng chọn đúng trường hợp của thủ tục.");
         var schema = procedure.ChecklistSchema ?? [];
         if (schema.Any(x => x is null || x.IsMandatory is null || string.IsNullOrWhiteSpace(x.ChecklistId) || x.ChecklistId.Length > 255
-                || string.IsNullOrWhiteSpace(x.ItemName) || x.ItemName.Length > 255
+                || string.IsNullOrWhiteSpace(x.ItemName) || x.ItemName.Length > 255 || x.Quantity < 1
+                || x.SubmissionType is not (null or "NOP" or "XUAT_TRINH")
+                || x.DocumentCopyType is not (null or "ORIGINAL" or "CERTIFIED_COPY" or "REGULAR_COPY")
                 || (!string.IsNullOrWhiteSpace(x.CaseCode) && !cases.Any(c => c.CaseCode == x.CaseCode))))
             return WorkflowResult<ApplicationDto>.Fail(502, "application.invalid_schema", "Cấu hình checklist của thủ tục không hợp lệ.");
         var selected = schema.Where(x => string.IsNullOrWhiteSpace(x.CaseCode) || x.CaseCode == caseCode).ToArray();
@@ -45,11 +47,13 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
         var now = clock.GetUtcNow().UtcDateTime;
         var application = new ApplicationRecord { WardCode = ward, ApplicationCode = await store.NextCode(now, ct), UserId = r.UserId, ProcedureId = procedure.Id,
             ProcedureTitle = procedure.Title, CaseCode = caseCode, FormData = r.Input.FormData.GetRawText(), CreatedAt = now, UpdatedAt = now };
-        application.Checklists.AddRange(selected.Select(x => new ApplicationChecklist { ApplicationId = application.Id,
-            Code = x.ChecklistId, Title = x.ItemName, IsRequired = x.IsMandatory!.Value, CreatedAt = now, UpdatedAt = now }));
+        application.Checklists.AddRange(selected.Select((x, index) => new ApplicationChecklist { ApplicationId = application.Id,
+            Code = x.ChecklistId, Title = x.ItemName, IsRequired = x.IsMandatory!.Value, CreatedAt = now, UpdatedAt = now,
+            SortOrder = index, CaseCode = x.CaseCode, SubmissionType = x.SubmissionType,
+            DocumentCopyType = x.DocumentCopyType, Quantity = x.Quantity, ConditionNote = x.ConditionNote }));
         var forms = procedure.FormDefinitions ?? [];
         if (forms.Any(x => x is null || string.IsNullOrWhiteSpace(x.FormCode) || x.FormCode.Length > 255
-            || string.IsNullOrWhiteSpace(x.FormName) || x.FormName.Length > 255 || x.FormTemplateId == Guid.Empty
+            || string.IsNullOrWhiteSpace(x.FormName) || x.FormName.Length > 255 || x.FormTemplateId == Guid.Empty || x.Quantity < 1
             || (!string.IsNullOrWhiteSpace(x.CaseCode) && !cases.Any(c => c.CaseCode == x.CaseCode))))
             return WorkflowResult<ApplicationDto>.Fail(502, "application.invalid_schema", "Cấu hình biểu mẫu của thủ tục không hợp lệ.");
         var selectedForms = forms.Where(x => string.IsNullOrWhiteSpace(x.CaseCode) || x.CaseCode == caseCode).ToArray();
@@ -62,11 +66,13 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
             if (item is null)
             {
                 item = new ApplicationChecklist { ApplicationId = application.Id, Code = form.FormCode,
-                    Title = form.FormName, CreatedAt = now, UpdatedAt = now };
+                    Title = form.FormName, CreatedAt = now, UpdatedAt = now,
+                    SortOrder = application.Checklists.Count, CaseCode = form.CaseCode, Quantity = form.Quantity };
                 application.Checklists.Add(item);
             }
             item.IsRequired |= form.IsMandatory;
             item.FormTemplateId = form.FormTemplateId;
+            item.Quantity = Math.Max(item.Quantity, form.Quantity);
         }
         application.History.Add(new() { ApplicationId = application.Id, ToStatus = ApplicationStates.Draft,
             ChangedBy = r.UserId, CreatedAt = now });
