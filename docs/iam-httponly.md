@@ -1,3 +1,5 @@
+> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+
 # IAM-006 — Bàn giao HttpOnly cho Frontend
 
 ## Hợp đồng mới
@@ -93,10 +95,7 @@ Nguồn tham khảo: [MDN Set-Cookie](https://developer.mozilla.org/en-US/docs/W
 
 Kiểm tra lại sau Release build bằng PowerShell 7:
 
-```powershell
-pwsh -NoProfile -File scripts/verify-iam-cookie.ps1
-dotnet test WardMate.sln -c Release --no-build
-```
+Bộ kiểm thử tự động trong mục này đã được gỡ theo yêu cầu chủ dự án.
 
 Script HTTP tự tạo PostgreSQL container riêng và hai process IAM/Gateway tạm, tự dọn khi kết thúc. Không build Docker image, không dùng DB Local Dev, không thêm test project IAM đã bị gỡ. Kiểm tra HTTP/header không thay thế E2E trên browser của FE; FE vẫn cần xác minh credentials/cookie policy trong môi trường chạy thật.
 
@@ -122,5 +121,6 @@ Giữ ForwardLimit mặc định 1: dùng giá trị bên phải của chuỗi f
 
 Tài liệu Microsoft: https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0
 
-Script scripts/verify-iam-cookie.ps1 bổ sung regression checks cho origin Azure giả lập qua HTTP local: cùng host/proto forwarded thành công dù không nằm allowlist; bỏ forwarded headers thì bị từ chối; thiếu CSRF hoặc origin lạ vẫn403; FE trong allowlist vẫn có credentialed CORS. Đây là kiểm thử local, không phải xác nhận đã deploy/sửa thành công trên Azure. Sau deploy cần kiểm tra revision mới và Execute trên Swagger thật. Swagger vẫn chỉ bật trong Development theo cấu hình cũ; bản sửa không bật Swagger ở Production.
+Bộ kiểm thử cookie trước đây (đã gỡ theo yêu cầu ngày 2026-10-14) bổ sung regression checks cho origin Azure giả lập qua HTTP local: cùng host/proto forwarded thành công dù không nằm allowlist; bỏ forwarded headers thì bị từ chối; thiếu CSRF hoặc origin lạ vẫn403; FE trong allowlist vẫn có credentialed CORS. Đây là kiểm thử local, không phải xác nhận đã deploy/sửa thành công trên Azure. Sau deploy cần kiểm tra revision mới và Execute trên Swagger thật. Swagger vẫn chỉ bật trong Development theo cấu hình cũ; bản sửa không bật Swagger ở Production.
+
 

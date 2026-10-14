@@ -26,12 +26,11 @@ Mỗi service chứa bốn project `.Domain`, `.Application`, `.Infrastructure`,
 
 ## Build
 
-Yêu cầu .NET SDK 8.0.4xx. TASK-07 bổ sung lại integration tests riêng cho Procedure Catalog theo yêu cầu mới; các test IAM/SharedKernel đã xóa không được khôi phục. Test mới cần Docker Linux containers và dùng PostgreSQL 16 tạm, độc lập database local. CI restore, build Release và chạy test suite hiện có.
+Yêu cầu .NET SDK 8.0.4xx. Theo yêu cầu chủ dự án ngày 2026-10-14, bộ test và script kiểm thử đã được gỡ khỏi repository sau khi xác minh. CI restore và build Release với cảnh báo được xem là lỗi. Kết quả kiểm thử trước khi gỡ được lưu trong PROGRESS.md; hướng dẫn sử dụng API tại docs/api-guide.md.
 
 ```powershell
 dotnet restore WardMate.sln
-dotnet build WardMate.sln -c Release --no-restore
-dotnet test WardMate.sln -c Release --no-build
+dotnet build WardMate.sln -c Release --no-restore -warnaserror
 ```
 
 ## Chạy local

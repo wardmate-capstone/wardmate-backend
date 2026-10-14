@@ -1,3 +1,5 @@
+> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+
 # TASK-07 — Procedure Catalog entities và EF Core JSONB
 
 ## Phạm vi
@@ -68,12 +70,7 @@ Thử GET `http://localhost:5002/api/v1/procedures/07000000-0000-0000-0000-00000
 
 ## Xác minh
 
-```powershell
-dotnet restore WardMate.sln
-dotnet build WardMate.sln -c Release --no-restore
-dotnet test WardMate.sln -c Release --no-build
-dotnet ef migrations has-pending-model-changes --project src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure --configuration Release --no-build
-```
+Bộ kiểm thử tự động trong mục này đã được gỡ theo yêu cầu chủ dự án.
 
 11 integration cases chạy PostgreSQL 16 tạm: ba bảng/bốn cột JSONB/index/seed, complex JSON roundtrip qua repository/MediatR/HTTP, sửa JSON lồng nhau, NULL so với array rỗng, unique code và version pair, snapshot độc lập, SQL defaults/category identity, required JSON và 404 cho inactive/missing. Không tái tạo test IAM/SharedKernel đã gỡ.
 

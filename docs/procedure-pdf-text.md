@@ -1,12 +1,12 @@
+> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+
 # PDF-002 — Đọc chữ PDF trực tiếp, không cần OCR
 
 ## Cách test nhanh nhất, không cần Blob, AI, OCR hay database
 
 Từ thư mục gốc repo, sau khi đã build Release:
 
-```powershell
-pwsh -NoProfile -File scripts/verify-pdf-text.ps1 -PdfPath "C:\duong-dan\thu-tuc.pdf"
-```
+Bộ kiểm thử tự động trong mục này đã được gỡ theo yêu cầu chủ dự án.
 
 Có thể thêm `-ExpectedText "Đăng ký tạm trú"` để kiểm tra một đoạn chữ mong đợi. Script khởi động AIOCR tạm trên cổng loopback ngẫu nhiên, tự tạo service key chỉ trong process, tắt cả AI và OCR, gọi HTTP bằng PDF gốc rồi dừng process. Không ghi DB, upload Blob hoặc gửi file ra cloud. Kết quả có số ký tự, cảnh báo và 350 ký tự đầu để đối chiếu. `PASS` chỉ xác nhận HTTP trả thành công và ExpectedText (nếu truyền) khớp, không đảm bảo mọi nội dung PDF được đọc đầy đủ; luôn đọc warnings.
 

@@ -1,3 +1,5 @@
+> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
 Cập nhật ngày **07/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả các
@@ -2233,80 +2235,7 @@ async function saveDraft(editor, templateId, applicantId, submissionId) {
   })); // Không tự đặt Content-Type: trình duyệt thêm multipart boundary.
   return response.json();
 }
-```
-
-Đừng mở lại mẫu admin khi người dân sửa một submission đã có: sẽ làm mất nội dung đã nhập trên màn hình.
-Đừng gửi JSON formData hoặc đường dẫn file thay cho binary. Không chỉnh trực tiếp Blob mẫu của admin.
-Editor FE phải hỗ trợ import/export DOCX; backend bảo toàn bytes nhận được nhưng không đảm bảo editor render
-mọi font/bảng/ngắt trang giống Word. Kiểm tra hiển thị với file mẫu thực tế ở FE là bước tích hợp riêng.
-
-Test local: `python scripts/verify-documentform-online.py http://localhost:5000/api/document-form`.
-Script cần DOCUMENTFORM_MANAGER_TOKEN và DOCUMENTFORM_CITIZEN_TOKEN từ IAM local; dùng sub của token công dân, tạo code DOCX-*; không gọi Azure.
-Kiểm tra auth độc lập, không ghi DB: `python scripts/verify-documentform-authorization.py` (sau Release build).
-Có thể truyền đường dẫn DOCX làm đối số thứ hai để kiểm tra round-trip trên mẫu thật.
-
-## 7. AIOCR: API nội bộ
-
-- **Method:** POST
-  - **Route:** `/internal/v1/procedure-extractions`
-  - **Xác thực / Request:** `X-Service-Key`; body **bytes PDF**, `Content-Type: application/pdf`
-  - **Thành công:** `200 ExtractionResult`
-  - **Lỗi điển hình:** `400/401/413/502/503/504`
-
-
-Đây là hợp đồng backend-to-backend, **không phải multipart** và không dùng JWT người dùng. FE gọi
-preview/drafts ở Procedure thay vì gọi API này. Gateway hiện có proxy prefix AIOCR; vì vậy không suy ra
-“internal” trong route đồng nghĩa không thể truy cập qua mạng ngoài. Service vẫn kiểm tra key.
-
-Cấu hình cần biết:
-
-- AIOCR: `Extraction:Enabled`, `ServiceAuthentication:Key` (key đủ mạnh, ít nhất 32 ký tự).
-- Procedure: `ProcedureDrafts:AiOcrUrl`, `ProcedureDrafts:ServiceKey` khớp key AIOCR; `ExtractionEnabled`
-  điều khiển xử lý draft nền.
-- `Extraction:UseAI` quyết định có ánh xạ text bằng AI; `OcrFallbackEnabled` quyết định có dùng OCR khi không
-  đủ text. Các bước cloud cần cấu hình dịch vụ tương ứng; không đặt secret trong FE.
-
-Native extraction đọc text PDF trước, có giới hạn 100 trang và 100.000 ký tự text, upload tối đa 20 MiB. PDF
-scan/thiếu text có thể chỉ trả cảnh báo để đối soát khi OCR tắt. Khi AI tắt, kết quả có extractedText/warnings
-và payload cần hoàn thiện thủ công. Không coi HTTP 200 là cam kết payload đã đủ điều kiện publish.
-
-## 8. Health, Swagger và service chưa có nghiệp vụ
-
-- **Service:** IAM, Procedure, ApplicationWorkflow, AIOCR, Analytics
-  - **Method / Route:** `GET /` tại từng base URL
-  - **Response:** `200 {service}`
-
-- **Service:** DocumentForm
-  - **Method / Route:** `GET /`
-  - **Response:** `200 {service,version,status}`
-
-- **Service:** Sáu service trên
-  - **Method / Route:** `GET /health`
-  - **Response:** Health check, thông thường `200` text `Healthy`
-
-- **Service:** Gateway
-  - **Method / Route:** `GET /health`
-  - **Response:** Health check Gateway
-
-
-Có 6 root endpoint và 7 health endpoint theo host. Health hiện không chứng minh PostgreSQL/Blob/AI đều sẵn
-sàng vì chưa có kiểm tra dependency tương ứng được đăng ký. Gateway không có root endpoint nghiệp vụ.
-
-IAM, Procedure và DocumentForm bật Swagger trong Development: `GET /swagger/index.html` (giao diện),
-`GET /swagger/v1/swagger.json` (OpenAPI). `/swagger` thường chuyển hướng vào giao diện. Không mặc định Swagger
-có trên Production.
-
-ApplicationWorkflow đã có controller hồ sơ/cán bộ (xem mục TASK-11 bên dưới); AnalyticsSystem mới có root/health. Không có endpoint
-import CSV trong danh mục này.
-
-## 9. Xử lý lỗi và trình tự tích hợp FE
-
-### 9.1. Lỗi
-
-IAM/Procedure thường dùng `application/problem+json` với status/title/instance, code/traceId và errors khi
-validation. Ví dụ minh họa:
-
-```json
+Bộ kiểm thử tự động trong mục này đã được gỡ theo yêu cầu chủ dự án.json
 {
   "title": "Dữ liệu không hợp lệ.",
   "status": 400,
@@ -2956,228 +2885,7 @@ await connection.start();
 renderNotifications(await connection.invoke("GetNotifications", 1, 20));
 // Khi người dùng mở một thông báo:
 // await connection.invoke("MarkRead", notificationId);
-```
-
-Các hàm `getCurrentAccessToken`, `showNotification`, `updateBellCount`, `renderNotifications` do FE cung cấp. AccessTokenFactory phải lấy token mới sau refresh. AutomaticReconnect không tự retry lần `start()` đầu thất bại; FE cần hiển thị trạng thái và cho thử lại. Khi logout, gọi `connection.stop()` và xóa dữ liệu thông báo đang hiển thị.
-
-### Phạm vi đã triển khai
-
-`INotificationService.CreateAsync` là hợp đồng nội bộ của AnalyticsSystem: kiểm tra dữ liệu, lưu DB trước, rồi gửi tới nhóm người nhận và cập nhật count. Không mở API công khai để browser tự tạo thông báo cho user tùy ý. Người đang offline vẫn lấy được thông báo đã lưu khi kết nối lại. Lỗi transport không rollback dữ liệu đã lưu; chưa có đảm bảo giao nhận exactly-once hoặc outbox.
-
-Đã có nhóm phường để backend sử dụng ở các task tiếp theo. Chưa tự sinh thông báo từ thao tác Workflow và chưa có RabbitMQ consumer, SMS hay Email. Không broadcast một DTO riêng tư của công dân tới cả nhóm phường. Muốn lưu thông báo cho nhiều cán bộ cần tạo bản ghi riêng cho từng người nhận được phép.
-
-Hiện Hub dùng bộ nhớ một instance. Chạy 1 replica cho tới khi có Azure SignalR hoặc Redis backplane và cấu hình scale-out phù hợp; nếu nhiều replica, lưu DB vẫn hoạt động nhưng realtime có thể không tới connection ở replica khác.
-
-## TASK-26 / TASK-27 — Thông báo tự động từ Workflow (2026-10-12)
-
-Mục này thay thế các ghi chú TASK-25 trước đây về việc chưa nối Workflow, chưa có Outbox và chưa thu hồi connection. Chức năng mới cần triển khai IAM, Workflow và AnalyticsSystem cùng các migration/config tương ứng; code local không tự cập nhật Azure.
-
-### Khi nào có thông báo?
-
-- Nộp/nộp lại: công dân nhận xác nhận. Nếu chưa phân công, cán bộ FRONT_DESK_OFFICER đang hoạt động, cùng phường và có workflow.queue.read nhận thông báo tiếp nhận; nếu đã phân công, chỉ cán bộ được phân công còn đủ điều kiện nhận.
-- Tiếp nhận UNDER_REVIEW: công dân nhận cập nhật, cán bộ được phân công nhận ASSIGNED_OFFICER.
-- Thêm nhận xét: công dân nhận INLINE_COMMENT_ADDED; không đưa nội dung nhận xét/form hay CCCD vào RabbitMQ.
-- Yêu cầu bổ sung/phê duyệt/từ chối: công dân nhận cập nhật trạng thái và đường dẫn mở hồ sơ. DRAFT không phát thông báo.
-- Không gửi cho tài khoản inactive. Quyền/phường cán bộ được xác minh lại qua IAM trước khi xác định người nhận và trước khi gửi.
-
-Thông báo thuộc phường cũ không còn hiển thị/count/mark-read sau khi cán bộ chuyển phường hoặc không còn quyền đọc hàng chờ. Thông báo cá nhân vẫn theo userId. Guard kiểm tra IAM trước mỗi hub invocation, trước gửi IN_APP qua worker và định kỳ mặc định 15 giây (cấu hình 5–300 giây). Khi bị khóa, đổi role/permission/phường hoặc IAM không khả dụng, connection bị loại khỏi group và đóng; FE reconnect bằng token hiện hành. Đây là polling có độ trễ, không phải cơ chế thu hồi tức thì bằng event từ IAM.
-
-### Hợp đồng FE giữ nguyên
-
-Hub và các methods/events TASK-25 giữ nguyên, không thêm API cho client tự gửi thông báo đến người khác. CreateAsync nội bộ giờ lưu notification + delivery trong cùng transaction; worker gửi sau commit. FE khử trùng theo notification.id, vì realtime có thể được gửi lại khi process chết sau send nhưng trước khi ghi nhận Sent. Khi reconnect, gọi lại danh sách/count; không dựa vào việc mỗi event chỉ đến một lần. Hub errors vẫn là SignalR invocation errors tiếng Việt.
-
-### API nội bộ IAM — không dùng từ trình duyệt
-
-POST /internal/v1/notification-recipients
-
-Mục đích: AnalyticsSystem lấy người nhận đang hoạt động và địa chỉ Email/SMS theo dữ liệu IAM; không truy vấn thẳng database IAM.
-
-- Xác thực: header X-Notification-Service-Key, khóa riêng >=32 ký tự khớp Notifications:ServiceKey của IAM. Không dùng JWT_KEY hoặc AIOCR_SERVICE_KEY thay thế; không đưa khóa này cho FE. Endpoint không liệt kê trong Swagger công khai.
-- Body: { "userIds": ["<uuid>"], "wardCode": "<mã phường hoặc null>", "page": 1 }. Tối đa 10 userIds; mỗi trang tối đa 200 người, sắp theo id. WardCode chuẩn hóa uppercase/trim. UserIds lấy người đang active; nhánh ward chỉ lấy FD cùng phường có workflow.queue.read.
-- 200: mảng { userId, email, phoneNumber, wardCode, isOfficer }. Hết dữ liệu trả mảng rỗng; kết quả không cache.
-- 400: bộ lọc/id/page sai; 401: thiếu/sai service key; 503: IAM chưa cấu hình service key. Kiểm tra cấu hình BE, không yêu cầu người dân thử tài khoản khác.
-
-### Email và SMS
-
-Email: adapter SMTP STARTTLS đã có, mặc định tắt. Cần host/port/from/username/password hợp lệ; TLS bắt buộc. Sent nghĩa SMTP server chấp nhận, không phải biên nhận người dùng đọc hay xác nhận inbox. SMTP timeout có thể xảy ra sau khi server đã nhận thư nên retry có thể gửi trùng; X-WardMate-Delivery-Id phục vụ đối soát, không bảo đảm nhà cung cấp chống trùng.
-
-SMS: đã có ISmsSender và hàng đợi/trạng thái, nhưng chủ dự án chưa chọn nhà cung cấp Brandname. Adapter mặc định trả Blocked, tuyệt đối không trả Sent giả. Chưa có gửi SMS thật hoặc delivery receipt. Khi chọn nhà cung cấp cần triển khai ISmsSender đúng hợp đồng của họ, kiểm thử bằng sandbox và dùng deliveryId làm idempotency key nếu được hỗ trợ.
-
-Tham khảo cấu hình, retry, DLQ và các bước kiểm thử deploy trong docs/notifications-operations.md.
-
-## Bóc tách bằng Gemini (BE-TASK-PROCEDURE-GEMINI-AI)
-
-PDF có lớp chữ được đọc bằng PdfPig rồi gửi văn bản tới Gemini khi bật AI.
-Không thay đổi API, quyền truy cập hoặc bước cán bộ đối soát/xuất bản.
-
-Cấu hình trên container **AIOCR**:
-- Extraction__Enabled=true
-- Extraction__UseAI=true
-- Extraction__Provider=Gemini
-- Gemini__Key: tham chiếu Secret chứa API key Google, không đưa vào source.
-- Gemini__Model: tên model đang khả dụng trong dự án Google của bạn.
-- Extraction__OcrFallbackEnabled=false nếu chưa cấu hình Azure Document Intelligence.
-
-Docker Compose dùng PROCEDURE_EXTRACTION_ENABLED=true, PROCEDURE_USE_AI=true,
-PROCEDURE_AI_PROVIDER=Gemini, GEMINI_API_KEY và GEMINI_MODEL trong docker/.env.
-Giữ ProcedureDrafts__ExtractionEnabled=true, AiOcrUrl và ServiceKey đúng ở Procedure Catalog.
-Upload bản nháp vẫn cần Azure Blob. Không có migration mới.
-Endpoint Gemini được cố định theo API chính thức; không cần điền AzureOpenAI__Endpoint khi dùng Gemini.
-AzureOpenAI vẫn là nhà cung cấp mặc định để bảo toàn cấu hình cũ.
-
-POST /api/v1/procedure-manager/drafts/extract-preview nhận multipart PDF và trả 200
-với payload, extractedText, warnings để xem thử; không tạo bản nháp lưu trữ.
-POST /api/v1/procedure-manager/drafts nhận multipart PDF, trả 202 để theo dõi bản nháp
-bằng GET /api/v1/procedure-manager/drafts/{id}. Cán bộ sửa/lưu rồi gọi publish như trước.
-AI lỗi hoặc hết hạn mức khi xử lý PDF có chữ: trả dữ liệu thủ công và cảnh báo,
-giữ extractedText. FE phải hiển thị warnings, không coi HTTP 200 là mọi trường đã được AI điền.
-Kết quả bị cắt hoặc không có lựa chọn bị từ chối. CategoryId vẫn cần cán bộ chọn.
-PDF scan cần OCR riêng; bật Gemini không tự bật OCR.
-Chưa kiểm thử Gemini thật khi chưa có key/model; không cam kết miễn phí hoặc hạn mức cố định.
-
-### PDF có trang ít chữ — cập nhật 2026-10-13
-Preview và worker bản nháp tiếp tục gửi phần văn bản đọc được sang AI khi OCR tắt,
-kể cả có trang trống/ít chữ. Warnings vẫn ghi số trang cần đối soát; không bảo đảm
-đã đọc nội dung ảnh. PDF có tổng dưới 20 ký tự chữ/số vẫn cần nhập thủ công/OCR.
-Payload do AI đề xuất dùng để điền form; cán bộ phải kiểm tra, chọn danh mục và lưu trước publish.
-Khi AI lỗi, cảnh báo phân biệt hạn mức (429), key/quyền (401/403), timeout và lỗi khác;
-không hiển thị key hoặc phản hồi thô của nhà cung cấp. Hết quota Free Tier hãy chờ rồi retry.
-Không đổi route, quyền, request hoặc status code API.
-
-### Retry AI tạm thời — 2026-10-13
-AIOCR thử lại tối đa 2 lần khi AI trả HTTP 502/503/504, chờ 2 rồi 4 giây,
-trong giới hạn timeout/cancellation hiện có. Không retry tự động HTTP 429 (quota),
-401/403 hoặc lỗi dữ liệu. Nếu vẫn 503, warnings nêu rõ mã lỗi và giữ văn bản để đối soát.
-Không đổi model, billing, route hoặc hợp đồng API. Retry không bảo đảm nhà cung cấp phục hồi.
-
-Cảnh báo AI HTTP 200 không đọc được dữ liệu hiện phân biệt JSON không hợp lệ,
-thiếu trường, kết quả bị cắt và cấu hình/kiểu dữ liệu sai. FE hiển thị nguyên warnings
-để cán bộ biết lý do payload chưa được điền; không coi HTTP 200 là bóc tách thành công.
-
-## Liên kết hồ sơ – đơn DOCX – giấy tờ (2026-10-14)
-
-Phần này thay thế cách test cũ dùng UUID tự tạo cho applicationId. ApplicationWorkflow sở hữu hồ sơ;
-DocumentForm sở hữu file, không truy vấn database của Workflow. applicantId là UUID người đăng nhập
-(JWT sub), procedureId là loại thủ tục, applicationId là một lần lập hồ sơ, checklistId là mục trong
-hồ sơ, submissionId là đơn đã lưu, documentId là giấy tờ hoặc PDF. Không dùng các ID thay cho nhau.
-
-### Cấu hình và dữ liệu cũ
-- DocumentForm: Services:ApplicationWorkflow:BaseUrl trỏ trực tiếp Workflow; local mặc định localhost:5003.
-- Workflow: Services:DocumentForm:BaseUrl trỏ DocumentForm; local mặc định localhost:5004.
-- Docker Compose đã đặt hai URL nội bộ tương ứng. JWT issuer/audience/key phải thống nhất với IAM;
-  Workflow còn gọi IAM access-context để lấy quyền hiện hành. Không gửi khóa vào FE.
-- Áp dụng migration DocumentForm LinkSubmissionsToApplications và Workflow LinkChecklistFormTemplates
-  trên đúng database từng service. Không có foreign key xuyên database.
-- Đơn cũ có applicationId/checklistId null không tự gán vào hồ sơ. API sửa/chốt trả 409
-  document.legacy_unlinked; cần lập hồ sơ và lưu đơn mới sau khi đối soát, không tự lấy applicantId làm applicationId.
-- Checklist hồ sơ cũ không tự nhận formTemplateId từ thủ tục mới. Tạo hồ sơ mới để test hợp đồng mới.
-
-### Workflow tạo hồ sơ và biết mẫu đơn nào cần mở
-Người dân gọi POST /api/v1/applications với JSON
-`{ "procedureId": "UUID thủ tục", "wardCode": "mã phường IAM", "formData": {}, "caseCode": "mã trường hợp nếu có" }`.
-Thành công 201 trả applicationId ở trường id và checklists[].id. Không nhập mã phường hoặc procedureId giả
-khi dùng IAM/ProcedureCatalog thật; sai trả 400/404, dependency không đáp ứng trả 502/503/504.
-
-Workflow chụp cả checklistSchema và formDefinitions phù hợp caseCode. Nếu formCode bằng checklistId
-(mã cấu hình trong ProcedureCatalog, không phải UUID checklist của hồ sơ), ghép thành một mục;
-khác mã thì tạo mục riêng. Không ghép theo tên hiển thị. Admin cần cấu hình formTemplateId đúng UUID
-FormTemplate để FE mở mẫu và BE bắt buộc nhận đúng mẫu đó. checklists[].formTemplateId trả liên kết này.
-Mẫu có mã trùng hoặc dữ liệu cấu hình không hợp lệ bị từ chối 502 application.invalid_schema.
-Mục không có formTemplateId vẫn dùng luồng giấy tờ; hệ thống không tự đoán mẫu từ tên file.
-
-GET /api/v1/applications/{applicationId} (200) cung cấp thông tin hồ sơ, trạng thái và checklist cho FE.
-Đơn DOCX và file không nằm trong formData của Workflow; lấy bổ sung bằng API contents bên dưới.
-
-### DocumentForm: các API dùng cho màn hình hồ sơ
-Tất cả request người dân dùng Bearer token role REGISTERED_CITIZEN, sub đúng applicantId.
-Thiếu/hết hạn token trả 401; sai role hoặc applicantId trả 403. Workflow phải cho tài khoản quyền đọc hồ sơ.
-
-| API | Khi FE gọi và dữ liệu gửi | Kết quả và lỗi thường gặp |
-|---|---|---|
-| GET /api/v1/form-templates/{templateId} | Khi bấm Điền đơn, dùng checklist.formTemplateId | 200 metadata; 404 sai mẫu. Các GET FormTemplates nhận tài khoản đã đăng nhập; POST quản lý vẫn yêu cầu PROCEDURE_MANAGER. |
-| GET /api/v1/form-templates/{templateId}/download-docx | FE tải binary nguyên mẫu và import vào editor | 200 DOCX; 404 mẫu/file chưa có. FE chịu trách nhiệm render DOCX, không dùng JSON schema để dựng lại mẫu. |
-| POST /api/v1/citizen/submissions/draft | Lưu lần đầu, multipart TemplateId, ApplicantId, ApplicationId, ChecklistId, File (DOCX do editor xuất) | 201 submissionId. 400 checklist/mẫu sai; 404 hồ sơ không thuộc tài khoản; 409 đã có đơn cho mục này thì dùng PUT. |
-| PUT /api/v1/citizen/submissions/{submissionId}/draft | Lưu tiếp, multipart ApplicantId, File | 200 Draft; giữ nguyên liên kết hồ sơ/checklist/mẫu. Chỉ sửa khi Workflow DRAFT hoặc NEED_REVISION; nếu trước đó đơn Submitted, lưu lại đưa đơn về Draft. 409 khi hồ sơ khóa hoặc đơn Approved. |
-| POST /api/v1/citizen/submissions/{submissionId}/submit | Nút Hoàn thành đơn, JSON ApplicantId | 200 Submitted cho đơn, chưa nộp toàn bộ hồ sơ. 409 khi đơn/hồ sơ không cho chốt. BE không suy ra mọi ô đã điền từ DOCX tự do. |
-| GET /api/v1/citizen/submissions | Liệt kê đơn của tài khoản; query applicantId, status?, page, pageSize | 200 phân trang; mỗi item có applicationId/checklistId để phân biệt các hồ sơ. Không dùng danh sách này thay contents khi cần xem một bộ hồ sơ. |
-| GET /api/v1/citizen/submissions/{submissionId} | Mở đơn đã lưu, query applicantId | 200 metadata có applicationId/checklistId; sai chủ sở hữu 403, không tồn tại 404. |
-| GET /api/v1/citizen/submissions/{submissionId}/download-docx | Query applicantId, FE mở lại bản đã lưu | 200 DOCX; mẫu gốc không bị ghi đè. |
-| POST /api/v1/applications/{applicationId}/supporting-documents | Chọn giấy tờ trong checklist, multipart ChecklistId và File | 201 documentId. ChecklistId bắt buộc; sai mục 400. Mục có formTemplateId không được thay bằng supporting document (400 document.template_mismatch). |
-| GET /api/v1/applications/{applicationId}/supporting-documents | Danh sách giấy tờ của hồ sơ | 200 danh sách; 404 hồ sơ không thuộc tài khoản. |
-| GET /api/v1/supporting-documents/{documentId}/download | Mở giấy tờ đã tải lên | 200 binary; 404 không tồn tại/không được xem hồ sơ. |
-| DELETE /api/v1/supporting-documents/{documentId} | Xóa giấy tờ để thay file | 204 soft-delete; 409 nếu hồ sơ không DRAFT/NEED_REVISION. Giấy tờ đã xóa không được tính đủ khi nộp. |
-| GET /api/v1/applications/{applicationId}/contents | Mở/refresh bộ hồ sơ | 200 applicationId, submissions[], supportingDocuments[]; item có id, checklistId, fileName, status, templateId (null với supporting). Trả cả hai loại trong cùng hồ sơ, không phân trang; không trả URL blob. 404 sai chủ hồ sơ, 503 không xác minh được Workflow. |
-
-FE ghép checklists với submissions/supportingDocuments bằng checklistId, hiển thị tên mục và các file bên dưới.
-Nếu submissions có đơn thì mở binary của submission; nếu chưa có thì dùng binary template gốc.
-ID trên một hồ sơ khác không được đưa vào hồ sơ này. Một checklist có tối đa một đơn đang tồn tại;
-được có nhiều giấy tờ đính kèm nếu không phải mục gắn mẫu điện tử.
-
-### Đánh dấu đủ giấy tờ, nộp và sửa lại
-- PATCH /api/v1/applications/{id}/checklists/{checklistId}, JSON `{ "status": "COMPLETED" }`:
-  200 sau khi Workflow xác minh có giấy tờ hoặc đơn Submitted/Approved. Mục có formTemplateId bắt buộc
-  đơn đúng templateId, không dùng file hỗ trợ thay thế. Thiếu trả 422 application.documents_incomplete
-  kèm missingChecklistIds; lưu/chốt đơn hoặc upload file trước rồi thử lại.
-- POST /api/v1/applications/{id}/submit, không có body: 200 SUBMITTED khi checklist bắt buộc đã COMPLETED
-  và tài liệu vẫn còn. Kiểm tra lại các mục bắt buộc và mục đánh dấu COMPLETED, nên xóa file sau khi tick
-  không vượt qua được kiểm tra. 422 checklist_incomplete/documents_incomplete; 409 sai trạng thái.
-- Khi cán bộ yêu cầu sửa qua Workflow, trạng thái NEED_REVISION mở quyền lưu lại DOCX và giấy tờ.
-  PUT draft rồi POST submission/submit để chốt lại đơn. POST /api/v1/applications/{id}/resubmit gửi
-  expectedVersionNumber, formData và đầy đủ checklists (id,status,fileUrl?,note?) theo hợp đồng Workflow:
-  200 SUBMITTED; 422 nếu đơn còn Draft hoặc thiếu giấy tờ, 409 khi version/trạng thái sai.
-- Không dùng fileUrl do FE gửi làm bằng chứng đã upload; API kiểm tra contents của DocumentForm.
-  Địa chỉ file chuẩn cho FE là download endpoint có kiểm tra quyền.
-- DocumentForm/Workflow không kết nối được nhau trả 503, không bỏ qua kiểm tra để nộp. ProblemDetails có code/traceId;
-  FE giữ nội dung editor khi lưu lỗi và cho phép thử lại.
-
-### PDF và phạm vi kiểm chứng
-POST /api/v1/applications/{applicationId}/generate-pdf dùng multipart submissionId (documentType tùy chọn),
-không upload file thay thế: 400 document.use_saved_docx nếu gửi File. submissionId phải thuộc applicationId,
-không lấy applicantId hay submissionId làm applicationId; không khớp trả 404. Điều kiện duyệt đơn hiện có vẫn áp dụng.
-GET /api/v1/applications/{id}/generated-documents và GET /api/v1/generated-documents/{documentId}/download
-xác minh chủ hồ sơ với Workflow cho người dân. Chưa thay thế luồng phân công cán bộ/PDF bằng duyệt toàn hồ sơ.
-
-Giới hạn: kiểm tra hai service là HTTP, chưa phải giao dịch phân tán nguyên tử; cập nhật đồng thời cần đối soát
-trước production. Snapshot Workflow lưu checklist/formTemplateId, chưa chụp phiên bản binary của toàn bộ file.
-Phần kiểm tra local dùng IAM/ProcedureCatalog giả lập và dữ liệu tổng hợp; không chứng minh IAM/Azure thật đã tích hợp.
-
-Kiểm tra tự động local: sau Release build chạy `python scripts/verify-application-document-links.py`.
-Để dùng hai image `wardmate-documentform:application-link-local` và
-`wardmate-applicationworkflow:application-link-local`, đặt `$env:WM_TEST_DOCKER='1'` trong PowerShell
-rồi chạy cùng script. Cần Docker và các cổng local 10000,15439,15032,15033,15034 đang trống.
-Script tự tạo/xóa container tạm; IAM/ProcedureCatalog là dữ liệu giả, không thay thế test bằng token thật.
-Đã kiểm tra 43 bước HTTP trên cả DLL local và image Docker.
-
-### Chuẩn hóa warnings của AI
-Backend chấp nhận warnings là mảng chuỗi hoặc mảng object có field/reason là chuỗi,
-chuyển object thành "field: reason". FE luôn nhận string[]. Nếu warnings thiếu/null/sai kiểu
-hoặc có phần tử không hợp lệ, thêm cảnh báo đối soát thay vì bỏ payload chỉ vì lỗi warnings.
-Vẫn từ chối JSON hỏng, payload thiếu/không phải object hoặc kết quả bị cắt.
-Không bảo đảm payload đúng nghiệp vụ chỉ vì parse thành công; cán bộ vẫn phải kiểm tra và publish.
-Không đổi route/request/status/quyền; áp dụng cả preview và worker draft qua adapter AI chung.
-
-### Bản nháp một phần và JSON Schema (2026-10-14)
-AIOCR gửi response_format=json_schema với hợp đồng đầy đủ payload/warnings.
-Model phải hỗ trợ structured outputs; không tự hạ xuống JSON tự do khi provider từ chối schema.
-Trường scalar không biết được phép null; danh sách giữ dạng array. Backend chuẩn hóa từng trường:
-đúng kiểu giữ nguyên, thiếu/sai kiểu để null hoặc cấu trúc rỗng và cảnh báo đường dẫn cụ thể.
-categoryId luôn 0 để cán bộ chọn; AI không được cung cấp URL PDF/ID template ngoài hợp đồng.
-Checklist/form có caseCode không thuộc cases sẽ có cảnh báo liên kết, không tự gán sang case khác.
-JSON hỏng/thiếu payload/kết quả bị cắt được thử lại tối đa một lần trong budget tổng tối đa 3 request;
-lỗi HTTP 502/503/504 vẫn có retry như trước, không retry quota. Khi vẫn lỗi, trả bản nháp thủ công.
-FE phải hiển thị null như ô chưa điền, không đổi thành phí 0 hoặc ngày 1; warnings là string[].
-Áp dụng preview và draft worker; không đổi endpoint/request/status/token/quyền hoặc tự publish.
-Chưa triển khai chia tài liệu theo mục nghiệp vụ; dữ liệu đúng cấu trúc không đảm bảo đủ nội dung.
-
-## Quản lý checklist riêng của thủ tục
-
-Procedure Manager có permission procedure.update dùng PUT /api/v1/procedure-manager/procedures/{id}/checklist.
-Đọc dữ liệu trước bằng GET /api/v1/procedure-manager/procedures/{id} (procedure.read).
-FE lấy checklistSchema để hiển thị, thêm/sửa/xóa dòng hoặc kéo sắp xếp, rồi gửi TOÀN BỘ danh sách items.
-Thứ tự mảng là thứ tự lưu; không cần sortOrder hoặc migration. Đây không phải PATCH từng dòng.
-
-Body mẫu:
-```json
+Bộ kiểm thử tự động trong mục này đã được gỡ theo yêu cầu chủ dự án.json
 {
   "expectedUpdatedAt": "2026-10-14T00:00:00Z",
   "decisionNumber": "QD-123",
@@ -3222,3 +2930,53 @@ Khi nộp hồ sơ lần đầu (`POST /api/v1/applications/{id}/submit`) hoặc
   - `missingChecklistIds`: Danh sách các Guid của mục checklist chưa đáp ứng điều kiện.
   Người dân không thể chỉ đánh dấu trạng thái checklist là `COMPLETED` ở client để vượt qua bước nộp hồ sơ.
 
+
+## Luồng checklist – điền DOCX – nộp hồ sơ: những điểm cần làm đúng
+
+1. Procedure Manager tạo FormTemplate và upload DOCX gốc trong DocumentForm.
+   Khi cập nhật/xuất bản Procedure, khai báo `formDefinitions` với `formTemplateId`
+   vừa tạo, `formCode` trùng `checklistId` cần điền đơn, `formType: DOCX_TEMPLATE`,
+   `formName`, `quantity`, `isMandatory` và `caseCode` nếu có.
+   API PUT checklist chỉ sửa checklist, không tự thêm liên kết FormTemplate.
+   Dùng PUT toàn bộ Procedure hoặc API publish để lưu formDefinitions;
+   giữ đủ các trường hiện có để tránh ghi đè mất dữ liệu.
+2. Công dân tạo Application bằng POST `/api/v1/applications` với `procedureId`,
+   `formData: {}`, `wardCode` hợp lệ lấy từ IAM; gửi `caseCode` nếu thủ tục có nhiều trường hợp.
+   Thiếu/sai phường hoặc trường hợp trả 400. Lưu applicationId và các checklistId từ response 201.
+   Hồ sơ giữ metadata checklist riêng: thứ tự, case, loại bản sao, nộp/xuất trình,
+   số lượng và điều kiện. Chỉnh Procedure sau đó không sửa hồ sơ đã tạo.
+3. Mở DOCX mẫu trong editor của FE hoặc Word, điền và xuất DOCX.
+   POST `/api/v1/citizen/submissions/draft` (multipart) gồm File, TemplateId,
+   ApplicationId, ChecklistId và ApplicantId của token. Đây là lưu file DOCX đã điền;
+   API không tự tạo giao diện editor. Sai liên kết hoặc mẫu trả 400; hồ sơ khác chủ trả 404/403.
+   PUT `/api/v1/citizen/submissions/{submissionId}/draft` lưu lại bản sửa.
+4. POST `/api/v1/citizen/submissions/{submissionId}/submit` với JSON `applicantId`
+   chốt đơn thành Submitted. Đây chưa phải nộp toàn bộ Application.
+   PATCH checklist của Workflow với `status: COMPLETED` sau khi chốt đơn.
+5. Với giấy tờ minh chứng, upload File và ChecklistId cùng SubmissionType,
+   DocumentCopyType, Quantity vào endpoint supporting-documents của DocumentForm.
+   Quantity là số bản người dân khai báo được file đại diện, không phải số trang PDF.
+   Khai báo CERTIFIED_COPY không chứng minh file được chứng thực; cán bộ vẫn phải đối chiếu.
+   XUAT_TRINH vẫn cần bản điện tử để nộp online theo luồng hiện tại; bản gốc đối chiếu tại quầy.
+   Với biểu mẫu điện tử đúng template, một DOCX hoàn thành được dùng để in số bản yêu cầu.
+6. GET `/api/v1/applications/{id}/contents` trên DocumentForm trả liên kết từng tài liệu
+   qua checklistId, trạng thái, fileExists và thông tin khai báo giấy tờ.
+   Nếu kho file không truy cập được, trả 503; thử lại khi Blob hoạt động.
+   PATCH COMPLETED, POST submit và POST resubmit của Workflow đều kiểm tra evidence.
+   422 `application.documents_incomplete` kèm missingChecklistIds: bổ sung file thật,
+   đúng loại/số lượng, đúng template và chốt đơn rồi thử lại. FileUrl tự nhập không thay được evidence.
+7. Cán bộ đúng phường nhận Application, ghi lỗi và yêu cầu bổ sung hoặc phê duyệt qua Workflow.
+   Khi NEED_REVISION, công dân sửa DOCX/giấy tờ, chốt lại đơn và resubmit hồ sơ.
+   Sau khi nộp/duyệt, người dân không được sửa file qua luồng ghi của DocumentForm.
+8. Xuất PDF là bước riêng: hiện DocumentForm yêu cầu UserSubmission ở trạng thái Approved.
+   Workflow APPROVED không tự đổi trạng thái UserSubmission.
+   Cán bộ cần gọi POST `/api/v1/officer/submissions/{submissionId}/approve` với body `{}`
+   và token cán bộ. Sau đó công dân gọi POST `/api/v1/applications/{id}/generate-pdf`
+   bằng multipart/form-data có SubmissionId (không gửi JSON, không đính kèm file thay thế).
+   Cần Gotenberg và Blob hoạt động. Luồng PDF này chưa được xác minh trong bài kiểm tra 56 bước.
+
+Trong Swagger dùng scheme HTTP Bearer, dán nguyên accessToken vào Authorize, không thêm
+một tiền tố Bearer thứ hai. 401: token sai/hết hạn; 403: thiếu quyền. Không dùng ID mẫu cố định.
+Các hồ sơ cũ giữ metadata null/quantity mặc định từ migration; không tự lấy cấu hình Procedure
+mới để lấp lại và thay đổi yêu cầu lịch sử. Tích hợp HTTP giữa các service chưa phải giao dịch
+phân tán nguyên tử; chưa đảm bảo chống mọi thao tác ghi đồng thời giữa hai service.

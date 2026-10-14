@@ -1,3 +1,5 @@
+> Lưu ý 2026-10-14: tài liệu hướng dẫn cũ có thể khác hợp đồng hiện tại. Xem docs/api-guide.md, mục Luồng checklist – điền DOCX – nộp hồ sơ, để dùng đúng wardCode, liên kết template và multipart PDF. Không coi tài khoản/ID mẫu là dữ liệu đã xác minh.
+
 # HƯỚNG DẪN TEST TỪNG API THEO LUỒNG CỦA TỪNG ACTOR (AZURE LIVE)
 
 Tài liệu này cung cấp hướng dẫn kiểm thử chi tiết, chính xác 100% cho **tất cả 18 API** của `WardMate.Services.DocumentForm`, được chia theo **4 cụm Actor** với luồng nghiệp vụ thực tế.
@@ -404,3 +406,4 @@ Tài liệu này cung cấp hướng dẫn kiểm thử chi tiết, chính xác 
 ```text
 Healthy
 ```
+

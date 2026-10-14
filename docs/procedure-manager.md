@@ -1,3 +1,5 @@
+> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+
 # TASK-08 — API quản lý thủ tục
 
 ## Chạy và xác thực
@@ -65,7 +67,7 @@ PUT là thay thế toàn bộ các trường cấu hình, không phải partial 
 
 ## Kiểm thử
 
-Chạy `dotnet build WardMate.sln -c Release`, sau đó `dotnet test WardMate.sln -c Release --no-build`. Testcontainers cần Docker đang chạy để khởi tạo PostgreSQL 16 tạm; không build image hoặc khởi động stack ứng dụng. Test bao gồm JSONB/version ban đầu, snapshot trước cập nhật, trạng thái, concurrency, validation, unique code, JWT và Swagger.
+Chạy `dotnet build WardMate.sln -c Release`, sau đó `kiểm thử tự động trước khi gỡ bộ test`. Testcontainers cần Docker đang chạy để khởi tạo PostgreSQL 16 tạm; không build image hoặc khởi động stack ứng dụng. Test bao gồm JSONB/version ban đầu, snapshot trước cập nhật, trạng thái, concurrency, validation, unique code, JWT và Swagger.
 
 ## TASK-08-LIST — Danh sách cho người quản lý
 

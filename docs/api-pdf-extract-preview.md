@@ -1,3 +1,5 @@
+> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+
 # Hướng dẫn API đọc thử PDF thủ tục — WardMate
 
 Cập nhật: 04/10/2026 (Asia/Saigon). Đối tượng: Frontend, QA và Procedure Manager.
@@ -207,8 +209,6 @@ Preview chỉ giúp đánh giá nội dung. Muốn lưu PDF gốc và quản lý
 
 Muốn kiểm tra riêng reader mà không chạy IAM/Procedure/Blob, sau build Release dùng:
 
-```powershell
-pwsh -NoProfile -File scripts/verify-pdf-text.ps1 -PdfPath 'C:\duong-dan\thu-tuc.pdf'
-```
+Bộ kiểm thử tự động trong mục này đã được gỡ theo yêu cầu chủ dự án.
 
 Script chạy AIOCR tạm, tắt cloud AI/OCR và dừng sau khi kiểm tra. Hướng dẫn kỹ thuật bổ sung: [đọc PDF trực tiếp](procedure-pdf-text.md).

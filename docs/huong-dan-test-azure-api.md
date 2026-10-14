@@ -1,3 +1,5 @@
+> Lưu ý 2026-10-14: tài liệu hướng dẫn cũ có thể khác hợp đồng hiện tại. Xem docs/api-guide.md, mục Luồng checklist – điền DOCX – nộp hồ sơ, để dùng đúng wardCode, liên kết template và multipart PDF. Không coi tài khoản/ID mẫu là dữ liệu đã xác minh.
+
 # HƯỚNG DẪN TỰ TEST TẤT CẢ API DOCUMENT & FORM TRÊN AZURE
 
 Tài liệu này hướng dẫn chi tiết từng bước để bạn tự kiểm thử toàn bộ các API của **Document & Form Service** trực tiếp trên môi trường **Azure Container Apps** thông qua **Swagger UI**, **Postman** hoặc **cURL**.
@@ -207,3 +209,4 @@ curl -X POST "https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azureconta
   -H "Content-Type: application/json" \
   -d "{\"officerId\": \"22222222-2222-2222-2222-222222222222\"}"
 ```
+

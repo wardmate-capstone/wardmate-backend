@@ -2351,3 +2351,16 @@ Owner explicitly approved push main after Docker handoff. Fetched origin; main w
 - Chưa push Git, chưa build Docker, chưa deploy Azure.
 
 
+
+## REVIEW-CLEANUP — Rà soát bàn giao và gỡ bộ kiểm thử — 2026-10-14 15:28:04 +07:00 (Asia/Saigon)
+- Theo yêu cầu mới của chủ dự án: kiểm tra hướng dẫn Antigravity, xác minh source, sau đó gỡ các file test không tham gia runtime. Không chạy Git/build Docker/deploy Azure.
+- Xác minh trước khi xóa: 250/250 tests PASS (ProcedureCatalog 121, DocumentForm 76, Workflow 45, IAM 8); 56/56 HTTP checks PASS chạy ProcedureCatalog, Workflow và DocumentForm thật với PostgreSQL/Azurite tạm. IAM là stub, không khẳng định IAM/Azure hoặc kết xuất PDF thật đã được kiểm thử trong 56 bước này.
+- Lượt smoke cũ bị lỗi khởi động Azurite, chưa chạy nghiệp vụ. Đã chạy lại thành công toàn bộ 56 bước trước khi dọn.
+- Giữ nguyên phần runtime checklist: metadata độc lập trong Application, liên kết ChecklistId/FormTemplateId, kiểm tra Blob tồn tại và khai báo loại/số lượng trước COMPLETE/submit/resubmit; giữ hai migration SnapshotChecklistRequirements và SupportingEvidenceRequirements cùng snapshots EF.
+- Xóa: tests/ (4 test projects và outputs), TestResults/, scripts/ (7 script verify cùng hỗ trợ nếu có), src/Services/WardMate.Services.DocumentForm/TestEfCore/, test_dummy.docx, src/Services/WardMate.Services.DocumentForm/documentform-api.http và azure-documentform-api.http.
+- Sửa WardMate.sln: gỡ 4 test projects, solution folder tests và mọi cấu hình GUID tương ứng. Sửa .github/workflows/iam-ci.yml: chỉ restore/build Release -warnaserror, không còn bước dotnet test tạo cảm giác có coverage.
+- Sửa README.md; docs/api-guide.md, docs/docker-local.md, docs/iam-httponly.md, docs/api-pdf-extract-preview.md, docs/procedure-pdf-text.md, docs/procedure-catalog.md, docs/procedure-manager.md, docs/procedure-reviewed-publishing.md: bỏ lệnh gọi script/test đã xóa, đánh dấu kết quả cũ là lịch sử.
+- Hướng dẫn API được đính chính: tạo Application cần wardCode; formDefinitions cần liên kết template với checklist; upload DOCX đã điền khác editor FE; generate-pdf nhận multipart và cần UserSubmission Approved riêng, Workflow APPROVED không tự duyệt đơn DocumentForm. Quantity/loại bản sao là khai báo để cán bộ đối chiếu, không chứng minh tính xác thực của giấy tờ.
+- Không thêm/xóa endpoint trong bước dọn. Request/response/token runtime không đổi do dọn file. Giới hạn còn lại: kiểm tra HTTP liên service chưa có giao dịch phân tán chống mọi race; PDF/Gotenberg và Azure chưa xác minh ở phiên này.
+- Build SAU khi xóa: dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 thành công 0 errors, 0 warnings. Sau dọn không còn test suite; không gọi dotnet test để báo pass giả.
+- Commit gợi ý cho Antigravity: chore(repo): remove test assets and update verification documentation.

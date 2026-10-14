@@ -1,3 +1,5 @@
+> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+
 # TASK-09 — Tìm kiếm và xuất bản bản nháp đã đối soát
 
 ## Phạm vi
@@ -114,4 +116,4 @@ Cases/checklist/forms là danh sách có thể chứa nhiều trường hợp (�
 
 Migration `ProcedureOriginalPdf`: thêm hai cột nullable với độ dài tương ứng vào procedures và procedure_versions, không thay dữ liệu nghiệp vụ cũ. Phiên bản cũ không có PDF vẫn null. Migration `ProcedureUnaccentSearch` từ phần tìm kiếm vẫn được giữ.
 
-Chạy Release build và dotnet test solution. Integration tests dùng PostgreSQL 16 tạm, kiểm tra: JSONB 10 cases/checklists/forms, URL/tên file ở live/version/snapshot, cập nhật trạng thái đóng, metadata/query filters, publish đồng thời cùng mã, rollback khi DB lỗi, validation và role/Swagger. Kết quả thực tế ghi tại PROGRESS.md. Không tự áp dụng migration vào database Local Dev hay build Docker image.
+Chạy Release build và kiểm thử tự động trước khi gỡ bộ test. Integration tests dùng PostgreSQL 16 tạm, kiểm tra: JSONB 10 cases/checklists/forms, URL/tên file ở live/version/snapshot, cập nhật trạng thái đóng, metadata/query filters, publish đồng thời cùng mã, rollback khi DB lỗi, validation và role/Swagger. Kết quả thực tế ghi tại PROGRESS.md. Không tự áp dụng migration vào database Local Dev hay build Docker image.

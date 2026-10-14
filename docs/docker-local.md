@@ -1,3 +1,5 @@
+> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+
 # Chạy Local Dev bằng Docker Compose
 
 Chạy từ thư mục gốc repository sau khi mở Docker Desktop (Linux containers):
@@ -45,11 +47,7 @@ Workflow kiểm tra quyền hiện hành qua IAM access-context; token hợp l�
 
 Kiểm tra cô lập, không dùng khóa hoặc dữ liệu thật:
 
-```powershell
-$env:WM_TEST_DOCKER='1'
-python scripts/verify-application-document-links.py
-Remove-Item Env:WM_TEST_DOCKER
-```
+Bộ kiểm thử tự động trong mục này đã được gỡ theo yêu cầu chủ dự án.
 
 Cần hai image application-link-local đã build, Docker đang chạy và các cổng 10000,15439,15032–15034 trống.
 Script tự tạo rồi dọn database/storage/container tạm; IAM và ProcedureCatalog là giả lập.
@@ -67,9 +65,7 @@ Không thêm `-v` nếu cần giữ dữ liệu PostgreSQL. Nếu cổng 5000/50
 
 Khi IAM:5001, Workflow:5003 và DocumentForm:5004 đang chạy, thực hiện:
 
-```powershell
-python scripts/verify-real-iam-local.py
-```
+Bộ kiểm thử tự động trong mục này đã được gỡ theo yêu cầu chủ dự án.
 
 Script tạo một tài khoản người dân tổng hợp `integration_*@example.invalid`, đăng nhập IAM thật,
 kiểm tra access-context và quyền trên Workflow/DocumentForm. Tài khoản test được giữ trong database local;
