@@ -1,0 +1,191 @@
+WARDMATE — GHI CHÚ THUẬT NGỮ VÀ LUỒNG NGHIỆP VỤ
+Ngày ghi nhận: 14/10/2026
+
+1. MỐI QUAN HỆ TỔNG THỂ
+
+Procedure quy định cần gì -> Công dân tạo Application -> Hệ thống sinh checklist hồ sơ -> Công dân điền Form và cung cấp Documents -> Cán bộ kiểm tra, yêu cầu bổ sung hoặc giải quyết.
+
+Ví dụ:
+- Procedure: Thủ tục đăng ký tạm trú.
+- Application: Hồ sơ đăng ký tạm trú của Nguyễn Văn A.
+- Checklist: Danh sách giấy tờ hồ sơ của A cần chuẩn bị.
+- Form: Tờ khai A cần điền.
+- Document: File tờ khai hoặc giấy tờ A đính kèm.
+
+2. CÁC THUẬT NGỮ CHÍNH
+
+Procedure — Thủ tục hành chính
+Quy định để giải quyết một công việc: ai được thực hiện, giấy tờ cần có, các bước, lệ phí và thời hạn. Ví dụ: Đăng ký tạm trú.
+
+Category / Catalog — Lĩnh vực / Danh mục
+Nhóm phân loại để quản lý và tìm thủ tục. Ví dụ: Hộ tịch, Đất đai, Cư trú. Catalog cũng có thể chỉ toàn bộ danh mục thủ tục; Category là một nhóm cụ thể.
+
+Case — Trường hợp áp dụng
+Một tình huống trong cùng thủ tục, có thể có các bước hoặc giấy tờ khác nhau. Ví dụ: thực hiện cho bản thân hoặc cho người chưa thành niên.
+CaseCode: Mã liên kết trường hợp với giấy tờ/biểu mẫu tương ứng.
+
+Procedure draft — Bản nháp thủ tục
+Nội dung đang nhập hoặc được AI bóc tách, chưa xuất bản chính thức.
+
+Review — Đối soát / Thẩm định tùy ngữ cảnh
+Đối soát thủ tục: kiểm tra dữ liệu AI với PDF gốc.
+Thẩm định hồ sơ: cán bộ kiểm tra hồ sơ công dân đã nộp.
+
+Publish — Xuất bản
+Đưa bản nháp đã kiểm tra thành thủ tục chính thức để sử dụng.
+
+Procedure version — Phiên bản thủ tục
+Bản lưu quy định của thủ tục tại một thời điểm, giúp tra cứu lịch sử thay đổi.
+
+Application — Hồ sơ hành chính
+Một lần một công dân thực hiện một thủ tục cụ thể. Trong ngữ cảnh này Application là hồ sơ, không phải ứng dụng phần mềm.
+
+Application code — Mã hồ sơ
+Mã nhận diện/tra cứu một hồ sơ. Khác với ProcedureCode là mã thủ tục dùng chung cho nhiều hồ sơ.
+
+Checklist — Danh sách giấy tờ cần chuẩn bị/kiểm tra
+Các mục giúp xác định hồ sơ đã đủ thành phần hay chưa.
+ChecklistSchema: Checklist mẫu thuộc thủ tục.
+Application checklist: Checklist được sinh và lưu riêng cho một hồ sơ công dân.
+
+Form — Biểu mẫu / Tờ khai
+Mẫu gồm các ô người dân cần điền. Ví dụ: Tờ khai thay đổi thông tin cư trú.
+
+Form template — Mẫu biểu gốc
+Định nghĩa biểu mẫu hoặc file mẫu chưa điền thông tin. Ví dụ: DOCX mẫu CT01.
+
+Form data — Dữ liệu đã điền
+Các giá trị công dân nhập: họ tên, địa chỉ, ngày sinh...
+
+Filled form — Biểu mẫu đã điền
+Biểu mẫu đã có dữ liệu của người sử dụng.
+
+Document — Tài liệu / File
+Khái niệm chung cho file được quản lý: PDF, DOCX, ảnh giấy tờ...
+
+Supporting document — Giấy tờ minh chứng
+Tài liệu công dân cung cấp để chứng minh thông tin hoặc đáp ứng yêu cầu hồ sơ.
+
+Original PDF — PDF nguồn của thủ tục
+Tài liệu gốc dùng đối chiếu nội dung thủ tục; không phải giấy tờ cá nhân của công dân.
+
+Attachment — Tệp đính kèm
+File gắn với thủ tục, biểu mẫu hoặc hồ sơ.
+
+Document & Form Service
+Tên dịch vụ Backend quản lý tài liệu và biểu mẫu. Không phải một loại giấy tờ duy nhất mang tên Form Document.
+
+Workflow — Luồng xử lý hồ sơ
+Trình tự xử lý từ khi tạo hồ sơ đến khi kết thúc.
+Luồng chính: DRAFT -> SUBMITTED -> UNDER_REVIEW -> APPROVED / REJECTED.
+Ngoài ra có nhánh yêu cầu bổ sung và công dân nộp lại.
+
+DRAFT: Hồ sơ nháp.
+SUBMITTED: Hồ sơ đã nộp.
+UNDER_REVIEW: Hồ sơ đang thẩm định.
+APPROVED: Hồ sơ được phê duyệt.
+REJECTED: Hồ sơ bị từ chối.
+NeedsReview: Trạng thái bản nháp thủ tục cần cán bộ đối soát; không phải đã được xuất bản.
+Queued / Processing: Đang chờ / đang xử lý bóc tách bản nháp.
+
+Inline comment — Nhận xét tại từng mục
+Ghi rõ lỗi ở một ô biểu mẫu hoặc giấy tờ. Ví dụ: Ảnh giấy tờ bị mờ, vui lòng tải lại.
+
+Snapshot — Bản chụp dữ liệu
+Dữ liệu được lưu tại một thời điểm, ví dụ tại lần nộp đầu tiên.
+
+Diff — So sánh thay đổi
+Hiển thị phần khác nhau giữa hai lần nộp hoặc phiên bản.
+
+Notification — Thông báo
+Tin nhắn về sự kiện liên quan đến người dùng, ví dụ hồ sơ cần bổ sung.
+
+Payload — Dữ liệu có cấu trúc
+Các trường Backend trả về để FE điền form hoặc xử lý.
+
+ExtractedText — Văn bản trích xuất
+Chữ đọc từ PDF; có văn bản chưa đồng nghĩa AI đã điền thành công payload.
+
+Warnings — Cảnh báo
+Các điểm còn thiếu, chưa chắc chắn hoặc lỗi cần đối soát.
+
+OCR — Nhận dạng chữ từ ảnh
+Dùng khi PDF scan hoặc ảnh không có lớp chữ đọc trực tiếp.
+
+AI extraction — Bóc tách bằng AI
+Chuyển văn bản sang các trường dữ liệu như tên thủ tục, các bước, checklist. Kết quả vẫn phải kiểm tra.
+
+3. CÁC VAI TRÒ
+
+REGISTERED_CITIZEN — Công dân
+Tạo, hoàn thiện, nộp và theo dõi hồ sơ của mình.
+
+FRONT_DESK_OFFICER — Cán bộ Một cửa
+Tiếp nhận, kiểm tra và xử lý hồ sơ trong phạm vi được cấp.
+
+MANAGER — Quản lý phường/xã
+Quản lý cán bộ và công việc thuộc phường/xã mình.
+
+PROCEDURE_MANAGER — Quản lý thủ tục
+Quản lý nội dung thủ tục, checklist mẫu, trường hợp áp dụng và biểu mẫu liên quan.
+
+IT_ADMIN — Quản trị hệ thống
+Quản lý tài khoản, vai trò, quyền và cấu hình hệ thống.
+
+Role — Vai trò: Nhóm trách nhiệm của tài khoản.
+Permission — Quyền: Thao tác cụ thể được phép thực hiện, ví dụ sửa thủ tục.
+WardCode — Mã phường/xã: Dùng xác định phạm vi công tác hoặc nơi tiếp nhận hồ sơ.
+
+4. CHECKLIST KHÁC FORM NHƯ THẾ NÀO?
+
+Ví dụ checklist gồm:
+- Tờ khai CT01: Có thể đáp ứng bằng Form đã điền.
+- Giấy tờ chứng minh chỗ ở: Có thể đáp ứng bằng Supporting Document.
+- Giấy tờ cần xuất trình: Cán bộ kiểm tra theo cách tiếp nhận phù hợp.
+
+Không phải mọi mục checklist đều là Form.
+Không phải mọi mục checklist đều bắt buộc upload file.
+Đánh dấu COMPLETED không tự chứng minh giấy tờ đúng và hợp lệ.
+
+5. PROCEDURE MANAGER CẦN QUẢN LÝ CHECKLIST GÌ?
+
+Cho phép thêm, sửa, xóa và sắp xếp các mục của từng thủ tục:
+- Mã và tên giấy tờ.
+- Dùng chung hoặc chỉ cho caseCode cụ thể.
+- Bắt buộc hoặc tùy chọn.
+- Nộp (NOP) hoặc xuất trình (XUAT_TRINH).
+- Bản chính (ORIGINAL), bản sao chứng thực (CERTIFIED_COPY), bản sao thường (REGULAR_COPY).
+- Số lượng, điều kiện áp dụng và ghi chú.
+
+AI chỉ đề xuất checklist ban đầu. Cán bộ chịu trách nhiệm đối soát trước khi xuất bản.
+
+6. HAI LỚP CHECKLIST — KHÔNG ĐƯỢC NHẦM
+
+A. Checklist mẫu của Procedure
+Do Procedure Manager quản lý, mô tả giấy tờ cần thiết theo quy định.
+
+B. Checklist của Application
+Sinh khi công dân tạo hồ sơ, lấy các mục dùng chung và mục thuộc trường hợp đã chọn.
+Có trạng thái hoàn thành, file hoặc ghi chú của riêng hồ sơ đó.
+Không cần gọi AI lại cho mỗi công dân tạo hồ sơ.
+
+7. NGUYÊN TẮC THAY ĐỔI
+
+- Bản nháp thủ tục: Chỉnh sửa rồi kiểm tra trước khi publish.
+- Thủ tục đã xuất bản: Cần ghi nhận phiên bản/lịch sử khi thay đổi.
+- Không âm thầm đổi checklist của hồ sơ đã tạo theo checklist mới của thủ tục.
+- Nếu cần áp dụng quy định mới cho hồ sơ đang xử lý, phải có cơ chế riêng và thông báo rõ.
+
+8. TRẠNG THÁI ĐÃ XÁC NHẬN VÀ PHẦN CẦN HOÀN THIỆN
+
+Ghi nhận theo phiên trao đổi ngày 14/10/2026, không phải cam kết đã deploy mọi chức năng:
+- Đã có checklistSchema trong payload bản nháp/thủ tục; có thể cập nhật cả danh sách qua API tương ứng.
+- Không đồng nghĩa đã có API CRUD riêng cho từng mục checklist hoặc màn hình FE quản lý.
+- Application hiện sinh checklist gồm mã, tên và tính bắt buộc.
+- Cần hoàn thiện việc mang đầy đủ số lượng, bản sao/bản chính, nộp/xuất trình và điều kiện vào hồ sơ.
+- Submit hiện kiểm tra trạng thái các mục bắt buộc; chưa đồng nghĩa đã xác minh đầy đủ file minh chứng.
+- Cần hoàn thiện và kiểm thử liên kết với Document/Form: upload, quyền sở hữu file, dữ liệu biểu mẫu.
+- Checklist mẫu bị thiếu thì checklist hồ sơ cũng có thể thiếu; phải đối soát PDF trước khi publish.
+- Phê duyệt hồ sơ không tự đồng nghĩa đã có chức năng xuất PDF kết quả đóng dấu QR.
+
+Tài liệu này dùng để ghi nhớ khái niệm. Hướng dẫn API cập nhật theo code nằm trong docs/api-guide.md.
