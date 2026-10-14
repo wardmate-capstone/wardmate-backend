@@ -2260,3 +2260,167 @@ Main remote push awaits owner Docker acceptance under AGENTS.md release gate; lo
 
 ## MAIN-PUSH-CONFIRMED — 2026-10-14T00:00:32.815165+07:00 (Asia/Saigon)
 Owner explicitly approved push main after Docker handoff. Fetched origin; main was0 behind/44 ahead and working tree clean. Normal push succeeded: origin/main advanced4e9f046 -> c7b43bc (chore(repo): merge main and nghia service updates). No force push; no nghia/deploy branch push. Previous verification remains solution Release0 warnings/0 errors,226 tests passed, Docker build succeeded, HTTP smoke health200/OpenAPI200/no-token templates401. This follow-up changes only PROGRESS.md; no API/DTO/token changes, no additional tests needed for documentation. WIP application-document linking remains saved in stash and excluded from main. Azure/CI deployment not verified or claimed. Follow-up commit: docs(progress): record confirmed main synchronization.
+
+
+## APPLICATION-DOCUMENT-LINK — 2026-10-14T08:24:07+07:00 (Asia/Saigon)
+Local implementation/verification completed; Azure deployment and real IAM integration remain pending.
+No Git commands/remote operations performed in this continuation, following owner instructions.
+
+Changed/new paths (source/config):
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/: Program.cs, appsettings.json,
+  Security/ApplicationAccess.cs; Controllers/ApplicationContentsController.cs, CitizenSubmissionsController.cs,
+  SupportingDocumentsController.cs, GeneratedDocumentsController.cs, FormTemplatesController.cs.
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/: Commands/SaveDraftSubmissionCommand.cs,
+  Commands/GeneratePdfDocumentCommand.cs; Queries/GetApplicationContentsQuery.cs, GetMySubmissionsQuery.cs,
+  GetSubmissionByIdQuery.cs, GetGeneratedDocumentsQuery.cs, DownloadGeneratedDocumentQuery.cs; DTOs/UserSubmissionSummaryDto.cs.
+- src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Domain/Entities/UserSubmission.cs;
+  Infrastructure user-submission EF configuration, migration 20261013162608_LinkSubmissionsToApplications (.cs + Designer), model snapshot.
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/: DocumentContentsClient.cs,
+  Program.cs, appsettings.json, Controllers/ApplicationsController.cs, Controllers/ApplicationReviewController.cs.
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/: WorkflowRequests.cs,
+  WorkflowContracts.cs, ReviewContracts.cs; Domain/ApplicationRecord.cs; Infrastructure/Migrations/
+  20261014011914_LinkChecklistFormTemplates.cs, Designer.cs and WorkflowDbContextModelSnapshot.cs.
+- src/Gateways/WardMate.YarpGateway/appsettings.json; docker/docker-compose.yml;
+  tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowFixture.cs (DocumentForm stub for isolated existing tests);
+  scripts/verify-application-document-links.py; docs/api-guide.md; PROGRESS.md.
+
+API behavior:
+- POST /api/v1/applications JSON procedureId/wardCode/formData/caseCode ->201 now snapshots selected formDefinitions
+  into checklist with formTemplateId; exact matching FormCode/ChecklistId merges items, otherwise separate item; invalid schema502.
+- GET applications/{id} ->200 checklist includes formTemplateId. No cross-service database FK.
+- POST citizen/submissions/draft multipart TemplateId/ApplicantId/ApplicationId/ChecklistId/File ->201 linked draft.
+  PUT citizen/submissions/{id}/draft ApplicantId/File ->200 preserves link; Workflow DRAFT/NEED_REVISION only.
+  POST citizen/submissions/{id}/submit JSON ApplicantId ->200 finalizes only the individual DOCX.
+  GET citizen list/detail now includes applicationId/checklistId; new drafts unique per active app/checklist.
+- POST applications/{id}/supporting-documents multipart ChecklistId/File ->201 (required checklist; verifies owner/item).
+  GET supporting list/download200, DELETE204 now check Workflow ownership; writes in locked applications409.
+- GET /api/v1/applications/{id}/contents ->200 {applicationId,submissions[],supportingDocuments[]};
+  items have id/checklistId/fileName/status/templateId. Citizen-only, no blob URLs; wrong app404, dependency503.
+- PATCH application checklist status COMPLETED; POST application submit; POST application resubmit now check actual evidence
+  via DocumentForm HTTP. Missing/non-finalized/wrong-template evidence422 missingChecklistIds; upstream unavailable503.
+  Template-linked items cannot be satisfied by supporting attachments; wrong template/upload type400.
+- Generate PDF now requires submissionId belonging to applicationId, rejects replacement File400; bad linkage404.
+  Existing document approval conditions unchanged. Citizen PDF list/download verifies application ownership.
+- GET template metadata/download allowed authenticated users (citizen editor); mutations remain DocumentManager.
+- Old unlinked submissions remain null and return409 document.legacy_unlinked on edits/finalization; never infer applicationId.
+Frontend: combine Workflow checklist + contents by checklistId; import original DOCX first, stored DOCX afterwards;
+POST first save, PUT subsequent save, finalize individual document then submit whole application.
+JWT sub must match applicantId; Workflow additionally needs current IAM workflow permissions; errors are ProblemDetails with code/traceId.
+
+Verification: solution Release build succeeded0 warnings/0 errors. Existing test suites226 passed0 failed0 skipped
+(DocumentForm76, Workflow39, ProcedureCatalog103, IAM8); no new test project. Isolated HTTP smoke43 passed with
+real two APIs, separate disposable PostgreSQL databases and disposable Azurite, synthetic IAM/ProcedureCatalog.
+Checks include original binary equality, wrong application/checklist/template, forbidden cross-owner files,
+missing/deleted evidence422, aggregate isolation, submit locks and NEED_REVISION edit/resubmit cycle.
+Both EF migrations applied successfully to disposable databases through startup migration in smoke.
+Initial smoke encountered upload timeout because prior Azurite was stopped; script now owns disposable storage and cleans up.
+Docker local image builds pending at this entry; recorded separately after completion. No Azure writes/migrations performed.
+
+Limitations/handoff: owner AGENTS.md restricts work to local and Antigravity controls Git/deployment handoff.
+Real deployed IAM/Workflow database/URLs still require configuration and real-token verification. Existing officer/PDF approval
+is not unified with Workflow final decision by this change. No binary attachment snapshots in Workflow versions;
+HTTP evidence check + state update are not a distributed atomic transaction (concurrent edits need further hardening).
+Suggested Conventional Commit: feat(document-form): link application checklists to citizen documents
+Respect owner per-new-file/per-functional-update commit granularity; this is a suggested feature summary, not an executed commit.
+
+
+## APPLICATION-DOCUMENT-DOCKER — 2026-10-14T09:00:04+07:00 (Asia/Saigon)
+Both local Docker builds succeeded: wardmate-documentform:application-link-local and
+wardmate-applicationworkflow:application-link-local. Extended existing scripts/verify-application-document-links.py
+with WM_TEST_DOCKER=1 to run the same HTTP flow against the actual images. Result43 passed,0 failed,
+using separate disposable PostgreSQL databases, disposable Azurite and synthetic IAM/ProcedureCatalog.
+Temporary API/storage/database containers removed after run. Real IAM/Azure deployment not verified.
+No endpoint changes in this follow-up; solution Release0 errors/0 warnings and226 existing tests from preceding
+verification remain applicable. Initial Docker readiness probe needed to retry RemoteDisconnected during startup; corrected.
+Changed paths: scripts/verify-application-document-links.py, docs/api-guide.md, PROGRESS.md.
+No Git/push/Azure operations. Suggested commit: test(document-form): verify application links in local containers
+
+
+## APPLICATION-LINK-REAL-IAM-PREFLIGHT — 2026-10-14T09:01:59+07:00 (Asia/Saigon)
+Read local configuration presence only; no secret values printed. docker/.env exists but JWT_KEY is missing/placeholder;
+IAM_DB_PASSWORD, PROCEDURE_DB_PASSWORD, WORKFLOW_DB_PASSWORD and AZURE_BLOB_CONNECTION_STRING are present.
+Owner previously chose shared IAM key instead of a new local key, so no key was generated or replaced.
+Requested owner configure JWT_KEY directly in ignored docker/.env (never in chat). Real IAM runtime testing remains pending.
+Updated docs/docker-local.md: current Compose services, actual bind scope, shared JWT setup, migration/blob side effects,
+real IAM flow versus isolated Docker smoke. No source/API/request/status/DTO/token behavior changed.
+No additional tests for this documentation-only follow-up; previous build0 errors/0 warnings,226 existing tests and43 Docker
+HTTP checks remain the last verified results. No Git or Azure operations.
+Suggested Conventional Commit: docs(local): clarify workflow integration prerequisites
+
+
+## REAL-IAM-LOCAL-STARTUP — 2026-10-14T09:15:47+07:00
+JWT_KEY present and structurally valid; no secret printed. Built/started local IAM and Workflow with Compose;
+DocumentForm uses verified application-link-local image and reports healthy. IAM and Workflow fail database
+authentication SQLSTATE28P01 for wardmate and wardmate_workflow: existing volume passwords differ from .env.
+Stopped restarting IAM; no password reset, volume deletion, Git, Azure or blob upload. Real token smoke blocked
+before registration/login; do not claim integration passed. New scripts/verify-real-iam-local.py checks actual
+local IAM register/login/access-context and downstream read/authorization without printing token/password.
+Script may retain a synthetic citizen if registration succeeds on a later run; this failed run did not reach registration.
+No API contract changes. Prior226 tests/43 Docker checks remain previous results, not real IAM acceptance.
+Pending owner choice: restore original local DB credentials or authorize synchronizing existing DB roles to .env.
+Changed paths: scripts/verify-real-iam-local.py, PROGRESS.md. Suggested commit: test(iam): add local token integration smoke
+
+
+## REAL-IAM-LOCAL-VERIFIED — 2026-10-14T09:20:09+07:00 (Asia/Saigon)
+Owner explicitly approved synchronizing existing local PostgreSQL role passwords to docker/.env.
+Updated wardmate in wardmate-iam-db-1 and wardmate_workflow in wardmate-workflow-db-1 via stdin SQL;
+no credentials printed, no rows/volumes deleted. Restarted IAM and Workflow with existing local images.
+Ran scripts/verify-real-iam-local.py:13 HTTP checks passed using actual IAM register/login token,
+access-context REGISTERED_CITIZEN and workflow.read, Workflow applications list, DocumentForm template/submission
+reads, manager write forbidden403, anonymous reads401, missing linked application404. All three health checks passed.
+Synthetic account integration_fe5d85c3a402 retained in local IAM; random password/token not printed or persisted by script.
+No file uploads, Azure requests or Git operations; real end-to-end procedure creation/upload/review still unverified.
+Changed tracked paths this follow-up: docs/docker-local.md, PROGRESS.md. Runtime changes: two local role passwords
+and local IAM synthetic test account. No API methods/routes/request/status/DTO changes. Local .env was read, not edited.
+Previous solution Release0 errors/0 warnings,226 tests and43 isolated Docker checks remain applicable;
+no rebuild needed for documentation/runtime-only change. Services left running for local testing.
+Suggested Conventional Commit: docs(local): record verified IAM token integration
+
+
+## LOCAL-COMMIT-HANDOFF — 2026-10-14T09:21:43+07:00
+Owner explicitly requested committing these changes, authorizing a scoped Git exception.
+40 files selected (10 new,30 existing), one file per commit; no branch switch, push, merge or Azure operations.
+.env/logs/build artifacts excluded; JWT secret checked absent from candidate files.
+Prior validation: Release0 errors/0 warnings;226 existing tests;43 Docker HTTP checks;13 real local IAM checks.
+No API changes in this commit-only session. Changed paths and contracts are recorded in preceding entries.
+Commit sequence (Conventional Commit messages):
+- test(integration): add verify-application-document-links verification [scripts/verify-application-document-links.py]
+- test(integration): add verify-real-iam-local verification [scripts/verify-real-iam-local.py]
+- feat(workflow): integrate DocumentContentsClient with application documents [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/DocumentContentsClient.cs]
+- feat(workflow): add 20261014011914_LinkChecklistFormTemplates.Designer persistence changes [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261014011914_LinkChecklistFormTemplates.Designer.cs]
+- feat(workflow): add 20261014011914_LinkChecklistFormTemplates persistence changes [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261014011914_LinkChecklistFormTemplates.cs]
+- feat(document-form): integrate ApplicationContentsController with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Controllers/ApplicationContentsController.cs]
+- feat(document-form): integrate ApplicationAccess with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Security/ApplicationAccess.cs]
+- feat(document-form): integrate GetApplicationContentsQuery with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/GetApplicationContentsQuery.cs]
+- feat(document-form): add 20261013162608_LinkSubmissionsToApplications.Designer persistence changes [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/Migrations/20261013162608_LinkSubmissionsToApplications.Designer.cs]
+- feat(document-form): add 20261013162608_LinkSubmissionsToApplications persistence changes [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/Migrations/20261013162608_LinkSubmissionsToApplications.cs]
+- chore(docker): configure workflow document service links [docker/docker-compose.yml]
+- docs(integration): update api-guide guidance [docs/api-guide.md]
+- docs(integration): update docker-local guidance [docs/docker-local.md]
+- feat(gateway): route application document endpoints [src/Gateways/WardMate.YarpGateway/appsettings.json]
+- feat(workflow): integrate ApplicationReviewController with application documents [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationReviewController.cs]
+- feat(workflow): integrate ApplicationsController with application documents [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationsController.cs]
+- feat(workflow): register document integration HTTP client [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Program.cs]
+- chore(workflow): configure peer service URL [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/appsettings.json]
+- feat(workflow): integrate ReviewContracts with application documents [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewContracts.cs]
+- feat(workflow): integrate WorkflowContracts with application documents [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WorkflowContracts.cs]
+- feat(workflow): integrate WorkflowRequests with application documents [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WorkflowRequests.cs]
+- feat(workflow): integrate ApplicationRecord with application documents [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Domain/ApplicationRecord.cs]
+- feat(workflow): add WorkflowDbContextModelSnapshot persistence changes [src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/WorkflowDbContextModelSnapshot.cs]
+- feat(document-form): integrate CitizenSubmissionsController with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Controllers/CitizenSubmissionsController.cs]
+- feat(document-form): integrate FormTemplatesController with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Controllers/FormTemplatesController.cs]
+- feat(document-form): integrate GeneratedDocumentsController with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Controllers/GeneratedDocumentsController.cs]
+- feat(document-form): integrate SupportingDocumentsController with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Controllers/SupportingDocumentsController.cs]
+- feat(document-form): register document integration HTTP client [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Program.cs]
+- chore(document-form): configure peer service URL [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/appsettings.json]
+- feat(document-form): integrate GeneratePdfDocumentCommand with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/GeneratePdfDocumentCommand.cs]
+- feat(document-form): integrate SaveDraftSubmissionCommand with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/SaveDraftSubmissionCommand.cs]
+- feat(document-form): integrate UserSubmissionDto with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/DTOs/UserSubmissionDto.cs]
+- feat(document-form): integrate DownloadGeneratedDocumentQuery with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/DownloadGeneratedDocumentQuery.cs]
+- feat(document-form): integrate GetGeneratedDocumentsQuery with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/GetGeneratedDocumentsQuery.cs]
+- feat(document-form): integrate UserSubmissionQueries with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/UserSubmissionQueries.cs]
+- feat(document-form): integrate UserSubmission with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Domain/Entities/UserSubmission.cs]
+- feat(document-form): add DocumentDbContextModelSnapshot persistence changes [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/Migrations/DocumentDbContextModelSnapshot.cs]
+- feat(document-form): integrate UserSubmissionConfiguration with application documents [src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/Persistence/Configurations/UserSubmissionConfiguration.cs]
+- test(workflow): isolate document evidence dependency [tests/WardMate.Services.ApplicationWorkflow.Tests/WorkflowFixture.cs]
+- docs(progress): record application document integration and commits [PROGRESS.md]
