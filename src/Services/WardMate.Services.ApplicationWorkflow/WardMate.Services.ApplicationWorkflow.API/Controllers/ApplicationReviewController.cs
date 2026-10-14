@@ -52,12 +52,19 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
 }
 
 [Route("api/v1/applications"), Tags("Applications")]
-public sealed class ApplicationReviewController(ISender sender) : ReviewControllerBase
+public sealed class ApplicationReviewController(ISender sender, IDocumentContentsClient documents) : ReviewControllerBase
 {
     [HttpPost("{id:guid}/resubmit"), RequestSizeLimit(128 * 1024), ProducesResponseType<ReviewResultDto>(200), ProducesResponseType<ProblemDetails>(422)]
     [Authorize(Policy = "workflow.resubmit")]
-    public async Task<IActionResult> Resubmit(Guid id, ResubmitInput input, CancellationToken ct) =>
-        Respond(await sender.Send(new ResubmitApplicationCommand(Actor.Id, id, input), ct));
+    public async Task<IActionResult> Resubmit(Guid id, ResubmitInput input, CancellationToken ct)
+    {
+        var application = await sender.Send(new GetApplicationQuery(Actor.Id, id), ct);
+        if (application.Error is not null) return Respond(application);
+        var completed = input.Checklists?.Where(x => x.Status == "COMPLETED").Select(x => x.Id) ?? [];
+        var error = await documents.Validate(id, application.Value!.Checklists.Where(x => x.IsRequired || completed.Contains(x.Id)), ct);
+        if (error is not null) return error;
+        return Respond(await sender.Send(new ResubmitApplicationCommand(Actor.Id, id, input), ct));
+    }
 
     [HttpGet("{id:guid}/comments"), ProducesResponseType<CommentDto[]>(200)]
     [Authorize(Policy = "workflow.comments.read")]
