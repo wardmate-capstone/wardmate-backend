@@ -32,7 +32,7 @@ public static class DependencyInjection
         services.AddSingleton<IDocxPlaceholderEngine, DocxPlaceholderEngine>();
         services.AddSingleton<IDocxFormEngine, DocxFormEngine>();
 
-        // PDF Render Engine (Gotenberg + Fallback)
+        // PDF Render Engine (Gotenberg; no placeholder fallback)
         services.AddHttpClient<IPdfRenderEngine, WardMate.Services.DocumentForm.Infrastructure.Pdf.GotenbergPdfRenderEngine>();
 
         return services;

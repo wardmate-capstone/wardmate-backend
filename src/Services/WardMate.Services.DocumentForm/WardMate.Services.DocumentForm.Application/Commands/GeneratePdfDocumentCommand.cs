@@ -71,15 +71,8 @@ public sealed class GeneratePdfDocumentCommandHandler
                 return DocumentFormErrors.SubmissionNotApproved(submission.Id, submission.Status.ToString());
             }
         }
-        else
-        {
-            // Nếu là cán bộ: Không thể xuất PDF nếu hồ sơ vẫn là bản nháp chưa nộp
-            if (submission.Status == SubmissionStatus.Draft)
-            {
-                return Error.Validation("document.submission_still_draft",
-                    $"Hồ sơ '{submission.Id}' vẫn đang ở trạng thái bản nháp (Draft), chưa được người dân nộp chính thức.");
-            }
-        }
+        if (submission.Status != SubmissionStatus.Approved)
+            return DocumentFormErrors.SubmissionNotApproved(submission.Id, submission.Status.ToString());
 
         Stream? docxStream = null;
         var fileName = request.FileName;
@@ -114,7 +107,7 @@ public sealed class GeneratePdfDocumentCommandHandler
             // 4. Strip toàn bộ Word comments khỏi DOCX trước khi render PDF
             // Cán bộ có thể đã thêm comment/ghi chú lên DOCX để hướng dẫn người dân,
             // nhưng file PDF xuất ra cho người dân in phải sạch, không chứa comment nội bộ.
-            var cleanDocxStream = DocxCommentStripper.Strip(docxStream);
+            using var cleanDocxStream = DocxCommentStripper.Strip(docxStream);
 
             // 5. Chuyển đổi DOCX sang PDF bằng Render Engine
             Stream pdfStream;
@@ -122,10 +115,12 @@ public sealed class GeneratePdfDocumentCommandHandler
             {
                 pdfStream = await _pdfRenderEngine.RenderDocxToPdfAsync(cleanDocxStream, fileName, cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
-                return DocumentFormErrors.PdfRenderFailed(ex.Message);
+                return DocumentFormErrors.PdfRenderFailed("Dịch vụ chuyển đổi chưa sẵn sàng. Vui lòng thử lại.");
             }
+
+            using var renderedPdf = pdfStream;
 
             // 3. Upload file PDF kết xuất lên Azure Blob Storage
             var sanitizedType = string.IsNullOrWhiteSpace(request.DocumentType)
@@ -149,26 +144,9 @@ public sealed class GeneratePdfDocumentCommandHandler
             }
 
             // 4. Lưu hoặc cập nhật bản ghi GeneratedDocument vào DB
-            var existingDoc = await _dbContext.GeneratedDocuments
-                .FirstOrDefaultAsync(d => d.ApplicationId == request.ApplicationId
-                                          && d.DocumentType == sanitizedType
-                                          && !d.IsDeleted, cancellationToken);
-
-            GeneratedDocument generatedDocument;
-            if (existingDoc is not null)
-            {
-                existingDoc.UpdateBlobUrl(pdfBlobUrl, request.CreatedBy);
-                generatedDocument = existingDoc;
-            }
-            else
-            {
-                generatedDocument = new GeneratedDocument(
-                    request.ApplicationId,
-                    sanitizedType,
-                    pdfBlobUrl,
-                    request.CreatedBy);
-                _dbContext.GeneratedDocuments.Add(generatedDocument);
-            }
+            // Each result has its own immutable record; one form must not overwrite another form's PDF.
+            var generatedDocument = new GeneratedDocument(request.ApplicationId, sanitizedType, pdfBlobUrl, request.CreatedBy);
+            _dbContext.GeneratedDocuments.Add(generatedDocument);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
 

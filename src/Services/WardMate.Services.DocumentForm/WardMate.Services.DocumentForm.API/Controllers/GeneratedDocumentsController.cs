@@ -37,11 +37,9 @@ public sealed class GeneratedDocumentsController : ControllerBase
         [FromForm] GeneratePdfRequest request,
         CancellationToken cancellationToken)
     {
-        if (!IsOfficer)
-        {
-            var error = await _access.Check(applicationId, null, false, cancellationToken);
-            if (error is not null) return error;
-        }
+        var accessError = await _access.Check(applicationId, null, false, cancellationToken,
+            officer: IsOfficer, requireApproved: true);
+        if (accessError is not null) return accessError;
         Stream? fileStream = null;
         string? fileName = null;
 
@@ -80,11 +78,9 @@ public sealed class GeneratedDocumentsController : ControllerBase
         Guid applicationId,
         CancellationToken cancellationToken)
     {
-        if (!IsOfficer)
-        {
-            var error = await _access.Check(applicationId, null, false, cancellationToken);
-            if (error is not null) return error;
-        }
+        var accessError = await _access.Check(applicationId, null, false, cancellationToken,
+            officer: IsOfficer, requireApproved: true);
+        if (accessError is not null) return accessError;
         var result = await _mediator.Send(
             new GetGeneratedDocumentsQuery(applicationId, CallerUserId, IsOfficer),
             cancellationToken);
@@ -102,11 +98,8 @@ public sealed class GeneratedDocumentsController : ControllerBase
         Guid documentId,
         CancellationToken cancellationToken)
     {
-        if (!IsOfficer)
-        {
-            var error = await _access.Generated(documentId, cancellationToken);
-            if (error is not null) return error;
-        }
+        var accessError = await _access.Generated(documentId, cancellationToken);
+        if (accessError is not null) return accessError;
         var result = await _mediator.Send(
             new DownloadGeneratedDocumentQuery(documentId, CallerUserId, IsOfficer),
             cancellationToken);
@@ -120,10 +113,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
     }
 
     private Guid? CallerUserId => Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : null;
-    private bool IsOfficer => User.IsInRole("FRONT_DESK_OFFICER")
-                           || User.IsInRole("MANAGER")
-                           || User.IsInRole("PROCEDURE_MANAGER")
-                           || User.IsInRole("IT_ADMIN");
+    private bool IsOfficer => User.IsInRole("FRONT_DESK_OFFICER");
 
     private ObjectResult Failure(Error error)
     {

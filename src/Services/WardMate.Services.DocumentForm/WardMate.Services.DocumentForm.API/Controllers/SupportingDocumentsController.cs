@@ -9,7 +9,7 @@ using WardMate.SharedKernel.Common;
 namespace WardMate.Services.DocumentForm.API.Controllers;
 
 [ApiController]
-[Authorize(Policy = "DocumentCitizen")]
+[Authorize(Policy = "DocumentUser")]
 [Route("api/v1")]
 [Produces("application/json")]
 [Tags("Supporting Documents — Giấy tờ minh chứng")]
@@ -28,6 +28,7 @@ public sealed class SupportingDocumentsController : ControllerBase
     /// Tải lên một giấy tờ minh chứng đính kèm hồ sơ theo checklist.
     /// </summary>
     [HttpPost("applications/{applicationId:guid}/supporting-documents")]
+    [Authorize(Policy = "DocumentCitizen")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(SupportingDocumentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -76,7 +77,8 @@ public sealed class SupportingDocumentsController : ControllerBase
         Guid applicationId,
         CancellationToken cancellationToken)
     {
-        var error = await _access.Check(applicationId, null, false, cancellationToken);
+        var error = await _access.Check(applicationId, null, false, cancellationToken,
+            officer: User.IsInRole("FRONT_DESK_OFFICER"));
         if (error is not null) return error;
         var result = await _mediator.Send(
             new GetSupportingDocumentsQuery(applicationId),
@@ -89,6 +91,7 @@ public sealed class SupportingDocumentsController : ControllerBase
     /// Xóa một giấy tờ minh chứng (soft-delete).
     /// </summary>
     [HttpDelete("supporting-documents/{documentId:guid}")]
+    [Authorize(Policy = "DocumentCitizen")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteSupportingDocument(

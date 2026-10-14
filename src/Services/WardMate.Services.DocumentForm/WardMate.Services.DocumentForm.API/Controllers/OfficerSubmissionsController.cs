@@ -20,17 +20,19 @@ namespace WardMate.Services.DocumentForm.API.Controllers;
 public sealed class OfficerSubmissionsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly WardMate.Services.DocumentForm.API.Security.ApplicationAccess _access;
 
-    public OfficerSubmissionsController(IMediator mediator)
+    public OfficerSubmissionsController(IMediator mediator, WardMate.Services.DocumentForm.API.Security.ApplicationAccess access)
     {
         _mediator = mediator;
+        _access = access;
     }
 
     /// <summary>
     /// [Cán bộ] Trả hồ sơ lại cho người dân kèm ghi chú yêu cầu sửa (Submitted → RevisionRequested).
     /// </summary>
     [HttpPost("{submissionId:guid}/request-revision")]
-    [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -44,25 +46,9 @@ public sealed class OfficerSubmissionsController : ControllerBase
             return Forbid();
         }
 
-        var officerId = request.OfficerId ?? CallerUserId ?? Guid.Empty;
-        if (officerId == Guid.Empty)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = 400,
-                Title = "officer.missing_id",
-                Detail = "Officer ID must be specified or present in the token claims."
-            });
-        }
-
-        var command = new RequestRevisionCommand(
-            submissionId,
-            officerId,
-            request.Comment,
-            User.Identity?.Name);
-
-        var result = await _mediator.Send(command, cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
+        if (request.OfficerId.HasValue && request.OfficerId != CallerUserId) return Forbid();
+        var error = await _access.Decide(submissionId, false, request.Comment, cancellationToken);
+        return error is null ? Ok(new { submissionId, message = "Workflow đã yêu cầu bổ sung hồ sơ." }) : error;
     }
 
     /// <summary>
@@ -70,7 +56,7 @@ public sealed class OfficerSubmissionsController : ControllerBase
     /// Sau khi duyệt, người dân mới có quyền xuất và tải file PDF chính thức.
     /// </summary>
     [HttpPost("{submissionId:guid}/approve")]
-    [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -84,24 +70,9 @@ public sealed class OfficerSubmissionsController : ControllerBase
             return Forbid();
         }
 
-        var officerId = request?.OfficerId ?? CallerUserId ?? Guid.Empty;
-        if (officerId == Guid.Empty)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = 400,
-                Title = "officer.missing_id",
-                Detail = "Officer ID must be specified or present in the token claims."
-            });
-        }
-
-        var command = new ApproveSubmissionCommand(
-            submissionId,
-            officerId,
-            User.Identity?.Name);
-
-        var result = await _mediator.Send(command, cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
+        if (request?.OfficerId.HasValue == true && request.OfficerId != CallerUserId) return Forbid();
+        var error = await _access.Decide(submissionId, true, null, cancellationToken);
+        return error is null ? Ok(new { submissionId, message = "Workflow đã duyệt hồ sơ và đồng bộ đơn." }) : error;
     }
 
     /// <summary>
@@ -112,7 +83,7 @@ public sealed class OfficerSubmissionsController : ControllerBase
     /// </summary>
     [HttpPut("{submissionId:guid}/annotate-docx")]
     [Consumes("multipart/form-data")]
-    [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -134,6 +105,8 @@ public sealed class OfficerSubmissionsController : ControllerBase
             });
         }
 
+        var access = await _access.OfficerSubmission(submissionId, true, cancellationToken);
+        if (access.Error is not null) return access.Error;
         var officerId = CallerUserId ?? Guid.Empty;
         using var stream = request.File.OpenReadStream();
 
@@ -164,6 +137,8 @@ public sealed class OfficerSubmissionsController : ControllerBase
         if (!IsOfficer)
             return Forbid();
 
+        var access = await _access.OfficerSubmission(submissionId, false, cancellationToken);
+        if (access.Error is not null) return access.Error;
         var result = await _mediator.Send(
             new WardMate.Services.DocumentForm.Application.Queries.DownloadSubmissionDocxQuery(
                 submissionId, Guid.Empty), cancellationToken);
@@ -175,10 +150,7 @@ public sealed class OfficerSubmissionsController : ControllerBase
     }
 
     private Guid? CallerUserId => Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : null;
-    private bool IsOfficer => User.IsInRole("FRONT_DESK_OFFICER")
-                           || User.IsInRole("MANAGER")
-                           || User.IsInRole("PROCEDURE_MANAGER")
-                           || User.IsInRole("IT_ADMIN");
+    private bool IsOfficer => User.IsInRole("FRONT_DESK_OFFICER");
 
     private ObjectResult Failure(Error error)
     {

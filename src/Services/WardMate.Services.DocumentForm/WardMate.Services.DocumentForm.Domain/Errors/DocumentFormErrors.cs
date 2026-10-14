@@ -74,7 +74,7 @@ public static class DocumentFormErrors
 
     public static Error PdfRenderFailed(string detail) =>
         Error.Failure("document.pdf_render_failed",
-            $"Failed to render PDF: {detail}");
+            $"Không thể xuất PDF: {detail}");
 
     public static Error SubmissionNotApproved(Guid submissionId, string currentStatus) =>
         Error.Validation("document.submission_not_approved",

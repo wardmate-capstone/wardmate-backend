@@ -33,6 +33,8 @@ public sealed class CitizenSubmissionsController(IMediator mediator, WardMate.Se
     public async Task<IActionResult> GetById(Guid submissionId, [FromQuery] Guid applicantId, CancellationToken ct)
     {
         if (!OwnsIdentity(applicantId)) return Forbid();
+        var accessResult = await access.Submission(submissionId, false, ct);
+        if (accessResult.Error is not null) return accessResult.Error;
         var result = await mediator.Send(new GetSubmissionByIdQuery(submissionId, applicantId), ct);
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
@@ -86,6 +88,8 @@ public sealed class CitizenSubmissionsController(IMediator mediator, WardMate.Se
     public async Task<IActionResult> DownloadDocx(Guid submissionId, [FromQuery] Guid applicantId, CancellationToken ct)
     {
         if (!OwnsIdentity(applicantId)) return Forbid();
+        var accessResult = await access.Submission(submissionId, false, ct);
+        if (accessResult.Error is not null) return accessResult.Error;
         var result = await mediator.Send(new DownloadSubmissionDocxQuery(submissionId, applicantId), ct);
         return result.IsSuccess ? File(result.Value.FileStream, result.Value.ContentType, result.Value.FileName) : Failure(result.Error);
     }
