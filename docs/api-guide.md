@@ -2968,15 +2968,103 @@ Khi nộp hồ sơ lần đầu (`POST /api/v1/applications/{id}/submit`) hoặc
 7. Cán bộ đúng phường nhận Application, ghi lỗi và yêu cầu bổ sung hoặc phê duyệt qua Workflow.
    Khi NEED_REVISION, công dân sửa DOCX/giấy tờ, chốt lại đơn và resubmit hồ sơ.
    Sau khi nộp/duyệt, người dân không được sửa file qua luồng ghi của DocumentForm.
-8. Xuất PDF là bước riêng: hiện DocumentForm yêu cầu UserSubmission ở trạng thái Approved.
-   Workflow APPROVED không tự đổi trạng thái UserSubmission.
-   Cán bộ cần gọi POST `/api/v1/officer/submissions/{submissionId}/approve` với body `{}`
-   và token cán bộ. Sau đó công dân gọi POST `/api/v1/applications/{id}/generate-pdf`
-   bằng multipart/form-data có SubmissionId (không gửi JSON, không đính kèm file thay thế).
-   Cần Gotenberg và Blob hoạt động. Luồng PDF này chưa được xác minh trong bài kiểm tra 56 bước.
+8. Xuất PDF: duyệt một lần tại Workflow. Khi truy cập đơn hoặc xuất PDF,
+   DocumentForm đọc trạng thái Workflow và tự đồng bộ đơn Submitted sang Approved.
+   Không cần gọi duyệt đơn riêng. Gọi POST `/api/v1/applications/{id}/generate-pdf`
+   bằng multipart/form-data có SubmissionId, không đính kèm file thay thế.
+   Cần Gotenberg và Blob hoạt động. Thiếu dịch vụ chuyển đổi trả 503, không trả PDF mẫu.
+
 
 Trong Swagger dùng scheme HTTP Bearer, dán nguyên accessToken vào Authorize, không thêm
 một tiền tố Bearer thứ hai. 401: token sai/hết hạn; 403: thiếu quyền. Không dùng ID mẫu cố định.
 Các hồ sơ cũ giữ metadata null/quantity mặc định từ migration; không tự lấy cấu hình Procedure
 mới để lấp lại và thay đổi yêu cầu lịch sử. Tích hợp HTTP giữa các service chưa phải giao dịch
 phân tán nguyên tử; chưa đảm bảo chống mọi thao tác ghi đồng thời giữa hai service.
+
+## Duyệt một lần tại Workflow và xuất PDF chính thức (2026-10-14)
+
+Mục này thay thế các hướng dẫn cũ yêu cầu duyệt đơn DocumentForm riêng.
+Workflow quyết định trạng thái hồ sơ. DocumentForm đồng bộ khi truy cập (không phải worker
+đẩy tức thì vào tất cả đơn): khi xác minh Workflow APPROVED, các đơn Submitted thuộc hồ sơ
+được chuyển sang Approved. Gọi lại an toàn; nếu mất kết nối hoặc chưa lưu được trạng thái,
+trả 503 và thử lại. Không xuất PDF chỉ dựa vào trạng thái Approved cũ trong DocumentForm.
+
+### Cán bộ đọc hồ sơ đang thụ lý
+
+GET `/api/v1/officer/applications/{id}` trên Workflow; không body.
+Cần Bearer token, permission `workflow.read`, vai trò FRONT_DESK_OFFICER hiện tại từ IAM,
+đúng phường và assignedOfficerId của hồ sơ. 200 trả ApplicationDto gồm checklist, formData,
+trạng thái và lịch sử. Chưa nhận hồ sơ hoặc sai phường/cán bộ: 404; thiếu quyền: 403;
+IAM không khả dụng: 503. Nhận hồ sơ qua endpoint assign trước khi mở tài liệu.
+
+DocumentForm dùng API này để xác minh cán bộ, không tin OfficerId trong body hoặc chỉ role token.
+MANAGER/PROCEDURE_MANAGER/IT_ADMIN không được mặc nhiên thụ lý đơn của công dân bằng các API cán bộ.
+Công dân chỉ đọc/ghi hồ sơ của mình. Không đổi cơ chế JWT; các service vẫn phải dùng cùng issuer/audience/key.
+
+### Xem và ghi chú tài liệu
+
+- GET `/api/v1/officer/submissions/{submissionId}/download-docx`: cán bộ đã được phân công
+  lấy DOCX của hồ sơ đúng phường; 200 file, 404 không thuộc phạm vi, 409 đơn cũ chưa liên kết Workflow.
+- PUT cùng đường dẫn `/annotate-docx`: multipart File DOCX, chỉ khi Workflow UNDER_REVIEW.
+  200 lưu thành công; 400 file sai; 409 sau duyệt/đóng hoặc không còn UNDER_REVIEW.
+  Ghi chú Word không tự tạo lỗi OPEN trong Workflow. Dùng API comments của Workflow để ghi lỗi nghiệp vụ.
+- GET `/api/v1/applications/{id}/supporting-documents` và
+  GET `/api/v1/supporting-documents/{documentId}/download`: chủ hồ sơ hoặc cán bộ đang thụ lý
+  được đọc. Upload và DELETE vẫn dành cho công dân, chỉ DRAFT/NEED_REVISION.
+
+### Quyết định hồ sơ
+
+Khuyến nghị FE gọi trực tiếp POST `/api/v1/officer/applications/{id}/approve` trên Workflow,
+không body. Quyền `workflow.approve`, đúng người thụ lý; phải UNDER_REVIEW và không còn lỗi OPEN
+ở phiên bản hiện tại. 200 trả ReviewResultDto; 403 sai người/phường; 409 trạng thái hoặc lỗi chưa xử lý.
+Không cần gọi API approve của DocumentForm sau đó.
+
+Hai route DocumentForm cũ được giữ để tương thích đường dẫn, nhưng hành vi đã đổi:
+
+- POST `/api/v1/officer/submissions/{submissionId}/approve`, body `{}`: chuyển quyết định
+  sang Workflow cho TOÀN BỘ hồ sơ liên kết, sau đó đồng bộ đơn. Không duyệt riêng một tờ khai.
+- POST `/api/v1/officer/submissions/{submissionId}/request-revision`, body `{"comment":"Lý do"}`:
+  chuyển yêu cầu bổ sung sang Workflow. Cần lỗi OPEN ở phiên bản hiện tại và quyền
+  `workflow.revision.request`; người dân sửa file khi Workflow NEED_REVISION rồi chốt đơn/resubmit.
+- Response thành công của hai route cũ là 200 `{submissionId, message}`. FE phải tải lại trạng thái
+  hồ sơ/đơn, không dựa vào SaveSubmissionResultDto cũ. Cùng quyết định đã được Workflow áp dụng
+  sẽ trả thành công khi gọi lại; không ghi thêm lịch sử lần hai. OfficerId nếu gửi phải trùng token.
+- 409 `document.workflow_decision_rejected`: kiểm tra Workflow, lỗi OPEN và quyền thụ lý;
+  503: chưa xác nhận được kết quả, GET lại trạng thái trước khi thử lại.
+
+### Xuất và tải PDF
+
+POST `/api/v1/applications/{id}/generate-pdf` trên DocumentForm nhận multipart:
+`SubmissionId` bắt buộc, `DocumentType` tùy chọn (mặc định ORIGINAL_SUBMISSION).
+Không gửi File mới: backend dùng DOCX đã lưu. Cần chủ hồ sơ hoặc cán bộ đang thụ lý,
+Workflow APPROVED và đơn hợp lệ đã chốt. 200 trả GeneratedDocumentDto có id dùng để tải PDF.
+Mỗi lần xuất tạo bản ghi riêng; không ghi đè PDF của đơn khác trong cùng Application.
+
+GET `/api/v1/applications/{id}/generated-documents` lấy danh sách; GET
+`/api/v1/generated-documents/{documentId}/download` tải PDF. Cả hai đều kiểm tra quyền/phường
+và trạng thái APPROVED qua Workflow. Không chia sẻ trực tiếp URL Blob private với người không có quyền.
+
+- 409 `document.application_not_approved`: chờ duyệt hồ sơ; không cố duyệt riêng đơn để vượt điều kiện.
+- 404: sai hồ sơ/tài liệu hoặc ngoài phạm vi thụ lý.
+- 503 `document.pdf_render_failed`: Gotenberg thiếu cấu hình/mất kết nối/chuyển đổi lỗi;
+  khôi phục dịch vụ rồi thử lại. Không còn fallback PDF mẫu.
+- 503 `document.workflow_unavailable`/`document.sync_unavailable`: khôi phục kết nối và tải lại.
+- Comment nội bộ bị loại khỏi bản DOCX dùng để chuyển PDF; file DOCX gốc không bị sửa.
+
+### Cấu hình local và trình tự đối soát
+
+DocumentForm cần `Services__ApplicationWorkflow__BaseUrl`, Blob Storage, JWT chung và
+`Gotenberg__Url`. Compose đã thêm service gotenberg nội bộ cổng 3000 và cấu hình URL;
+chủ dự án tự build/chạy Docker. Azure cần cấu hình URL tới Gotenberg nội bộ tương ứng,
+không trỏ localhost. Không cần migration mới cho thay đổi này.
+
+Trình tự: tạo hồ sơ/đơn -> chốt đơn -> COMPLETED checklist -> submit hồ sơ -> cán bộ assign
+-> xem/ghi chú -> tạo comment OPEN và request-revision nếu cần -> dân sửa/chốt/resubmit
+-> cán bộ assign lại -> approve Workflow -> dân generate-pdf -> download.
+Kiểm tra âm: cán bộ khác phường/cùng phường chưa phân công, giả OfficerId, xuất trước duyệt,
+sửa sau duyệt, Workflow hoặc Gotenberg mất kết nối. Các trường hợp này không được trả file chính thức mới.
+
+Đã xác minh local với Workflow/DocumentForm, PostgreSQL, Azurite và Gotenberg thật;
+IAM/ProcedureCatalog giả lập. Không xác nhận triển khai Azure hoặc FE editor trong phiên này.
+Đồng bộ đọc có thử lại, chưa phải giao dịch phân tán; các thao tác đang chạy đồng thời ở
+hai service vẫn cần cơ chế lease/outbox nếu yêu cầu đóng băng nguyên tử tuyệt đối.
