@@ -80,8 +80,8 @@ public sealed class TextFirstProcedureExtractor(AzureProcedureDocumentExtractor 
                 OperationCanceledException => "AI quá thời gian xử lý; hãy thử lại hoặc dùng tài liệu ngắn hơn.",
                 HttpRequestException => "Không kết nối được AI hoặc nhà cung cấp trả lỗi; kiểm tra model và dịch vụ.",
                 InvalidDataException invalid => invalid.Message,
-                JsonException => "AI trả JSON không hợp lệ hoặc warnings không phải danh sách chuỗi.",
-                KeyNotFoundException => "Phản hồi AI thiếu trường bắt buộc: choices, message, content, payload hoặc warnings.",
+                JsonException => "AI trả JSON không hợp lệ.",
+                KeyNotFoundException => "Phản hồi AI thiếu trường bắt buộc: choices, message hoặc content.",
                 _ => "Cấu hình AI chưa đủ hoặc kiểu dữ liệu trong phản hồi AI không đúng hợp đồng."
             };
             return Manual(extracted, warnings.Append("Không thể chuyển văn bản thành dữ liệu bằng AI. " + reason + " Văn bản được giữ lại để đối soát thủ công.").ToArray());

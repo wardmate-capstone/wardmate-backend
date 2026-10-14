@@ -86,12 +86,35 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         var json = choice.GetProperty("message").GetProperty("content").GetString() ?? throw new InvalidDataException("AI không trả dữ liệu.");
         if (json.Length > 500_000) throw new InvalidDataException("Kết quả AI quá lớn.");
         using var output = JsonDocument.Parse(json);
-        var payload = output.RootElement.GetProperty("payload");
-        if (payload.ValueKind != JsonValueKind.Object) throw new InvalidDataException("Kết quả AI không đúng hợp đồng JSON.");
-        var warnings = output.RootElement.GetProperty("warnings").Deserialize<string[]>() ?? [];
+        if (output.RootElement.ValueKind != JsonValueKind.Object ||
+            !output.RootElement.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("Kết quả AI thiếu payload hoặc payload không phải object JSON.");
+        var warnings = NormalizeWarnings(output.RootElement);
         return new(payload.Clone(), content, warnings.Append("Dữ liệu do AI đề xuất; cán bộ phải kiểm tra PDF gốc. CategoryId phải chọn từ danh mục hệ thống.").ToArray());
     }
     }
+    private static string[] NormalizeWarnings(JsonElement root)
+    {
+        const string fallback = "Cảnh báo do AI trả về không đúng định dạng hoặc bị thiếu; cần đối soát dữ liệu với PDF gốc.";
+        if (!root.TryGetProperty("warnings", out var value) || value.ValueKind != JsonValueKind.Array)
+            return [fallback];
+        var result = new List<string>();
+        var invalid = false;
+        foreach (var item in value.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                result.Add(item.GetString()!);
+            else if (item.ValueKind == JsonValueKind.Object &&
+                item.TryGetProperty("field", out var field) && field.ValueKind == JsonValueKind.String &&
+                item.TryGetProperty("reason", out var reason) && reason.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(field.GetString()) && !string.IsNullOrWhiteSpace(reason.GetString()))
+                result.Add($"{field.GetString()}: {reason.GetString()}");
+            else invalid = true;
+        }
+        if (invalid) result.Add(fallback);
+        return result.ToArray();
+    }
+
     private string Required(string key) => string.IsNullOrWhiteSpace(configuration[key])
         ? throw new InvalidOperationException("Chưa cấu hình dịch vụ AI/OCR.") : configuration[key]!;
     private string Endpoint(string key)

@@ -1,4 +1,4 @@
-﻿# WardMate — Chức năng và hướng dẫn sử dụng API theo Service
+# WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
 Cập nhật ngày **07/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả các
 API nghiệp vụ hiện có, các endpoint hệ thống và đường dẫn Gateway. Không phải xác nhận tình trạng deploy.
@@ -3054,7 +3054,6 @@ Cảnh báo AI HTTP 200 không đọc được dữ liệu hiện phân biệt J
 thiếu trường, kết quả bị cắt và cấu hình/kiểu dữ liệu sai. FE hiển thị nguyên warnings
 để cán bộ biết lý do payload chưa được điền; không coi HTTP 200 là bóc tách thành công.
 
-
 ## Liên kết hồ sơ – đơn DOCX – giấy tờ (2026-10-14)
 
 Phần này thay thế cách test cũ dùng UUID tự tạo cho applicationId. ApplicationWorkflow sở hữu hồ sơ;
@@ -3142,10 +3141,18 @@ Giới hạn: kiểm tra hai service là HTTP, chưa phải giao dịch phân t�
 trước production. Snapshot Workflow lưu checklist/formTemplateId, chưa chụp phiên bản binary của toàn bộ file.
 Phần kiểm tra local dùng IAM/ProcedureCatalog giả lập và dữ liệu tổng hợp; không chứng minh IAM/Azure thật đã tích hợp.
 
-
 Kiểm tra tự động local: sau Release build chạy `python scripts/verify-application-document-links.py`.
 Để dùng hai image `wardmate-documentform:application-link-local` và
 `wardmate-applicationworkflow:application-link-local`, đặt `$env:WM_TEST_DOCKER='1'` trong PowerShell
 rồi chạy cùng script. Cần Docker và các cổng local 10000,15439,15032,15033,15034 đang trống.
 Script tự tạo/xóa container tạm; IAM/ProcedureCatalog là dữ liệu giả, không thay thế test bằng token thật.
 Đã kiểm tra 43 bước HTTP trên cả DLL local và image Docker.
+
+### Chuẩn hóa warnings của AI
+Backend chấp nhận warnings là mảng chuỗi hoặc mảng object có field/reason là chuỗi,
+chuyển object thành "field: reason". FE luôn nhận string[]. Nếu warnings thiếu/null/sai kiểu
+hoặc có phần tử không hợp lệ, thêm cảnh báo đối soát thay vì bỏ payload chỉ vì lỗi warnings.
+Vẫn từ chối JSON hỏng, payload thiếu/không phải object hoặc kết quả bị cắt.
+Không bảo đảm payload đúng nghiệp vụ chỉ vì parse thành công; cán bộ vẫn phải kiểm tra và publish.
+Không đổi route/request/status/quyền; áp dụng cả preview và worker draft qua adapter AI chung.
+
