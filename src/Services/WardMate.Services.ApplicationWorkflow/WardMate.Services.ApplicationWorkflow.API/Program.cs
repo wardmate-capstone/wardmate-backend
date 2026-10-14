@@ -12,6 +12,9 @@ builder.Services.AddControllers().ConfigureApiBehaviorOptions(options => options
         .ToDictionary(x => x.Key, _ => new[] { "Trường dữ liệu bị thiếu hoặc không đúng định dạng." }))
     { Status = 400, Title = "Dữ liệu không hợp lệ.", Extensions = { ["code"] = "validation.failed" } }));
 builder.Services.AddWorkflowApplication();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<IDocumentContentsClient, DocumentContentsClient>(client => client.Timeout = TimeSpan.FromSeconds(10))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddWorkflowInfrastructure(builder.Configuration);
 builder.Services.AddWorkflowSecurity(builder.Configuration);
 builder.Services.AddWardMateBrowserCors(builder.Configuration, builder.Environment);
@@ -29,7 +32,7 @@ if (builder.Configuration.GetValue("Database:AutoMigrate", false))
 }
 
 app.UseGlobalExceptionHandling();
-if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Swagger:Enabled")) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseCors(BrowserCorsExtensions.PolicyName);
 app.UseAuthentication();
 app.UseMiddleware<WorkflowAccessMiddleware>();
