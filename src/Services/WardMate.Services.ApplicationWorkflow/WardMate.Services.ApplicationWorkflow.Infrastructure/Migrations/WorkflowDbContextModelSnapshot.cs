@@ -35,15 +35,28 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("application_id");
 
+                    b.Property<string>("CaseCode")
+                        .HasColumnType("text")
+                        .HasColumnName("case_code");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("code");
 
+                    b.Property<string>("ConditionNote")
+                        .HasColumnType("text")
+                        .HasColumnName("condition_note");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<string>("DocumentCopyType")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("document_copy_type");
 
                     b.Property<string>("FileUrl")
                         .HasMaxLength(500)
@@ -63,6 +76,16 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("character varying(4000)")
                         .HasColumnName("note");
 
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("quantity");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -70,6 +93,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("character varying(30)")
                         .HasDefaultValue("PENDING")
                         .HasColumnName("status");
+
+                    b.Property<string>("SubmissionType")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("submission_type");
 
                     b.Property<string>("Title")
                         .IsRequired()

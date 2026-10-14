@@ -78,6 +78,11 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         c.Property(x => x.Status).HasMaxLength(30).HasDefaultValue(ChecklistStates.Pending);
         c.Property(x => x.FileUrl).HasMaxLength(500);
         c.Property(x => x.Note).HasMaxLength(4000);
+        c.Property(x => x.CaseCode).HasColumnType("text");
+        c.Property(x => x.SubmissionType).HasMaxLength(30);
+        c.Property(x => x.DocumentCopyType).HasMaxLength(30);
+        c.Property(x => x.Quantity).HasDefaultValue(1);
+        c.Property(x => x.ConditionNote).HasColumnType("text");
 
         var h = b.Entity<ApplicationStatusHistory>();
         h.ToTable("application_status_history");
