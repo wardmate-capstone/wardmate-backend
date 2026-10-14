@@ -135,3 +135,28 @@ References: [Container Apps communication](https://learn.microsoft.com/en-us/azu
 Owner requested immediate Azure deployment using shared IAM JWT configuration. Deployed acrwardmate2026.azurecr.io/wardmate-documentform:roles-20261008-01; digest sha256:a18fc3db2053af513707df5a5deca0f4c9b94b3f942f6e3db9c20a89bab126e5. Copied IAM signing key in memory into DocumentForm secret iam-jwt-key; configured Jwt__Key secretref and same IAM issuer/audience. No keys written into source/log/chat. IAM and Gateway unchanged. Local container remains old (local IAM key absent); user selected Azure instead of local key setup.
 Cloud verification5 HTTP checks: health200, Swagger UI200, OpenAPI200 with Bearer definition/operation security, templates unauthenticated401, citizen list unauthenticated401. Does not claim real IAM login tested; role/identity checks were tested locally34 HTTP checks and76 existing tests. Docker build0 warnings/errors. All5 template routes require PROCEDURE_MANAGER, all6 citizen routes REGISTERED_CITIZEN and applicantId=JWT sub. No request DTO changes; auth401/403 ProblemDetails. Template reads are manager-only per request; citizen first-open template integration requires a separate read-access design.
 Changed documentation paths: docs/documentform-deployment.md, docs/api-guide.md, PROGRESS.md. No Git/push or database writes. Suggested commit: feat(documentform): deploy IAM-backed role authorization.
+
+
+## DocumentForm + Workflow deployment preflight — 2026-10-14T09:30:01+07:00
+This checkpoint supersedes older statements that the deployed API has no authentication.
+Scope authorized by owner: deploy Workflow dependency and updated DocumentForm, update only required Gateway routes;
+do not redeploy IAM, ProcedureCatalog or unrelated services.
+Observed Azure: DocumentForm image task18-annotate-20261013-01, no ApplicationWorkflow Container App.
+DocumentForm has document-db-connection, blob-connection-string, iam-jwt-key secret references;
+no Services__ApplicationWorkflow__BaseUrl. Registry acrwardmate2026.azurecr.io; existing shared Express environment
+managedEnvironment-rgwardmateprod-bd51. Do not set revision suffix on this environment.
+Read-only HTTP verification: health200, Swagger JSON200, unauthenticated templates401/citizen401,
+application contents404 and absent from OpenAPI. Thus current cloud image does not contain the new linkage API.
+
+Deployment sequence once Workflow database configuration is provided:
+1. Obtain separate Workflow cloud database connection via ignored local WORKFLOW_AZURE_CONNECTION_STRING or secure secret input;
+   never reuse DocumentForm tables/database credentials by assumption and never commit secrets.
+2. Publish locally tested Workflow/DocumentForm images with unique tags. Configure Workflow JWT to match deployed IAM,
+   Iam__BaseUrl to wardmate-iam HTTPS FQDN, ProcedureCatalog__BaseUrl to catalog HTTPS FQDN,
+   Services__DocumentForm__BaseUrl to DocumentForm HTTPS FQDN; Swagger__Enabled=true for requested testing.
+3. Apply Workflow migrations in its database and verify readiness; then deploy DocumentForm migration/image with
+   Services__ApplicationWorkflow__BaseUrl set to verified Workflow URL. Preserve all existing DB/blob/JWT secrets.
+4. Add only required Gateway Workflow destination/routes and document contents/supporting/generated routes; preserve other services.
+5. Test actual IAM citizen/manager tokens: ownership, wrong-role403, anonymous401, app/checklist mismatch,
+   original DOCX save/load, supporting files and aggregate contents. Use synthetic records only.
+No deployment performed at this checkpoint: Workflow cloud database not yet identified/configured.
