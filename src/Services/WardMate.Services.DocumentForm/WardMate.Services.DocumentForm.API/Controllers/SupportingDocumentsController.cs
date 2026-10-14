@@ -16,10 +16,12 @@ namespace WardMate.Services.DocumentForm.API.Controllers;
 public sealed class SupportingDocumentsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly WardMate.Services.DocumentForm.API.Security.ApplicationAccess _access;
 
-    public SupportingDocumentsController(IMediator mediator)
+    public SupportingDocumentsController(IMediator mediator, WardMate.Services.DocumentForm.API.Security.ApplicationAccess access)
     {
         _mediator = mediator;
+        _access = access;
     }
 
     /// <summary>
@@ -39,6 +41,10 @@ public sealed class SupportingDocumentsController : ControllerBase
             return Failure(Error.Validation("document.empty_file", "File upload is required."));
         }
 
+        if (!request.ChecklistId.HasValue || request.ChecklistId == Guid.Empty)
+            return Failure(Error.Validation("document.checklist_required", "ChecklistId is required."));
+        var error = await _access.Check(applicationId, request.ChecklistId, true, cancellationToken, supporting: true);
+        if (error is not null) return error;
         await using var stream = request.File.OpenReadStream();
         var command = new UploadSupportingDocumentCommand(
             applicationId,
@@ -70,6 +76,8 @@ public sealed class SupportingDocumentsController : ControllerBase
         Guid applicationId,
         CancellationToken cancellationToken)
     {
+        var error = await _access.Check(applicationId, null, false, cancellationToken);
+        if (error is not null) return error;
         var result = await _mediator.Send(
             new GetSupportingDocumentsQuery(applicationId),
             cancellationToken);
@@ -87,6 +95,8 @@ public sealed class SupportingDocumentsController : ControllerBase
         Guid documentId,
         CancellationToken cancellationToken)
     {
+        var error = await _access.Supporting(documentId, true, cancellationToken);
+        if (error is not null) return error;
         var result = await _mediator.Send(
             new DeleteSupportingDocumentCommand(documentId, User.Identity?.Name),
             cancellationToken);
@@ -104,6 +114,8 @@ public sealed class SupportingDocumentsController : ControllerBase
         Guid documentId,
         CancellationToken cancellationToken)
     {
+        var error = await _access.Supporting(documentId, false, cancellationToken);
+        if (error is not null) return error;
         var result = await _mediator.Send(
             new DownloadSupportingDocumentQuery(documentId),
             cancellationToken);
