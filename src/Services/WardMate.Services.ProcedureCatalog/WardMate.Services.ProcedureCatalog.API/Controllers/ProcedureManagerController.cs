@@ -95,6 +95,14 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
         Response.Headers.CacheControl = "no-store";
         return Respond(await sender.Send(new VersionSourceQuery(id, versionId), ct));
     }
+    [HttpPut("{id:guid}/checklist"), RequestSizeLimit(1024 * 1024)]
+    [ProducesResponseType<ProcedureDetailDto>(200)]
+    [ProducesResponseType<ProblemDetails>(400)]
+    [ProducesResponseType<ProblemDetails>(404)]
+    [ProducesResponseType<ProblemDetails>(409)]
+    [Authorize(Policy = "procedure.update")]
+    public async Task<IActionResult> Checklist(Guid id, ChecklistUpdateInput input, CancellationToken ct) =>
+        Respond(await sender.Send(new UpdateProcedureChecklistCommand(id, input), ct));
     private IActionResult Respond<T>(ProcedureResult<T> result) => result.IsSuccess ? Ok(result.Value) : Failure(result.Error!);
 
     private ObjectResult Failure(ProcedureError error)
