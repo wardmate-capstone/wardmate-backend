@@ -59,6 +59,7 @@ public sealed class GetMySubmissionsQueryHandler
             {
                 Id = s.Id,
                 TemplateId = s.TemplateId,
+                ApplicationId = s.ApplicationId, ChecklistId = s.ChecklistId,
                 ApplicantId = s.ApplicantId,
                 FileName = s.FileName,
                 FileSizeBytes = s.FileSizeBytes,
@@ -108,6 +109,7 @@ public sealed class GetSubmissionByIdQueryHandler
         {
             Id = submission.Id,
             TemplateId = submission.TemplateId,
+            ApplicationId = submission.ApplicationId, ChecklistId = submission.ChecklistId,
             ApplicantId = submission.ApplicantId,
             FileName = submission.FileName,
             FileSizeBytes = submission.FileSizeBytes,
