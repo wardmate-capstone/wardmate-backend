@@ -9,6 +9,8 @@ public sealed record UserSubmissionSummaryDto
 {
     public Guid Id { get; init; }
     public Guid TemplateId { get; init; }
+    public Guid? ApplicationId { get; init; }
+    public Guid? ChecklistId { get; init; }
     public Guid ApplicantId { get; init; }
     public string FileName { get; init; } = string.Empty;
     public long FileSizeBytes { get; init; }
