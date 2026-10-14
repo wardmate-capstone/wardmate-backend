@@ -1,5 +1,30 @@
 # DocumentForm deployment history
 
+## Scoped Officer Review, Workflow-Governed Approval & Gotenberg PDF Deployment — 2026-10-14 16:30:00 +07:00
+
+Deployed 3 core microservices images to Azure Container Registry `acrwardmate2026.azurecr.io`:
+1. **DocumentForm**:
+   - Image: `acrwardmate2026.azurecr.io/wardmate-documentform:task18-gotenberg-20261014-01`
+   - Digest: `sha256:5e920dd0e9943a61516eba80c037486b19f27322398b544dfd3f442e7d5b3b2d`
+   - Features: Scoped officer access (same ward & assigned officer), single source of truth approval via Workflow, pure Gotenberg PDF rendering (comments stripped, dummy PDF fallback removed), lock citizen edit and officer annotation after approval.
+2. **ApplicationWorkflow**:
+   - Image: `acrwardmate2026.azurecr.io/wardmate-application-workflow:workflow-20261014-02`
+   - Digest: `sha256:bcd333a5ff163185b836162b31d0f4cef52487288a64611dc100239d27e4af01`
+   - Features: Officer review controller scoping and assignment check, checklist / version details loading in DTO.
+3. **ProcedureCatalog**:
+   - Image: `acrwardmate2026.azurecr.io/wardmate-procedure-catalog:v7-checklist-20261014`
+   - Digest: `sha256:5f68dec0a47f964de17a712fd8cdaf63a5b3a1db408be0b24e3d0256e1915b27`
+   - Features: Checklist management and form template bindings.
+
+Git synchronization:
+- Synchronized branches `kha`, `main`, and `deploy` to commit `dc5e9f3bd9785f734408b5718ae1ec84dcd8b587`.
+
+Container App update notes:
+- Update Container App `wardmate-documentform` in `rg-wardmate-prod` to image tag `task18-gotenberg-20261014-01`.
+  - Ensure env var `Gotenberg__Url` points to the internal Gotenberg service.
+- Update Container App `wardmate-application-workflow` in `rg-wardmate-prod` to image tag `workflow-20261014-02`.
+- Update Container App `wardmate-procedure-catalog` in `rg-wardmate-prod` to image tag `v7-checklist-20261014`.
+
 ## TASK-17 & TASK-18 deployment (Supporting & Generated Documents) — 2026-10-12 07:31:00 +07:00
 
 User requested Azure deployment for supporting documents and PDF generation features. Deployed image
