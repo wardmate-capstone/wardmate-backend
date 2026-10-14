@@ -10,6 +10,9 @@ public sealed class SupportingDocumentConfiguration : IEntityTypeConfiguration<S
     {
         builder.ToTable("supporting_documents");
         builder.HasKey(d => d.Id);
+        builder.Property(d => d.SubmissionType).HasMaxLength(30);
+        builder.Property(d => d.DocumentCopyType).HasMaxLength(30);
+        builder.Property(d => d.Quantity).HasDefaultValue(1);
 
         builder.Property(d => d.Id)
             .HasColumnName("id");

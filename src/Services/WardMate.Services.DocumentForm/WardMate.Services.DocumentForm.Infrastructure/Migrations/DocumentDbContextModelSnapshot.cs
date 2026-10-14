@@ -304,6 +304,11 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnType("timestamptz")
                         .HasColumnName("deleted_at");
 
+                    b.Property<string>("DocumentCopyType")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("document_copy_type");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -318,6 +323,17 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_deleted");
+
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("SubmissionType")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("submission_type");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("timestamptz")

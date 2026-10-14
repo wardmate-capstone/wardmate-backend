@@ -40,6 +40,18 @@ public sealed class SupportingDocument : BaseEntity
     }
 
     public Guid ApplicationId { get; private set; }
+    public string? SubmissionType { get; private set; }
+    public string? DocumentCopyType { get; private set; }
+    public int Quantity { get; private set; } = 1;
+    public void DeclareEvidence(string? submissionType, string? documentCopyType, int quantity)
+    {
+        if (quantity < 1 || submissionType is not (null or "NOP" or "XUAT_TRINH")
+            || documentCopyType is not (null or "ORIGINAL" or "CERTIFIED_COPY" or "REGULAR_COPY"))
+            throw new ArgumentException("Thông tin số lượng hoặc loại giấy tờ không hợp lệ.");
+        SubmissionType = submissionType;
+        DocumentCopyType = documentCopyType;
+        Quantity = quantity;
+    }
     public Guid? ChecklistId { get; private set; }
     public string FileName { get; private set; } = string.Empty;
     public string BlobUrl { get; private set; } = string.Empty;
