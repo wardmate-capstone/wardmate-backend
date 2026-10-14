@@ -47,6 +47,27 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
             ProcedureTitle = procedure.Title, CaseCode = caseCode, FormData = r.Input.FormData.GetRawText(), CreatedAt = now, UpdatedAt = now };
         application.Checklists.AddRange(selected.Select(x => new ApplicationChecklist { ApplicationId = application.Id,
             Code = x.ChecklistId, Title = x.ItemName, IsRequired = x.IsMandatory!.Value, CreatedAt = now, UpdatedAt = now }));
+        var forms = procedure.FormDefinitions ?? [];
+        if (forms.Any(x => x is null || string.IsNullOrWhiteSpace(x.FormCode) || x.FormCode.Length > 255
+            || string.IsNullOrWhiteSpace(x.FormName) || x.FormName.Length > 255 || x.FormTemplateId == Guid.Empty
+            || (!string.IsNullOrWhiteSpace(x.CaseCode) && !cases.Any(c => c.CaseCode == x.CaseCode))))
+            return WorkflowResult<ApplicationDto>.Fail(502, "application.invalid_schema", "Cấu hình biểu mẫu của thủ tục không hợp lệ.");
+        var selectedForms = forms.Where(x => string.IsNullOrWhiteSpace(x.CaseCode) || x.CaseCode == caseCode).ToArray();
+        if (selectedForms.Select(x => x.FormCode).Distinct(StringComparer.Ordinal).Count() != selectedForms.Length)
+            return WorkflowResult<ApplicationDto>.Fail(502, "application.invalid_schema", "Mã biểu mẫu của thủ tục bị trùng.");
+        foreach (var form in selectedForms)
+        {
+            // Same explicit code means the form satisfies that checklist item. Never match by title.
+            var item = application.Checklists.SingleOrDefault(x => x.Code == form.FormCode);
+            if (item is null)
+            {
+                item = new ApplicationChecklist { ApplicationId = application.Id, Code = form.FormCode,
+                    Title = form.FormName, CreatedAt = now, UpdatedAt = now };
+                application.Checklists.Add(item);
+            }
+            item.IsRequired |= form.IsMandatory;
+            item.FormTemplateId = form.FormTemplateId;
+        }
         application.History.Add(new() { ApplicationId = application.Id, ToStatus = ApplicationStates.Draft,
             ChangedBy = r.UserId, CreatedAt = now });
         await store.Add(application, ct);
