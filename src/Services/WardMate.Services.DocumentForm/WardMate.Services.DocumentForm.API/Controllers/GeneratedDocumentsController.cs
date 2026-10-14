@@ -16,15 +16,17 @@ namespace WardMate.Services.DocumentForm.API.Controllers;
 public sealed class GeneratedDocumentsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly WardMate.Services.DocumentForm.API.Security.ApplicationAccess _access;
 
-    public GeneratedDocumentsController(IMediator mediator)
+    public GeneratedDocumentsController(IMediator mediator, WardMate.Services.DocumentForm.API.Security.ApplicationAccess access)
     {
         _mediator = mediator;
+        _access = access;
     }
 
     /// <summary>
     /// Kích hoạt Engine chuyển đổi DOCX sang PDF chính thức và lưu kết quả vào generated_documents.
-    /// Hỗ trợ: (1) upload trực tiếp file DOCX đã điền từ Web Editor, hoặc (2) chỉ định submissionId đã lưu trên hệ thống.
+    /// Chỉ định submissionId thuộc applicationId; dùng bản DOCX đã lưu, không nhận file thay thế.
     /// </summary>
     [HttpPost("applications/{applicationId:guid}/generate-pdf")]
     [Consumes("multipart/form-data")]
@@ -35,6 +37,11 @@ public sealed class GeneratedDocumentsController : ControllerBase
         [FromForm] GeneratePdfRequest request,
         CancellationToken cancellationToken)
     {
+        if (!IsOfficer)
+        {
+            var error = await _access.Check(applicationId, null, false, cancellationToken);
+            if (error is not null) return error;
+        }
         Stream? fileStream = null;
         string? fileName = null;
 
@@ -73,6 +80,11 @@ public sealed class GeneratedDocumentsController : ControllerBase
         Guid applicationId,
         CancellationToken cancellationToken)
     {
+        if (!IsOfficer)
+        {
+            var error = await _access.Check(applicationId, null, false, cancellationToken);
+            if (error is not null) return error;
+        }
         var result = await _mediator.Send(
             new GetGeneratedDocumentsQuery(applicationId, CallerUserId, IsOfficer),
             cancellationToken);
@@ -90,6 +102,11 @@ public sealed class GeneratedDocumentsController : ControllerBase
         Guid documentId,
         CancellationToken cancellationToken)
     {
+        if (!IsOfficer)
+        {
+            var error = await _access.Generated(documentId, cancellationToken);
+            if (error is not null) return error;
+        }
         var result = await _mediator.Send(
             new DownloadGeneratedDocumentQuery(documentId, CallerUserId, IsOfficer),
             cancellationToken);
