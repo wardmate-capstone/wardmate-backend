@@ -11,7 +11,7 @@ namespace WardMate.Services.ApplicationWorkflow.API.Controllers;
 [ProducesResponseType<ProblemDetails>(401)]
 [ProducesResponseType<ProblemDetails>(404)]
 [ProducesResponseType<ProblemDetails>(409)]
-public sealed class ApplicationsController(ISender sender) : ControllerBase
+public sealed class ApplicationsController(ISender sender, IDocumentContentsClient documents) : ControllerBase
 {
     private Guid Actor => Guid.Parse(User.FindFirstValue("sub")!);
 
@@ -39,15 +39,31 @@ public sealed class ApplicationsController(ISender sender) : ControllerBase
     [HttpPatch("{id:guid}/checklists/{checklistId:guid}"), RequestSizeLimit(128 * 1024)]
     [ProducesResponseType<ApplicationDto>(200)]
     [Authorize(Policy = "workflow.checklist.write")]
-    public async Task<IActionResult> UpdateChecklist(Guid id, Guid checklistId, UpdateChecklistInput input, CancellationToken ct) =>
-        Respond(await sender.Send(new UpdateChecklistCommand(Actor, id, checklistId, input), ct));
+    public async Task<IActionResult> UpdateChecklist(Guid id, Guid checklistId, UpdateChecklistInput input, CancellationToken ct)
+    {
+        var application = await sender.Send(new GetApplicationQuery(Actor, id), ct);
+        if (application.Error is not null) return Respond(application);
+        if (input.Status == "COMPLETED" && application.Value!.Checklists.Any(x => x.Id == checklistId))
+        {
+            var error = await documents.Validate(id, application.Value!.Checklists.Where(x => x.Id == checklistId), ct);
+            if (error is not null) return error;
+        }
+        return Respond(await sender.Send(new UpdateChecklistCommand(Actor, id, checklistId, input), ct));
+    }
 
     [HttpPost("{id:guid}/submit")]
     [ProducesResponseType<ApplicationDto>(200)]
     [ProducesResponseType<ProblemDetails>(422)]
     [Authorize(Policy = "workflow.submit")]
-    public async Task<IActionResult> Submit(Guid id, CancellationToken ct) =>
-        Respond(await sender.Send(new SubmitApplicationCommand(Actor, id), ct));
+    public async Task<IActionResult> Submit(Guid id, CancellationToken ct)
+    {
+        var application = await sender.Send(new GetApplicationQuery(Actor, id), ct);
+        if (application.Error is not null) return Respond(application);
+        var error = await documents.Validate(id, application.Value!.Checklists
+            .Where(x => x.IsRequired || x.Status == "COMPLETED"), ct);
+        if (error is not null) return error;
+        return Respond(await sender.Send(new SubmitApplicationCommand(Actor, id), ct));
+    }
 
     private IActionResult Respond(WorkflowResult<ApplicationDto> result)
     {
