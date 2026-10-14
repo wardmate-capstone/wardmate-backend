@@ -25,6 +25,16 @@ public abstract class ReviewControllerBase : ControllerBase
 [Route("api/v1/officer/applications")]
 public sealed class OfficerApplicationController(ISender sender) : ReviewControllerBase
 {
+    [HttpGet("{id:guid}"), Authorize(Policy = "workflow.read"), ProducesResponseType<ApplicationDto>(200)]
+    public async Task<IActionResult> Detail(Guid id, [FromServices] IApplicationReviewStore store, CancellationToken ct)
+    {
+        var actor = Actor;
+        if (!actor.IsOfficer) return Forbid();
+        var a = await store.Read(actor, id, ct);
+        if (a is null || a.UserId == actor.Id || a.AssignedOfficerId != actor.Id || a.WardCode != actor.WardCode)
+            return Respond(WorkflowResult<ApplicationDto>.Fail(404, "application.not_found", "Không tìm thấy hồ sơ đang được bạn thụ lý."));
+        return Ok(ApplicationDto.From(a));
+    }
     [HttpGet("pending"), ProducesResponseType<ApplicationPage>(200)]
     [Authorize(Policy = "workflow.queue.read")]
     public async Task<IActionResult> Pending([FromQuery] OfficerPendingInput input, CancellationToken ct) =>

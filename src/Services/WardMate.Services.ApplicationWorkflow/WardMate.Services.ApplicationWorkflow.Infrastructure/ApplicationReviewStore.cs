@@ -7,7 +7,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationReviewStore
 {
     public Task<ApplicationRecord?> Read(ReviewActor actor, Guid id, CancellationToken ct) => db.Applications.AsNoTracking()
-        .Include(x => x.Versions).Include(x => x.Comments).AsSplitQuery()
+        .Include(x => x.Versions).Include(x => x.Comments).Include(x => x.Checklists).Include(x => x.History).AsSplitQuery()
         .SingleOrDefaultAsync(x => x.Id == id && (x.UserId == actor.Id || actor.IsOfficer && actor.WardCode != null && x.WardCode == actor.WardCode && x.AssignedOfficerId == actor.Id), ct);
 
     public async Task<ApplicationPage> Pending(ReviewActor actor, OfficerPendingInput input, CancellationToken ct)
