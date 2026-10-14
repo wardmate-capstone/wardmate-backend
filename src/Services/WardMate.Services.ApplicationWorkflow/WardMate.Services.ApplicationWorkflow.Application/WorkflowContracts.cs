@@ -13,7 +13,7 @@ public sealed record WorkflowResult<T>(T? Value, WorkflowError? Error)
 public sealed record CreateApplicationInput(Guid ProcedureId, JsonElement FormData, string? CaseCode = null, string? WardCode = null);
 public sealed record UpdateChecklistInput(string Status, string? FileUrl = null, string? Note = null);
 public sealed record ChecklistDto(Guid Id, string Code, string Title, bool IsRequired, string Status,
-    string? FileUrl, string? Note, DateTime CreatedAt, DateTime UpdatedAt);
+    string? FileUrl, string? Note, DateTime CreatedAt, DateTime UpdatedAt, Guid? FormTemplateId = null);
 public sealed record HistoryDto(Guid Id, string? FromStatus, string ToStatus, Guid ChangedBy, string? Reason, DateTime CreatedAt);
 public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserId, Guid ProcedureId,
     string ProcedureTitle, string? CaseCode, string Status, JsonElement FormData, DateTime? SubmittedAt,
@@ -23,7 +23,7 @@ public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserI
         a.ProcedureTitle, a.CaseCode, a.Status, JsonSerializer.Deserialize<JsonElement>(a.FormData),
         a.SubmittedAt, a.CreatedAt, a.UpdatedAt,
         a.Checklists.OrderBy(x => x.Code).Select(x => new ChecklistDto(x.Id, x.Code, x.Title, x.IsRequired,
-            x.Status, x.FileUrl, x.Note, x.CreatedAt, x.UpdatedAt)).ToArray(),
+            x.Status, x.FileUrl, x.Note, x.CreatedAt, x.UpdatedAt, x.FormTemplateId)).ToArray(),
         a.History.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new HistoryDto(x.Id,
             x.FromStatus, x.ToStatus, x.ChangedBy, x.Reason, x.CreatedAt)).ToArray(),
         a.AssignedOfficerId, a.ResubmitCount, a.Status == ApplicationStates.Draft ? 0 : a.ResubmitCount + 1, a.Notes, a.ApprovedAt, a.WardCode);
@@ -34,7 +34,8 @@ public sealed record ApplicationPage(ApplicationSummaryDto[] Items, int Page, in
 
 // Integration contract, not a reference to another service's domain or database.
 public sealed record ProcedureSnapshot(Guid Id, string Title, bool IsActive,
-    ProcedureContent? ContentPayload, ProcedureChecklist[]? ChecklistSchema);
+    ProcedureContent? ContentPayload, ProcedureChecklist[]? ChecklistSchema, ProcedureForm[]? FormDefinitions = null);
+public sealed record ProcedureForm(Guid? FormTemplateId, string? CaseCode, string FormCode, string FormName, bool IsMandatory = true);
 public sealed record ProcedureContent(ProcedureCase[]? Cases);
 public sealed record ProcedureCase(string CaseCode);
 public sealed record ProcedureChecklist(string ChecklistId, string ItemName, bool? IsMandatory, string? CaseCode);
