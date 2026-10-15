@@ -187,3 +187,48 @@ public sealed class DownloadSubmissionDocxQueryHandler
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GetSubmissionsByApplication — Lấy danh sách đơn của một bộ hồ sơ (Cán bộ / Thụ lý)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public sealed record GetSubmissionsByApplicationQuery(Guid ApplicationId) : IQuery<IReadOnlyList<UserSubmissionSummaryDto>>;
+
+public sealed class GetSubmissionsByApplicationQueryHandler
+    : IQueryHandler<GetSubmissionsByApplicationQuery, IReadOnlyList<UserSubmissionSummaryDto>>
+{
+    private readonly IDocumentDbContext _dbContext;
+
+    public GetSubmissionsByApplicationQueryHandler(IDocumentDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    public async Task<Result<IReadOnlyList<UserSubmissionSummaryDto>>> Handle(
+        GetSubmissionsByApplicationQuery request, CancellationToken cancellationToken)
+    {
+        var items = await _dbContext.UserSubmissions
+            .AsNoTracking()
+            .Where(s => s.ApplicationId == request.ApplicationId && !s.IsDeleted)
+            .OrderBy(s => s.CreatedAtUtc)
+            .Select(s => new UserSubmissionSummaryDto
+            {
+                Id = s.Id,
+                TemplateId = s.TemplateId,
+                ApplicationId = s.ApplicationId,
+                ChecklistId = s.ChecklistId,
+                ApplicantId = s.ApplicantId,
+                FileName = s.FileName,
+                FileSizeBytes = s.FileSizeBytes,
+                Status = s.Status.ToString(),
+                OfficerComment = s.OfficerComment,
+                SubmittedAt = s.SubmittedAt,
+                ReviewedAt = s.ReviewedAt,
+                CreatedAt = s.CreatedAtUtc,
+                UpdatedAt = s.UpdatedAtUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        return Result.Success<IReadOnlyList<UserSubmissionSummaryDto>>(items);
+    }
+}
+
