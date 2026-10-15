@@ -63,6 +63,7 @@ public sealed class RequestRevisionCommandHandler
 // ─────────────────────────────────────────────────────────────────────────────
 // ApproveSubmission — Cán bộ duyệt hồ sơ (Submitted → Approved)
 // POST /api/v1/officer/submissions/{id}/approve
+// Sau khi chuyển trạng thái, tự động sinh mã QR tra cứu và lưu vào document.approved_qrs.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public sealed record ApproveSubmissionCommand(
@@ -74,10 +75,14 @@ public sealed class ApproveSubmissionCommandHandler
     : ICommandHandler<ApproveSubmissionCommand, SaveSubmissionResultDto>
 {
     private readonly IDocumentDbContext _dbContext;
+    private readonly IApprovedQrService _qrService;
 
-    public ApproveSubmissionCommandHandler(IDocumentDbContext dbContext)
+    public ApproveSubmissionCommandHandler(
+        IDocumentDbContext dbContext,
+        IApprovedQrService qrService)
     {
         _dbContext = dbContext;
+        _qrService = qrService;
     }
 
     public async Task<Result<SaveSubmissionResultDto>> Handle(
@@ -98,6 +103,26 @@ public sealed class ApproveSubmissionCommandHandler
             return DocumentFormErrors.SubmissionInvalidStatusTransition(submission.Status.ToString(), "Approve");
         }
 
+        // TASK-22: Sinh mã QR tra cứu khi hồ sơ có applicationId liên kết
+        string? qrCodeValue = null;
+        if (submission.ApplicationId is { } applicationId && applicationId != Guid.Empty)
+        {
+            // Idempotent: chỉ tạo QR nếu chưa tồn tại cho application này
+            var existingQr = await _dbContext.ApprovedQrs
+                .FirstOrDefaultAsync(q => q.ApplicationId == applicationId, cancellationToken);
+
+            if (existingQr is null)
+            {
+                var qr = _qrService.Generate(applicationId, submission.Id);
+                _dbContext.ApprovedQrs.Add(qr);
+                qrCodeValue = qr.QrCodeValue;
+            }
+            else
+            {
+                qrCodeValue = existingQr.QrCodeValue;
+            }
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new SaveSubmissionResultDto
@@ -107,6 +132,7 @@ public sealed class ApproveSubmissionCommandHandler
             FileName = submission.FileName,
             FileSizeBytes = submission.FileSizeBytes,
             UpdatedAt = submission.UpdatedAtUtc ?? submission.CreatedAtUtc,
+            QrCodeValue = qrCodeValue,
             Message = "Submission approved. The applicant can now export and print the official PDF."
         };
     }
