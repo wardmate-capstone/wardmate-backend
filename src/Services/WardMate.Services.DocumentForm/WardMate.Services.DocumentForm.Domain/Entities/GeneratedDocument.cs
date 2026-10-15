@@ -16,7 +16,8 @@ public sealed class GeneratedDocument : BaseEntity
         Guid applicationId,
         string documentType,
         string pdfBlobUrl,
-        string? createdBy = null)
+        string? createdBy = null,
+        Guid? submissionId = null)
     {
         if (applicationId == Guid.Empty)
         {
@@ -30,10 +31,12 @@ public sealed class GeneratedDocument : BaseEntity
         DocumentType = documentType.Trim().ToUpperInvariant();
         PdfBlobUrl = pdfBlobUrl.Trim();
         CreatedBy = createdBy;
+        SubmissionId = submissionId;
         SetCreated(DateTime.UtcNow);
     }
 
     public Guid ApplicationId { get; private set; }
+    public Guid? SubmissionId { get; private set; }
     public string DocumentType { get; private set; } = string.Empty;
     public string PdfBlobUrl { get; private set; } = string.Empty;
     public string? CreatedBy { get; private set; }
