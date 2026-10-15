@@ -19,6 +19,12 @@ public sealed class GeneratedDocumentConfiguration : IEntityTypeConfiguration<Ge
             .HasColumnName("application_id")
             .IsRequired();
 
+        builder.Property(d => d.SubmissionId)
+            .HasColumnName("submission_id");
+
+        builder.HasIndex(d => d.SubmissionId)
+            .HasDatabaseName("ix_generated_documents_submission_id");
+
         builder.Property(d => d.DocumentType)
             .HasColumnName("document_type")
             .HasMaxLength(50)
