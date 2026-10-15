@@ -110,6 +110,43 @@ public sealed class GeneratedDocumentsController : ControllerBase
         return File(result.Value.FileStream, result.Value.ContentType, result.Value.FileName);
     }
 
+    /// <summary>
+    /// Lấy thông tin mã QR tra cứu của hồ sơ đã được phê duyệt.
+    /// </summary>
+    [HttpGet("applications/{applicationId:guid}/approved-qr")]
+    [ProducesResponseType(typeof(ApprovedQrDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetApprovedQr(
+        Guid applicationId,
+        CancellationToken cancellationToken)
+    {
+        var accessError = await _access.Read(applicationId, null, cancellationToken, requireApproved: true);
+        if (accessError is not null) return accessError;
+
+        var result = await _mediator.Send(new GetApprovedQrQuery(applicationId), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
+    }
+
+    /// <summary>
+    /// Tải hình ảnh PNG của mã QR tra cứu hồ sơ đã được phê duyệt.
+    /// </summary>
+    [HttpGet("applications/{applicationId:guid}/approved-qr/image")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetApprovedQrImage(
+        Guid applicationId,
+        CancellationToken cancellationToken)
+    {
+        var accessError = await _access.Read(applicationId, null, cancellationToken, requireApproved: true);
+        if (accessError is not null) return accessError;
+
+        var result = await _mediator.Send(new GetApprovedQrImageQuery(applicationId), cancellationToken);
+        if (!result.IsSuccess)
+            return Failure(result.Error);
+
+        return File(result.Value, "image/png", $"qr-{applicationId}.png");
+    }
+
     private Guid? CallerUserId => Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : null;
     private bool IsOfficer => User.IsInRole("FRONT_DESK_OFFICER");
 
