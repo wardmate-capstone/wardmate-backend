@@ -11,13 +11,13 @@ public sealed record ApplicationContentItem(Guid Id, Guid? ChecklistId, string F
     bool FileExists = false, string? SubmissionType = null, string? DocumentCopyType = null, int Quantity = 1);
 public sealed record ApplicationContentsDto(Guid ApplicationId, IReadOnlyList<ApplicationContentItem> Submissions,
     IReadOnlyList<ApplicationContentItem> SupportingDocuments);
-public sealed record GetApplicationContentsQuery(Guid ApplicationId, Guid ApplicantId) : IQuery<ApplicationContentsDto>;
+public sealed record GetApplicationContentsQuery(Guid ApplicationId) : IQuery<ApplicationContentsDto>;
 public sealed class GetApplicationContentsHandler(IDocumentDbContext db, IBlobStorageClient blobs) : IQueryHandler<GetApplicationContentsQuery, ApplicationContentsDto>
 {
     public async Task<Result<ApplicationContentsDto>> Handle(GetApplicationContentsQuery request, CancellationToken ct)
     {
         var submissions = await db.UserSubmissions.AsNoTracking()
-            .Where(s => s.ApplicationId == request.ApplicationId && s.ApplicantId == request.ApplicantId && !s.IsDeleted)
+            .Where(s => s.ApplicationId == request.ApplicationId && !s.IsDeleted)
             .OrderBy(s => s.CreatedAtUtc)
             .ToListAsync(ct);
         var documents = await db.SupportingDocuments.AsNoTracking()
