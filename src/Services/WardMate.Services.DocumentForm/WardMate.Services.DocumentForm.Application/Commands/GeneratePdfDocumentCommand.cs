@@ -11,6 +11,7 @@ using WardMate.SharedKernel.CQRS;
 
 namespace WardMate.Services.DocumentForm.Application.Commands;
 
+
 public sealed record GeneratePdfDocumentCommand(
     Guid ApplicationId,
     string DocumentType = "ORIGINAL_SUBMISSION",
@@ -27,15 +28,21 @@ public sealed class GeneratePdfDocumentCommandHandler
     private readonly IDocumentDbContext _dbContext;
     private readonly IBlobStorageClient _blobClient;
     private readonly IPdfRenderEngine _pdfRenderEngine;
+    private readonly IDocxQrStamper _qrStamper;
+    private readonly IApprovedQrService _qrService;
 
     public GeneratePdfDocumentCommandHandler(
         IDocumentDbContext dbContext,
         IBlobStorageClient blobClient,
-        IPdfRenderEngine pdfRenderEngine)
+        IPdfRenderEngine pdfRenderEngine,
+        IDocxQrStamper qrStamper,
+        IApprovedQrService qrService)
     {
         _dbContext = dbContext;
         _blobClient = blobClient;
         _pdfRenderEngine = pdfRenderEngine;
+        _qrStamper = qrStamper;
+        _qrService = qrService;
     }
 
     public async Task<Result<GeneratedDocumentDto>> Handle(
@@ -109,16 +116,34 @@ public sealed class GeneratePdfDocumentCommandHandler
             // nhưng file PDF xuất ra cho người dân in phải sạch, không chứa comment nội bộ.
             using var cleanDocxStream = DocxCommentStripper.Strip(docxStream);
 
+            // 4b. TASK-23: Chèn mã QR tra cứu vào cuối DOCX trước khi render PDF
+            // Lấy QR đã được sinh khi approve (hoặc tự sinh nếu chưa có). Dùng stream tạm để không ảnh hưởng cleanDocxStream.
+            var approvedQr = await _dbContext.ApprovedQrs
+                .FirstOrDefaultAsync(q => q.ApplicationId == request.ApplicationId, cancellationToken);
+
+            if (approvedQr is null)
+            {
+                approvedQr = _qrService.Generate(request.ApplicationId, submission.Id);
+                _dbContext.ApprovedQrs.Add(approvedQr);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            Stream docxForRender = _qrStamper.StampQr(cleanDocxStream, approvedQr.QrImagePng);
+
             // 5. Chuyển đổi DOCX sang PDF bằng Render Engine
             Stream pdfStream;
             try
             {
-                pdfStream = await _pdfRenderEngine.RenderDocxToPdfAsync(cleanDocxStream, fileName, cancellationToken);
+                pdfStream = await _pdfRenderEngine.RenderDocxToPdfAsync(docxForRender, fileName, cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
+                if (approvedQr is not null && !ReferenceEquals(docxForRender, cleanDocxStream))
+                    await docxForRender.DisposeAsync();
                 return DocumentFormErrors.PdfRenderFailed("Dịch vụ chuyển đổi chưa sẵn sàng. Vui lòng thử lại.");
             }
+            if (approvedQr is not null && !ReferenceEquals(docxForRender, cleanDocxStream))
+                await docxForRender.DisposeAsync();
 
             using var renderedPdf = pdfStream;
 
