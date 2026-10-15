@@ -2387,3 +2387,53 @@ Owner explicitly approved push main after Docker handoff. Fetched origin; main w
 - Script hỗ trợ tạm được xóa sau kiểm tra; không khôi phục tests/. Unit tests: không chạy vì bộ test đã gỡ theo yêu cầu. Không tuyên bố 250 tests của lần trước là coverage cho task này.
 - Giới hạn: chưa xác minh FE/Azure/IAM thật; chưa có giao dịch phân tán/lease khóa mọi request đang chạy đồng thời giữa hai service. Đồng bộ đọc đảm bảo kiểm tra trạng thái trên các request kế tiếp, không tuyên bố đóng băng nguyên tử mọi race.
 - Không Git/commit/push/deploy. Antigravity tự quản lý Git và chủ dự án build Docker. Gợi ý: fix(document-form): enforce workflow approval and scoped PDF access.
+
+## DOC-CONSTRAINTS-001 — Sổ tay ràng buộc hệ thống
+
+- Hoàn thành: 2026-10-14 20:48:33 +07:00 (Asia/Saigon, UTC+07:00).
+- Tạo docs/system-constraints.md: tổng hợp ràng buộc theo source hiện hành của IAM, Procedure Catalog, PDF drafts/AIOCR, Workflow/checklist, DocumentForm/PDF, Notifications, database và bảo mật trình duyệt. Phân biệt điều kiện kiểm tra, giới hạn môi trường và phần chưa bảo đảm; có mã nhóm quy tắc và nguồn đối chiếu.
+- Sửa AGENTS.md: bắt buộc cập nhật sổ tay trong cùng task khi thêm/sửa/xóa ràng buộc; giữ mã nhóm, cập nhật lịch sử và phạm vi kiểm tra thực tế.
+- Sửa docs/api-guide.md: thêm liên kết tới sổ tay dùng chung. Cập nhật PROGRESS.md (file này).
+- API mới/thay đổi: không có. Không thay method/route/request/response, DTO, ProblemDetails, token handling hay logic runtime trong task tài liệu này.
+- Frontend: tra cứu giới hạn trường, trạng thái, quyền/phường/chủ sở hữu, bằng chứng tài liệu và lỗi trong sổ tay; hướng dẫn gọi API vẫn ở docs/api-guide.md.
+- Kiểm tra: dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 thành công, 0 errors, 0 warnings. Kiểm tra liên kết tương đối trong sổ tay: không có đường dẫn hỏng.
+- Unit/integration tests mới: 0; không chạy dotnet test vì chủ dự án đã gỡ test projects. Không khôi phục test project và không coi build là kiểm thử nghiệp vụ.
+- Đã xóa file quét tạm .constraints-scan.tmp.txt. Không chạy Git, build Docker hoặc deploy Azure.
+- Gợi ý Conventional Commit: docs: document system constraints and maintenance rules.
+## FLOW-REVIEW-001 — Rà soát luồng hồ sơ liên service và sửa lỗi hợp đồng dữ liệu
+
+- Hoàn thành phần rà soát/sửa code/kiểm tra tạm: 2026-10-15 07:15:51 +07:00 (Asia/Saigon).
+- Phạm vi: Procedure → Workflow → DocumentForm → Notifications. Chưa xác nhận toàn bộ luồng Docker/Azure; chủ dự án tự build Docker và kiểm thử thực tế theo hướng dẫn.
+
+### File thay đổi trong task
+
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureInputValidator.cs`: kiểm tra chung số lượng/ID checklist, tham chiếu case, case trùng/quá dài, giới hạn form code/name, GUID template rỗng và form trùng phạm vi. Cho phép cùng mã form ở hai case riêng biệt.
+- `src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Management/ProcedureChecklist.cs`: truyền ContentPayload thật vào validation checklist chọn thuộc tính để case hợp lệ không bị từ chối.
+- `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationReviewController.cs`: validate command resubmit trước khi duyệt mảng/call service; phần tử null không gây NullReferenceException trước MediatR pipeline.
+- `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/DocumentContentsClient.cs`: phản hồi chứa null/ID rỗng/ID trùng bị từ chối 503, không cộng trùng số lượng bằng chứng.
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Security/ApplicationAccess.cs`: shared read kiểm tra owner trước, chỉ fallback cán bộ được giao khi owner lookup trả 404. Không fallback khi IAM/Workflow không xác minh được hoặc trạng thái bị khóa. Officer-only review vẫn cấm tự thẩm định.
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Controllers/SupportingDocumentsController.cs`: dùng kiểm tra shared read cho danh sách.
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Controllers/GeneratedDocumentsController.cs`: dùng shared read cho xuất/danh sách PDF, vẫn bắt buộc Workflow APPROVED.
+- `docs/api-guide.md`: cập nhật hành vi/lỗi và hướng dẫn kiểm tra Docker theo chín bước, bao phủ năm nhóm công việc.
+- `docs/system-constraints.md`: cập nhật PROC-01/02, WF-04, DOC-03 và nhật ký quy tắc.
+- `PROGRESS.md`: bản ghi này. Không tạo migration, không thay schema, không đổi cấu hình JWT/billing/model.
+
+### API và lưu ý FE
+
+- Không thêm route. POST `/api/v1/procedure-manager/procedures`, PUT `/api/v1/procedure-manager/procedures/{id}`, POST `/api/v1/procedure-manager/procedures/publish`, POST `/api/v1/procedure-manager/drafts/{id}/publish`: giữ body hiện hành, bổ sung lỗi 400 `validation.failed` nếu checklist/case/form sai hợp đồng. Draft save vẫn cho phép dữ liệu chưa hoàn chỉnh, publish mới validate đầy đủ.
+- PUT `/api/v1/procedure-manager/procedures/{id}/checklist`: giữ `{expectedUpdatedAt, decisionNumber, effectiveDate, items}`, success 200, timestamp cũ 409; dùng đúng case từ thủ tục hiện hành.
+- POST `/api/v1/applications/{id}/resubmit`: giữ `{expectedVersionNumber, formData, checklists}`; dữ liệu null/trùng bị validation trước gọi phụ thuộc, success vẫn 200, dữ liệu sai 400, thiếu tài liệu 422, lỗi service 503.
+- PATCH `/api/v1/applications/{id}/checklists/{checklistId}`, POST `/api/v1/applications/{id}/submit` và resubmit: 503 `application.documents_unavailable` khi phản hồi bằng chứng malformed/trùng ID; không xem đây là lỗi người dùng cần upload lại toàn bộ.
+- Các GET danh sách/download supporting documents, generated documents và POST generate-pdf: kiểm tra chính chủ trước; tài khoản có cả citizen/Front Desk không mất quyền đọc hồ sơ mình. Ngoài phạm vi vẫn 404, PDF chưa APPROVED vẫn 409. Body/DTO thành công, permission và token handling giữ nguyên.
+
+### Kết quả xác minh và giới hạn
+
+- Release build: `dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1` đạt 0 errors, 0 warnings.
+- 72/72 kiểm tra tạm PASS trực tiếp trên assembly Release: validator Procedure, controller resubmit trước dependency, DocumentContentsClient với HTTP giả lập, owner/assigned officer/khóa sau duyệt, Workflow handlers tạo/checklist/submit/comment/revision/resubmit/diff/approve/reject với store trong bộ nhớ, lỗi renderer, hợp đồng notification, EF metadata unique index và capture outbox không lặp/không chứa formData.
+- Kiểm tra ban đầu của harness có lỗi cú pháp target-typed new mơ hồ, đã sửa harness rồi chạy đạt. Khi bổ sung metadata Notifications, compiler trực tiếp gặp CS1702 do tham chiếu EF 8.0.10/8.0.11; harness tạm dùng cơ chế bỏ cảnh báo hợp nhất assembly này, chạy thành công. Không sửa/suppress warning trong project nghiệp vụ; solution build -warnaserror vẫn sạch.
+- Không tạo `.csproj` test hoặc khôi phục tests/. Harness biên dịch trực tiếp bằng csc, đã xóa toàn bộ `.flow-check-tmp` sau kiểm tra. Không chạy `dotnet test` vì không còn test project.
+- 72 checks không phải kiểm thử integration với PostgreSQL/RabbitMQ/Azure Blob/Gotenberg/Gemini thật. Chưa kiểm thử transaction SQL, giao lại message thực, kết nối SignalR thực hoặc PDF nội dung thực trong phiên này. Không lấy kết quả kiểm thử lịch sử làm bằng chứng cho bản mới.
+- Khóa request đang chạy đồng thời giữa Workflow/DocumentForm chưa được giải quyết bằng lease/transaction phân tán. Các kiểm tra khóa trạng thái chứng minh chặn request sau khi trạng thái đã đổi, không chứng minh loại bỏ mọi race đang diễn ra.
+- Kiểm tra liên kết sổ tay: 0 đường dẫn hỏng. Không chạy Git, không build/run Docker, không deploy. Email/SMS vẫn để sau theo yêu cầu.
+- Gợi ý commit theo chức năng cho Antigravity: `fix(procedure): validate checklist and case references consistently`; `fix(workflow): reject malformed resubmissions and document evidence`; `fix(document-form): preserve owner access for dual-role accounts`; `docs: record cross-service review and local verification steps`. Antigravity tách từng file/chức năng theo AGENTS.md.
+

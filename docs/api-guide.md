@@ -2,6 +2,73 @@
 
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
+Tra cứu các điều kiện dữ liệu, quyền, trạng thái và giới hạn file tại
+[Sổ tay ràng buộc hệ thống](system-constraints.md). Cập nhật hai tài liệu cùng nhau
+khi thay đổi hành vi API hoặc quy tắc nghiệp vụ.
+
+### Cập nhật kiểm tra liên service — 15/10/2026 (FLOW-REVIEW-001)
+
+- **Tạo/sửa/xuất bản thủ tục:** POST `/api/v1/procedure-manager/procedures`,
+  PUT `/api/v1/procedure-manager/procedures/{id}`, POST
+  `/api/v1/procedure-manager/procedures/publish` và POST
+  `/api/v1/procedure-manager/drafts/{id}/publish` dùng kiểm tra chung.
+  Checklist tối đa 500 mục; mã duy nhất/tối đa 255/không dư khoảng trắng.
+  CaseCode duy nhất/tối đa 100; checklist/form chỉ tham chiếu case có thật.
+  FormCode/FormName tối đa 255, template không nhận GUID toàn số 0.
+  Cùng FormCode được dùng ở hai case riêng, nhưng không lặp trong cùng case hoặc
+  trùng form dùng chung. Sai dữ liệu trả 400 `validation.failed`; sửa payload rồi gửi lại.
+  Bản nháp vẫn có thể lưu dữ liệu chưa hoàn chỉnh để tiếp tục đối soát; publish mới
+  yêu cầu vượt qua các kiểm tra này. Success DTO/route/quyền không thay đổi.
+- **Sửa checklist riêng:** PUT `/api/v1/procedure-manager/procedures/{id}/checklist`
+  giữ body `{expectedUpdatedAt, decisionNumber, effectiveDate, items}`.
+  Case hợp lệ vẫn được chấp nhận; timestamp cũ vẫn trả 409, phải tải lại trước khi lưu.
+- **Nộp lại hồ sơ:** POST `/api/v1/applications/{id}/resubmit`, body gồm
+  `expectedVersionNumber`, `formData`, `checklists`. Checklist không được chứa null
+  hoặc ID trùng. BE kiểm tra payload trước khi gọi DocumentForm; sai trả 400 validation,
+  thành công vẫn 200. Thiếu giấy tờ thật vẫn trả 422, không sửa thành COMPLETED để né lỗi.
+- **Xác minh giấy tờ:** các API đánh dấu hoàn tất/nộp/nộp lại trả 503
+  `application.documents_unavailable` nếu service tài liệu trả mảng/phần tử null hoặc ID
+  rỗng/trùng. FE cho phép thử lại, báo traceId cho BE; không coi đây là thiếu file
+  để bắt người dân upload lại toàn bộ.
+- **Đọc giấy tờ/PDF:** GET `/api/v1/applications/{applicationId}/supporting-documents`,
+  GET `/api/v1/supporting-documents/{documentId}/download`, GET
+  `/api/v1/applications/{applicationId}/generated-documents`, GET
+  `/api/v1/generated-documents/{documentId}/download`, cùng POST
+  `/api/v1/applications/{applicationId}/generate-pdf` nay kiểm tra chính chủ trước.
+  Tài khoản có thêm role FRONT_DESK_OFFICER vẫn đọc/xuất tài liệu hồ sơ mình nộp.
+  Nếu không phải chủ hồ sơ, phải là cán bộ được giao đúng phường; ngoài phạm vi trả 404.
+  PDF vẫn yêu cầu hồ sơ APPROVED (chưa duyệt trả 409); không cấp quyền tự thẩm định.
+
+Các thay đổi này không cần migration. Build lại ProcedureCatalog, ApplicationWorkflow
+và DocumentForm để kiểm tra; không cần đổi JWT/role hoặc sửa dữ liệu database để né lỗi.
+
+#### Kiểm tra Docker trước khi bàn giao Azure
+
+1. Đăng nhập bằng các tài khoản thử: citizen, Front Desk phường A, Front Desk phường B,
+   Procedure Manager. Dùng dữ liệu giả và giữ ID tạo ra để dọn dữ liệu thử theo nghiệp vụ.
+2. Bóc tách PDF, lưu/đối soát draft, chọn category thật và kiểm tra checklist/cases/template.
+   Thử case không tồn tại/mã checklist trùng: publish phải 400. Sửa hợp lệ rồi publish.
+3. Citizen tạo hồ sơ chọn phường A và case. Xác nhận chỉ có checklist chung + case đã chọn.
+   Sửa checklist thủ tục sau đó: checklist hồ sơ cũ phải giữ nguyên.
+4. Thử hoàn tất/nộp khi chưa có file, sai template, sai số lượng hoặc loại bản sao:
+   phải bị chặn. Điền/nộp form đúng template, upload giấy tờ thật rồi nộp hồ sơ.
+5. FD phường B không được nhận/xem hồ sơ A. FD A tiếp nhận; cán bộ khác chưa được giao
+   không được annotate/approve. Tạo comment OPEN rồi yêu cầu bổ sung.
+6. Citizen sửa form/giấy tờ và nộp lại đúng version. Version cũ phải 409;
+   bộ checklist chứa null phải 400. Kiểm tra history, snapshot và diff.
+7. Cán bộ nhận lại và duyệt khi không còn OPEN. Thử sửa checklist/upload/xóa/annotate
+   sau duyệt: phải bị chặn. Với hồ sơ thử khác, từ chối phải nhập lý do và có history.
+8. Xuất PDF từ submission đã lưu: kiểm tra nội dung thật và không lộ Word comment.
+   Khi Gotenberg không dùng được phải trả lỗi, không trả PDF giả. Kiểm tra tài khoản
+   citizen đồng thời có role Front Desk vẫn đọc được tài liệu hồ sơ mình nộp.
+9. Kết nối SignalR, thực hiện thay đổi trạng thái và kiểm tra thông báo đúng người/phường.
+   Ngắt/kết nối lại rồi tải REST danh sách để kiểm tra không mất dữ liệu. Kiểm tra
+   inbox/outbox/delivery khi RabbitMQ bị gián đoạn trên môi trường thử riêng.
+
+Kết quả kiểm tra tạm bằng handler/HTTP giả lập không thay thế các bước Docker trên.
+Chưa xác nhận khóa nguyên tử request sửa file đang chạy đồng thời với quyết định duyệt
+giữa hai service; không đánh dấu kiểm thử cạnh tranh phân tán là đã đạt.
+
 Cập nhật ngày **07/10/2026**. Tài liệu chia theo **Service → Nhóm chức năng → Từng API**, mô tả các
 API nghiệp vụ hiện có, các endpoint hệ thống và đường dẫn Gateway. Không phải xác nhận tình trạng deploy.
 
