@@ -295,6 +295,10 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("pdf_blob_url");
 
+                    b.Property<Guid?>("SubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_id");
+
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("timestamptz")
                         .HasColumnName("updated_at");
@@ -306,6 +310,9 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_generated_documents");
+
+                    b.HasIndex("SubmissionId")
+                        .HasDatabaseName("ix_generated_documents_submission_id");
 
                     b.ToTable("generated_documents", "document");
                 });
