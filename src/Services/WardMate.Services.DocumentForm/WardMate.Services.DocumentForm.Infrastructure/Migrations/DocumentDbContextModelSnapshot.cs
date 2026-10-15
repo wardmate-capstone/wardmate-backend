@@ -74,6 +74,50 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                     b.ToTable("application_forms", "document");
                 });
 
+            modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.ApprovedQr", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("generated_at");
+
+                    b.Property<string>("QrCodeValue")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("qr_code_value");
+
+                    b.Property<byte[]>("QrImagePng")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("qr_image_png");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_approved_qrs");
+
+                    b.HasIndex("ApplicationId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_approved_qrs_application_id");
+
+                    b.HasIndex("SubmissionId")
+                        .HasDatabaseName("ix_approved_qrs_submission_id");
+
+                    b.ToTable("approved_qrs", "document");
+                });
+
             modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.FormTemplate", b =>
                 {
                     b.Property<Guid>("Id")
