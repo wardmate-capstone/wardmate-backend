@@ -170,7 +170,7 @@ public sealed class GeneratePdfDocumentCommandHandler
 
             // 4. Lưu hoặc cập nhật bản ghi GeneratedDocument vào DB
             // Each result has its own immutable record; one form must not overwrite another form's PDF.
-            var generatedDocument = new GeneratedDocument(request.ApplicationId, sanitizedType, pdfBlobUrl, request.CreatedBy);
+            var generatedDocument = new GeneratedDocument(request.ApplicationId, sanitizedType, pdfBlobUrl, request.CreatedBy, request.SubmissionId);
             _dbContext.GeneratedDocuments.Add(generatedDocument);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -179,6 +179,7 @@ public sealed class GeneratePdfDocumentCommandHandler
             {
                 Id = generatedDocument.Id,
                 ApplicationId = generatedDocument.ApplicationId,
+                SubmissionId = generatedDocument.SubmissionId,
                 DocumentType = generatedDocument.DocumentType,
                 PdfBlobUrl = generatedDocument.PdfBlobUrl,
                 CreatedAtUtc = generatedDocument.CreatedAtUtc
