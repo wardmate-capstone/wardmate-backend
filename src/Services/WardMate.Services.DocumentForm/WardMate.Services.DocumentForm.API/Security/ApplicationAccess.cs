@@ -11,6 +11,16 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
     IDocumentDbContext db)
 {
     private readonly Dictionary<Guid, string> verifiedStates = new();
+    // A staff account may also submit its own citizen application. Ownership takes
+    // precedence on shared read routes; officer-only review routes still use Check directly.
+    public async Task<ObjectResult?> Read(Guid applicationId, Guid? checklistId, CancellationToken ct, bool requireApproved = false)
+    {
+        var result = await Check(applicationId, checklistId, false, ct, requireApproved: requireApproved);
+        if (result?.StatusCode == 404 && context.HttpContext!.User.IsInRole("FRONT_DESK_OFFICER"))
+            return await Check(applicationId, checklistId, false, ct, officer: true, requireApproved: requireApproved);
+        return result;
+    }
+
     public async Task<ObjectResult?> Check(Guid applicationId, Guid? checklistId, bool write, CancellationToken ct,
         Guid? templateId = null, bool supporting = false, bool officer = false, bool requireApproved = false)
     {
@@ -87,15 +97,16 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
     public async Task<ObjectResult?> Supporting(Guid id, bool write, CancellationToken ct)
     {
         var d = await db.SupportingDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
-        return d is null ? Problem(404, "document.not_found", "Không tìm thấy giấy tờ.") : await Check(d.ApplicationId, d.ChecklistId, write, ct,
-            officer: !write && context.HttpContext!.User.IsInRole("FRONT_DESK_OFFICER"));
+        return d is null ? Problem(404, "document.not_found", "Không tìm thấy giấy tờ.")
+            : write ? await Check(d.ApplicationId, d.ChecklistId, true, ct)
+            : await Read(d.ApplicationId, d.ChecklistId, ct);
     }
 
     public async Task<ObjectResult?> Generated(Guid id, CancellationToken ct)
     {
         var d = await db.GeneratedDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
-        return d is null ? Problem(404, "document.not_found", "Không tìm thấy PDF.") : await Check(d.ApplicationId, null, false, ct,
-            officer: context.HttpContext!.User.IsInRole("FRONT_DESK_OFFICER"), requireApproved: true);
+        return d is null ? Problem(404, "document.not_found", "Không tìm thấy PDF.")
+            : await Read(d.ApplicationId, null, ct, requireApproved: true);
     }
 
     public async Task<(Guid ApplicationId, ObjectResult? Error)> OfficerSubmission(Guid id, bool write, CancellationToken ct)

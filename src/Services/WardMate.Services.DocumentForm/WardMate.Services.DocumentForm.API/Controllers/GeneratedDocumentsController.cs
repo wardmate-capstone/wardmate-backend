@@ -37,8 +37,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
         [FromForm] GeneratePdfRequest request,
         CancellationToken cancellationToken)
     {
-        var accessError = await _access.Check(applicationId, null, false, cancellationToken,
-            officer: IsOfficer, requireApproved: true);
+        var accessError = await _access.Read(applicationId, null, cancellationToken, requireApproved: true);
         if (accessError is not null) return accessError;
         Stream? fileStream = null;
         string? fileName = null;
@@ -78,8 +77,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
         Guid applicationId,
         CancellationToken cancellationToken)
     {
-        var accessError = await _access.Check(applicationId, null, false, cancellationToken,
-            officer: IsOfficer, requireApproved: true);
+        var accessError = await _access.Read(applicationId, null, cancellationToken, requireApproved: true);
         if (accessError is not null) return accessError;
         var result = await _mediator.Send(
             new GetGeneratedDocumentsQuery(applicationId, CallerUserId, IsOfficer),

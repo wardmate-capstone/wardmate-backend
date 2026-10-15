@@ -77,8 +77,7 @@ public sealed class SupportingDocumentsController : ControllerBase
         Guid applicationId,
         CancellationToken cancellationToken)
     {
-        var error = await _access.Check(applicationId, null, false, cancellationToken,
-            officer: User.IsInRole("FRONT_DESK_OFFICER"));
+        var error = await _access.Read(applicationId, null, cancellationToken);
         if (error is not null) return error;
         var result = await _mediator.Send(
             new GetSupportingDocumentsQuery(applicationId),
