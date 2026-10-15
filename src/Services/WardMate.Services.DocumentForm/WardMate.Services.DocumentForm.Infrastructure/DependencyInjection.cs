@@ -4,7 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using WardMate.Services.DocumentForm.Application.Interfaces;
 using WardMate.Services.DocumentForm.Infrastructure.OpenXml;
 using WardMate.Services.DocumentForm.Infrastructure.Persistence;
+using WardMate.Services.DocumentForm.Infrastructure.QrCode;
 using WardMate.SharedKernel.Blob;
+
 
 namespace WardMate.Services.DocumentForm.Infrastructure;
 
@@ -34,6 +36,10 @@ public static class DependencyInjection
 
         // PDF Render Engine (Gotenberg; no placeholder fallback)
         services.AddHttpClient<IPdfRenderEngine, WardMate.Services.DocumentForm.Infrastructure.Pdf.GotenbergPdfRenderEngine>();
+
+        // QR Code — sinh mã QR khi approve, chèn vào DOCX trước render PDF (TASK-22/23)
+        services.AddSingleton<IApprovedQrService, ApprovedQrService>();
+        services.AddSingleton<IDocxQrStamper, DocxQrStamper>();
 
         return services;
     }
