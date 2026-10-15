@@ -29,6 +29,25 @@ public sealed class OfficerSubmissionsController : ControllerBase
     }
 
     /// <summary>
+    /// [Cán bộ] Lấy danh sách các đơn điện tử (submissions) thuộc hồ sơ để biết submissionId thực hiện review / download / annotate / approve.
+    /// </summary>
+    [HttpGet("by-application/{applicationId:guid}")]
+    [ProducesResponseType(typeof(IReadOnlyList<UserSubmissionSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSubmissionsByApplication(
+        Guid applicationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsOfficer) return Forbid();
+        var error = await _access.Read(applicationId, null, cancellationToken);
+        if (error is not null) return error;
+
+        var result = await _mediator.Send(new WardMate.Services.DocumentForm.Application.Queries.GetSubmissionsByApplicationQuery(applicationId), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
+    }
+
+    /// <summary>
     /// [Cán bộ] Trả hồ sơ lại cho người dân kèm ghi chú yêu cầu sửa (Submitted → RevisionRequested).
     /// </summary>
     [HttpPost("{submissionId:guid}/request-revision")]
