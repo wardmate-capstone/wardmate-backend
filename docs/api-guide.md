@@ -3117,17 +3117,52 @@ và trạng thái APPROVED qua Workflow. Không chia sẻ trực tiếp URL Blob
   khôi phục dịch vụ rồi thử lại. Không còn fallback PDF mẫu.
 - 503 `document.workflow_unavailable`/`document.sync_unavailable`: khôi phục kết nối và tải lại.
 - Comment nội bộ bị loại khỏi bản DOCX dùng để chuyển PDF; file DOCX gốc không bị sửa.
+- Bản in PDF chính thức được tự động đóng dấu mã QR tra cứu (TASK-22, TASK-23) ở cuối văn bản căn lề phải kích thước 3.5cm x 3.5cm. Mã QR chứa URL tra cứu hồ sơ chính thức qua Gateway (`/api/v1/applications/{id}`).
+
+### Tra cứu và tải Mã QR hồ sơ đã phê duyệt (TASK-22 / TASK-23)
+
+Mã QR tra cứu được tạo tự động khi hồ sơ được phê duyệt (APPROVED) và lưu trữ trong bảng `document.approved_qrs`.
+
+#### 1. Lấy thông tin mã QR tra cứu
+- **Endpoint**: `GET /api/v1/applications/{applicationId}/approved-qr`
+- **Mục đích**: Lấy URL tra cứu và metadata mã QR của hồ sơ hành chính đã được phê duyệt.
+- **Ai dùng**: Công dân nộp hồ sơ hoặc Cán bộ một cửa đang thụ lý hồ sơ.
+- **Khi nào và cách gọi**: Sau khi hồ sơ đạt trạng thái `APPROVED` tại Workflow. Gửi request kèm Header `Authorization: Bearer <token>`.
+- **Kết quả thành công (200 OK)**:
+  ```json
+  {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "applicationId": "d9cd5161-1c1e-43d6-af1a-e3411fb34af5",
+    "submissionId": "8b3e27a4-8b55-4a62-a46e-27b43e94f0fa",
+    "qrCodeValue": "https://wardmate-gateway.../api/v1/applications/d9cd5161-1c1e-43d6-af1a-e3411fb34af5",
+    "generatedAt": "2026-10-15T15:42:30Z"
+  }
+  ```
+- **Lỗi thường gặp & Phục hồi**:
+  - `401 Unauthorized`: Token không hợp lệ hoặc hết hạn. Đăng nhập lại để lấy token mới.
+  - `403 Forbidden` (`document.application_forbidden`): Người gọi không phải chủ hồ sơ hoặc không phải cán bộ được phân công.
+  - `404 Not Found` (`document.qr_not_found`): Hồ sơ chưa có mã QR tra cứu (do chưa được duyệt hoặc chưa từng sinh QR).
+  - `409 Conflict` (`document.application_not_approved`): Hồ sơ chưa đạt trạng thái APPROVED. Chờ cán bộ duyệt hồ sơ trước.
+
+#### 2. Tải file ảnh PNG của Mã QR tra cứu
+- **Endpoint**: `GET /api/v1/applications/{applicationId}/approved-qr/image`
+- **Mục đích**: Tải trực tiếp file hình ảnh PNG của mã QR để hiển thị lên giao diện web, in ấn tại quầy hoặc gửi cho người dân quét tra cứu.
+- **Ai dùng**: Công dân nộp hồ sơ hoặc Cán bộ một cửa.
+- **Khi nào và cách gọi**: Sau khi hồ sơ đạt trạng thái `APPROVED`. Gửi GET request kèm Header `Authorization: Bearer <token>`.
+- **Kết quả thành công (200 OK)**: File nhị phân `image/png`, tên file `qr-{applicationId}.png`.
+- **Lỗi & Phục hồi**: Tương tự như endpoint lấy thông tin (401, 403, 404, 409).
 
 ### Cấu hình local và trình tự đối soát
 
-DocumentForm cần `Services__ApplicationWorkflow__BaseUrl`, Blob Storage, JWT chung và
-`Gotenberg__Url`. Compose đã thêm service gotenberg nội bộ cổng 3000 và cấu hình URL;
+DocumentForm cần `Services__ApplicationWorkflow__BaseUrl`, Blob Storage, JWT chung,
+`QrCode__VerificationBaseUrl` (tùy chọn, mặc định trỏ Gateway Azure), và `Gotenberg__Url`.
+Compose đã thêm service gotenberg nội bộ cổng 3000 và cấu hình URL;
 chủ dự án tự build/chạy Docker. Azure cần cấu hình URL tới Gotenberg nội bộ tương ứng,
-không trỏ localhost. Không cần migration mới cho thay đổi này.
+không trỏ localhost. Đã bổ sung migration `AddApprovedQrTable` tạo bảng `document.approved_qrs`.
 
 Trình tự: tạo hồ sơ/đơn -> chốt đơn -> COMPLETED checklist -> submit hồ sơ -> cán bộ assign
 -> xem/ghi chú -> tạo comment OPEN và request-revision nếu cần -> dân sửa/chốt/resubmit
--> cán bộ assign lại -> approve Workflow -> dân generate-pdf -> download.
+-> cán bộ assign lại -> approve Workflow -> sinh QR vào `approved_qrs` -> dân/cán bộ generate-pdf (tự động đóng dấu QR) -> download PDF hoặc tải QR PNG.
 Kiểm tra âm: cán bộ khác phường/cùng phường chưa phân công, giả OfficerId, xuất trước duyệt,
 sửa sau duyệt, Workflow hoặc Gotenberg mất kết nối. Các trường hợp này không được trả file chính thức mới.
 
@@ -3135,3 +3170,4 @@ sửa sau duyệt, Workflow hoặc Gotenberg mất kết nối. Các trường h
 IAM/ProcedureCatalog giả lập. Không xác nhận triển khai Azure hoặc FE editor trong phiên này.
 Đồng bộ đọc có thử lại, chưa phải giao dịch phân tán; các thao tác đang chạy đồng thời ở
 hai service vẫn cần cơ chế lease/outbox nếu yêu cầu đóng băng nguyên tử tuyệt đối.
+

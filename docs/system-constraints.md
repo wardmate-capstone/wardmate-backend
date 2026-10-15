@@ -428,6 +428,10 @@ API `DocumentContentsClient.cs`; Infrastructure `ApplicationReviewStore.cs`.
   Lỗi chuyển đổi báo lỗi; không trả PDF mẫu giả để coi như thành công.
 - Xóa comment nội bộ trên bản sao để kết xuất; giữ DOCX nguồn phục vụ đối soát.
 - Mỗi lần sinh PDF tạo bản ghi/file mới; không ghi đè PDF của form khác chỉ vì cùng hồ sơ.
+- Mã QR tra cứu (TASK-22): Mỗi `ApplicationId` chỉ có duy nhất một bản ghi trong `document.approved_qrs` (unique index). Mã QR chứa URL tra cứu bảo mật qua Gateway. Sinh tự động khi Approve hoặc khi kết xuất PDF lần đầu cho hồ sơ Approved.
+- Đóng dấu QR (TASK-23): Chèn ảnh QR PNG chuẩn 3.5cm x 3.5cm căn lề phải vào cuối văn bản DOCX sạch (đã lọc comment) trước khi gửi qua Gotenberg render PDF.
+- Tra cứu mã QR: API `approved-qr` và `approved-qr/image` yêu cầu hồ sơ APPROVED tại Workflow và quyền chủ sở hữu hoặc cán bộ thụ lý.
+
 
 ### DOC-06 — Mẫu dùng chung và giới hạn lưu trữ
 
@@ -577,6 +581,10 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 - [Thông báo của người nhận](../src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationService.cs).
 
 ## Nhật ký tài liệu
+
+- 15/10/2026 — QR-PDF-001 (TASK-22, TASK-23): thêm ràng buộc mã QR tra cứu hồ sơ đã phê duyệt
+  (bảng `document.approved_qrs`, unique index `application_id`), đóng dấu QR OpenXML 3.5cm x 3.5cm
+  vào cuối văn bản DOCX trước khi render Gotenberg PDF; bảo vệ quyền truy cập API tải QR theo trạng thái APPROVED.
 
 - 15/10/2026 — FLOW-REVIEW-001: thống nhất kiểm tra checklist/case/form trước xuất bản;
   validate resubmit trước gọi phụ thuộc; chặn phản hồi bằng chứng null/trùng;
