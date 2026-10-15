@@ -69,18 +69,19 @@ public sealed class GeneratedDocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy danh sách toàn bộ văn bản PDF kết xuất của một hồ sơ.
+    /// Lấy danh sách toàn bộ văn bản PDF kết xuất của một hồ sơ (hoặc lọc theo submissionId).
     /// </summary>
     [HttpGet("applications/{applicationId:guid}/generated-documents")]
     [ProducesResponseType(typeof(IReadOnlyList<GeneratedDocumentDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetGeneratedDocuments(
         Guid applicationId,
+        [FromQuery] Guid? submissionId,
         CancellationToken cancellationToken)
     {
         var accessError = await _access.Read(applicationId, null, cancellationToken, requireApproved: true);
         if (accessError is not null) return accessError;
         var result = await _mediator.Send(
-            new GetGeneratedDocumentsQuery(applicationId, CallerUserId, IsOfficer),
+            new GetGeneratedDocumentsQuery(applicationId, CallerUserId, IsOfficer, submissionId),
             cancellationToken);
 
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
