@@ -31,7 +31,7 @@ public sealed class UpdateProcedureChecklistHandler(IProcedureManagementStore st
                 x.ChecklistId != x.ChecklistId.Trim() || (!string.IsNullOrWhiteSpace(x.CaseCode) && !cases.Contains(x.CaseCode))) ||
                 input.Items.Select(x => x.ChecklistId).Distinct(StringComparer.Ordinal).Count() != input.Items.Count)
                 return ProcedureResult<ProcedureDetailDto>.Fail("procedure.invalid_checklist", "Mã checklist phải duy nhất, không có khoảng trắng đầu/cuối, tối đa 255 ký tự; mã trường hợp phải thuộc thủ tục.", 400);
-            var validation = await validator.ValidateAsync(new ProcedureInput { ChecklistSchema = input.Items },
+            var validation = await validator.ValidateAsync(new ProcedureInput { ChecklistSchema = input.Items, ContentPayload = p.ContentPayload },
                 options => options.IncludeProperties(x => x.ChecklistSchema), ct);
             if (!validation.IsValid)
                 return ProcedureResult<ProcedureDetailDto>.Fail("validation.failed", "Checklist không hợp lệ.", 400, validation.ToDictionary());
