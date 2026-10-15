@@ -1,5 +1,26 @@
 # DocumentForm deployment history
 
+## Cross-Service Validation & Dual-Role Access Review Deployment — 2026-10-15 07:25:00 +07:00
+
+Deployed 3 updated microservice images to Azure Container Registry `acrwardmate2026.azurecr.io`:
+1. **DocumentForm**:
+   - Image: `acrwardmate2026.azurecr.io/wardmate-documentform:task18-review-20261015-01`
+   - Digest: `sha256:7fa22a3ecf88f877cb57066553c0e81a7bdcc1458d22ff8a1785888f34417ad0`
+   - Features: Preserved owner access on shared read routes for dual-role accounts (citizen + Front Desk officer); officer review checks remain strictly scoped.
+2. **ApplicationWorkflow**:
+   - Image: `acrwardmate2026.azurecr.io/wardmate-application-workflow:workflow-20261015-01`
+   - Digest: `sha256:d4e7f933464882ef4a91b22ab55ed57106fff9d0e56da1435c18caa4162014a0`
+   - Features: Pre-validation on resubmit commands against nulls/duplicates, rejecting malformed document evidence with 503 instead of corrupting counts.
+3. **ProcedureCatalog**:
+   - Image: `acrwardmate2026.azurecr.io/wardmate-procedure-catalog:v8-checklist-review-20261015`
+   - Digest: `sha256:6f5d9dacd30a1dab6727dae7a25a53ebbd22f4a5123c9183671eb631bb2da331`
+   - Features: Case reference validation across checklist items and form definitions; whitespace trimming; max 500 checklist items constraint.
+
+Container App update notes:
+- Update Container App `wardmate-documentform` in `rg-wardmate-prod` to image tag `task18-review-20261015-01`.
+- Update Container App `wardmate-application-workflow` in `rg-wardmate-prod` to image tag `workflow-20261015-01`.
+- Update Container App `wardmate-procedure-catalog` in `rg-wardmate-prod` to image tag `v8-checklist-review-20261015`.
+
 ## Scoped Officer Review, Workflow-Governed Approval & Gotenberg PDF Deployment — 2026-10-14 16:30:00 +07:00
 
 Deployed 3 core microservices images to Azure Container Registry `acrwardmate2026.azurecr.io`:
