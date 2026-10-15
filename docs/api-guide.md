@@ -3104,11 +3104,13 @@ Hai route DocumentForm cũ được giữ để tương thích đường dẫn, 
 POST `/api/v1/applications/{id}/generate-pdf` trên DocumentForm nhận multipart:
 `SubmissionId` bắt buộc, `DocumentType` tùy chọn (mặc định ORIGINAL_SUBMISSION).
 Không gửi File mới: backend dùng DOCX đã lưu. Cần chủ hồ sơ hoặc cán bộ đang thụ lý,
-Workflow APPROVED và đơn hợp lệ đã chốt. 200 trả GeneratedDocumentDto có id dùng để tải PDF.
+Workflow APPROVED và đơn hợp lệ đã chốt. 200 trả GeneratedDocumentDto có `id` dùng để tải PDF,
+và `submissionId` chỉ định chính xác đơn gốc đã kết xuất.
 Mỗi lần xuất tạo bản ghi riêng; không ghi đè PDF của đơn khác trong cùng Application.
 
-GET `/api/v1/applications/{id}/generated-documents` lấy danh sách; GET
-`/api/v1/generated-documents/{documentId}/download` tải PDF. Cả hai đều kiểm tra quyền/phường
+GET `/api/v1/applications/{id}/generated-documents` lấy danh sách PDF kết xuất của hồ sơ; hỗ trợ lọc theo `?submissionId={guid}` để lấy đúng file của đơn tương ứng.
+Mỗi phần tử trong danh sách trả về chứa `id`, `applicationId`, `submissionId`, `documentType`, `pdfBlobUrl` và `createdAtUtc`.
+GET `/api/v1/generated-documents/{documentId}/download` tải PDF. Cả hai đều kiểm tra quyền/phường
 và trạng thái APPROVED qua Workflow. Không chia sẻ trực tiếp URL Blob private với người không có quyền.
 
 - 409 `document.application_not_approved`: chờ duyệt hồ sơ; không cố duyệt riêng đơn để vượt điều kiện.
@@ -3118,6 +3120,33 @@ và trạng thái APPROVED qua Workflow. Không chia sẻ trực tiếp URL Blob
 - 503 `document.workflow_unavailable`/`document.sync_unavailable`: khôi phục kết nối và tải lại.
 - Comment nội bộ bị loại khỏi bản DOCX dùng để chuyển PDF; file DOCX gốc không bị sửa.
 - Bản in PDF chính thức được tự động đóng dấu mã QR tra cứu (TASK-22, TASK-23) ở cuối văn bản căn lề phải kích thước 3.5cm x 3.5cm. Mã QR chứa URL tra cứu hồ sơ chính thức qua Gateway (`/api/v1/applications/{id}`).
+
+### Tra cứu `submissionId` của hồ sơ cho Cán bộ một cửa (TASK-25 / Gaps 1 & 2)
+
+Để cán bộ có thể gọi các API thao tác đơn DOCX (`download-docx`, `annotate-docx`, `request-revision`, `approve`), cán bộ cần biết `submissionId` của đơn:
+
+#### 1. Lấy toàn bộ đơn và tài liệu minh chứng của hồ sơ
+- **Endpoint**: `GET /api/v1/applications/{applicationId}/contents`
+- **Mục đích**: Lấy thông tin tất cả đơn điện tử (kèm `id` chính là `submissionId`) và giấy tờ minh chứng thuộc hồ sơ.
+- **Ai dùng**: Công dân chủ hồ sơ hoặc Cán bộ một cửa đang thụ lý hồ sơ (`DocumentUser` policy).
+- **Kết quả thành công (200 OK)**: `ApplicationContentsDto` chứa danh sách `submissions` và `supportingDocuments`. Trong đó `submissions[i].id` chính là `submissionId`.
+
+#### 2. Lấy danh sách đơn điện tử của hồ sơ dành riêng cho Cán bộ
+- **Endpoint**: `GET /api/v1/officer/submissions/by-application/{applicationId}`
+- **Mục đích**: Cán bộ một cửa lấy danh sách chi tiết các đơn người dân đã điền cho hồ sơ để lấy `submissionId`, trạng thái, thời gian nộp và ghi chú.
+- **Ai dùng**: Cán bộ một cửa (`FRONT_DESK_OFFICER`).
+- **Kết quả thành công (200 OK)**: Danh sách `UserSubmissionSummaryDto[]` gồm:
+  - `id`: submissionId của đơn điện tử.
+  - `templateId`: Mẫu biểu DOCX gốc.
+  - `applicationId`: ID hồ sơ.
+  - `checklistId`: Mục thành phần hồ sơ tương ứng.
+  - `applicantId`: ID công dân nộp đơn.
+  - `fileName`, `fileSizeBytes`, `status`: Trạng thái đơn (`Submitted`, `Approved`, `Draft`, v.v.).
+  - `officerComment`: Ghi chú cán bộ nếu có.
+- **Lỗi thường gặp & Phục hồi**:
+  - `401 Unauthorized`: Chưa đăng nhập hoặc token hết hạn.
+  - `403 Forbidden`: Người gọi không có role `FRONT_DESK_OFFICER` hoặc không thuộc phạm vi xử lý hồ sơ.
+  - `404 Not Found`: Không tìm thấy hồ sơ tương ứng trong hệ thống Workflow.
 
 ### Tra cứu và tải Mã QR hồ sơ đã phê duyệt (TASK-22 / TASK-23)
 
