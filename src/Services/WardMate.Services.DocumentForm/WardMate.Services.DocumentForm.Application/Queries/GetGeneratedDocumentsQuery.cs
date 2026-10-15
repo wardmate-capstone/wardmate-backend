@@ -11,7 +11,8 @@ namespace WardMate.Services.DocumentForm.Application.Queries;
 public sealed record GetGeneratedDocumentsQuery(
     Guid ApplicationId,
     Guid? CallerUserId = null,
-    bool IsOfficer = false)
+    bool IsOfficer = false,
+    Guid? SubmissionId = null)
     : IQuery<IReadOnlyList<GeneratedDocumentDto>>;
 
 public sealed class GetGeneratedDocumentsQueryHandler
@@ -48,14 +49,22 @@ public sealed class GetGeneratedDocumentsQueryHandler
             }
         }
 
-        var list = await _dbContext.GeneratedDocuments
+        var query = _dbContext.GeneratedDocuments
             .AsNoTracking()
-            .Where(d => d.ApplicationId == request.ApplicationId && !d.IsDeleted)
+            .Where(d => d.ApplicationId == request.ApplicationId && !d.IsDeleted);
+
+        if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
+        {
+            query = query.Where(d => d.SubmissionId == request.SubmissionId.Value);
+        }
+
+        var list = await query
             .OrderByDescending(d => d.CreatedAtUtc)
             .Select(d => new GeneratedDocumentDto
             {
                 Id = d.Id,
                 ApplicationId = d.ApplicationId,
+                SubmissionId = d.SubmissionId,
                 DocumentType = d.DocumentType,
                 PdfBlobUrl = d.PdfBlobUrl,
                 CreatedAtUtc = d.CreatedAtUtc
