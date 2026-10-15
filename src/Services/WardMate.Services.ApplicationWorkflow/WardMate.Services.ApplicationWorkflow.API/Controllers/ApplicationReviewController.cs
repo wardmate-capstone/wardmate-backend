@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -62,18 +63,22 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
 }
 
 [Route("api/v1/applications"), Tags("Applications")]
-public sealed class ApplicationReviewController(ISender sender, IDocumentContentsClient documents) : ReviewControllerBase
+public sealed class ApplicationReviewController(ISender sender, IDocumentContentsClient documents,
+    IValidator<ResubmitApplicationCommand> resubmitValidator) : ReviewControllerBase
 {
     [HttpPost("{id:guid}/resubmit"), RequestSizeLimit(128 * 1024), ProducesResponseType<ReviewResultDto>(200), ProducesResponseType<ProblemDetails>(422)]
     [Authorize(Policy = "workflow.resubmit")]
     public async Task<IActionResult> Resubmit(Guid id, ResubmitInput input, CancellationToken ct)
     {
+        // Validate before reading the array or calling dependent services.
+        var command = new ResubmitApplicationCommand(Actor.Id, id, input);
+        await resubmitValidator.ValidateAndThrowAsync(command, ct);
         var application = await sender.Send(new GetApplicationQuery(Actor.Id, id), ct);
         if (application.Error is not null) return Respond(application);
-        var completed = input.Checklists?.Where(x => x.Status == "COMPLETED").Select(x => x.Id) ?? [];
+        var completed = input.Checklists.Where(x => x.Status == "COMPLETED").Select(x => x.Id).ToHashSet();
         var error = await documents.Validate(id, application.Value!.Checklists.Where(x => x.IsRequired || completed.Contains(x.Id)), ct);
         if (error is not null) return error;
-        return Respond(await sender.Send(new ResubmitApplicationCommand(Actor.Id, id, input), ct));
+        return Respond(await sender.Send(command, ct));
     }
 
     [HttpGet("{id:guid}/comments"), ProducesResponseType<CommentDto[]>(200)]

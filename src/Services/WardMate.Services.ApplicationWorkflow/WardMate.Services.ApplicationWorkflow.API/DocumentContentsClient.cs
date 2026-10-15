@@ -27,7 +27,11 @@ public sealed class DocumentContentsClient(HttpClient http, IConfiguration confi
             using var response = await http.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode) return Problem(503, "application.documents_unavailable", "Không xác minh được giấy tờ trong DocumentForm.");
             var contents = await response.Content.ReadFromJsonAsync<Contents>(cancellationToken: ct);
-            if (contents is null || contents.ApplicationId != applicationId || contents.Submissions is null || contents.SupportingDocuments is null)
+            if (contents is null || contents.ApplicationId != applicationId || contents.Submissions is null || contents.SupportingDocuments is null
+                || contents.Submissions.Any(x => x is null || x.Id == Guid.Empty)
+                || contents.SupportingDocuments.Any(x => x is null || x.Id == Guid.Empty)
+                || contents.Submissions.Select(x => x.Id).Distinct().Count() != contents.Submissions.Length
+                || contents.SupportingDocuments.Select(x => x.Id).Distinct().Count() != contents.SupportingDocuments.Length)
                 return Problem(503, "application.documents_unavailable", "DocumentForm trả dữ liệu không hợp lệ.");
             var missing = items.Where(item =>
                 !(item.FormTemplateId.HasValue && contents.Submissions.Any(s => s.ChecklistId == item.Id
