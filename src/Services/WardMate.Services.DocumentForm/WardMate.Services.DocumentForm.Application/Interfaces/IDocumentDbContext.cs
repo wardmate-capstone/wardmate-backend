@@ -14,6 +14,7 @@ public interface IDocumentDbContext
     DbSet<SupportingDocument> SupportingDocuments { get; }
     DbSet<GeneratedDocument> GeneratedDocuments { get; }
     DbSet<UserSubmission> UserSubmissions { get; }
+    DbSet<ApprovedQr> ApprovedQrs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
