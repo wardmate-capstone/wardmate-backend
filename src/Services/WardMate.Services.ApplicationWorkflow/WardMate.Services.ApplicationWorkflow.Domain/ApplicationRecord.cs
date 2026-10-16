@@ -6,8 +6,7 @@ public static class ApplicationStates
     public const string Submitted = "SUBMITTED";
     public const string UnderReview = "UNDER_REVIEW";
     public const string NeedRevision = "NEED_REVISION";
-    public const string Rejected = "REJECTED";
-    public const string Approved = "APPROVED";
+    public const string DocumentsReady = "DOCUMENTS_READY";
     public const string Cancelled = "CANCELLED";
 }
 
@@ -35,7 +34,9 @@ public sealed class ApplicationRecord
     public Guid? AssignedOfficerId { get; set; }
     public int ResubmitCount { get; set; }
     public string? Notes { get; set; }
+    // Historical value only; old decisions are not automatically readiness confirmations.
     public DateTime? ApprovedAt { get; set; }
+    public DateTime? DocumentsReadyAt { get; set; }
     public List<ApplicationComment> Comments { get; set; } = [];
     public List<ApplicationVersion> Versions { get; set; } = [];
     public List<ApplicationChecklist> Checklists { get; set; } = [];

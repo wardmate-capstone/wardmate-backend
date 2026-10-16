@@ -211,6 +211,10 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("approved_at");
 
+                    b.Property<DateTime?>("DocumentsReadyAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("documents_ready_at");
+
                     b.Property<Guid?>("AssignedOfficerId")
                         .HasColumnType("uuid")
                         .HasColumnName("assigned_officer_id");
@@ -295,7 +299,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.ToTable("applications", null, t =>
                         {
-                            t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','APPROVED','CANCELLED','REJECTED')");
+                            t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','DOCUMENTS_READY','APPROVED','CANCELLED','REJECTED')");
                         });
                 });
 

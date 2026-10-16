@@ -50,12 +50,23 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
     public async Task<IActionResult> Comment(Guid id, AddCommentInput input, CancellationToken ct) =>
         Respond(await sender.Send(new AddApplicationCommentCommand(Actor, id, input), ct));
 
-    [HttpPost("{id:guid}/approve"), Authorize(Policy = "workflow.approve"), ProducesResponseType<ReviewResultDto>(200)]
-    public async Task<IActionResult> Approve(Guid id, CancellationToken ct) => Respond(await sender.Send(new ApproveApplicationCommand(Actor, id), ct));
+    /// <summary>Xác nhận giấy tờ sẵn sàng để mang đến phường; không phê duyệt thủ tục hành chính.</summary>
+    [HttpPost("{id:guid}/confirm-readiness"), Authorize(Policy = "workflow.readiness.confirm"), ProducesResponseType<ReviewResultDto>(200)]
+    [ProducesResponseType<ProblemDetails>(422), ProducesResponseType<ProblemDetails>(503)]
+    public async Task<IActionResult> ConfirmReadiness(Guid id, [FromServices] IApplicationReviewStore store,
+        [FromServices] IDocumentContentsClient documents, CancellationToken ct)
+    {
+        var actor = Actor;
+        var application = await store.Read(actor, id, ct);
+        if (application is null) return Respond(WorkflowResult<ReviewResultDto>.Fail(404, "application.not_found", "Không tìm thấy hồ sơ trong phạm vi."));
+        if (!actor.IsOfficer || string.IsNullOrWhiteSpace(actor.WardCode) || application.WardCode != actor.WardCode
+            || application.AssignedOfficerId != actor.Id || application.UserId == actor.Id) return Forbid();
+        if (application.Status != "UNDER_REVIEW") return Respond(WorkflowResult<ReviewResultDto>.Fail(409, "application.invalid_status", "Chỉ xác nhận giấy tờ của hồ sơ đang UNDER_REVIEW."));
+        var error = await documents.Validate(id, ApplicationDto.From(application).Checklists.Where(x => x.IsRequired || x.Status == "COMPLETED"), ct);
+        if (error is not null) return error;
+        return Respond(await sender.Send(new ConfirmDocumentReadinessCommand(actor, id), ct));
+    }
 
-    public sealed record RejectInput(string Reason);
-    [HttpPost("{id:guid}/reject"), Authorize(Policy = "workflow.reject"), RequestSizeLimit(32 * 1024), ProducesResponseType<ReviewResultDto>(200)]
-    public async Task<IActionResult> Reject(Guid id, RejectInput input, CancellationToken ct) => Respond(await sender.Send(new RejectApplicationCommand(Actor, id, input.Reason), ct));
     [HttpPost("{id:guid}/request-revision"), RequestSizeLimit(32 * 1024), ProducesResponseType<ReviewResultDto>(200)]
     [Authorize(Policy = "workflow.revision.request")]
     public async Task<IActionResult> RequestRevision(Guid id, RequestRevisionInput input, CancellationToken ct) =>

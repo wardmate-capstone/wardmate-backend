@@ -35,7 +35,7 @@ public sealed class DocumentContentsClient(HttpClient http, IConfiguration confi
                 return Problem(503, "application.documents_unavailable", "DocumentForm trả dữ liệu không hợp lệ.");
             var missing = items.Where(item =>
                 !(item.FormTemplateId.HasValue && contents.Submissions.Any(s => s.ChecklistId == item.Id
-                    && s.FileExists && s.Status is ("Submitted" or "Approved") && s.TemplateId == item.FormTemplateId))
+                    && s.FileExists && s.Status is ("Submitted" or "ReadyForDownload") && s.TemplateId == item.FormTemplateId))
                 && (item.FormTemplateId.HasValue || contents.SupportingDocuments
                     .Where(d => d.ChecklistId == item.Id && d.FileExists && d.Quantity > 0
                         && (item.SubmissionType is null || d.SubmissionType == item.SubmissionType)
