@@ -51,14 +51,30 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
         var docxBytes = file.Value;
         using var uploadStream = new MemoryStream(docxBytes);
         var blobPath = $"form-templates/{template.Code.ToLowerInvariant()}/{Guid.NewGuid():N}_{Path.GetFileName(request.FileName)}";
-        var blobUrl = await _blobClient.UploadAsync(
-            uploadStream,
-            blobPath,
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ct: cancellationToken);
+        string blobUrl;
+        try
+        {
+            blobUrl = await _blobClient.UploadAsync(
+                uploadStream,
+                blobPath,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ct: cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return DocumentFormErrors.BlobUploadFailed($"Unable to upload template DOCX to storage: {ex.Message}");
+        }
 
         template.UpdateDocxUrl(blobUrl, request.UpdatedBy);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            try { await _blobClient.DeleteAsync(blobPath, ct: CancellationToken.None); } catch { }
+            throw;
+        }
 
         var resultDto = new UploadDocxResultDto
         {
