@@ -2443,3 +2443,78 @@ Owner explicitly approved push main after Docker handoff. Fetched origin; main w
 - Kiểm tra liên kết sổ tay: 0 đường dẫn hỏng. Không chạy Git, không build/run Docker, không deploy. Email/SMS vẫn để sau theo yêu cầu.
 - Gợi ý commit theo chức năng cho Antigravity: `fix(procedure): validate checklist and case references consistently`; `fix(workflow): reject malformed resubmissions and document evidence`; `fix(document-form): preserve owner access for dual-role accounts`; `docs: record cross-service review and local verification steps`. Antigravity tách từng file/chức năng theo AGENTS.md.
 
+
+## DOC-DIAGRAMS-001 — ERD, Activity, State Machine và Structure Analysis
+
+- Hoàn thành: 15/10/2026 15:01:16, Asia/Saigon (UTC+07:00).
+- Tạo `docs/system-diagrams.md`: 17 sơ đồ Mermaid, gồm 5 ERD (28 bảng), 1 sơ đồ liên kết logic liên service, 3 activity, 3 state machine và 5 sơ đồ phân tích cấu trúc (FDD, service, Clean Architecture, DFD context/mức 1).
+- Đối chiếu entity, EF mapping và handlers hiện có; phân biệt FK thật với ID logic, JSONB với bảng, Application với UserSubmission và ProcedureDraft. Ghi rõ CANCELLED chỉ được khai báo nhưng chưa có handler chuyển trạng thái trong phần đã kiểm tra.
+- File thay đổi: `docs/system-diagrams.md` (mới), `PROGRESS.md` (nối nhật ký).
+- API mới/thay đổi: không có; request body, response code, DTO, ProblemDetails và token handling giữ nguyên. Không thay đổi ràng buộc runtime.
+- Kiểm tra: 17 khối Mermaid có cặp Markdown fence đầy đủ; đối chiếu 28 entity trong ERD. Chưa chạy renderer Mermaid để xác nhận bố cục hình ảnh trong từng IDE.
+- `dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1`: PASS, 0 errors, 0 warnings (06:03.40).
+- Tests: 0 test mới; không chạy dotnet test do test projects đã được chủ dự án gỡ bỏ. Đây là cập nhật tài liệu, không phải kiểm thử toàn luồng.
+- Không chạy Git, build Docker hoặc deploy Azure. Sơ đồ mô tả workspace, không xác nhận revision trên môi trường deploy.
+- Gợi ý Conventional Commits cho Antigravity, tách từng file: `docs: document WardMate system diagrams`; `docs: record system diagram verification`.
+
+## DOC-DIAGRAMS-002 — ERD tương lai đầy đủ 6 microservices
+
+- Hoàn thành: 15/10/2026 15:19:19, Asia/Saigon (UTC+07:00).
+- Thay đổi: `docs/system-diagrams.md`, `PROGRESS.md`.
+- Đối chiếu đặc tả gốc 35 bảng và source hiện tại. Bổ sung thiết kế 6 bảng AIOCR (Knowledge Base/chunks/chat/log AI/OCR), 8 bảng AnalyticsSystem (QR, feedback, metrics, audit, settings, health, backup), cùng sơ đồ tổng hợp đủ 6 service.
+- Phân biệt 28 bảng đã có và 14 bảng chưa triển khai. Tổng đích 42 do giữ thêm 7 bảng phát sinh ngoài đặc tả gốc. Không tạo entity, migration, database hay endpoint.
+- Ghi rõ điểm cần chốt: chiều phường của metrics; kích thước embedding; citation UUID array không có FK; AI request không thuộc chat; một QR và nhiều PDF kết quả. Đây là phân tích thiết kế, không thay đổi ràng buộc đang thực thi.
+- Kiểm tra tài liệu: PASS 20 khối Mermaid với fence ghép đôi và 42 tên entity riêng biệt. Chưa render để kiểm tra bố cục hình.
+- Build/test: không chạy lại trong lượt chỉ bổ sung tài liệu; Release build lượt DOC-DIAGRAMS-001 trước đó đạt 0 errors/0 warnings. Không dùng kết quả đó làm kiểm thử cho các bảng tương lai. 0 tests mới; không khôi phục test projects.
+- API/DTO/ProblemDetails/token: không thay đổi. Frontend không được gọi các bảng/chức năng dự kiến như thể đã có API.
+- Không chạy Git, Docker, deployment. Gợi ý tách commit theo file cho Antigravity: `docs: extend ERD with planned AI and analytics schemas`; `docs: record future ERD design review`.
+
+## DOC-DIAGRAMS-003 — Activity, State Machine và Structure Analysis đích cho 6 service
+
+- Hoàn thành: 15/10/2026 15:28:31, Asia/Saigon (UTC+07:00).
+- File mới: `docs/system-future-flows.md`. File cập nhật: `docs/system-diagrams.md` (mục lục và mục 7 dẫn sang phần bổ sung), `PROGRESS.md`.
+- Nội dung: 9 Activity Diagram, 10 State Machine, 4 Structure Analysis; ma trận CÓ / MỘT PHẦN / DỰ KIẾN cho IAM, ProcedureCatalog, ApplicationWorkflow, DocumentForm, AIOCR, AnalyticsSystem.
+- Bao quát auth/quyền, publish/indexing, hồ sơ/hủy dự kiến, PDF có QR, KB/RAG/chat, OCR CCCD, notification đa kênh, QR/feedback/dashboard, audit/settings/health/backup. Phân biệt OCR PDF hiện có với pipeline CCCD chưa có, Sent với Delivered/Read, enum hiện tại với trạng thái job đề xuất.
+- Quy tắc tương lai được đánh dấu là đề xuất chưa thực thi, không thay đổi `docs/system-constraints.md` để tránh mô tả nhầm như check đã có. Không thêm entity/migration/API.
+- Kiểm tra tài liệu: PASS 23 khối Mermaid, 46 fence ghép đôi, 10 stateDiagram-v2 và 13 flowchart; các file đích liên kết tồn tại. Chưa chạy renderer Mermaid để kiểm tra bố cục hình.
+- Build/test: không chạy lại cho lượt chỉ sửa tài liệu; 0 tests mới, không khôi phục test projects. Release build ở DOC-DIAGRAMS-001 trước đó đạt 0 errors/0 warnings; không phải kiểm thử cho tính năng tương lai.
+- Endpoints/methods/request bodies/response codes, frontend DTO, ProblemDetails và token handling: không thay đổi. FE không được giả định các luồng DỰ KIẾN đã có endpoint.
+- Không chạy Git, Docker, triển khai Azure, gọi AI trả phí hoặc thao tác backup thật.
+- Gợi ý commit theo từng file cho Antigravity: `docs: add six-service target activities and state machines`; `docs: link target flows from system diagrams`; `docs: record target workflow diagram review`.
+
+## DOC-DIAGRAMS-004 — ERD hợp nhất toàn hệ thống
+
+- Hoàn thành: 15/10/2026 15:45:50, Asia/Saigon (UTC+07:00).
+- Tạo `docs/system-unified-erd.md`: một ERD Mermaid, 42 bảng (28 hiện có / 14 FUTURE) và 63 quan hệ có nhãn FK/FK_FUTURE/REF/REF_FUTURE. Nội dung cột lấy từ ERD chi tiết đã đối chiếu.
+- Cập nhật `docs/system-diagrams.md`: mục lục và mục 8 liên kết ERD tổng; giữ nguyên ERD riêng. Cập nhật `PROGRESS.md`.
+- Phân biệt quan hệ vật lý với tham chiếu ID/string/JSON/event; không biến sơ đồ hợp nhất thành database chung. Health/backup logs giữ không có cạnh vì chưa có khóa tham chiếu trong thiết kế; không bịa FK. QR URL/PDF và snapshot checklist được giải thích riêng.
+- Kiểm tra tài liệu PASS: 42 entity duy nhất, 14 FUTURE, 63 cạnh có hai đầu tồn tại, một block Mermaid với fence ghép đôi. Chưa render để xác nhận bố cục/khả năng đọc của sơ đồ lớn.
+- Build/test: không chạy lại cho thay đổi tài liệu thuần túy; không tạo test project. Release build DOC-DIAGRAMS-001 trước đó 0 errors/0 warnings không được xem là xác nhận tính năng tương lai.
+- API, DTO, request/response, ProblemDetails, token và ràng buộc runtime: không đổi. Không tạo bảng/migration, không chạy Git, Docker hoặc deploy.
+- Gợi ý commit từng file cho Antigravity: `docs: add unified cross-service ERD`; `docs: link unified ERD from system diagrams`; `docs: record unified ERD verification`.
+
+## DOC-ACTIVITY-UML-005 — Activity Diagram tiếng Anh theo ảnh mẫu
+
+- Hoàn thành: 15/10/2026 21:05:46, Asia/Saigon (UTC+07:00).
+- Theo yêu cầu mới: nhãn tiếng Anh ngắn, hành động bắt đầu bằng động từ; initial node đen, action xanh bo góc, decision/merge hình thoi, final node hai vòng. Phần dự kiến dùng nét đứt, Email một phần dùng viền vàng; không ghi mô tả dài trong ô.
+- Tạo thư mục `docs/diagrams/activities/`: 9 SVG, 9 PNG, 9 Mermaid `.mmd`, `wardmate-activities.drawio` (9 trang chỉnh sửa được), `index.html` offline, `overview.png`, `README.md`, `generate-activities.cjs` (nguồn sinh sơ đồ). Tổng 33 file tài liệu/đồ họa trong thư mục.
+- Cập nhật `docs/system-diagrams.md`, `docs/system-future-flows.md` để liên kết bộ vẽ mới; giữ nguyên phân tích tiếng Việt và ERD. Cập nhật `PROGRESS.md`.
+- Kiểm tra: sinh 9 SVG và render 9 PNG thành công bằng Sharp; kiểm tra trực quan bản Application Workflow và contact sheet của cả 9 hình. Đã sửa đường nối vào merge để không xuyên action và đưa đường vòng ra ngoài cột trái.
+- Parse XML draw.io PASS: 9 trang, cell ID duy nhất theo trang, mọi connector tham chiếu node tồn tại. Kiểm tra 9 Mermaid source PASS với nhãn ASCII-English và không dùng node ID end vốn là từ khóa Mermaid. Chưa kiểm tra thao tác import thật trong ứng dụng draw.io hoặc chạy parser Mermaid; bố cục auto-layout Mermaid có thể khác SVG/draw.io.
+- Build/tests: không chạy dotnet build/test cho thay đổi tài liệu và hình; không tạo test project. Không thay đổi endpoint, DTO, request/response, ProblemDetails, token hoặc ràng buộc runtime.
+- Các hình là luồng rút gọn; README ghi rõ giới hạn và bước tương lai. Không khẳng định QR, RAG, OCR CCCD, Email/SMS production hoặc backup đã triển khai.
+- Không chạy Git, Docker, deployment hoặc dịch vụ AI. Gợi ý Conventional Commit cho Antigravity (tách file theo quy tắc): `docs: add editable English UML activity diagrams`; `docs: link activity diagram exports and record verification`.
+
+## DOC-ACTIVITY-SCOPE-006 — Điều chỉnh sơ đồ sang hỗ trợ chuẩn bị giấy tờ
+
+- Hoàn thành: 15/10/2026 21:55 (Asia/Saigon, UTC+07:00).
+- Phạm vi: chỉ sơ đồ và tài liệu. Không sửa backend, API, database, migration hoặc cấu hình; không chạy Git/Docker.
+- Application: Create Application → Complete Forms and Attach Documents → Submit for Document Review → Review Documents. Thiếu giấy tờ → Request Revision → Revise and Resubmit → kiểm tra lại. Đủ giấy tờ → Confirm Document Readiness → Download Prepared Documents → Visit Ward Office. Hoạt động tại phường nằm ngoài WardMate; không có quyết định phê duyệt/từ chối hành chính trên hệ thống đích.
+- DocumentForm/Analytics: đổi ý nghĩa PDF/QR sang giấy tờ chuẩn bị và tham chiếu; cập nhật State Machine, FDD/DFD liên quan. DOCUMENTS_READY và ReadyForDownload chỉ là tên trạng thái đề xuất, chưa phải hợp đồng API hiện hành.
+- File thay đổi: docs/diagrams/activities/generate-activities.cjs, README.md, index.html, wardmate-activities.drawio; các bản 03-application-workflow, 04-document-form, 08-analytics-results (.mmd/.svg/.png); bộ 9 Mermaid/SVG/PNG được tái sinh đồng bộ và overview.png; docs/system-diagrams.md, docs/system-future-flows.md, docs/system-unified-erd.md; PROGRESS.md.
+- ERD giữ nguyên bảng/cột và quan hệ; thêm chú thích phân biệt mô hình cũ với phạm vi mới. Không suy ra database đã được cập nhật.
+- Kiểm tra: sinh và render 9 sơ đồ + overview; kiểm tra cấu trúc XML 9 trang draw.io (ID duy nhất, nguồn/đích cạnh tồn tại); kiểm tra 9 nguồn Mermaid (nhãn tiếng Anh, không dùng reserved end, không còn Approve/Reject Application). Xem ảnh Application và Analytics sau render. Đây là kiểm tra cấu trúc, chưa phải nhập thử bằng ứng dụng draw.io hoặc chạy Mermaid parser.
+- Build/test: không chạy dotnet build/test vì chỉ đổi tài liệu; 0 test mới, không có kết quả kiểm thử runtime trong phiên này.
+- API mới/thay đổi: không có; method/route/body/status code không đổi. FE tiếp tục dùng hợp đồng hiện hành cho đến task sửa backend. docs/api-guide.md và docs/system-constraints.md không đổi vì mô tả hành vi code hiện tại.
+- Còn lại: sau khi chốt sơ đồ, sửa lifecycle backend, permission/API, đồng bộ DocumentForm/PDF, event/notification/metrics và tài liệu ràng buộc tương ứng. Không được dùng trạng thái đề xuất để gọi API hiện tại.
+- Gợi ý commit: docs: align workflow diagrams with document preparation scope
