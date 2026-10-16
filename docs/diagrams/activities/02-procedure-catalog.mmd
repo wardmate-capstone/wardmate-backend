@@ -1,0 +1,46 @@
+%% Procedure Catalog - Publish Procedure
+%% Dashed actions are planned; see README.md for partial implementations.
+flowchart TD
+  start((" ")):::initial
+  upload("Upload PDF"):::action
+  valid{"Valid File and Storage?"}:::decision
+  error("Display Upload Error"):::action
+  retry{"Retry?"}:::decision
+  save("Save Draft"):::action
+  enabled{"Extraction Enabled?"}:::decision
+  extract("Extract Procedure Data"):::action
+  manual("Enter Procedure Data"):::action
+  reviewMerge{" "}:::merge
+  review("Review and Edit Draft"):::action
+  confirmed{"Ready to Publish?"}:::decision
+  publish("Publish Procedure"):::action
+  index("Update Knowledge Base"):::planned
+  finish{" "}:::merge
+  ActivityFinal(((" "))):::final
+  start --> upload
+  upload --> valid
+  valid -->|"No"| error
+  error --> retry
+  retry -->|"Yes"| upload
+  retry -->|"No"| finish
+  valid -->|"Yes"| save
+  save --> enabled
+  enabled -->|"Yes"| extract
+  enabled -->|"No"| manual
+  extract --> reviewMerge
+  manual --> reviewMerge
+  reviewMerge --> review
+  review --> confirmed
+  confirmed -->|"No"| review
+  confirmed -->|"Yes"| publish
+  publish --> index
+  index --> finish
+  finish --> ActivityFinal
+  classDef initial fill:#111,stroke:#111,color:#111;
+  classDef final fill:#111,stroke:#111,color:#111;
+  classDef action fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef decision fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef merge fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef planned fill:#7ed0eb,stroke:#45525e,color:#162b3b,stroke-dasharray:6 4;
+  classDef external fill:#eeeeee,stroke:#666,color:#162b3b;
+  classDef partial fill:#7ed0eb,stroke:#b7791f,stroke-width:2px,color:#162b3b;

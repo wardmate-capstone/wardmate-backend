@@ -1,0 +1,42 @@
+%% AIOCR - Answer Questions
+%% Dashed actions are planned; see README.md for partial implementations.
+flowchart TD
+  start((" ")):::initial
+  source("Import Knowledge Sources"):::planned
+  chunk("Split Documents into Chunks"):::planned
+  embed("Create Vector Index"):::planned
+  question("Receive Question"):::planned
+  search("Retrieve Relevant Sources"):::planned
+  enough{"Sufficient Evidence?"}:::decision
+  limited("Display Information Limit"):::planned
+  generate("Generate Answer"):::planned
+  valid{"Valid Answer and Citations?"}:::decision
+  error("Display Answer Error"):::planned
+  answer("Prepare Cited Answer"):::planned
+  merge{" "}:::merge
+  save("Save and Return Response"):::planned
+  ActivityFinal(((" "))):::final
+  start --> source
+  source --> chunk
+  chunk --> embed
+  embed --> question
+  question --> search
+  search --> enough
+  enough -->|"No"| limited
+  enough -->|"Yes"| generate
+  generate --> valid
+  valid -->|"No"| error
+  valid -->|"Yes"| answer
+  limited --> merge
+  answer --> merge
+  error --> merge
+  merge --> save
+  save --> ActivityFinal
+  classDef initial fill:#111,stroke:#111,color:#111;
+  classDef final fill:#111,stroke:#111,color:#111;
+  classDef action fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef decision fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef merge fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef planned fill:#7ed0eb,stroke:#45525e,color:#162b3b,stroke-dasharray:6 4;
+  classDef external fill:#eeeeee,stroke:#666,color:#162b3b;
+  classDef partial fill:#7ed0eb,stroke:#b7791f,stroke-width:2px,color:#162b3b;

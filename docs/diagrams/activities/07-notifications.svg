@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="2106" viewBox="0 0 1140 2106" role="img" aria-labelledby="title"><title id="title">Analytics System - Deliver Notifications</title><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#45525e" stroke-width="1.4"/></marker></defs><style>text{font-family:Arial,'Segoe UI',sans-serif;fill:#162b3b;text-anchor:middle}.nodeText{font-size:14px}.edgeLabel{font-size:12px}</style><rect width="1140" height="2106" fill="white"/><text x="570" y="42" font-size="24" font-weight="700">Analytics System - Deliver Notifications</text><text x="570" y="86" font-size="12">Solid border: implemented or partially implemented · Dashed border: planned</text><path d="M570,222 L570,324" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,392 L570,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,540 L570,600" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,654 L190,654 L190,768" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="306.3" y="631" width="28.4" height="20" rx="4" fill="white"/><text x="320.5" y="646" class="edgeLabel">No</text>
+<path d="M190,836 L190,859 L20,859 L20,1803 L570,1803 L570,1826" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,708 L570,768" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="725" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="740" class="edgeLabel">Yes</text>
+<path d="M570,836 L570,896" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,950 L190,950 L190,1064" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="291.9" y="927" width="57.2" height="20" rx="4" fill="white"/><text x="320.5" y="942" class="edgeLabel">IN_APP</text>
+<path d="M570,1004 L570,1064" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="573" y="1021" width="50" height="20" rx="4" fill="white"/><text x="598" y="1036" class="edgeLabel">EMAIL</text>
+<path d="M689,950 L950,950 L950,1064" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="801.7" y="927" width="35.6" height="20" rx="4" fill="white"/><text x="819.5" y="942" class="edgeLabel">SMS</text>
+<path d="M190,1132 L190,1246 L558,1246" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1132 L570,1234" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M950,1132 L950,1246 L582,1246" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1258 L570,1340" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,1394 L190,1394 L190,1508" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="306.3" y="1371" width="28.4" height="20" rx="4" fill="white"/><text x="320.5" y="1386" class="edgeLabel">No</text>
+<path d="M570,1448 L570,1508" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="1465" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="1480" class="edgeLabel">Yes</text>
+<path d="M570,1576 L570,1656" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1724 L570,1826" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M190,1576 L190,1838 L558,1838" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1850 L570,1974" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<circle cx="570" cy="210" r="11" fill="#111"/>
+<rect x="427" y="324" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="363" class="nodeText"><tspan x="570" dy="0">Receive and Store Event</tspan></text>
+<rect x="427" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="511" class="nodeText"><tspan x="570" dy="0">Find Recipients</tspan></text>
+<path d="M570,600 L689,654 L570,708 L451,654 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="659"><tspan x="570" dy="0">Recipient Eligible?</tspan></text>
+<rect x="47" y="768" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="190" y="807" class="nodeText"><tspan x="190" dy="0">Suppress Delivery</tspan></text>
+<rect x="427" y="768" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="807" class="nodeText"><tspan x="570" dy="0">Create Notification</tspan></text>
+<path d="M570,896 L689,950 L570,1004 L451,950 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="955"><tspan x="570" dy="0">Delivery Channel?</tspan></text>
+<rect x="47" y="1064" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="190" y="1103" class="nodeText"><tspan x="190" dy="0">Send In-App Notification</tspan></text>
+<rect x="427" y="1064" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#b7791f" stroke-width="1.6" />
+<text x="570" y="1103" class="nodeText"><tspan x="570" dy="0">Send Email</tspan></text>
+<rect x="807" y="1064" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="1103" class="nodeText"><tspan x="950" dy="0">Send SMS</tspan></text>
+<path d="M570,1234 L582,1246 L570,1258 L558,1246 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<path d="M570,1340 L689,1394 L570,1448 L451,1394 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="1399"><tspan x="570" dy="0">Send Successful?</tspan></text>
+<rect x="47" y="1508" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="190" y="1547" class="nodeText"><tspan x="190" dy="0">Block or Retry Delivery</tspan></text>
+<rect x="427" y="1508" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="1547" class="nodeText"><tspan x="570" dy="0">Record Send Status</tspan></text>
+<rect x="427" y="1656" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1695" class="nodeText"><tspan x="570" dy="0">Process Provider Receipt</tspan></text>
+<path d="M570,1826 L582,1838 L570,1850 L558,1838 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<circle cx="570" cy="1986" r="13" fill="white" stroke="#111" stroke-width="2"/><circle cx="570" cy="1986" r="8" fill="#111"/><text x="570" y="2079" font-size="12">WardMate · UML Activity Diagram · 15 Oct 2026</text></svg>

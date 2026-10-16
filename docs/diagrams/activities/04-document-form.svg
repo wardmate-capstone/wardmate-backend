@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="2402" viewBox="0 0 1140 2402" role="img" aria-labelledby="title"><title id="title">Document Form - Prepare Documents</title><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#45525e" stroke-width="1.4"/></marker></defs><style>text{font-family:Arial,'Segoe UI',sans-serif;fill:#162b3b;text-anchor:middle}.nodeText{font-size:14px}.edgeLabel{font-size:12px}</style><rect width="1140" height="2402" fill="white"/><text x="570" y="42" font-size="24" font-weight="700">Document Form - Prepare Documents</text><text x="570" y="86" font-size="12">Solid border: implemented or partially implemented · Dashed border: planned</text><text x="570" y="112" font-size="12">Target scope: document preparation only. Backend changes pending. Ward visit is outside WardMate.</text><path d="M570,222 L570,324" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,392 L570,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,540 L570,620" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,688 L570,748" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,802 L190,802 L190,916" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="306.3" y="779" width="28.4" height="20" rx="4" fill="white"/><text x="320.5" y="794" class="edgeLabel">No</text>
+<path d="M190,984 L190,1007 L20,1007 L20,2099 L570,2099 L570,2122" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,856 L570,916" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="873" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="888" class="edgeLabel">Yes</text>
+<path d="M570,984 L570,1044" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M689,1098 L950,1098 L950,1212" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="787.3" y="1075" width="64.4" height="20" rx="4" fill="white"/><text x="819.5" y="1090" class="edgeLabel">With QR</text>
+<path d="M570,1152 L570,1382" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="562.2" y="1254" width="71.6" height="20" rx="4" fill="white"/><text x="598" y="1269" class="edgeLabel">PDF Only</text>
+<path d="M950,1280 L950,1394 L582,1394" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1406 L570,1508" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1576 L570,1636" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,1690 L190,1690 L190,1804" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="306.3" y="1667" width="28.4" height="20" rx="4" fill="white"/><text x="320.5" y="1682" class="edgeLabel">No</text>
+<path d="M570,1744 L570,1804" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="1761" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="1776" class="edgeLabel">Yes</text>
+<path d="M190,1872 L190,2134 L558,2134" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1872 L570,1952" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,2020 L570,2122" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,2146 L570,2270" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<circle cx="570" cy="210" r="11" fill="#111"/>
+<rect x="427" y="324" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="363" class="nodeText"><tspan x="570" dy="0">Create Form Template</tspan></text>
+<rect x="427" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="511" class="nodeText"><tspan x="570" dy="0">Complete Form</tspan></text>
+<rect x="427" y="620" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="659" class="nodeText"><tspan x="570" dy="0">Save and Link Documents</tspan></text>
+<path d="M570,748 L689,802 L570,856 L451,802 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="798"><tspan x="570" dy="0">Document Readiness</tspan><tspan x="570" dy="18">Confirmed?</tspan></text>
+<rect x="47" y="916" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="190" y="955" class="nodeText"><tspan x="190" dy="0">Request Document Review</tspan></text>
+<rect x="427" y="916" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="955" class="nodeText"><tspan x="570" dy="0">Prepare Clean Document</tspan></text>
+<path d="M570,1044 L689,1098 L570,1152 L451,1098 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="1103"><tspan x="570" dy="0">Output Type?</tspan></text>
+<rect x="807" y="1212" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="1251" class="nodeText"><tspan x="950" dy="0">Insert Preparation Reference QR</tspan></text>
+<path d="M570,1382 L582,1394 L570,1406 L558,1394 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<rect x="427" y="1508" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="1547" class="nodeText"><tspan x="570" dy="0">Convert Document to PDF</tspan></text>
+<path d="M570,1636 L689,1690 L570,1744 L451,1690 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="1695"><tspan x="570" dy="0">Valid PDF?</tspan></text>
+<rect x="47" y="1804" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="190" y="1843" class="nodeText"><tspan x="190" dy="0">Display Conversion Error</tspan></text>
+<rect x="427" y="1804" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="1843" class="nodeText"><tspan x="570" dy="0">Store Prepared PDF</tspan></text>
+<rect x="427" y="1952" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1991" class="nodeText"><tspan x="570" dy="0">Publish Preparation Event</tspan></text>
+<path d="M570,2122 L582,2134 L570,2146 L558,2134 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<circle cx="570" cy="2282" r="13" fill="white" stroke="#111" stroke-width="2"/><circle cx="570" cy="2282" r="8" fill="#111"/><text x="570" y="2375" font-size="12">WardMate · UML Activity Diagram · 15 Oct 2026</text></svg>

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="2254" viewBox="0 0 1140 2254" role="img" aria-labelledby="title"><title id="title">AIOCR - Extract Identity Data</title><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#45525e" stroke-width="1.4"/></marker></defs><style>text{font-family:Arial,'Segoe UI',sans-serif;fill:#162b3b;text-anchor:middle}.nodeText{font-size:14px}.edgeLabel{font-size:12px}</style><rect width="1140" height="2254" fill="white"/><text x="570" y="42" font-size="24" font-weight="700">AIOCR - Extract Identity Data</text><text x="570" y="86" font-size="12">Solid border: implemented or partially implemented · Dashed border: planned</text><path d="M570,222 L570,324" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,392 L570,452" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,506 L190,506 L190,620" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="306.3" y="483" width="28.4" height="20" rx="4" fill="white"/><text x="320.5" y="498" class="edgeLabel">No</text>
+<path d="M190,688 L190,711 L20,711 L20,1803 L570,1803 L570,1826" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,560 L570,620" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="577" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="592" class="edgeLabel">Yes</text>
+<path d="M570,688 L570,748" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M689,802 L950,802 L950,916" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="805.3" y="779" width="28.4" height="20" rx="4" fill="white"/><text x="819.5" y="794" class="edgeLabel">No</text>
+<path d="M950,984 L950,1007 L1100,1007 L1100,1803 L570,1803 L570,1826" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,856 L570,916" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="873" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="888" class="edgeLabel">Yes</text>
+<path d="M570,984 L570,1064" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1132 L570,1192" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M689,1246 L1050,1246 L1050,1041 L570,1041 L570,1064" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="855.3" y="1223" width="28.4" height="20" rx="4" fill="white"/><text x="869.5" y="1238" class="edgeLabel">No</text>
+<path d="M570,1300 L570,1360" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="1317" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="1332" class="edgeLabel">Yes</text>
+<path d="M570,1428 L570,1488" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,1542 L34,1542 L34,1041 L570,1041 L570,1064" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="228.3" y="1519" width="28.4" height="20" rx="4" fill="white"/><text x="242.5" y="1534" class="edgeLabel">No</text>
+<path d="M570,1596 L570,1656" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="1613" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="1628" class="edgeLabel">Yes</text>
+<path d="M570,1724 L570,1826" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1850 L570,1952" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,2020 L570,2122" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<circle cx="570" cy="210" r="11" fill="#111"/>
+<rect x="427" y="324" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="363" class="nodeText"><tspan x="570" dy="0">Upload Identity Image</tspan></text>
+<path d="M570,452 L689,506 L570,560 L451,506 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="511"><tspan x="570" dy="0">Valid Input?</tspan></text>
+<rect x="47" y="620" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="190" y="659" class="nodeText"><tspan x="190" dy="0">Display Input Error</tspan></text>
+<rect x="427" y="620" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="659" class="nodeText"><tspan x="570" dy="0">Scan Identity Document</tspan></text>
+<path d="M570,748 L689,802 L570,856 L451,802 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="807"><tspan x="570" dy="0">Data Extracted?</tspan></text>
+<rect x="807" y="916" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="955" class="nodeText"><tspan x="950" dy="0">Request New Image or Manual Input</tspan></text>
+<rect x="427" y="916" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="955" class="nodeText"><tspan x="570" dy="0">Normalize Extracted Data</tspan></text>
+<rect x="427" y="1064" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1103" class="nodeText"><tspan x="570" dy="0">Review and Edit Data</tspan></text>
+<path d="M570,1192 L689,1246 L570,1300 L451,1246 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="1251"><tspan x="570" dy="0">Data Confirmed?</tspan></text>
+<rect x="427" y="1360" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1399" class="nodeText"><tspan x="570" dy="0">Submit Confirmed Data</tspan></text>
+<path d="M570,1488 L689,1542 L570,1596 L451,1542 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="1547"><tspan x="570" dy="0">Data Accepted?</tspan></text>
+<rect x="427" y="1656" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1695" class="nodeText"><tspan x="570" dy="0">Save Accepted Data</tspan></text>
+<path d="M570,1826 L582,1838 L570,1850 L558,1838 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<rect x="427" y="1952" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1991" class="nodeText"><tspan x="570" dy="0">Record Scan Metadata</tspan></text>
+<circle cx="570" cy="2134" r="13" fill="white" stroke="#111" stroke-width="2"/><circle cx="570" cy="2134" r="8" fill="#111"/><text x="570" y="2227" font-size="12">WardMate · UML Activity Diagram · 15 Oct 2026</text></svg>

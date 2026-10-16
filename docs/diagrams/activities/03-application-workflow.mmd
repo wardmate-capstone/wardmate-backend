@@ -1,0 +1,38 @@
+%% Application Workflow - Prepare for Ward Visit
+%% Target scope only. Backend changes pending. Ward visit is outside WardMate.
+%% Dashed actions are planned; see README.md for partial implementations.
+flowchart TD
+  start((" ")):::initial
+  create("Create Application"):::action
+  fill("Complete Forms and Attach Documents"):::action
+  submit("Submit for Document Review"):::action
+  reviewMerge{" "}:::merge
+  review("Review Documents"):::action
+  complete{"Documents Complete?"}:::decision
+  revision("Request Revision"):::action
+  fix("Revise and Resubmit"):::action
+  ready("Confirm Document Readiness"):::planned
+  download("Download Prepared Documents"):::planned
+  visit("Visit Ward Office"):::external
+  ActivityFinal(((" "))):::final
+  start --> create
+  create --> fill
+  fill --> submit
+  submit --> reviewMerge
+  reviewMerge --> review
+  review --> complete
+  complete -->|"No"| revision
+  revision --> fix
+  fix --> reviewMerge
+  complete -->|"Yes"| ready
+  ready --> download
+  download --> visit
+  visit --> ActivityFinal
+  classDef initial fill:#111,stroke:#111,color:#111;
+  classDef final fill:#111,stroke:#111,color:#111;
+  classDef action fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef decision fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef merge fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef planned fill:#7ed0eb,stroke:#45525e,color:#162b3b,stroke-dasharray:6 4;
+  classDef external fill:#eeeeee,stroke:#666,color:#162b3b;
+  classDef partial fill:#7ed0eb,stroke:#b7791f,stroke-width:2px,color:#162b3b;

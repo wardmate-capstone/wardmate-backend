@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="2106" viewBox="0 0 1140 2106" role="img" aria-labelledby="title"><title id="title">AIOCR - Answer Questions</title><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#45525e" stroke-width="1.4"/></marker></defs><style>text{font-family:Arial,'Segoe UI',sans-serif;fill:#162b3b;text-anchor:middle}.nodeText{font-size:14px}.edgeLabel{font-size:12px}</style><rect width="1140" height="2106" fill="white"/><text x="570" y="42" font-size="24" font-weight="700">AIOCR - Answer Questions</text><text x="570" y="86" font-size="12">Solid border: implemented or partially implemented · Dashed border: planned</text><path d="M570,222 L570,324" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,392 L570,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,540 L570,620" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,688 L570,768" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,836 L570,916" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,984 L570,1044" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,1098 L190,1098 L190,1212" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="306.3" y="1075" width="28.4" height="20" rx="4" fill="white"/><text x="320.5" y="1090" class="edgeLabel">No</text>
+<path d="M570,1152 L570,1212" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="1169" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="1184" class="edgeLabel">Yes</text>
+<path d="M570,1280 L570,1340" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M689,1394 L950,1394 L950,1508" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="805.3" y="1371" width="28.4" height="20" rx="4" fill="white"/><text x="819.5" y="1386" class="edgeLabel">No</text>
+<path d="M570,1448 L570,1508" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="1465" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="1480" class="edgeLabel">Yes</text>
+<path d="M190,1280 L190,1303 L20,1303 L20,1655 L570,1655 L570,1678" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1576 L570,1678" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M950,1576 L950,1690 L582,1690" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1702 L570,1804" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1872 L570,1974" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<circle cx="570" cy="210" r="11" fill="#111"/>
+<rect x="427" y="324" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="363" class="nodeText"><tspan x="570" dy="0">Import Knowledge Sources</tspan></text>
+<rect x="427" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="511" class="nodeText"><tspan x="570" dy="0">Split Documents into Chunks</tspan></text>
+<rect x="427" y="620" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="659" class="nodeText"><tspan x="570" dy="0">Create Vector Index</tspan></text>
+<rect x="427" y="768" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="807" class="nodeText"><tspan x="570" dy="0">Receive Question</tspan></text>
+<rect x="427" y="916" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="955" class="nodeText"><tspan x="570" dy="0">Retrieve Relevant Sources</tspan></text>
+<path d="M570,1044 L689,1098 L570,1152 L451,1098 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="1103"><tspan x="570" dy="0">Sufficient Evidence?</tspan></text>
+<rect x="47" y="1212" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="190" y="1251" class="nodeText"><tspan x="190" dy="0">Display Information Limit</tspan></text>
+<rect x="427" y="1212" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1251" class="nodeText"><tspan x="570" dy="0">Generate Answer</tspan></text>
+<path d="M570,1340 L689,1394 L570,1448 L451,1394 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="1390"><tspan x="570" dy="0">Valid Answer and</tspan><tspan x="570" dy="18">Citations?</tspan></text>
+<rect x="807" y="1508" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="1547" class="nodeText"><tspan x="950" dy="0">Display Answer Error</tspan></text>
+<rect x="427" y="1508" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1547" class="nodeText"><tspan x="570" dy="0">Prepare Cited Answer</tspan></text>
+<path d="M570,1678 L582,1690 L570,1702 L558,1690 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<rect x="427" y="1804" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1843" class="nodeText"><tspan x="570" dy="0">Save and Return Response</tspan></text>
+<circle cx="570" cy="1986" r="13" fill="white" stroke="#111" stroke-width="2"/><circle cx="570" cy="1986" r="8" fill="#111"/><text x="570" y="2079" font-size="12">WardMate · UML Activity Diagram · 15 Oct 2026</text></svg>

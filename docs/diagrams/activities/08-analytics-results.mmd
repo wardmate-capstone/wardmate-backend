@@ -1,0 +1,42 @@
+%% Analytics System - Track Preparation and Feedback
+%% Target scope only. Backend changes pending. Ward visit is outside WardMate.
+%% Dashed actions are planned; see README.md for partial implementations.
+flowchart TD
+  start((" ")):::initial
+  kind{"Request Type?"}:::decision
+  approve("Receive Readiness Event"):::planned
+  feedback("Receive Citizen Feedback"):::planned
+  metric("Receive Processing Event"):::planned
+  qr("Create Preparation Reference"):::planned
+  valid{"Valid Feedback?"}:::decision
+  aggregate("Aggregate Preparation Metrics"):::planned
+  update("Link Prepared Documents"):::planned
+  save("Save Feedback"):::planned
+  dashboard("Display Ward Dashboard"):::planned
+  reject("Display Feedback Error"):::planned
+  merge{" "}:::merge
+  ActivityFinal(((" "))):::final
+  start --> kind
+  kind -->|"Preparation"| approve
+  kind -->|"Feedback"| feedback
+  kind -->|"Metrics"| metric
+  approve --> qr
+  qr --> update
+  feedback --> valid
+  valid -->|"Yes"| save
+  valid -->|"No"| reject
+  metric --> aggregate
+  aggregate --> dashboard
+  update --> merge
+  save --> merge
+  dashboard --> merge
+  reject --> merge
+  merge --> ActivityFinal
+  classDef initial fill:#111,stroke:#111,color:#111;
+  classDef final fill:#111,stroke:#111,color:#111;
+  classDef action fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef decision fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef merge fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef planned fill:#7ed0eb,stroke:#45525e,color:#162b3b,stroke-dasharray:6 4;
+  classDef external fill:#eeeeee,stroke:#666,color:#162b3b;
+  classDef partial fill:#7ed0eb,stroke:#b7791f,stroke-width:2px,color:#162b3b;

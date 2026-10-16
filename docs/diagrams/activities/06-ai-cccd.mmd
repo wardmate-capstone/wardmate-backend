@@ -1,0 +1,46 @@
+%% AIOCR - Extract Identity Data
+%% Dashed actions are planned; see README.md for partial implementations.
+flowchart TD
+  start((" ")):::initial
+  upload("Upload Identity Image"):::planned
+  valid{"Valid Input?"}:::decision
+  invalid("Display Input Error"):::planned
+  ocr("Scan Identity Document"):::planned
+  read{"Data Extracted?"}:::decision
+  retryMsg("Request New Image or Manual Input"):::planned
+  normalize("Normalize Extracted Data"):::planned
+  review("Review and Edit Data"):::planned
+  confirm{"Data Confirmed?"}:::decision
+  apply("Submit Confirmed Data"):::planned
+  accepted{"Data Accepted?"}:::decision
+  saved("Save Accepted Data"):::planned
+  merge{" "}:::merge
+  log("Record Scan Metadata"):::planned
+  ActivityFinal(((" "))):::final
+  start --> upload
+  upload --> valid
+  valid -->|"No"| invalid
+  invalid --> merge
+  valid -->|"Yes"| ocr
+  ocr --> read
+  read -->|"No"| retryMsg
+  retryMsg --> merge
+  read -->|"Yes"| normalize
+  normalize --> review
+  review --> confirm
+  confirm -->|"No"| review
+  confirm -->|"Yes"| apply
+  apply --> accepted
+  accepted -->|"No"| review
+  accepted -->|"Yes"| saved
+  saved --> merge
+  merge --> log
+  log --> ActivityFinal
+  classDef initial fill:#111,stroke:#111,color:#111;
+  classDef final fill:#111,stroke:#111,color:#111;
+  classDef action fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef decision fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef merge fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef planned fill:#7ed0eb,stroke:#45525e,color:#162b3b,stroke-dasharray:6 4;
+  classDef external fill:#eeeeee,stroke:#666,color:#162b3b;
+  classDef partial fill:#7ed0eb,stroke:#b7791f,stroke-width:2px,color:#162b3b;

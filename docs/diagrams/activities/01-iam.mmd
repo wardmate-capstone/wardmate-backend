@@ -1,0 +1,41 @@
+%% IAM - Authenticate User
+%% Dashed actions are planned; see README.md for partial implementations.
+flowchart TD
+  start((" ")):::initial
+  login("Enter Credentials"):::action
+  valid{"Valid Credentials?"}:::decision
+  err("Display Login Error"):::action
+  retry{"Retry?"}:::decision
+  token("Issue Tokens"):::action
+  request("Request Operation"):::action
+  permission{"Access Allowed?"}:::decision
+  deny("Display Access Error"):::action
+  manage("Process Operation"):::action
+  audit("Record RBAC Changes"):::action
+  future("Synchronize Audit and Permissions"):::planned
+  merge{" "}:::merge
+  ActivityFinal(((" "))):::final
+  start --> login
+  login --> valid
+  valid -->|"No"| err
+  err --> retry
+  retry -->|"Yes"| login
+  retry -->|"No"| merge
+  valid -->|"Yes"| token
+  token --> request
+  request --> permission
+  permission -->|"No"| deny
+  permission -->|"Yes"| manage
+  manage --> audit
+  audit --> future
+  future --> merge
+  deny --> merge
+  merge --> ActivityFinal
+  classDef initial fill:#111,stroke:#111,color:#111;
+  classDef final fill:#111,stroke:#111,color:#111;
+  classDef action fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef decision fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef merge fill:#7ed0eb,stroke:#45525e,color:#162b3b;
+  classDef planned fill:#7ed0eb,stroke:#45525e,color:#162b3b,stroke-dasharray:6 4;
+  classDef external fill:#eeeeee,stroke:#666,color:#162b3b;
+  classDef partial fill:#7ed0eb,stroke:#b7791f,stroke-width:2px,color:#162b3b;

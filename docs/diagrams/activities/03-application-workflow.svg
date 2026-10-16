@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="1810" viewBox="0 0 1140 1810" role="img" aria-labelledby="title"><title id="title">Application Workflow - Prepare for Ward Visit</title><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#45525e" stroke-width="1.4"/></marker></defs><style>text{font-family:Arial,'Segoe UI',sans-serif;fill:#162b3b;text-anchor:middle}.nodeText{font-size:14px}.edgeLabel{font-size:12px}</style><rect width="1140" height="1810" fill="white"/><text x="570" y="42" font-size="24" font-weight="700">Application Workflow - Prepare for Ward Visit</text><text x="570" y="86" font-size="12">Solid border: implemented or partially implemented · Dashed border: planned</text><text x="570" y="112" font-size="12">Target scope: document preparation only. Backend changes pending. Ward visit is outside WardMate.</text><path d="M570,222 L570,324" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,392 L570,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,540 L570,620" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,688 L570,790" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,814 L570,916" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,984 L570,1044" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,1098 L190,1098 L190,1212" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="306.3" y="1075" width="28.4" height="20" rx="4" fill="white"/><text x="320.5" y="1090" class="edgeLabel">No</text>
+<path d="M190,1280 L190,1360" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M190,1428 L190,1451 L20,1451 L20,767 L570,767 L570,790" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1152 L570,1212" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="1169" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="1184" class="edgeLabel">Yes</text>
+<path d="M570,1280 L570,1360" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1428 L570,1508" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1576 L570,1678" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<circle cx="570" cy="210" r="11" fill="#111"/>
+<rect x="427" y="324" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="363" class="nodeText"><tspan x="570" dy="0">Create Application</tspan></text>
+<rect x="427" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="501.5" class="nodeText"><tspan x="570" dy="0">Complete Forms and Attach</tspan><tspan x="570" dy="19">Documents</tspan></text>
+<rect x="427" y="620" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="659" class="nodeText"><tspan x="570" dy="0">Submit for Document Review</tspan></text>
+<path d="M570,790 L582,802 L570,814 L558,802 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<rect x="427" y="916" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="955" class="nodeText"><tspan x="570" dy="0">Review Documents</tspan></text>
+<path d="M570,1044 L689,1098 L570,1152 L451,1098 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="1103"><tspan x="570" dy="0">Documents Complete?</tspan></text>
+<rect x="47" y="1212" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="190" y="1251" class="nodeText"><tspan x="190" dy="0">Request Revision</tspan></text>
+<rect x="47" y="1360" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" />
+<text x="190" y="1399" class="nodeText"><tspan x="190" dy="0">Revise and Resubmit</tspan></text>
+<rect x="427" y="1212" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1251" class="nodeText"><tspan x="570" dy="0">Confirm Document Readiness</tspan></text>
+<rect x="427" y="1360" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="1399" class="nodeText"><tspan x="570" dy="0">Download Prepared Documents</tspan></text>
+<rect x="427" y="1508" width="286" height="68" rx="18" fill="#eeeeee" stroke="#45525e" stroke-width="1.6" />
+<text x="570" y="1547" class="nodeText"><tspan x="570" dy="0">Visit Ward Office</tspan></text>
+<circle cx="570" cy="1690" r="13" fill="white" stroke="#111" stroke-width="2"/><circle cx="570" cy="1690" r="8" fill="#111"/><text x="570" y="1783" font-size="12">WardMate · UML Activity Diagram · 15 Oct 2026</text></svg>

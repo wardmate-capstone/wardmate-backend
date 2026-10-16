@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="1366" viewBox="0 0 1140 1366" role="img" aria-labelledby="title"><title id="title">Analytics System - Track Preparation and Feedback</title><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#45525e" stroke-width="1.4"/></marker></defs><style>text{font-family:Arial,'Segoe UI',sans-serif;fill:#162b3b;text-anchor:middle}.nodeText{font-size:14px}.edgeLabel{font-size:12px}</style><rect width="1140" height="1366" fill="white"/><text x="570" y="42" font-size="24" font-weight="700">Analytics System - Track Preparation and Feedback</text><text x="570" y="86" font-size="12">Solid border: implemented or partially implemented · Dashed border: planned</text><text x="570" y="112" font-size="12">Target scope: document preparation only. Backend changes pending. Ward visit is outside WardMate.</text><path d="M570,222 L570,304" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,358 L190,358 L190,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="273.9" y="335" width="93.2" height="20" rx="4" fill="white"/><text x="320.5" y="350" class="edgeLabel">Preparation</text>
+<path d="M570,412 L570,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="562.2" y="429" width="71.6" height="20" rx="4" fill="white"/><text x="598" y="444" class="edgeLabel">Feedback</text>
+<path d="M689,358 L950,358 L950,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="787.3" y="335" width="64.4" height="20" rx="4" fill="white"/><text x="819.5" y="350" class="edgeLabel">Metrics</text>
+<path d="M190,540 L190,620" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M190,688 L190,768" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,540 L570,600" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,708 L570,768" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="580.2" y="725" width="35.6" height="20" rx="4" fill="white"/><text x="598" y="740" class="edgeLabel">Yes</text>
+<path d="M689,654 L750,654 L750,893 L570,893 L570,916" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="705.3" y="631" width="28.4" height="20" rx="4" fill="white"/><text x="719.5" y="646" class="edgeLabel">No</text>
+<path d="M950,540 L950,620" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M950,688 L950,768" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M190,836 L190,859 L20,859 L20,1063 L570,1063 L570,1086" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,836 L570,859 L390,859 L390,1063 L570,1063 L570,1086" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M950,836 L950,859 L1100,859 L1100,1063 L570,1063 L570,1086" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,984 L570,1086" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1110 L570,1234" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<circle cx="570" cy="210" r="11" fill="#111"/>
+<path d="M570,304 L689,358 L570,412 L451,358 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="363"><tspan x="570" dy="0">Request Type?</tspan></text>
+<rect x="47" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="190" y="511" class="nodeText"><tspan x="190" dy="0">Receive Readiness Event</tspan></text>
+<rect x="427" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="511" class="nodeText"><tspan x="570" dy="0">Receive Citizen Feedback</tspan></text>
+<rect x="807" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="511" class="nodeText"><tspan x="950" dy="0">Receive Processing Event</tspan></text>
+<rect x="47" y="620" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="190" y="659" class="nodeText"><tspan x="190" dy="0">Create Preparation Reference</tspan></text>
+<path d="M570,600 L689,654 L570,708 L451,654 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="659"><tspan x="570" dy="0">Valid Feedback?</tspan></text>
+<rect x="807" y="620" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="659" class="nodeText"><tspan x="950" dy="0">Aggregate Preparation Metrics</tspan></text>
+<rect x="47" y="768" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="190" y="807" class="nodeText"><tspan x="190" dy="0">Link Prepared Documents</tspan></text>
+<rect x="427" y="768" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="807" class="nodeText"><tspan x="570" dy="0">Save Feedback</tspan></text>
+<rect x="807" y="768" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="807" class="nodeText"><tspan x="950" dy="0">Display Ward Dashboard</tspan></text>
+<rect x="427" y="916" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="955" class="nodeText"><tspan x="570" dy="0">Display Feedback Error</tspan></text>
+<path d="M570,1086 L582,1098 L570,1110 L558,1098 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<circle cx="570" cy="1246" r="13" fill="white" stroke="#111" stroke-width="2"/><circle cx="570" cy="1246" r="8" fill="#111"/><text x="570" y="1339" font-size="12">WardMate · UML Activity Diagram · 15 Oct 2026</text></svg>

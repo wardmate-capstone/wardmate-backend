@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="1366" viewBox="0 0 1140 1366" role="img" aria-labelledby="title"><title id="title">Analytics System - Run System Operations</title><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#45525e" stroke-width="1.4"/></marker></defs><style>text{font-family:Arial,'Segoe UI',sans-serif;fill:#162b3b;text-anchor:middle}.nodeText{font-size:14px}.edgeLabel{font-size:12px}</style><rect width="1140" height="1366" fill="white"/><text x="570" y="42" font-size="24" font-weight="700">Analytics System - Run System Operations</text><text x="570" y="86" font-size="12">Solid border: implemented or partially implemented · Dashed border: planned</text><path d="M570,222 L570,304" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M451,358 L190,358 L190,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="255.9" y="335" width="129.2" height="20" rx="4" fill="white"/><text x="320.5" y="350" class="edgeLabel">Audit / Settings</text>
+<path d="M570,412 L570,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="569.4" y="429" width="57.2" height="20" rx="4" fill="white"/><text x="598" y="444" class="edgeLabel">Health</text>
+<path d="M689,358 L950,358 L950,472" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="790.9" y="335" width="57.2" height="20" rx="4" fill="white"/><text x="819.5" y="350" class="edgeLabel">Backup</text>
+<path d="M190,540 L190,620" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M190,688 L190,768" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,540 L570,620" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,688 L570,711 L390,711 L390,1063 L570,1063 L570,1086" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M950,540 L950,600" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M831,654 L570,654 L570,768" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="686.3" y="631" width="28.4" height="20" rx="4" fill="white"/><text x="700.5" y="646" class="edgeLabel">No</text>
+<path d="M950,708 L950,768" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="960.2" y="725" width="35.6" height="20" rx="4" fill="white"/><text x="978" y="740" class="edgeLabel">Yes</text>
+<path d="M950,836 L950,916" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M950,984 L950,1098 L582,1098" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,836 L570,1086" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M190,836 L190,859 L20,859 L20,1063 L570,1063 L570,1086" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M570,1110 L570,1234" fill="none" stroke="#45525e" stroke-width="1.6" marker-end="url(#arrow)"/>
+<circle cx="570" cy="210" r="11" fill="#111"/>
+<path d="M570,304 L689,358 L570,412 L451,358 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="570" y="363"><tspan x="570" dy="0">Operation Type?</tspan></text>
+<rect x="47" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="190" y="511" class="nodeText"><tspan x="190" dy="0">Receive Audit or Settings Request</tspan></text>
+<rect x="427" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="511" class="nodeText"><tspan x="570" dy="0">Check Service Health</tspan></text>
+<rect x="807" y="472" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="511" class="nodeText"><tspan x="950" dy="0">Create Database Backup</tspan></text>
+<rect x="47" y="620" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="190" y="659" class="nodeText"><tspan x="190" dy="0">Validate Access and Sanitize Data</tspan></text>
+<rect x="427" y="620" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="659" class="nodeText"><tspan x="570" dy="0">Record Health and Raise Alerts</tspan></text>
+<path d="M950,600 L1069,654 L950,708 L831,654 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<text class="nodeText" x="950" y="659"><tspan x="950" dy="0">Backup Valid?</tspan></text>
+<rect x="47" y="768" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="190" y="807" class="nodeText"><tspan x="190" dy="0">Save Audit or Settings</tspan></text>
+<rect x="427" y="768" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="570" y="807" class="nodeText"><tspan x="570" dy="0">Record Backup Error</tspan></text>
+<rect x="807" y="768" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="807" class="nodeText"><tspan x="950" dy="0">Store Backup Metadata</tspan></text>
+<rect x="807" y="916" width="286" height="68" rx="18" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="950" y="955" class="nodeText"><tspan x="950" dy="0">Verify Restore in Isolation</tspan></text>
+<path d="M570,1086 L582,1098 L570,1110 L558,1098 Z" fill="#7ed0eb" stroke="#45525e" stroke-width="1.6"/>
+<circle cx="570" cy="1246" r="13" fill="white" stroke="#111" stroke-width="2"/><circle cx="570" cy="1246" r="8" fill="#111"/><text x="570" y="1339" font-size="12">WardMate · UML Activity Diagram · 15 Oct 2026</text></svg>
