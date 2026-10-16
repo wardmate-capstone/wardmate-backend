@@ -17,8 +17,9 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
         RecipientWardCode = officer ? e.WardCode : null,
         Title = officer ? e.Status == "UNDER_REVIEW" ? "Hồ sơ được phân công" : "Có hồ sơ cần tiếp nhận" : e.Kind == "COMMENT" ? "Hồ sơ có nhận xét mới" : e.Status switch
         {
-            "SUBMITTED" => "Hồ sơ đã được nộp", "UNDER_REVIEW" => "Hồ sơ đang được thẩm định", "NEED_REVISION" => "Hồ sơ yêu cầu bổ sung",
-            "APPROVED" => "Hồ sơ đã được phê duyệt", "REJECTED" => "Hồ sơ đã bị từ chối", _ => "Trạng thái hồ sơ đã thay đổi"
+            "SUBMITTED" => "Hồ sơ đã được nộp", "UNDER_REVIEW" => "Giấy tờ đang được kiểm tra", "NEED_REVISION" => "Hồ sơ yêu cầu bổ sung",
+            "DOCUMENTS_READY" => "Giấy tờ đã sẵn sàng để mang đến phường",
+            "APPROVED" or "REJECTED" => "Cập nhật hồ sơ từ luồng cũ", _ => "Trạng thái hồ sơ đã thay đổi"
         },
         Content = $"Hồ sơ {e.ApplicationCode} có cập nhật. Vui lòng mở hồ sơ để xem chi tiết.",
         Type = officer && e.Status == "UNDER_REVIEW" ? "ASSIGNED_OFFICER" : e.Kind == "COMMENT" ? "INLINE_COMMENT_ADDED" : "APPLICATION_STATUS_CHANGED",
