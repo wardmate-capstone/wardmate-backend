@@ -25,7 +25,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// Kích hoạt Engine chuyển đổi DOCX sang PDF chính thức và lưu kết quả vào generated_documents.
+    /// Kích hoạt Engine chuyển đổi DOCX sang PDF giấy tờ chuẩn bị và lưu kết quả vào generated_documents.
     /// Chỉ định submissionId thuộc applicationId; dùng bản DOCX đã lưu, không nhận file thay thế.
     /// </summary>
     [HttpPost("applications/{applicationId:guid}/generate-pdf")]
@@ -37,7 +37,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
         [FromForm] GeneratePdfRequest request,
         CancellationToken cancellationToken)
     {
-        var accessError = await _access.Read(applicationId, null, cancellationToken, requireApproved: true);
+        var accessError = await _access.Read(applicationId, null, cancellationToken, requireReady: true);
         if (accessError is not null) return accessError;
         Stream? fileStream = null;
         string? fileName = null;
@@ -78,7 +78,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
         [FromQuery] Guid? submissionId,
         CancellationToken cancellationToken)
     {
-        var accessError = await _access.Read(applicationId, null, cancellationToken, requireApproved: true);
+        var accessError = await _access.Read(applicationId, null, cancellationToken, requireReady: true);
         if (accessError is not null) return accessError;
         var result = await _mediator.Send(
             new GetGeneratedDocumentsQuery(applicationId, CallerUserId, IsOfficer, submissionId),
@@ -112,7 +112,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy thông tin mã QR tra cứu của hồ sơ đã được phê duyệt.
+    /// Lấy QR tham chiếu bộ giấy tờ sẵn sàng; tên route approved-qr được giữ để tương thích, không phải phê duyệt hành chính.
     /// </summary>
     [HttpGet("applications/{applicationId:guid}/approved-qr")]
     [ProducesResponseType(typeof(ApprovedQrDto), StatusCodes.Status200OK)]
@@ -121,7 +121,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
         Guid applicationId,
         CancellationToken cancellationToken)
     {
-        var accessError = await _access.Read(applicationId, null, cancellationToken, requireApproved: true);
+        var accessError = await _access.Read(applicationId, null, cancellationToken, requireReady: true);
         if (accessError is not null) return accessError;
 
         var result = await _mediator.Send(new GetApprovedQrQuery(applicationId), cancellationToken);
@@ -129,7 +129,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// Tải hình ảnh PNG của mã QR tra cứu hồ sơ đã được phê duyệt.
+    /// Tải hình ảnh PNG của mã QR tra cứu hồ sơ đã được xác nhận giấy tờ sẵn sàng.
     /// </summary>
     [HttpGet("applications/{applicationId:guid}/approved-qr/image")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -138,7 +138,7 @@ public sealed class GeneratedDocumentsController : ControllerBase
         Guid applicationId,
         CancellationToken cancellationToken)
     {
-        var accessError = await _access.Read(applicationId, null, cancellationToken, requireApproved: true);
+        var accessError = await _access.Read(applicationId, null, cancellationToken, requireReady: true);
         if (accessError is not null) return accessError;
 
         var result = await _mediator.Send(new GetApprovedQrImageQuery(applicationId), cancellationToken);

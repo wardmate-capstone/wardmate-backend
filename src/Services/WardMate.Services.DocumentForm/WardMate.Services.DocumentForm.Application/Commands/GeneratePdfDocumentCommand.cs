@@ -62,10 +62,10 @@ public sealed class GeneratePdfDocumentCommandHandler
         if (request.FileStream is not null)
             return Error.Validation("document.use_saved_docx", "Save the DOCX to the submission before generating PDF.");
 
-        // 2. Phân quyền và Kiểm tra Trạng thái phê duyệt
+        // 2. Phân quyền và Kiểm tra Trạng thái xác nhận giấy tờ sẵn sàng
         // Nếu người gọi là người dân:
         // - Phải là chủ sở hữu hồ sơ (ApplicantId trùng khớp)
-        // - Hồ sơ PHẢI có Status là Approved (đã được cán bộ duyệt)
+        // - Hồ sơ PHẢI có Status là ReadyForDownload (đã được cán bộ kiểm tra)
         if (!request.IsOfficer)
         {
             if (!request.CallerUserId.HasValue || request.CallerUserId == Guid.Empty || submission.ApplicantId != request.CallerUserId)
@@ -73,13 +73,13 @@ public sealed class GeneratePdfDocumentCommandHandler
                 return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.CallerUserId ?? Guid.Empty);
             }
 
-            if (submission.Status != SubmissionStatus.Approved)
+            if (submission.Status != SubmissionStatus.ReadyForDownload)
             {
-                return DocumentFormErrors.SubmissionNotApproved(submission.Id, submission.Status.ToString());
+                return DocumentFormErrors.SubmissionNotReady(submission.Id, submission.Status.ToString());
             }
         }
-        if (submission.Status != SubmissionStatus.Approved)
-            return DocumentFormErrors.SubmissionNotApproved(submission.Id, submission.Status.ToString());
+        if (submission.Status != SubmissionStatus.ReadyForDownload)
+            return DocumentFormErrors.SubmissionNotReady(submission.Id, submission.Status.ToString());
 
         Stream? docxStream = null;
         var fileName = request.FileName;
@@ -117,7 +117,7 @@ public sealed class GeneratePdfDocumentCommandHandler
             using var cleanDocxStream = DocxCommentStripper.Strip(docxStream);
 
             // 4b. TASK-23: Chèn mã QR tra cứu vào cuối DOCX trước khi render PDF
-            // Lấy QR đã được sinh khi approve (hoặc tự sinh nếu chưa có). Dùng stream tạm để không ảnh hưởng cleanDocxStream.
+            // Lấy QR tham chiếu đã có (hoặc sinh mới khi kết xuất giấy tờ sẵn sàng). Dùng stream tạm để không ảnh hưởng cleanDocxStream.
             var approvedQr = await _dbContext.ApprovedQrs
                 .FirstOrDefaultAsync(q => q.ApplicationId == request.ApplicationId, cancellationToken);
 

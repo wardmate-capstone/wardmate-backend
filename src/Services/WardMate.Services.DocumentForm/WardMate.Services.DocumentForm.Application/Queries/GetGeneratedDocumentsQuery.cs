@@ -42,9 +42,9 @@ public sealed class GetGeneratedDocumentsQueryHandler
                     return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.CallerUserId.Value);
                 }
 
-                if (submission.Status != SubmissionStatus.Approved)
+                if (submission.Status != SubmissionStatus.ReadyForDownload)
                 {
-                    return DocumentFormErrors.SubmissionNotApproved(submission.Id, submission.Status.ToString());
+                    return DocumentFormErrors.SubmissionNotReady(submission.Id, submission.Status.ToString());
                 }
             }
         }

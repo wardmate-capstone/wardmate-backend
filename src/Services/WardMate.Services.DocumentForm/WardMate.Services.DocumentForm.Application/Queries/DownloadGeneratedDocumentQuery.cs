@@ -48,7 +48,7 @@ public sealed class DownloadGeneratedDocumentQueryHandler
             return DocumentFormErrors.GeneratedDocumentNotFound(request.DocumentId);
         }
 
-        // Kiểm tra quyền sở hữu & trạng thái phê duyệt nếu người gọi là người dân
+        // Kiểm tra quyền sở hữu & trạng thái xác nhận giấy tờ sẵn sàng nếu người gọi là người dân
         if (!request.IsOfficer && request.CallerUserId.HasValue && request.CallerUserId.Value != Guid.Empty)
         {
             var submission = await _dbContext.UserSubmissions
@@ -62,9 +62,9 @@ public sealed class DownloadGeneratedDocumentQueryHandler
                     return DocumentFormErrors.SubmissionNotOwnedByApplicant(submission.Id, request.CallerUserId.Value);
                 }
 
-                if (submission.Status != SubmissionStatus.Approved)
+                if (submission.Status != SubmissionStatus.ReadyForDownload)
                 {
-                    return DocumentFormErrors.SubmissionNotApproved(submission.Id, submission.Status.ToString());
+                    return DocumentFormErrors.SubmissionNotReady(submission.Id, submission.Status.ToString());
                 }
             }
         }

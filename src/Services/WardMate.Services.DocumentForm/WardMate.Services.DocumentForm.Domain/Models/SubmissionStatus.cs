@@ -14,6 +14,9 @@ public enum SubmissionStatus
     /// <summary>Cán bộ yêu cầu sửa lại — hồ sơ bị trả về kèm comment.</summary>
     RevisionRequested = 2,
 
-    /// <summary>Đã được cán bộ duyệt — hồ sơ hợp lệ, có thể in và nộp ra phường.</summary>
-    Approved = 3
+    /// <summary>Trạng thái lịch sử của luồng cũ; không được sử dụng cho xác nhận mới.</summary>
+    Approved = 3, // Historical only; no new transitions to this value.
+
+    /// <summary>Giấy tờ đã được kiểm tra, sẵn sàng tải và mang đến phường.</summary>
+    ReadyForDownload = 4
 }

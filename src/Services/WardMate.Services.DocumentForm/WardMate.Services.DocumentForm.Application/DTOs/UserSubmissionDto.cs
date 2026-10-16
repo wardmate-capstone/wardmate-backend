@@ -33,6 +33,6 @@ public sealed record SaveSubmissionResultDto
     public long FileSizeBytes { get; init; }
     public DateTime UpdatedAt { get; init; }
     public string Message { get; init; } = string.Empty;
-    /// <summary>URL tra cứu được mã hoá trong QR (chỉ có giá trị khi hồ sơ được Approve).</summary>
+    /// <summary>URL tra cứu được mã hoá trong QR (được tạo khi xuất PDF giấy tờ đã sẵn sàng; không phải quyết định hành chính).</summary>
     public string? QrCodeValue { get; init; }
 }

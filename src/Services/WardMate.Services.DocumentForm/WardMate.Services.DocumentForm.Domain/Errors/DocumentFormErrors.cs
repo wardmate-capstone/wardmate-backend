@@ -76,12 +76,12 @@ public static class DocumentFormErrors
         Error.Failure("document.pdf_render_failed",
             $"Không thể xuất PDF: {detail}");
 
-    public static Error SubmissionNotApproved(Guid submissionId, string currentStatus) =>
-        Error.Validation("document.submission_not_approved",
-            $"Hồ sơ '{submissionId}' chưa được phê duyệt (trạng thái hiện tại: {currentStatus}). Người dân chỉ được phép xuất file PDF khi hồ sơ đã được cán bộ kiểm tra và phê duyệt (Status = Approved).");
+    public static Error SubmissionNotReady(Guid submissionId, string currentStatus) =>
+        Error.Validation("document.submission_not_ready",
+            $"Hồ sơ '{submissionId}' chưa được xác nhận giấy tờ sẵn sàng (trạng thái hiện tại: {currentStatus}). Người dân chỉ được phép xuất file PDF khi hồ sơ đã được cán bộ kiểm tra và xác nhận giấy tờ sẵn sàng (Status = ReadyForDownload).");
 
     public static Error QrNotFound(Guid applicationId) =>
         Error.NotFound("document.qr_not_found",
-            $"Mã QR tra cứu cho hồ sơ '{applicationId}' chưa được tạo hoặc hồ sơ chưa được duyệt.");
+            $"Mã QR tra cứu cho hồ sơ '{applicationId}' chưa được tạo hoặc hồ sơ chưa được xác nhận sẵn sàng.");
 }
 

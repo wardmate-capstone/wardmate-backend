@@ -1,7 +1,7 @@
 namespace WardMate.Services.DocumentForm.Application.Interfaces;
 
 /// <summary>
-/// Abstraction cho engine chuyển đổi văn bản DOCX sang PDF chính thức.
+/// Abstraction cho engine chuyển đổi văn bản DOCX sang PDF giấy tờ chuẩn bị.
 /// </summary>
 public interface IPdfRenderEngine
 {

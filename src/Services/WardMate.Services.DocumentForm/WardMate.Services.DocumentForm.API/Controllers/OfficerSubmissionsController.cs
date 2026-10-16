@@ -8,15 +8,15 @@ using WardMate.SharedKernel.Common;
 namespace WardMate.Services.DocumentForm.API.Controllers;
 
 /// <summary>
-/// [OFFICER / FRONT-DESK] Luồng cán bộ: xét duyệt, yêu cầu sửa, phê duyệt hồ sơ.
-/// Sau khi cán bộ duyệt (Approved), người dân mới được phép kích hoạt xuất file PDF.
+/// [OFFICER / FRONT-DESK] Luồng cán bộ: xét duyệt, yêu cầu sửa, xác nhận giấy tờ sẵn sàng hồ sơ.
+/// Sau khi cán bộ xác nhận sẵn sàng (ReadyForDownload), người dân mới được phép kích hoạt xuất file PDF.
 /// Base path: /api/v1/officer/submissions
 /// </summary>
 [ApiController]
 [Authorize(Policy = "DocumentUser")]
 [Route("api/v1/officer/submissions")]
 [Produces("application/json")]
-[Tags("Officer — Xét duyệt hồ sơ (Cán bộ)")]
+[Tags("Officer — Xét kiểm tra giấy tờ (Cán bộ)")]
 public sealed class OfficerSubmissionsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -29,7 +29,7 @@ public sealed class OfficerSubmissionsController : ControllerBase
     }
 
     /// <summary>
-    /// [Cán bộ] Lấy danh sách các đơn điện tử (submissions) thuộc hồ sơ để biết submissionId thực hiện review / download / annotate / approve.
+    /// [Cán bộ] Lấy danh sách các đơn điện tử (submissions) thuộc hồ sơ để biết submissionId thực hiện review / download / annotate / confirm-readiness.
     /// </summary>
     [HttpGet("by-application/{applicationId:guid}")]
     [ProducesResponseType(typeof(IReadOnlyList<UserSubmissionSummaryDto>), StatusCodes.Status200OK)]
@@ -71,17 +71,17 @@ public sealed class OfficerSubmissionsController : ControllerBase
     }
 
     /// <summary>
-    /// [Cán bộ] Duyệt hồ sơ hoàn tất (Submitted → Approved).
-    /// Sau khi duyệt, người dân mới có quyền xuất và tải file PDF chính thức.
+    /// [Cán bộ] Duyệt hồ sơ hoàn tất (Submitted → ReadyForDownload).
+    /// Sau khi xác nhận sẵn sàng, người dân mới có quyền xuất và tải file PDF giấy tờ chuẩn bị.
     /// </summary>
-    [HttpPost("{submissionId:guid}/approve")]
+    [HttpPost("{submissionId:guid}/confirm-readiness")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Approve(
+    public async Task<IActionResult> ConfirmReadiness(
         Guid submissionId,
-        [FromBody] OfficerApproveRequest? request,
+        [FromBody] OfficerReadinessRequest? request,
         CancellationToken cancellationToken = default)
     {
         if (!IsOfficer)
@@ -91,7 +91,7 @@ public sealed class OfficerSubmissionsController : ControllerBase
 
         if (request?.OfficerId.HasValue == true && request.OfficerId != CallerUserId) return Forbid();
         var error = await _access.Decide(submissionId, true, null, cancellationToken);
-        return error is null ? Ok(new { submissionId, message = "Workflow đã duyệt hồ sơ và đồng bộ đơn." }) : error;
+        return error is null ? Ok(new { submissionId, message = "Workflow đã xác nhận giấy tờ sẵn sàng và đồng bộ đơn." }) : error;
     }
 
     /// <summary>
@@ -206,7 +206,7 @@ public sealed record OfficerRevisionRequest
     public string Comment { get; init; } = string.Empty;
 }
 
-public sealed record OfficerApproveRequest
+public sealed record OfficerReadinessRequest
 {
     public Guid? OfficerId { get; init; }
 }

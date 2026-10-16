@@ -37,7 +37,7 @@ public static class DependencyInjection
         // PDF Render Engine (Gotenberg; no placeholder fallback)
         services.AddHttpClient<IPdfRenderEngine, WardMate.Services.DocumentForm.Infrastructure.Pdf.GotenbergPdfRenderEngine>();
 
-        // QR Code — sinh mã QR khi approve, chèn vào DOCX trước render PDF (TASK-22/23)
+        // QR Code — sinh QR tham chiếu giấy tờ sẵn sàng khi kết xuất PDF, chèn vào DOCX trước render PDF (TASK-22/23)
         services.AddSingleton<IApprovedQrService, ApprovedQrService>();
         services.AddSingleton<IDocxQrStamper, DocxQrStamper>();
 

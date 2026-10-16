@@ -1,7 +1,7 @@
 namespace WardMate.Services.DocumentForm.Domain.Entities;
 
 /// <summary>
-/// Mã QR tra cứu được sinh tự động khi cán bộ phê duyệt (Approve) hồ sơ của người dân.
+/// Mã QR tham chiếu giấy tờ chuẩn bị, sinh khi kết xuất PDF sau xác nhận sẵn sàng; tên entity được giữ để tương thích.
 /// Mỗi applicationId chỉ có một bản ghi QR duy nhất (unique index).
 /// Bảng: document.approved_qrs
 /// </summary>

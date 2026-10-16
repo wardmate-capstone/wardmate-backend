@@ -182,17 +182,17 @@ public sealed class UserSubmission : BaseEntity
     }
 
     /// <summary>
-    /// Cán bộ duyệt hồ sơ (chuyển Submitted -> Approved).
+    /// Cán bộ kiểm tra giấy tờ (chuyển Submitted -> ReadyForDownload).
     /// </summary>
-    public void Approve(Guid officerId, string? updatedBy = null)
+    public void ConfirmReadiness(Guid officerId, string? updatedBy = null)
     {
         if (Status != SubmissionStatus.Submitted)
-            throw new InvalidOperationException($"Cannot approve when submission status is '{Status}'.");
+            throw new InvalidOperationException($"Không thể xác nhận sẵn sàng khi trạng thái đơn là '{Status}'.");
 
         if (officerId == Guid.Empty)
             throw new ArgumentException("Officer ID cannot be empty.", nameof(officerId));
 
-        Status = SubmissionStatus.Approved;
+        Status = SubmissionStatus.ReadyForDownload;
         ReviewedByOfficerId = officerId;
         ReviewedAt = DateTime.UtcNow;
         OfficerComment = null;

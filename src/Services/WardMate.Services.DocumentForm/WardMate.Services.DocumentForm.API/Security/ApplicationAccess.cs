@@ -13,16 +13,16 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
     private readonly Dictionary<Guid, string> verifiedStates = new();
     // A staff account may also submit its own citizen application. Ownership takes
     // precedence on shared read routes; officer-only review routes still use Check directly.
-    public async Task<ObjectResult?> Read(Guid applicationId, Guid? checklistId, CancellationToken ct, bool requireApproved = false)
+    public async Task<ObjectResult?> Read(Guid applicationId, Guid? checklistId, CancellationToken ct, bool requireReady = false)
     {
-        var result = await Check(applicationId, checklistId, false, ct, requireApproved: requireApproved);
+        var result = await Check(applicationId, checklistId, false, ct, requireReady: requireReady);
         if (result?.StatusCode == 404 && context.HttpContext!.User.IsInRole("FRONT_DESK_OFFICER"))
-            return await Check(applicationId, checklistId, false, ct, officer: true, requireApproved: requireApproved);
+            return await Check(applicationId, checklistId, false, ct, officer: true, requireReady: requireReady);
         return result;
     }
 
     public async Task<ObjectResult?> Check(Guid applicationId, Guid? checklistId, bool write, CancellationToken ct,
-        Guid? templateId = null, bool supporting = false, bool officer = false, bool requireApproved = false)
+        Guid? templateId = null, bool supporting = false, bool officer = false, bool requireReady = false)
     {
         if (applicationId == Guid.Empty || checklistId == Guid.Empty)
             return Problem(400, "document.invalid_application", "ApplicationId/checklistId không hợp lệ.");
@@ -54,17 +54,17 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
                 return Problem(400, "document.template_mismatch", "Mục này cần đơn DOCX đúng FormTemplateId của hồ sơ, không dùng giấy tờ thay thế.");
             if (write && (officer ? application.Status != "UNDER_REVIEW" : application.Status is not ("DRAFT" or "NEED_REVISION")))
                 return Problem(409, "document.application_locked", "Trạng thái hồ sơ không cho phép sửa tài liệu.");
-            if (requireApproved && application.Status != "APPROVED")
-                return Problem(409, "document.application_not_approved", "Hồ sơ phải được phê duyệt tại Workflow trước khi xuất hoặc tải PDF chính thức.");
+            if (requireReady && application.Status != "DOCUMENTS_READY")
+                return Problem(409, "document.application_not_ready", "Hồ sơ phải được xác nhận giấy tờ sẵn sàng tại Workflow trước khi xuất hoặc tải PDF giấy tờ chuẩn bị.");
             verifiedStates[applicationId] = application.Status;
-            if (application.Status == "APPROVED")
+            if (application.Status == "DOCUMENTS_READY")
             {
                 if (application.AssignedOfficerId is not Guid reviewer || reviewer == Guid.Empty)
-                    return Problem(409, "document.approval_invalid", "Hồ sơ thiếu cán bộ phê duyệt. Vui lòng kiểm tra Workflow.");
+                    return Problem(409, "document.readiness_invalid", "Hồ sơ thiếu cán bộ xác nhận giấy tờ sẵn sàng. Vui lòng kiểm tra Workflow.");
                 // Workflow is authoritative. Retry on the next access if local persistence fails.
                 var submissions = await db.UserSubmissions.Where(x => x.ApplicationId == applicationId && !x.IsDeleted
                     && x.Status == WardMate.Services.DocumentForm.Domain.Models.SubmissionStatus.Submitted).ToListAsync(ct);
-                foreach (var s in submissions) s.Approve(reviewer, "workflow-approval");
+                foreach (var s in submissions) s.ConfirmReadiness(reviewer, "workflow-readiness");
                 if (submissions.Count > 0) await db.SaveChangesAsync(ct);
             }
             return null;
@@ -79,7 +79,7 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
         }
         catch (DbUpdateException)
         {
-            return Problem(503, "document.sync_unavailable", "Chưa lưu được trạng thái duyệt từ Workflow. Vui lòng thử lại.");
+            return Problem(503, "document.sync_unavailable", "Chưa lưu được trạng thái sẵn sàng từ Workflow. Vui lòng thử lại.");
         }
     }
 
@@ -106,7 +106,7 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
     {
         var d = await db.GeneratedDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
         return d is null ? Problem(404, "document.not_found", "Không tìm thấy PDF.")
-            : await Read(d.ApplicationId, null, ct, requireApproved: true);
+            : await Read(d.ApplicationId, null, ct, requireReady: true);
     }
 
     public async Task<(Guid ApplicationId, ObjectResult? Error)> OfficerSubmission(Guid id, bool write, CancellationToken ct)
@@ -118,25 +118,25 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
         return (applicationId, await Check(applicationId, s.ChecklistId, write, ct, s.TemplateId, officer: true));
     }
 
-    public async Task<ObjectResult?> Decide(Guid id, bool approve, string? reason, CancellationToken ct)
+    public async Task<ObjectResult?> Decide(Guid id, bool confirmReadiness, string? reason, CancellationToken ct)
     {
         var link = await OfficerSubmission(id, false, ct);
         if (link.Error is not null) return link.Error;
         if (verifiedStates.TryGetValue(link.ApplicationId, out var state)
-            && state == (approve ? "APPROVED" : "NEED_REVISION")) return null;
+            && state == (confirmReadiness ? "DOCUMENTS_READY" : "NEED_REVISION")) return null;
         var root = config["Services:ApplicationWorkflow:BaseUrl"]!.TrimEnd('/');
-        using var request = new HttpRequestMessage(HttpMethod.Post, root + $"/api/v1/officer/applications/{link.ApplicationId}/" + (approve ? "approve" : "request-revision"));
+        using var request = new HttpRequestMessage(HttpMethod.Post, root + $"/api/v1/officer/applications/{link.ApplicationId}/" + (confirmReadiness ? "confirm-readiness" : "request-revision"));
         request.Headers.TryAddWithoutValidation("Authorization", context.HttpContext!.Request.Headers.Authorization.ToString());
-        if (!approve) request.Content = JsonContent.Create(new { reason });
+        if (!confirmReadiness) request.Content = JsonContent.Create(new { reason });
         try
         {
             using var response = await http.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
-                return Problem((int)response.StatusCode, "document.workflow_decision_rejected", "Workflow chưa chấp nhận quyết định. Kiểm tra trạng thái, quyền thụ lý và các lỗi còn mở.");
-            return await Check(link.ApplicationId, null, false, ct, officer: true, requireApproved: approve);
+                return Problem((int)response.StatusCode, "document.workflow_review_failed", "Workflow chưa chấp nhận yêu cầu kiểm tra giấy tờ. Kiểm tra trạng thái, quyền thụ lý và các lỗi còn mở.");
+            return await Check(link.ApplicationId, null, false, ct, officer: true, requireReady: confirmReadiness);
         }
         catch (Exception ex) when (ex is HttpRequestException || ex is OperationCanceledException && !ct.IsCancellationRequested)
-        { return Problem(503, "document.workflow_unavailable", "Chưa xác nhận được quyết định. Tải lại trạng thái hồ sơ trước khi thử lại."); }
+        { return Problem(503, "document.workflow_unavailable", "Chưa xác nhận được yêu cầu kiểm tra giấy tờ. Tải lại trạng thái hồ sơ trước khi thử lại."); }
     }
 
     private ObjectResult Problem(int status, string code, string message) => new(new ProblemDetails
