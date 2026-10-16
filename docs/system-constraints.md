@@ -305,7 +305,7 @@ AIOCR API `Controllers/ProcedureExtractionsController.cs`, Infrastructure `Extra
   Note tối đa 4.000. FileUrl chỉ metadata, không chứng minh file tồn tại.
 - Khi đánh dấu hoàn tất/nộp/nộp lại, API kiểm tra nội dung từ DocumentForm.
 - Item gắn FormTemplateId cần form đúng hồ sơ/checklist/template, ở trạng thái
-  Submitted/Approved và file thực sự tồn tại. Một form điện tử có thể in nhiều bản;
+  Submitted/ReadyForDownload và file thực sự tồn tại. Một form điện tử có thể in nhiều bản;
   không yêu cầu tạo nhiều submission chỉ để đủ số bản giấy.
 - Item giấy tờ cần supporting documents đúng checklist, file tồn tại, số lượng dương,
   đúng loại bản sao/hình thức nếu checklist quy định; cộng số lượng phải đủ yêu cầu.
@@ -322,10 +322,10 @@ AIOCR API `Controllers/ProcedureExtractionsController.cs`, Infrastructure `Extra
 | SUBMITTED → UNDER_REVIEW | Front Desk đúng phường, không phải chủ hồ sơ; chưa bị cán bộ khác nhận |
 | UNDER_REVIEW → NEED_REVISION | Đúng cán bộ thụ lý; có nhận xét OPEN ở version hiện tại |
 | NEED_REVISION → SUBMITTED | Chính chủ nộp lại; đúng expected version; đủ dữ liệu/tài liệu |
-| UNDER_REVIEW → APPROVED | Đúng cán bộ thụ lý; có snapshot; không còn nhận xét OPEN hiện tại |
-| UNDER_REVIEW → REJECTED | Đúng cán bộ thụ lý; lý do từ chối bắt buộc |
+| UNDER_REVIEW → DOCUMENTS_READY | Đúng cán bộ/phường; có snapshot; không còn OPEN; checklist bắt buộc COMPLETED; kiểm tra tài liệu qua DocumentForm |
+| APPROVED/REJECTED cũ | Chỉ giữ dữ liệu lịch sử; không có endpoint chuyển mới, không tự suy ra giấy tờ sẵn sàng |
 
-- APPROVED ghi ApprovedAt UTC và lịch sử; không cho sửa/bắt lỗi tiếp qua luồng hiện tại.
+- DOCUMENTS_READY ghi DocumentsReadyAt UTC, lịch sử và Outbox cùng transaction; không cho sửa/bắt lỗi tiếp. Endpoint confirm-readiness không có body, chỉ FD được phân công đúng phường, không tự xác nhận hồ sơ. API xác nhận lần hai trả 409.
 - Reason từ chối/yêu cầu sửa chịu validator tương ứng, tối đa 4.000 ký tự.
 - CANCELLED là giá trị trạng thái có trong database; không vì vậy kết luận có API
   hủy hoặc mọi chuyển đổi đến CANCELLED đã được triển khai.
@@ -349,7 +349,7 @@ AIOCR API `Controllers/ProcedureExtractionsController.cs`, Infrastructure `Extra
 - Danh sách hồ sơ: page 1..1.000.000, pageSize 1..100; bộ lọc queue kiểm tra trạng thái/ngày.
 
 Nguồn: Workflow Application `WorkflowValidation.cs`, `WorkflowRequests.cs`,
-`ReviewValidation.cs`, `ReviewHandlers.cs`, `FinalDecisionRequests.cs`;
+`ReviewValidation.cs`, `ReviewHandlers.cs`, `DocumentReadinessRequests.cs`;
 API `DocumentContentsClient.cs`; Infrastructure `ApplicationReviewStore.cs`.
 
 ## 6. DocumentForm — Mẫu, dữ liệu đã điền, tài liệu và PDF
@@ -391,7 +391,7 @@ API `DocumentContentsClient.cs`; Infrastructure `ApplicationReviewStore.cs`.
   được phân công nếu không tìm thấy hồ sơ chính chủ. Tài khoản đồng thời là công dân
   và Front Desk vẫn xem được tài liệu của mình. API thẩm định vẫn cấm tự thẩm định.
 - Officer chỉ truy cập hồ sơ được giao, đúng phường qua Workflow; sửa/annotate chỉ UNDER_REVIEW.
-- Hồ sơ đã APPROVED/REJECTED không tiếp tục sửa qua các API bảo vệ này.
+- Hồ sơ DOCUMENTS_READY và hồ sơ APPROVED/REJECTED lịch sử không tiếp tục sửa qua các API bảo vệ này.
 - Submission cũ thiếu liên kết hồ sơ/checklist không mặc nhiên được cán bộ duyệt;
   phải xử lý liên kết đúng, không dùng đường cũ để bỏ kiểm tra phạm vi.
 - Supporting upload/delete dành cho citizen; cán bộ được đọc khi đúng phạm vi.
@@ -413,25 +413,16 @@ API `DocumentContentsClient.cs`; Infrastructure `ApplicationReviewStore.cs`.
   DocumentCopyType nếu có là ORIGINAL/CERTIFIED_COPY/REGULAR_COPY.
 - Khai “bản sao chứng thực” chỉ là metadata; hệ thống không tự chứng thực pháp lý file.
 
-### DOC-05 — Duyệt chung và kết xuất PDF
+### DOC-05 — Xác nhận giấy tờ sẵn sàng và kết xuất PDF
 
-- Trạng thái hồ sơ chính thức nằm ở Workflow. API approve/request-revision cũ của
-  DocumentForm chuyển yêu cầu sang Workflow, không duyệt riêng để vượt trạng thái hồ sơ.
-- Khi xác minh hồ sơ APPROVED, DocumentForm đồng bộ các submission Submitted liên quan
-  sang Approved. Đây là đồng bộ khi đọc/kiểm tra truy cập, không phải transaction xuyên service.
-- Annotate comment trong Word không tự tạo comment OPEN của Workflow. Muốn yêu cầu
-  bổ sung phải có nhận xét hợp lệ trong Workflow.
-- Generate PDF phải dùng submission đã lưu, đúng application, chưa xóa, đã Approved;
-  không nhận file tùy ý trong request để thay tài liệu đã duyệt.
-- API còn xác minh Workflow APPROVED và quyền chủ hồ sơ/cán bộ được phân công.
-- Gotenberg phải cấu hình URL HTTP/HTTPS hợp lệ và hoạt động. Kết quả phải bắt đầu `%PDF-`.
-  Lỗi chuyển đổi báo lỗi; không trả PDF mẫu giả để coi như thành công.
-- Xóa comment nội bộ trên bản sao để kết xuất; giữ DOCX nguồn phục vụ đối soát.
-- Mỗi lần sinh PDF tạo bản ghi/file mới; không ghi đè PDF của form khác chỉ vì cùng hồ sơ.
-- Mã QR tra cứu (TASK-22): Mỗi `ApplicationId` chỉ có duy nhất một bản ghi trong `document.approved_qrs` (unique index). Mã QR chứa URL tra cứu bảo mật qua Gateway. Sinh tự động khi Approve hoặc khi kết xuất PDF lần đầu cho hồ sơ Approved.
-- Đóng dấu QR (TASK-23): Chèn ảnh QR PNG chuẩn 3.5cm x 3.5cm căn lề phải vào cuối văn bản DOCX sạch (đã lọc comment) trước khi gửi qua Gotenberg render PDF.
-- Tra cứu mã QR: API `approved-qr` và `approved-qr/image` yêu cầu hồ sơ APPROVED tại Workflow và quyền chủ sở hữu hoặc cán bộ thụ lý.
-
+- Workflow sở hữu trạng thái. DocumentForm confirm-readiness/request-revision chuyển yêu cầu sang Workflow, không xác nhận form độc lập để vượt điều kiện của Application.
+- Workflow DOCUMENTS_READY mới cho phép xuất/list/download PDF và đọc QR. Thiếu điều kiện trả 409 document.application_not_ready; không nới quyền cho cán bộ.
+- DocumentForm đồng bộ submission Submitted sang ReadyForDownload khi xác minh truy cập. Đây là đồng bộ khi đọc, có thể thử lại, không phải transaction xuyên service. Form Draft/RevisionRequested không tự được xác nhận.
+- PDF dùng submission đã lưu, đúng application, chưa xóa, ReadyForDownload; không nhận file thay thế. Form chưa sẵn sàng trả document.submission_not_ready.
+- QR chỉ là tham chiếu giấy tờ chuẩn bị. Giữ tên bảng document.approved_qrs và routes approved-qr để tương thích. QR được tạo khi kết xuất PDF nếu chưa có; unique application_id giữ nguyên. Không phải ký số/con dấu/quyết định hành chính.
+- Gotenberg hoạt động và kết quả phải có header %PDF-. Chỉ bỏ comment trên bản sao để kết xuất, không sửa DOCX gốc. Mỗi lần xuất tạo file/bản ghi mới.
+- Nhận xét trong Word không tự sinh comment OPEN Workflow. Yêu cầu bổ sung phải có nhận xét hợp lệ trong Workflow.
+- Kiểm tra file tồn tại/metadata qua HTTP trước xác nhận; trạng thái, snapshot, comment, checklist được kiểm tra lại dưới khóa hàng khi chuyển trạng thái. Chưa có khóa giao dịch phân tán chống request sửa file đang chạy hoặc xóa Blob ngoài hệ thống đồng thời.
 
 ### DOC-06 — Mẫu dùng chung và giới hạn lưu trữ
 
@@ -504,7 +495,7 @@ Nguồn: AnalyticsSystem Application `Notifications.cs`, Infrastructure
   liên kết category. ContentPayload/SnapshotData lưu JSONB; mảng checklist/form cũng JSONB.
 - Workflow: ApplicationCode unique, ApplicationId/VersionNumber unique,
   ApplicationId/Checklist.Code unique. VersionNumber > 0.
-- Workflow status chỉ DRAFT, SUBMITTED, UNDER_REVIEW, NEED_REVISION, APPROVED, CANCELLED,
+- Workflow status gồm DRAFT, SUBMITTED, UNDER_REVIEW, NEED_REVISION, DOCUMENTS_READY; DB còn giữ APPROVED, CANCELLED,
   REJECTED. Checklist status chỉ PENDING, COMPLETED, REJECTED.
 - Comment status OPEN/RESOLVED; target type FORM_FIELD/CHECKLIST_ITEM; liên kết version
   phải đúng hồ sơ theo cấu hình khóa của database.
@@ -555,7 +546,7 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 - Người nộp: `workflow.create`, `workflow.read`, `workflow.checklist.write`,
   `workflow.submit`, `workflow.resubmit`.
 - Cán bộ: `workflow.queue.read`, `workflow.assign`, `workflow.comments.write`,
-  `workflow.revision.request`, `workflow.approve`, `workflow.reject`.
+  `workflow.revision.request`, `workflow.readiness.confirm`.
 - Đối soát: `workflow.comments.read`, `workflow.versions.read`, `workflow.diff.read`.
 
 **IAM trong danh mục dùng chung:**
@@ -593,3 +584,13 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 - 14/10/2026 — DOC-CONSTRAINTS-001: tạo sổ tay theo source hiện hành; bao gồm IAM,
   Procedure/Drafts/AIOCR, Workflow/checklist, DocumentForm/PDF, Notifications,
   ràng buộc database, CSRF/CORS/token và các giới hạn liên service.
+
+
+### 17/10/2026 — WF-READINESS-001
+
+- Cập nhật luật vòng đời và DOC-05, bỏ API approve/reject; giữ dữ liệu cũ không tự chuyển. Application DTO dùng documentsReadyAt. Checklist REJECTED là trạng thái mục giấy tờ, không phải từ chối giải quyết Application.
+- Bắt buộc apply migration Workflow DocumentReadiness và IAM WorkflowReadinessPermission trước khi chạy code mới. Giữ Database:AutoMigrate=false ở production nếu dùng job migration riêng. Không chạy Down tự động: IAM không tự cấp lại quyền cũ; Workflow chặn Down khi đã có DOCUMENTS_READY.
+- Grant mới kế thừa các role đang có workflow.approve; gỡ hai permission cũ. Workflow lấy quyền mới qua access-context IAM mỗi request; FE nên refresh/login để đồng bộ menu và claims.
+- Nguồn: ApplicationWorkflow.Application/DocumentReadinessRequests.cs, API/Controllers/ApplicationReviewController.cs, Infrastructure/WorkflowDbContext.cs; DocumentForm.API/Security/ApplicationAccess.cs; SharedKernel/Web/FeaturePermissions.cs; migration IAM WorkflowReadinessPermission.
+
+- Triển khai đồng bộ IAM/Workflow/DocumentForm/AnalyticsSystem, tạm dừng thao tác review trong lúc chuyển phiên bản: migration IAM gỡ quyền cũ nên API cũ sẽ không còn đủ quyền. Kiểm tra luồng Docker trước Azure; chưa xác nhận runtime toàn luồng trong phiên này.

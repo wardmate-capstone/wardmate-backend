@@ -1,5 +1,8 @@
 > Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
 
+> Cập nhật 16/10/2026 — Luồng hiện hành là kiểm tra giấy tờ → DOCUMENTS_READY, không có approve/reject mới. Các mục ghi lịch sử task cũ không còn là hợp đồng của hai endpoint đã bỏ. Xem mục confirm-readiness bên dưới; chỉ áp dụng sau khi deploy đồng bộ Workflow, DocumentForm, Analytics và migrate Workflow/IAM.
+
+
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
 Tra cứu các điều kiện dữ liệu, quyền, trạng thái và giới hạn file tại
@@ -37,7 +40,7 @@ khi thay đổi hành vi API hoặc quy tắc nghiệp vụ.
   `/api/v1/applications/{applicationId}/generate-pdf` nay kiểm tra chính chủ trước.
   Tài khoản có thêm role FRONT_DESK_OFFICER vẫn đọc/xuất tài liệu hồ sơ mình nộp.
   Nếu không phải chủ hồ sơ, phải là cán bộ được giao đúng phường; ngoài phạm vi trả 404.
-  PDF vẫn yêu cầu hồ sơ APPROVED (chưa duyệt trả 409); không cấp quyền tự thẩm định.
+  PDF yêu cầu hồ sơ DOCUMENTS_READY (chưa sẵn sàng trả 409); không cấp quyền tự thẩm định.
 
 Các thay đổi này không cần migration. Build lại ProcedureCatalog, ApplicationWorkflow
 và DocumentForm để kiểm tra; không cần đổi JWT/role hoặc sửa dữ liệu database để né lỗi.
@@ -53,11 +56,11 @@ và DocumentForm để kiểm tra; không cần đổi JWT/role hoặc sửa d�
 4. Thử hoàn tất/nộp khi chưa có file, sai template, sai số lượng hoặc loại bản sao:
    phải bị chặn. Điền/nộp form đúng template, upload giấy tờ thật rồi nộp hồ sơ.
 5. FD phường B không được nhận/xem hồ sơ A. FD A tiếp nhận; cán bộ khác chưa được giao
-   không được annotate/approve. Tạo comment OPEN rồi yêu cầu bổ sung.
+   không được annotate/confirm-readiness. Tạo comment OPEN rồi yêu cầu bổ sung.
 6. Citizen sửa form/giấy tờ và nộp lại đúng version. Version cũ phải 409;
    bộ checklist chứa null phải 400. Kiểm tra history, snapshot và diff.
-7. Cán bộ nhận lại và duyệt khi không còn OPEN. Thử sửa checklist/upload/xóa/annotate
-   sau duyệt: phải bị chặn. Với hồ sơ thử khác, từ chối phải nhập lý do và có history.
+7. Cán bộ nhận lại và xác nhận sẵn sàng khi không còn OPEN. Thử sửa checklist/upload/xóa/annotate
+   sau xác nhận: phải bị chặn. Không còn API từ chối hồ sơ.
 8. Xuất PDF từ submission đã lưu: kiểm tra nội dung thật và không lộ Word comment.
    Khi Gotenberg không dùng được phải trả lỗi, không trả PDF giả. Kiểm tra tài khoản
    citizen đồng thời có role Front Desk vẫn đọc được tài liệu hồ sơ mình nộp.
@@ -1380,17 +1383,17 @@ Danh tính này cần đến từ lớp xác thực tin cậy của hệ thống
 
 ### 3.4. Nhóm Văn bản kết xuất PDF (TASK-18 — Generated Documents)
 
-**Validation bắt buộc:** Người dân chỉ được xuất PDF khi hồ sơ đã được cán bộ duyệt (`Status = Approved`). Cán bộ (officer) không bị giới hạn này nhưng không thể xuất PDF khi hồ sơ vẫn là `Draft`.
+**Validation bắt buộc:** Cả công dân và cán bộ chỉ được xuất PDF khi Workflow DOCUMENTS_READY và submission ReadyForDownload, đúng phạm vi truy cập. Đây là giấy tờ mang đến phường.
 
 PDF xuất ra **không chứa comment của cán bộ**: backend dùng `DocxCommentStripper` (OpenXML SDK) để xóa toàn bộ Word comments (`CommentRangeStart`, `CommentRangeEnd`, `CommentReference`, `WordprocessingCommentsPart`) khỏi DOCX trước khi gửi sang Gotenberg. Người dân in PDF sạch để nộp giấy tờ.
 
 | API | Ai gọi, lúc nào và request | Thành công | Lỗi thường gặp và cách xử lý |
 |---|---|---|---|
-| `POST /api/v1/applications/{applicationId}/generate-pdf` | **Người dân** kích hoạt sau khi hồ sơ được cán bộ duyệt (`Status=Approved`). Multipart: optional `file` (từ editor), `documentType` (mặc định `ORIGINAL_SUBMISSION`), optional `submissionId`. | 200 `{id, applicationId, documentType, pdfBlobUrl, createdAtUtc}` | 400 `document.submission_not_approved` — hồ sơ chưa được duyệt; 403 không phải chủ hồ sơ; 404 không tìm thấy submission; 503 Blob/Render lỗi. |
+| `POST /api/v1/applications/{applicationId}/generate-pdf` | **Người dân** kích hoạt sau khi hồ sơ được cán bộ duyệt (`Status=ReadyForDownload`). Multipart: bắt buộc `submissionId` đã lưu và thuộc hồ sơ; `documentType` mặc định `ORIGINAL_SUBMISSION`. Không truyền file thay thế. | 200 `{id, applicationId, documentType, pdfBlobUrl, createdAtUtc}` | 400 `document.submission_not_ready` — hồ sơ chưa được duyệt; 403 không phải chủ hồ sơ; 404 không tìm thấy submission; 503 Blob/Render lỗi. |
 | `GET /api/v1/applications/{applicationId}/generated-documents` | FE lấy danh sách PDF đã sinh cho hồ sơ. | 200 danh sách `GeneratedDocumentDto` | 401 chưa đăng nhập; 400 applicationId không hợp lệ. |
-| `GET /api/v1/generated-documents/{documentId}/download` | Người dân/cán bộ tải file PDF chính thức để in hoặc đóng dấu. | 200 binary stream `application/pdf` | 404 không tìm thấy document hoặc blob bị xóa; 400 hồ sơ chưa được duyệt (người dân). |
+| `GET /api/v1/generated-documents/{documentId}/download` | Người dân/cán bộ tải file PDF giấy tờ chuẩn bị để in hoặc đóng dấu. | 200 binary stream `application/pdf` | 404 không tìm thấy document hoặc blob bị xóa; 400 hồ sơ chưa được duyệt (người dân). |
 
-### 3.5. Nhóm Cán bộ xét duyệt hồ sơ (Officer Review Flow)
+### 3.5. Nhóm Cán bộ xét xác nhận giấy tờ sẵn sàng (Officer Review Flow)
 
 **Ai sử dụng:** Cán bộ phòng tiếp nhận (`FRONT_DESK_OFFICER`), Quản lý (`MANAGER`), Quản lý thủ tục (`PROCEDURE_MANAGER`), IT Admin (`IT_ADMIN`). Tất cả đều cần JWT Bearer token hợp lệ với đúng role.
 
@@ -1400,7 +1403,7 @@ PDF xuất ra **không chứa comment của cán bộ**: backend dùng `DocxComm
 3. Cán bộ lưu DOCX có comment về backend (`PUT .../annotate-docx`) — `Status` **không thay đổi**
 4a. Nếu cần sửa: cán bộ gọi `POST .../request-revision` → `Status: RevisionRequested`  
     → Người dân tải DOCX về, **thấy comment của cán bộ** → sửa → lưu lại → nộp lại  
-4b. Nếu OK: cán bộ gọi `POST .../approve` → `Status: Approved`
+4b. Nếu OK: cán bộ gọi `POST .../confirm-readiness` → `Status: ReadyForDownload`
 5. Người dân gọi `generate-pdf` → BE strip comment → PDF sạch → in & nộp
 
 **Base path:** `/api/v1/officer/submissions`  
@@ -1411,7 +1414,7 @@ PDF xuất ra **không chứa comment của cán bộ**: backend dùng `DocxComm
 | `GET /{submissionId}/download-docx` | Cán bộ tải DOCX hiện tại của hồ sơ (có thể đã có comment nếu đã annotate trước). Dùng để mở trong web editor, đọc nội dung người dân điền, thêm comment. | — | 200 binary DOCX stream | 403 không phải officer; 404 không tìm thấy hồ sơ; 400 blob bị xóa. |
 | `PUT /{submissionId}/annotate-docx` | Cán bộ lưu lại DOCX **có comment** từ web editor. DOCX mới thay thế bản hiện tại trong Blob. `Status` giữ nguyên (`Submitted` hoặc `RevisionRequested`). Người dân sẽ thấy comment khi mở lại. | `multipart/form-data`: trường `file` (DOCX ≤ 20MB) | 200 `{submissionId, status, fileName, fileSizeBytes, updatedAt, message}` | 403 không phải officer; 404 hồ sơ không tồn tại; 400 file rỗng/không hợp lệ/không phải DOCX; 400 status không phải `Submitted`/`RevisionRequested`; 503 Blob upload lỗi. |
 | `POST /{submissionId}/request-revision` | Cán bộ trả hồ sơ lại và yêu cầu người dân sửa. Thường gọi **sau** `annotate-docx` để người dân biết cần mở lại file có comment. `Status: Submitted → RevisionRequested`. | JSON: `{ "comment": "Cần bổ sung giấy khai sinh." }` | 200 `{submissionId, status, ...}` | 403 không phải officer; 404 hồ sơ không tồn tại; 400 status không phải `Submitted`; 400 comment rỗng. |
-| `POST /{submissionId}/approve` | Cán bộ phê duyệt hồ sơ. `Status: Submitted → Approved`. Sau bước này người dân mới được gọi `generate-pdf`. | JSON: `{}` (officerId lấy tự động từ JWT `sub` claim) | 200 `{submissionId, status: "Approved", ...}` | 403 không phải officer; 404 hồ sơ không tồn tại; 400 status không phải `Submitted`. |
+| `POST /{submissionId}/confirm-readiness` | Cán bộ phê xác nhận giấy tờ sẵn sàng. `Status: Submitted → ReadyForDownload`. Sau bước này người dân mới được gọi `generate-pdf`. | JSON: `{}` (officerId lấy tự động từ JWT `sub` claim) | 200 `{submissionId, message: "Workflow đã xác nhận giấy tờ sẵn sàng và đồng bộ đơn.", ...}` | 403 không phải officer; 404 hồ sơ không tồn tại; 400 status không phải `Submitted`. |
 
 **Lưu ý quan trọng cho FE:**
 - **Thứ tự annotate → request-revision:** Cán bộ nên `PUT annotate-docx` trước rồi mới `POST request-revision`. Có thể gọi `request-revision` mà không annotate nếu chỉ cần comment text qua trường `comment`.
@@ -2381,7 +2384,7 @@ Tên file có dấu/khoảng trắng được giải mã URL khi tải lại t�
 
 Database IAM deploy đã được bổ sung 27 permission bằng migration DeployedFeaturePermissionCatalog,
 đưa tổng số permission lên 30. Không xóa/sửa ba permission cũ hoặc thu hồi các role-permission đã có.
-Không tạo quyền cho các chức năng chưa xác nhận deploy như Analytics, SMS, RAG hoặc phê duyệt toàn hồ sơ.
+Không tạo quyền cho các chức năng chưa xác nhận deploy như Analytics, SMS, RAG hoặc xác nhận sẵn sàng toàn hồ sơ.
 
 Admin gọi GET /api/v1/rbac/permissions để lấy danh mục, GET /api/v1/rbac/roles/{roleId}/permissions
 để xem quyền của role. Dùng các API gán/gỡ permission hiện có; không đoán permissionId, lấy ID từ response.
@@ -2516,7 +2519,7 @@ Không được hiểu đây là cơ chế cách ly hồ sơ giữa các phườ
 - `POST /api/v1/applications/{id}/submit`: vẫn trả 200, yêu cầu DRAFT và checklist
   bắt buộc COMPLETED; nay lưu snapshot version 1 cùng transaction với lịch sử.
 - `GET /api/v1/applications/{id}`: chủ hồ sơ đọc được `assignedOfficerId`,
-  `resubmitCount`, `currentVersionNumber`, `notes`, `approvedAt` bổ sung.
+  `resubmitCount`, `currentVersionNumber`, `notes`, `documentsReadyAt` bổ sung.
   DRAFT có currentVersionNumber = 0. Không chuyển form/checklist thành dữ liệu dùng chung.
 - API PATCH checklist cũ vẫn chỉ sửa DRAFT. Khi NEED_REVISION, FE gửi dữ liệu sửa
   bằng resubmit để form và checklist được kiểm tra/lưu cùng nhau.
@@ -2722,7 +2725,7 @@ không dùng cấu hình đó cho FE Vercel gọi Azure. Không có endpoint/DTO
 ## Hoàn thiện Tuần 1–4 — IAM directory, permission và hồ sơ theo phường (09/10/2026)
 
 Mục này cập nhật các giới hạn của TASK-11 phía trên: hàng đợi nay đã phân theo phường,
-đã có APPROVED/REJECTED và kiểm permission theo từng chức năng.
+đã có DOCUMENTS_READY (thay luồng cũ) và kiểm permission theo từng chức năng.
 Không thay đổi API DocumentForm của BE khác trong đợt này.
 
 ### GET /api/v1/manager/officers
@@ -2818,7 +2821,7 @@ làm phường tiếp nhận tự động và không cho FE thay phường khi r
 GET /api/v1/officer/applications/pending chỉ thấy SUBMITTED/UNDER_REVIEW đúng WardCode hiện hành,
 chưa có cán bộ hoặc đã thuộc chính cán bộ đó. Bộ lọc status/procedure/date/paging/FIFO giữ nguyên.
 Thiếu phường trả danh sách rỗng; cán bộ khác phường không được assign, comment, request-revision,
-approve/reject hoặc đọc phiên bản/diff của hồ sơ không thuộc mình.
+confirm-readiness hoặc đọc phiên bản/diff của hồ sơ không thuộc mình.
 
 Workflow gọi IAM bằng token của request để cập nhật permissions/ward/roles trước authorization.
 Chuyển phường/thu hồi quyền/khóa tài khoản có hiệu lực ở request tiếp theo, không chờ token hết hạn.
@@ -2829,36 +2832,27 @@ Hồ sơ cũ được giữ WardCode=null vì không đủ dữ liệu xác đ�
 DRAFT thiếu phường không được submit (409 application.ward_required). Cần kế hoạch bổ sung địa bàn
 có kiểm chứng trước khi đưa hồ sơ cũ vào vận hành; migration không tự gán toàn bộ vào một phường.
 
-### POST /api/v1/officer/applications/{id}/approve
+### POST /api/v1/officer/applications/{id}/confirm-readiness
 
-**Mục đích:** chấp thuận chính thức hồ sơ đã được thẩm định.
+**Mục đích:** cán bộ xác nhận bộ giấy tờ đã được kiểm tra, sẵn sàng tải/in mang đến phường. Không xác nhận sẵn sàng hoặc từ chối giải quyết thủ tục hành chính trên WardMate.
 
-**Quyền:** `workflow.approve`, cán bộ FD đang thụ lý và cùng phường tiếp nhận;
-không được duyệt hồ sơ của chính mình.
+**Ai dùng:** FRONT_DESK_OFFICER có permission `workflow.readiness.confirm`, cùng phường, đã được phân công hồ sơ; không phải chủ hồ sơ. Gửi Bearer token, không cần body.
 
-**Cách gọi:** không body. Hồ sơ phải UNDER_REVIEW và không có nhận xét OPEN của version hiện tại.
+**Khi gọi:** hồ sơ UNDER_REVIEW, có snapshot đã nộp, không còn comment OPEN trên phiên bản hiện tại, checklist bắt buộc COMPLETED. Server xác minh tài liệu bắt buộc/các mục COMPLETED qua DocumentForm (file tồn tại, đúng checklist/template, loại bản và số lượng).
 
-**Kết quả:** 200 ReviewResultDto, status APPROVED, approvedAt UTC; ghi một dòng lịch sử cùng transaction.
-Giữ nguyên snapshot đã nộp và đóng mọi đường sửa/checklist/comment/nộp lại của hồ sơ đã duyệt.
+**Thành công:** 200 ReviewResultDto, `application.status=DOCUMENTS_READY`, `application.documentsReadyAt` UTC; ghi history và Outbox cùng transaction. Không tạo thêm version nộp: giữ snapshot hiện tại. Không cho sửa checklist, upload/xóa/annotate hay thêm comment sau xác nhận. Người dân gọi generate-pdf với submissionId đã lưu để tải giấy tờ rồi đến phường.
 
-**Dùng sai:** 403 sai quyền/phường/người thụ lý; 404 không có hồ sơ;
-409 sai trạng thái, thiếu snapshot hoặc application.open_comments.
-Nếu còn lỗi, dùng request-revision để công dân sửa; không tự đánh dấu đã duyệt khi nhận 409.
+**Gọi sai và cách xử lý:** 401 đăng nhập lại; 403 sai quyền/cán bộ/phường hoặc tự xác nhận; 404 không có hồ sơ trong phạm vi; 409 sai trạng thái, thiếu snapshot, `application.open_comments` hoặc `application.checklist_incomplete`. Có comment OPEN thì dùng request-revision, công dân sửa và resubmit, cán bộ nhận lại để kiểm tra. 422 `application.documents_incomplete` có missingChecklistIds: bổ sung tài liệu tương ứng; 503 `application.documents_unavailable`: kiểm tra DocumentForm/Blob rồi thử lại. Không tự đổi trạng thái trên FE. Gọi xác nhận trực tiếp lần hai trả 409; GET trạng thái trước khi thử lại sau timeout.
 
-### POST /api/v1/officer/applications/{id}/reject
+### Endpoint cũ đã bỏ và tương thích DocumentForm
 
-**Mục đích:** từ chối chính thức và kết thúc hồ sơ, khác yêu cầu sửa để nộp lại.
-
-**Quyền:** `workflow.reject`, FD thụ lý đúng phường, không là chủ hồ sơ.
-
-**Cách gọi:** ở UNDER_REVIEW, body `{"reason":"Không đáp ứng điều kiện theo quy định."}`.
-Reason bắt buộc, không chỉ khoảng trắng, tối đa 4000 ký tự.
-
-**Kết quả:** 200 ReviewResultDto, status REJECTED, notes/lịch sử có lý do, approvedAt vẫn null.
-Không cho nộp lại hồ sơ REJECTED. Nếu cần bổ sung thì dùng request-revision thay vì reject.
-
-**Dùng sai:** 400 thiếu lý do; 403 sai phạm vi/quyền; 409 không còn UNDER_REVIEW.
-Hai quyết định đồng thời chỉ một thành công; yêu cầu còn lại 409, FE tải lại kết quả.
+- POST /api/v1/officer/applications/{id}/approve và /reject đã bỏ (không còn trong Swagger; không còn chuyển trạng thái mới sang APPROVED/REJECTED).
+- POST /api/v1/officer/submissions/{submissionId}/confirm-readiness thay /approve. Đây là API chuyển tiếp xác nhận **toàn Application** qua Workflow, không duyệt riêng một form. Body tùy chọn `{ "officerId": "GUID người gọi" }`; không được giả danh cán bộ khác. Có Bearer token và quyền Workflow tương ứng. 200 có submissionId/message; lỗi Workflow được trả bằng ProblemDetails `document.workflow_review_failed` với HTTP status tương ứng. Hồ sơ đã DOCUMENTS_READY thì đồng bộ và trả 200, không ghi history mới.
+- Generate/list/download PDF yêu cầu Workflow DOCUMENTS_READY. DocumentForm đồng bộ Submitted → ReadyForDownload khi kiểm tra truy cập. 409 `document.application_not_ready` thì hoàn tất kiểm tra hồ sơ trước; 400 `document.submission_not_ready` thì kiểm tra trạng thái form đã nộp. Không cho cán bộ bỏ qua điều kiện sẵn sàng.
+- GET /api/v1/applications/{id}/confirm-readinessd-qr và /approved-qr/image giữ tên route để tương thích, nhưng QR chỉ tham chiếu bộ giấy tờ chuẩn bị; không phải quyết định, chữ ký hay con dấu hành chính. 404 QR chưa tạo: kết xuất PDF trước. Bảng document.approved_qrs giữ tên cũ, không cần đổi dữ liệu.
+- Dữ liệu APPROVED/REJECTED, approved_at và lịch sử cũ được giữ nguyên; không tự gán DOCUMENTS_READY. Hồ sơ cũ chỉ đọc, không dùng làm điều kiện xuất PDF mới. Cần kế hoạch đối soát riêng nếu muốn chuyển dữ liệu cũ.
+- DTO Application thay approvedAt bằng documentsReadyAt. FE đổi nút thành “Xác nhận giấy tờ sẵn sàng”, bỏ nút từ chối; thiếu giấy tờ dùng “Yêu cầu bổ sung”.
+- Migration IAM chuyển các grant workflow.approve sang workflow.readiness.confirm, gỡ workflow.approve/reject. Workflow đọc quyền hiện tại từ IAM ở mỗi request; FE nên đăng nhập/refresh sau migrate IAM để cập nhật menu và claims. Role chỉ có quyền reject cũ không tự được quyền xác nhận.
 
 ### Permission đang được thực thi
 
@@ -2876,9 +2870,9 @@ procedure.drafts.read/upload/update/extract/publish/delete.
 API biểu mẫu chọn cho Procedure dùng procedure.read; API public vẫn công khai.
 Procedure đọc permissions từ JWT: đăng nhập/refresh sau khi thay grant; token cũ có quyền cũ đến hết hạn.
 
-Workflow dùng 14 mã mới: workflow.create/read/checklist.write/submit/resubmit,
+Workflow dùng 13 mã: workflow.create/read/checklist.write/submit/resubmit,
 workflow.comments.read/versions.read/diff.read, workflow.queue.read/assign/comments.write,
-workflow.revision.request/approve/reject. Mỗi endpoint cần mã tương ứng cùng phạm vi chủ hồ sơ/cán bộ.
+workflow.revision.request/readiness.confirm. Mỗi endpoint cần mã tương ứng cùng phạm vi chủ hồ sơ/cán bộ.
 Migration IAM cấp 8 quyền cá nhân/đọc trong phạm vi cho 5 role chuẩn; 6 quyền thẩm định chỉ cho FD.
 IT_ADMIN/MANAGER không tự có quyền thẩm định toàn hệ thống.
 
@@ -2990,7 +2984,7 @@ Người dân tải lên giấy tờ minh chứng cho hồ sơ thông qua `POST 
 ### 2. Kiểm tra điều kiện nộp hồ sơ phía Server (Pre-submit Validation)
 Khi nộp hồ sơ lần đầu (`POST /api/v1/applications/{id}/submit`) hoặc nộp lại sau bổ sung (`POST /api/v1/applications/{id}/resubmit`):
 - Hệ thống gọi nội bộ sang `DocumentForm` (`GET /api/v1/applications/{id}/contents`) để xác minh thực tế:
-  1. Với mục checklist là Biểu mẫu điện tử (`formTemplateId` có giá trị): Biểu mẫu phải ở trạng thái `Submitted` hoặc `Approved`, file kết xuất DOCX phải tồn tại thực sự trong Blob Storage.
+  1. Với mục checklist là Biểu mẫu điện tử (`formTemplateId` có giá trị): Biểu mẫu phải ở trạng thái `Submitted` hoặc `ReadyForDownload`, file kết xuất DOCX phải tồn tại thực sự trong Blob Storage.
   2. Với mục checklist là Giấy tờ minh chứng đính kèm: Phải có tài liệu đính kèm liên kết đúng `ChecklistId`, file phải tồn tại thực sự trong Blob Storage, khớp loại hình thức `submissionType`, khớp loại bản sao `documentCopyType`, và tổng số lượng giấy tờ đính kèm phải đạt hoặc vượt số lượng yêu cầu `quantity`.
 - Nếu thiếu giấy tờ hoặc file không tồn tại trong Blob Storage, hệ thống trả về mã `422 Unprocessable Entity` với ProblemDetails:
   - `code`: `"application.documents_incomplete"`
@@ -3032,11 +3026,11 @@ Khi nộp hồ sơ lần đầu (`POST /api/v1/applications/{id}/submit`) hoặc
    PATCH COMPLETED, POST submit và POST resubmit của Workflow đều kiểm tra evidence.
    422 `application.documents_incomplete` kèm missingChecklistIds: bổ sung file thật,
    đúng loại/số lượng, đúng template và chốt đơn rồi thử lại. FileUrl tự nhập không thay được evidence.
-7. Cán bộ đúng phường nhận Application, ghi lỗi và yêu cầu bổ sung hoặc phê duyệt qua Workflow.
+7. Cán bộ đúng phường nhận Application, ghi lỗi và yêu cầu bổ sung hoặc xác nhận sẵn sàng qua Workflow.
    Khi NEED_REVISION, công dân sửa DOCX/giấy tờ, chốt lại đơn và resubmit hồ sơ.
    Sau khi nộp/duyệt, người dân không được sửa file qua luồng ghi của DocumentForm.
 8. Xuất PDF: duyệt một lần tại Workflow. Khi truy cập đơn hoặc xuất PDF,
-   DocumentForm đọc trạng thái Workflow và tự đồng bộ đơn Submitted sang Approved.
+   DocumentForm đọc trạng thái Workflow và tự đồng bộ đơn Submitted sang ReadyForDownload.
    Không cần gọi duyệt đơn riêng. Gọi POST `/api/v1/applications/{id}/generate-pdf`
    bằng multipart/form-data có SubmissionId, không đính kèm file thay thế.
    Cần Gotenberg và Blob hoạt động. Thiếu dịch vụ chuyển đổi trả 503, không trả PDF mẫu.
@@ -3048,13 +3042,13 @@ Các hồ sơ cũ giữ metadata null/quantity mặc định từ migration; kh�
 mới để lấp lại và thay đổi yêu cầu lịch sử. Tích hợp HTTP giữa các service chưa phải giao dịch
 phân tán nguyên tử; chưa đảm bảo chống mọi thao tác ghi đồng thời giữa hai service.
 
-## Duyệt một lần tại Workflow và xuất PDF chính thức (2026-10-14)
+## Duyệt một lần tại Workflow và xuất PDF giấy tờ chuẩn bị (2026-10-14)
 
 Mục này thay thế các hướng dẫn cũ yêu cầu duyệt đơn DocumentForm riêng.
 Workflow quyết định trạng thái hồ sơ. DocumentForm đồng bộ khi truy cập (không phải worker
-đẩy tức thì vào tất cả đơn): khi xác minh Workflow APPROVED, các đơn Submitted thuộc hồ sơ
-được chuyển sang Approved. Gọi lại an toàn; nếu mất kết nối hoặc chưa lưu được trạng thái,
-trả 503 và thử lại. Không xuất PDF chỉ dựa vào trạng thái Approved cũ trong DocumentForm.
+đẩy tức thì vào tất cả đơn): khi xác minh Workflow DOCUMENTS_READY, các đơn Submitted thuộc hồ sơ
+được chuyển sang ReadyForDownload. Gọi lại an toàn; nếu mất kết nối hoặc chưa lưu được trạng thái,
+trả 503 và thử lại. Không xuất PDF chỉ dựa vào trạng thái ReadyForDownload cũ trong DocumentForm.
 
 ### Cán bộ đọc hồ sơ đang thụ lý
 
@@ -3081,14 +3075,14 @@ Công dân chỉ đọc/ghi hồ sơ của mình. Không đổi cơ chế JWT; c
 
 ### Quyết định hồ sơ
 
-Khuyến nghị FE gọi trực tiếp POST `/api/v1/officer/applications/{id}/approve` trên Workflow,
-không body. Quyền `workflow.approve`, đúng người thụ lý; phải UNDER_REVIEW và không còn lỗi OPEN
+Khuyến nghị FE gọi trực tiếp POST `/api/v1/officer/applications/{id}/confirm-readiness` trên Workflow,
+không body. Quyền `workflow.readiness.confirm`, đúng người thụ lý; phải UNDER_REVIEW và không còn lỗi OPEN
 ở phiên bản hiện tại. 200 trả ReviewResultDto; 403 sai người/phường; 409 trạng thái hoặc lỗi chưa xử lý.
-Không cần gọi API approve của DocumentForm sau đó.
+Không cần gọi API confirm-readiness của DocumentForm sau đó.
 
 Hai route DocumentForm cũ được giữ để tương thích đường dẫn, nhưng hành vi đã đổi:
 
-- POST `/api/v1/officer/submissions/{submissionId}/approve`, body `{}`: chuyển quyết định
+- POST `/api/v1/officer/submissions/{submissionId}/confirm-readiness`, body `{}`: chuyển quyết định
   sang Workflow cho TOÀN BỘ hồ sơ liên kết, sau đó đồng bộ đơn. Không duyệt riêng một tờ khai.
 - POST `/api/v1/officer/submissions/{submissionId}/request-revision`, body `{"comment":"Lý do"}`:
   chuyển yêu cầu bổ sung sang Workflow. Cần lỗi OPEN ở phiên bản hiện tại và quyền
@@ -3096,7 +3090,7 @@ Hai route DocumentForm cũ được giữ để tương thích đường dẫn, 
 - Response thành công của hai route cũ là 200 `{submissionId, message}`. FE phải tải lại trạng thái
   hồ sơ/đơn, không dựa vào SaveSubmissionResultDto cũ. Cùng quyết định đã được Workflow áp dụng
   sẽ trả thành công khi gọi lại; không ghi thêm lịch sử lần hai. OfficerId nếu gửi phải trùng token.
-- 409 `document.workflow_decision_rejected`: kiểm tra Workflow, lỗi OPEN và quyền thụ lý;
+- 409 `document.workflow_review_failed`: kiểm tra Workflow, lỗi OPEN và quyền thụ lý;
   503: chưa xác nhận được kết quả, GET lại trạng thái trước khi thử lại.
 
 ### Xuất và tải PDF
@@ -3104,26 +3098,26 @@ Hai route DocumentForm cũ được giữ để tương thích đường dẫn, 
 POST `/api/v1/applications/{id}/generate-pdf` trên DocumentForm nhận multipart:
 `SubmissionId` bắt buộc, `DocumentType` tùy chọn (mặc định ORIGINAL_SUBMISSION).
 Không gửi File mới: backend dùng DOCX đã lưu. Cần chủ hồ sơ hoặc cán bộ đang thụ lý,
-Workflow APPROVED và đơn hợp lệ đã chốt. 200 trả GeneratedDocumentDto có `id` dùng để tải PDF,
+Workflow DOCUMENTS_READY và đơn hợp lệ đã chốt. 200 trả GeneratedDocumentDto có `id` dùng để tải PDF,
 và `submissionId` chỉ định chính xác đơn gốc đã kết xuất.
 Mỗi lần xuất tạo bản ghi riêng; không ghi đè PDF của đơn khác trong cùng Application.
 
 GET `/api/v1/applications/{id}/generated-documents` lấy danh sách PDF kết xuất của hồ sơ; hỗ trợ lọc theo `?submissionId={guid}` để lấy đúng file của đơn tương ứng.
 Mỗi phần tử trong danh sách trả về chứa `id`, `applicationId`, `submissionId`, `documentType`, `pdfBlobUrl` và `createdAtUtc`.
 GET `/api/v1/generated-documents/{documentId}/download` tải PDF. Cả hai đều kiểm tra quyền/phường
-và trạng thái APPROVED qua Workflow. Không chia sẻ trực tiếp URL Blob private với người không có quyền.
+và trạng thái DOCUMENTS_READY qua Workflow. Không chia sẻ trực tiếp URL Blob private với người không có quyền.
 
-- 409 `document.application_not_approved`: chờ duyệt hồ sơ; không cố duyệt riêng đơn để vượt điều kiện.
+- 409 `document.application_not_ready`: chờ xác nhận giấy tờ sẵn sàng; không cố duyệt riêng đơn để vượt điều kiện.
 - 404: sai hồ sơ/tài liệu hoặc ngoài phạm vi thụ lý.
 - 503 `document.pdf_render_failed`: Gotenberg thiếu cấu hình/mất kết nối/chuyển đổi lỗi;
   khôi phục dịch vụ rồi thử lại. Không còn fallback PDF mẫu.
 - 503 `document.workflow_unavailable`/`document.sync_unavailable`: khôi phục kết nối và tải lại.
 - Comment nội bộ bị loại khỏi bản DOCX dùng để chuyển PDF; file DOCX gốc không bị sửa.
-- Bản in PDF chính thức được tự động đóng dấu mã QR tra cứu (TASK-22, TASK-23) ở cuối văn bản căn lề phải kích thước 3.5cm x 3.5cm. Mã QR chứa URL tra cứu hồ sơ chính thức qua Gateway (`/api/v1/applications/{id}`).
+- Bản in PDF giấy tờ chuẩn bị được tự động đóng dấu mã QR tra cứu (TASK-22, TASK-23) ở cuối văn bản căn lề phải kích thước 3.5cm x 3.5cm. Mã QR chứa URL tra cứu hồ sơ chính thức qua Gateway (`/api/v1/applications/{id}`).
 
 ### Tra cứu `submissionId` của hồ sơ cho Cán bộ một cửa (TASK-25 / Gaps 1 & 2)
 
-Để cán bộ có thể gọi các API thao tác đơn DOCX (`download-docx`, `annotate-docx`, `request-revision`, `approve`), cán bộ cần biết `submissionId` của đơn:
+Để cán bộ có thể gọi các API thao tác đơn DOCX (`download-docx`, `annotate-docx`, `request-revision`, `confirm-readiness`), cán bộ cần biết `submissionId` của đơn:
 
 #### 1. Lấy toàn bộ đơn và tài liệu minh chứng của hồ sơ
 - **Endpoint**: `GET /api/v1/applications/{applicationId}/contents`
@@ -3141,22 +3135,22 @@ và trạng thái APPROVED qua Workflow. Không chia sẻ trực tiếp URL Blob
   - `applicationId`: ID hồ sơ.
   - `checklistId`: Mục thành phần hồ sơ tương ứng.
   - `applicantId`: ID công dân nộp đơn.
-  - `fileName`, `fileSizeBytes`, `status`: Trạng thái đơn (`Submitted`, `Approved`, `Draft`, v.v.).
+  - `fileName`, `fileSizeBytes`, `status`: Trạng thái đơn (`Submitted`, `ReadyForDownload`, `Draft`, v.v.).
   - `officerComment`: Ghi chú cán bộ nếu có.
 - **Lỗi thường gặp & Phục hồi**:
   - `401 Unauthorized`: Chưa đăng nhập hoặc token hết hạn.
   - `403 Forbidden`: Người gọi không có role `FRONT_DESK_OFFICER` hoặc không thuộc phạm vi xử lý hồ sơ.
   - `404 Not Found`: Không tìm thấy hồ sơ tương ứng trong hệ thống Workflow.
 
-### Tra cứu và tải Mã QR hồ sơ đã phê duyệt (TASK-22 / TASK-23)
+### Tra cứu và tải Mã QR hồ sơ đã xác nhận sẵn sàng (TASK-22 / TASK-23)
 
-Mã QR tra cứu được tạo tự động khi hồ sơ được phê duyệt (APPROVED) và lưu trữ trong bảng `document.approved_qrs`.
+Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ sơ DOCUMENTS_READY và lưu trữ trong bảng `document.approved_qrs`.
 
 #### 1. Lấy thông tin mã QR tra cứu
 - **Endpoint**: `GET /api/v1/applications/{applicationId}/approved-qr`
-- **Mục đích**: Lấy URL tra cứu và metadata mã QR của hồ sơ hành chính đã được phê duyệt.
+- **Mục đích**: Lấy URL tra cứu và metadata mã QR của hồ sơ hành chính đã được xác nhận sẵn sàng.
 - **Ai dùng**: Công dân nộp hồ sơ hoặc Cán bộ một cửa đang thụ lý hồ sơ.
-- **Khi nào và cách gọi**: Sau khi hồ sơ đạt trạng thái `APPROVED` tại Workflow. Gửi request kèm Header `Authorization: Bearer <token>`.
+- **Khi nào và cách gọi**: Sau khi hồ sơ đạt trạng thái `DOCUMENTS_READY` tại Workflow. Gửi request kèm Header `Authorization: Bearer <token>`.
 - **Kết quả thành công (200 OK)**:
   ```json
   {
@@ -3171,13 +3165,13 @@ Mã QR tra cứu được tạo tự động khi hồ sơ được phê duyệt 
   - `401 Unauthorized`: Token không hợp lệ hoặc hết hạn. Đăng nhập lại để lấy token mới.
   - `403 Forbidden` (`document.application_forbidden`): Người gọi không phải chủ hồ sơ hoặc không phải cán bộ được phân công.
   - `404 Not Found` (`document.qr_not_found`): Hồ sơ chưa có mã QR tra cứu (do chưa được duyệt hoặc chưa từng sinh QR).
-  - `409 Conflict` (`document.application_not_approved`): Hồ sơ chưa đạt trạng thái APPROVED. Chờ cán bộ duyệt hồ sơ trước.
+  - `409 Conflict` (`document.application_not_ready`): Hồ sơ chưa đạt trạng thái DOCUMENTS_READY. Chờ cán bộ xác nhận giấy tờ sẵn sàng trước.
 
 #### 2. Tải file ảnh PNG của Mã QR tra cứu
 - **Endpoint**: `GET /api/v1/applications/{applicationId}/approved-qr/image`
 - **Mục đích**: Tải trực tiếp file hình ảnh PNG của mã QR để hiển thị lên giao diện web, in ấn tại quầy hoặc gửi cho người dân quét tra cứu.
 - **Ai dùng**: Công dân nộp hồ sơ hoặc Cán bộ một cửa.
-- **Khi nào và cách gọi**: Sau khi hồ sơ đạt trạng thái `APPROVED`. Gửi GET request kèm Header `Authorization: Bearer <token>`.
+- **Khi nào và cách gọi**: Sau khi hồ sơ đạt trạng thái `DOCUMENTS_READY`. Gửi GET request kèm Header `Authorization: Bearer <token>`.
 - **Kết quả thành công (200 OK)**: File nhị phân `image/png`, tên file `qr-{applicationId}.png`.
 - **Lỗi & Phục hồi**: Tương tự như endpoint lấy thông tin (401, 403, 404, 409).
 
@@ -3191,7 +3185,7 @@ không trỏ localhost. Đã bổ sung migration `AddApprovedQrTable` tạo bả
 
 Trình tự: tạo hồ sơ/đơn -> chốt đơn -> COMPLETED checklist -> submit hồ sơ -> cán bộ assign
 -> xem/ghi chú -> tạo comment OPEN và request-revision nếu cần -> dân sửa/chốt/resubmit
--> cán bộ assign lại -> approve Workflow -> sinh QR vào `approved_qrs` -> dân/cán bộ generate-pdf (tự động đóng dấu QR) -> download PDF hoặc tải QR PNG.
+-> cán bộ assign lại -> confirm-readiness Workflow -> generate-pdf sinh QR vào `approved_qrs` -> dân/cán bộ generate-pdf (tự động đóng dấu QR) -> download PDF hoặc tải QR PNG.
 Kiểm tra âm: cán bộ khác phường/cùng phường chưa phân công, giả OfficerId, xuất trước duyệt,
 sửa sau duyệt, Workflow hoặc Gotenberg mất kết nối. Các trường hợp này không được trả file chính thức mới.
 
@@ -3200,3 +3194,12 @@ IAM/ProcedureCatalog giả lập. Không xác nhận triển khai Azure hoặc F
 Đồng bộ đọc có thử lại, chưa phải giao dịch phân tán; các thao tác đang chạy đồng thời ở
 hai service vẫn cần cơ chế lease/outbox nếu yêu cầu đóng băng nguyên tử tuyệt đối.
 
+
+
+### Bàn giao triển khai luồng giấy tờ sẵn sàng — 17/10/2026
+
+Đây là thay đổi hợp đồng API. Tạm dừng thao tác kiểm tra hồ sơ khi chuyển phiên bản: áp dụng migration Workflow `20261016154813_DocumentReadiness` và IAM `20261016154952_WorkflowReadinessPermission`, rồi đưa các bản mới Workflow, DocumentForm, AnalyticsSystem và IAM vào hoạt động đồng bộ. Không để API approve cũ phục vụ khi quyền approve đã bị gỡ. Chưa áp dụng các migration này lên Azure trong phiên sửa code.
+
+FE đổi nút thành “Xác nhận giấy tờ sẵn sàng”, gọi POST /api/v1/officer/applications/{id}/confirm-readiness không body. Dùng trạng thái DOCUMENTS_READY và documentsReadyAt, quyền workflow.readiness.confirm. Khi hoàn tất, hiển thị hướng dẫn tải giấy tờ và đến phường; không hiển thị kết quả giải quyết thủ tục. Workflow lấy quyền hiện hành từ IAM mỗi request; đăng nhập lại/refresh giúp menu FE cập nhật claims.
+
+Kiểm thử Docker trước khi deploy: tạo hồ sơ → điền form/đính kèm → submit → cán bộ đúng phường nhận hồ sơ → yêu cầu bổ sung → công dân sửa/nộp lại → cán bộ kiểm tra và xác nhận → công dân xuất/tải PDF. Kiểm tra thêm hồ sơ khác phường, cán bộ chưa được phân công, nhận xét OPEN, checklist thiếu, file mất và thao tác sửa sau DOCUMENTS_READY. Build thành công chưa thay thế kiểm thử tích hợp này.
