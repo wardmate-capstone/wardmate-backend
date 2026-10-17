@@ -25,9 +25,9 @@ public sealed class NotificationDeliveryWorker(IServiceScopeFactory scopes, ICon
             else if (row.Channel == "IN_APP")
             {
                 var guard = scope.ServiceProvider.GetRequiredService<NotificationConnectionGuard>();
-                await guard.RevalidateUser(n.RecipientUserId, ct);
+                var connections = await guard.ValidatedConnections(n.RecipientUserId, n.RecipientWardCode, ct);
                 var hub = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub, INotificationClient>>();
-                var client = hub.Clients.Group(NotificationHub.UserGroup(n.RecipientUserId));
+                var client = hub.Clients.Clients(connections);
                 await client.ReceiveNotification(new(n.Id, n.RecipientUserId, n.ApplicationId, n.Title, n.Content, n.Type, n.Channel, n.IsRead, n.ReadAt, n.ActionUrl, n.CreatedAt));
                 await client.UpdateUnreadCount(await db.Notifications.CountAsync(x => x.RecipientUserId == n.RecipientUserId && !x.IsRead && x.Channel == "IN_APP" &&
                     (x.RecipientWardCode == null || contact.IsOfficer && x.RecipientWardCode == contact.WardCode), ct));
@@ -41,6 +41,7 @@ public sealed class NotificationDeliveryWorker(IServiceScopeFactory scopes, ICon
         {
             row.Attempts++; row.State = row.Attempts >= 10 ? "Dead" : "Pending";
             row.NextAttemptAt = RetrySchedule.Next(row.Attempts); row.ErrorCode = "notification.delivery_failed";
+            logger.LogWarning("Notification delivery {DeliveryId} failed; attempt {Attempt}, state {State}.", row.Id, row.Attempts, row.State);
         }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return true;
     }

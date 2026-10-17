@@ -7,7 +7,7 @@ using WardMate.Services.AnalyticsSystem.Domain;
 namespace WardMate.Services.AnalyticsSystem.Infrastructure;
 
 public sealed class NotificationService(NotificationDbContext db, IHubContext<NotificationHub, INotificationClient> hub,
-    TimeProvider clock, ILogger<NotificationService> logger) : INotificationService
+    TimeProvider clock, ILogger<NotificationService> logger, NotificationConnectionGuard guard) : INotificationService
 {
     public async Task<NotificationDto> CreateAsync(CreateNotification request, CancellationToken ct = default)
     {
@@ -51,7 +51,11 @@ public sealed class NotificationService(NotificationDbContext db, IHubContext<No
         var changed = await owned.Where(x => !x.IsRead).ExecuteUpdateAsync(set => set
             .SetProperty(x => x.IsRead, true).SetProperty(x => x.ReadAt, now), ct);
         if (changed == 0 && !await owned.AnyAsync(ct)) return false;
-        try { await hub.Clients.Group(NotificationHub.UserGroup(recipient)).UpdateUnreadCount(await UnreadCountAsync(recipient, ct, wardCode)); }
+        try
+        {
+            var connections = await guard.ValidatedConnections(recipient, wardCode, ct);
+            await hub.Clients.Clients(connections).UpdateUnreadCount(await UnreadCountAsync(recipient, ct, wardCode));
+        }
         catch (Exception exception) { logger.LogWarning(exception, "Không cập nhật được bộ đếm realtime; trạng thái đã đọc đã được lưu."); }
         return true;
     }

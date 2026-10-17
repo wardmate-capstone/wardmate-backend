@@ -45,6 +45,16 @@ public sealed class NotificationConnectionGuard(IServiceScopeFactory scopes, IHu
     {
         foreach (var entry in sessions.Where(x => x.Value.Access.UserId == userId).ToArray()) await Validate(entry.Key, ct);
     }
+    // Only send to connections whose current IAM authorization was checked on this replica.
+    public async Task<string[]> ValidatedConnections(Guid userId, string? wardCode, CancellationToken ct)
+    {
+        var result = new List<string>();
+        foreach (var entry in sessions.Where(x => x.Value.Access.UserId == userId).ToArray())
+            if (await Validate(entry.Key, ct) && (wardCode is null || Ward(entry.Key) == wardCode))
+                result.Add(entry.Key);
+        return result.ToArray();
+    }
+
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(Math.Clamp(configuration.GetValue("Notifications:RevalidateSeconds", 15), 5, 300)));

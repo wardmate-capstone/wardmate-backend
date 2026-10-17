@@ -34,6 +34,7 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var row = await db.Inbox.FromSqlRaw("SELECT * FROM notification_inbox WHERE \"State\" = 'Pending' AND \"NextAttemptAt\" <= now() ORDER BY \"CreatedAt\", \"Id\" LIMIT 1 FOR UPDATE SKIP LOCKED").SingleOrDefaultAsync(ct);
         if (row is null) return false;
+        await tx.CreateSavepointAsync("inbox_processing", ct);
         try
         {
             var e = JsonSerializer.Deserialize<WorkflowEvent>(row.Payload)!;
@@ -51,12 +52,17 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
                 if (configuration.GetValue<bool>("Sms:Enabled")) db.Deliveries.Add(new() { NotificationId = notification.Id, Channel = "SMS" });
             }
             row.State = "Processed"; row.ErrorCode = null;
+            await db.SaveChangesAsync(ct);
         }
         catch (Exception) when (!ct.IsCancellationRequested)
         {
-            // No notification writes occur before directory lookup/validation succeeds.
+            // Roll back partial notification/delivery writes before persisting the bounded retry.
+            await tx.RollbackToSavepointAsync("inbox_processing", ct);
+            db.ChangeTracker.Clear();
+            db.Inbox.Attach(row);
             row.Attempts++; row.State = row.Attempts >= 10 ? "Dead" : "Pending";
             row.NextAttemptAt = RetrySchedule.Next(row.Attempts); row.ErrorCode = "notification.resolve_failed";
+            logger.LogWarning("Notification inbox {EventId} failed; attempt {Attempt}, state {State}.", row.Id, row.Attempts, row.State);
         }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return true;
     }
