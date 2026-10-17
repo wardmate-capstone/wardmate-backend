@@ -1,5 +1,30 @@
 # DocumentForm deployment history
 
+## Document Readiness & Notification Hardening Deployment — 2026-10-17 22:45:00 +07:00
+
+Deployed 3 updated microservice images to Azure Container Registry `acrwardmate2026.azurecr.io`:
+1. **ApplicationWorkflow**:
+   - Image: `acrwardmate2026.azurecr.io/wardmate-application-workflow:workflow-20261017-01`
+   - Digest: `sha256:74cf71f74f1111cf130298dcba0dae582f5015eeb3f3cb181f2a22896ad3a111`
+   - Features: Document Readiness workflow (`DOCUMENTS_READY`, `documents_ready_at`, `POST /api/v1/officer/applications/{id}/confirm-readiness`).
+2. **DocumentForm**:
+   - Image: `acrwardmate2026.azurecr.io/wardmate-documentform:task25-readiness-20261017-01`
+   - Digest: `sha256:802784655ef943bdf3fe18981c47ad548182f6065711675bcbdd08cef787dcb6`
+   - Features: Alignment of submissions with `ReadyForDownload` (status 4) and pure Gotenberg PDF generation.
+3. **AnalyticsSystem**:
+   - Image: `acrwardmate2026.azurecr.io/wardmate-analytics-system:harden-20261017-01`
+   - Digest: `sha256:bc63f963c0f016e86c294a84a7f0b7f612c8d200abbac9d0fcf42bca31e17aac`
+   - Features: Event consumer adaptation for readiness; inbox worker rollback on failure with bounded retries (Dead after 10); per-connection IAM & ward authorization guards for SignalR realtime delivery.
+
+Git synchronization:
+- Synchronized branches `kha`, `main`, and `deploy` to commit `43479d6`.
+
+Container App update notes:
+- Update Container App `wardmate-application-workflow` in `rg-wardmate-prod` to image tag `workflow-20261017-01`.
+- Update Container App `wardmate-documentform` in `rg-wardmate-prod` to image tag `task25-readiness-20261017-01`.
+- Update Container App `wardmate-analytics-system` in `rg-wardmate-prod` to image tag `harden-20261017-01`.
+- Set `Database__AutoMigrate` to `false` across Container Apps as DB migrations are verified in Supabase.
+
 ## Cross-Service Validation & Dual-Role Access Review Deployment — 2026-10-15 07:25:00 +07:00
 
 Deployed 3 updated microservice images to Azure Container Registry `acrwardmate2026.azurecr.io`:
