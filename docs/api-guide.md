@@ -3203,3 +3203,59 @@ hai service vẫn cần cơ chế lease/outbox nếu yêu cầu đóng băng ngu
 FE đổi nút thành “Xác nhận giấy tờ sẵn sàng”, gọi POST /api/v1/officer/applications/{id}/confirm-readiness không body. Dùng trạng thái DOCUMENTS_READY và documentsReadyAt, quyền workflow.readiness.confirm. Khi hoàn tất, hiển thị hướng dẫn tải giấy tờ và đến phường; không hiển thị kết quả giải quyết thủ tục. Workflow lấy quyền hiện hành từ IAM mỗi request; đăng nhập lại/refresh giúp menu FE cập nhật claims.
 
 Kiểm thử Docker trước khi deploy: tạo hồ sơ → điền form/đính kèm → submit → cán bộ đúng phường nhận hồ sơ → yêu cầu bổ sung → công dân sửa/nộp lại → cán bộ kiểm tra và xác nhận → công dân xuất/tải PDF. Kiểm tra thêm hồ sơ khác phường, cán bộ chưa được phân công, nhận xét OPEN, checklist thiếu, file mất và thao tác sửa sau DOCUMENTS_READY. Build thành công chưa thay thế kiểm thử tích hợp này.
+
+
+## TASK-25/27 — Kiểm tra thông báo realtime và RabbitMQ (17/10/2026)
+
+### Phạm vi và cấu hình
+
+Không bổ sung REST endpoint trong lần này. FE dùng Hub /hubs/notifications và các method GetNotifications(page, pageSize), GetUnreadCount(), MarkRead(notificationId). ReceiveNotification và UpdateUnreadCount là callback server gọi FE. Lỗi method là SignalR invocation error, không phải ProblemDetails. JWT hết hạn cần lấy access token mới rồi reconnect.
+
+Workflow và AnalyticsSystem phải cùng RabbitMq__Host, Port, User, Password, VirtualHost, UseTls và RabbitMq__Enabled=true. AnalyticsSystem cần Notifications__WorkersEnabled=true, ConnectionStrings__NotificationsDatabase và Iam__BaseUrl. Notifications__ServiceKey phải khớp cấu hình IAM (ít nhất 32 ký tự), không đặt vào FE. JWT issuer/audience/key phải khớp IAM; CORS cho đúng origin FE. Giữ Email__Enabled=false và Sms__Enabled=false. Không gửi secret trong log/chat.
+
+Áp dụng migration WorkflowNotificationOutbox trên DB Workflow và InitialNotifications/ReliableNotificationDelivery trên DB Notifications trước khi bật workers. Dùng một replica AnalyticsSystem và một revision phục vụ tại một thời điểm: hiện chưa có SignalR backplane. /health hiện chỉ xác nhận tiến trình, không chứng minh RabbitMQ/IAM/database hoặc chuỗi gửi thông báo hoạt động.
+
+### Kiểm thử bằng tài khoản thử nghiệm
+
+1. Mở hai phiên công dân và cán bộ đúng phường; kết nối Hub với token tương ứng. Khi kết nối, server gửi UpdateUnreadCount. Sau reconnect FE gọi lại GetNotifications(1,20) và GetUnreadCount(), gộp thông báo theo id để chống hiển thị trùng.
+2. Công dân nộp hồ sơ: công dân nhận thông báo nộp thành công; cán bộ có quyền queue ở đúng phường nhận thông báo có hồ sơ cần tiếp nhận. Cán bộ phường khác không nhận.
+3. Cán bộ nhận hồ sơ, thêm nhận xét, yêu cầu bổ sung, rồi xác nhận DOCUMENTS_READY sau khi bổ sung: công dân nhận các cập nhật tương ứng. Notification chỉ là đường dẫn hỗ trợ; quyền mở hồ sơ vẫn do Workflow kiểm tra.
+4. Gọi MarkRead(id) từ công dân: bộ đếm cập nhật trên những connection hợp lệ, gọi lại không thay readAt. Dùng tài khoản khác gọi cùng id phải báo không tìm thấy.
+5. Ngắt trình duyệt, tạo sự kiện, kết nối lại: danh sách vẫn có thông báo. Delivery Sent không phải xác nhận trình duyệt đã nhận; đây không phải cơ chế push exactly-once.
+6. Trên môi trường thử riêng, tạm dừng RabbitMQ rồi đổi trạng thái hồ sơ: nghiệp vụ vẫn lưu cùng outbox. Khi RabbitMQ trở lại, sự kiện được gửi. Giao lại cùng EventId chỉ có một inbox và một notification mỗi người/kênh; không tạo id mới khi replay.
+7. Tạm dừng IAM: inbox/delivery lỗi được retry; khôi phục rồi kiểm tra tiếp tục xử lý. Sau 10 lần lỗi chuyển Dead, không tự chạy lại mãi. Lỗi lưu Inbox rollback phần notification/delivery trước khi lưu lần thử tiếp theo. Nếu DB cũng hỏng thì chưa thể ghi số lần retry, phải khôi phục DB trước.
+8. Đổi phường/quyền hoặc khóa tài khoản: connection cũ bị ngắt khi tái xác minh (mặc định 15 giây, cấu hình 5–300 giây); trước khi gửi realtime cũng kiểm tra lại connection. Mở lại chỉ nhận dữ liệu theo quyền/phường mới.
+
+### Kiểm tra hàng đợi bằng SQL chỉ đọc
+
+Chạy trên DB Workflow:
+
+```sql
+SELECT count(*) AS unpublished, min(created_at) AS oldest_pending
+FROM workflow_outbox WHERE published_at IS NULL;
+SELECT id, attempts, last_error, next_attempt_at
+FROM workflow_outbox WHERE published_at IS NULL
+ORDER BY created_at LIMIT 20;
+```
+
+Chạy trên DB Notifications (các cột Inbox/Delivery giữ tên PascalCase):
+
+```sql
+SELECT "State", count(*) FROM notification_inbox GROUP BY "State";
+SELECT "Channel", "State", count(*) FROM notification_deliveries GROUP BY "Channel", "State";
+SELECT "Id", "Attempts", "ErrorCode", "NextAttemptAt"
+FROM notification_inbox WHERE "State" = 'Dead';
+SELECT "Id", "NotificationId", "Attempts", "ErrorCode"
+FROM notification_deliveries WHERE "State" = 'Dead';
+SELECT source_event_id, recipient_user_id, channel, count(*)
+FROM notifications WHERE source_event_id IS NOT NULL
+GROUP BY source_event_id, recipient_user_id, channel HAVING count(*) > 1;
+```
+
+Truy vấn cuối phải không có dòng. Đối chiếu EventId với inbox.Id và notifications.source_event_id. Log lỗi mới ghi EventId/DeliveryId, attempt và state, không ghi nội dung hồ sơ.
+
+### Phục hồi sự kiện lỗi
+
+Sửa nguyên nhân trước (IAM/service key/DB), sau đó người vận hành mới reset đúng một bản ghi Dead được đối soát về Pending, Attempts=0, NextAttemptAt=now(), ErrorCode=NULL trong DB tương ứng. Giữ nguyên Id/Payload; không xóa notification đã lưu và không reset toàn bảng. Delivery chỉ reset bản IN_APP cần thiết; có thể gửi realtime lặp nên FE deduplicate theo notification id. Sự kiện sai JSON/hợp đồng vào RabbitMQ queue wardmate.notifications.workflow.v1.dead: không redrive nguyên trạng khi chưa sửa nguyên nhân. Chưa có API quản trị replay trong bản này.
+
+Các bước trên là checklist kiểm thử cần thực hiện trên môi trường chạy; build không xác nhận các ca này đã pass.

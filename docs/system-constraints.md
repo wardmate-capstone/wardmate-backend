@@ -475,8 +475,10 @@ Infrastructure `Pdf/GotenbergPdfRenderEngine.cs`.
   Không cam kết trình duyệt chỉ nhận đúng một lần; FE nên deduplicate theo notification ID.
 - Mất realtime không làm mất dữ liệu đã lưu: FE tải lại danh sách/số chưa đọc sau reconnect.
 - Lỗi cập nhật bộ đếm realtime không hoàn tác trạng thái đã đọc đã lưu trong database.
-- Scale nhiều replica cần cơ chế SignalR dùng chung phù hợp; group trong một process
-  không tự trở thành group dùng chung toàn cluster.
+- Cấu hình hỗ trợ realtime hiện tại: AnalyticsSystem một replica, một revision nhận traffic. Chưa có backplane SignalR; không chạy nhiều replica/revision cùng xử lý delivery nếu cần đảm bảo push tới connection đang mở. Notification đã lưu vẫn đọc lại được sau reconnect.
+- Trước khi phát notification/bộ đếm, kiểm tra lại từng connection với IAM và chỉ gửi tới connection hợp lệ trên replica hiện tại; notification gắn phường còn đối chiếu quyền queue/phường. Không cam kết quyền bất biến trong khoảng giữa lần xác minh IAM và gửi.
+- Inbox dùng savepoint: lỗi xử lý/lưu notification rollback toàn bộ notification/delivery của lần đó trước khi ghi retry. Đủ 10 lần lỗi chuyển Dead. Nếu chính database không thể ghi retry, transaction rollback và dữ liệu Pending vẫn còn; cần phục hồi DB.
+- Delivery Sent chỉ nghĩa worker hoàn tất lệnh gửi SignalR, không chứng minh người dùng online hoặc đã nhận/đọc. FE luôn đồng bộ danh sách và bộ đếm sau reconnect.
 - Email/SMS chưa có cấu hình nhà cung cấp được người dùng xác nhận: không coi gửi thật
   đã hoàn tất hoặc tự bật dịch vụ trả phí.
 
@@ -594,3 +596,8 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 - Nguồn: ApplicationWorkflow.Application/DocumentReadinessRequests.cs, API/Controllers/ApplicationReviewController.cs, Infrastructure/WorkflowDbContext.cs; DocumentForm.API/Security/ApplicationAccess.cs; SharedKernel/Web/FeaturePermissions.cs; migration IAM WorkflowReadinessPermission.
 
 - Triển khai đồng bộ IAM/Workflow/DocumentForm/AnalyticsSystem, tạm dừng thao tác review trong lúc chuyển phiên bản: migration IAM gỡ quyền cũ nên API cũ sẽ không còn đủ quyền. Kiểm tra luồng Docker trước Azure; chưa xác nhận runtime toàn luồng trong phiên này.
+
+### 17/10/2026 — TASK-25/27: kiểm tra độ tin cậy thông báo
+
+- Cập nhật NOTI-02: rollback Inbox trước khi ghi retry, log định danh sự kiện/delivery và số lần lỗi; kiểm tra từng connection trước khi gửi notification/bộ đếm. Không log token hoặc payload.
+- Phân biệt Sent với xác nhận client; giới hạn một replica/revision do chưa có backplane. SMS/Email giữ hoãn. Nguồn: NotificationInboxWorker.cs, NotificationDeliveryWorker.cs, NotificationConnectionGuard.cs, NotificationService.cs.
