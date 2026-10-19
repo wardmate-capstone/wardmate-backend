@@ -26,6 +26,46 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
         return new(items, input.Page, input.PageSize, total);
     }
 
+    public async Task<ApplicationPage> ListAll(ReviewActor actor, OfficerListInput input, CancellationToken ct)
+    {
+        if (!actor.IsOfficer || string.IsNullOrEmpty(actor.WardCode)) return new([], input.Page, input.PageSize, 0);
+        // Trả toàn bộ hồ sơ thuộc phường — trừ hồ sơ của chính cán bộ đó (tránh lộ dữ liệu/xung đột)
+        var q = db.Applications.AsNoTracking()
+            .Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id);
+        if (!string.IsNullOrWhiteSpace(input.Status))
+        {
+            var rawStatuses = input.Status.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => s.ToUpperInvariant())
+                .ToArray();
+            if (rawStatuses.Length == 1)
+            {
+                var s0 = rawStatuses[0];
+                q = q.Where(x => x.Status == s0);
+            }
+            else if (rawStatuses.Length > 1)
+            {
+                q = q.Where(x => rawStatuses.Contains(x.Status));
+            }
+        }
+        if (input.ProcedureId is not null)
+            q = q.Where(x => x.ProcedureId == input.ProcedureId);
+        if (!string.IsNullOrWhiteSpace(input.ApplicationCode))
+            q = q.Where(x => x.ApplicationCode != null && x.ApplicationCode.Contains(input.ApplicationCode));
+        if (input.SubmittedFrom is not null)
+            q = q.Where(x => x.SubmittedAt >= input.SubmittedFrom.Value.UtcDateTime);
+        if (input.SubmittedTo is not null)
+            q = q.Where(x => x.SubmittedAt <= input.SubmittedTo.Value.UtcDateTime);
+        var total = await q.CountAsync(ct);
+        var page = Math.Max(1, input.Page);
+        var pageSize = Math.Clamp(input.PageSize, 1, 100);
+        var items = await q
+            .OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode))
+            .ToArrayAsync(ct);
+        return new(items, page, pageSize, total);
+    }
+
     public async Task<WorkflowResult<ReviewResultDto>> Mutate(Guid id, Func<ApplicationRecord, WorkflowResult<ReviewResultDto>> action, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
