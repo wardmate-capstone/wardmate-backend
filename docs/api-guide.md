@@ -8,6 +8,21 @@
 Tra cứu các điều kiện dữ liệu, quyền, trạng thái và giới hạn file tại
 [Sổ tay ràng buộc hệ thống](system-constraints.md). Cập nhật hai tài liệu cùng nhau
 khi thay đổi hành vi API hoặc quy tắc nghiệp vụ.
+### Cập nhật 20/10/2026: Danh sách hồ sơ Cán bộ & Tra cứu QR công khai (TASK-OFFICER-LIST-QR-LOOKUP)
+
+- **Danh sách hồ sơ cán bộ một cửa:** GET `/api/v1/officer/applications`
+  - *Mục đích*: Cho phép cán bộ một cửa (`FRONT_DESK_OFFICER`) truy vấn toàn bộ hồ sơ trong phường được giao, bao gồm tất cả trạng thái (`DOCUMENTS_READY`, `READY_TO_SUBMIT`, `NEED_REVISION`, `APPROVED`, `REJECTED`, `CANCELLED`). Tự động loại trừ hồ sơ do chính cán bộ nộp (đảm bảo tính khách quan).
+  - *Tham số query*: `status` (có thể truyền đơn lẻ hoặc danh sách phân cách bởi dấu phẩy như `DOCUMENTS_READY,NEED_REVISION`), `procedureId` (Guid), `applicationCode` (tìm kiếm theo mã đơn), `submittedFrom`/`submittedTo` (khoảng ngày nộp), `page` (mặc định 1), `pageSize` (mặc định 20, tối đa 100).
+  - *Phản hồi thành công*: `200 OK` kèm `PagedResult<OfficerApplicationSummaryDto>`.
+  - *Lỗi thường gặp*: 401 Unauthorized nếu thiếu token hoặc token hết hạn; 403 Forbidden nếu tài khoản không có quyền FRONT_DESK_OFFICER hoặc chưa được phân công phường công tác.
+
+- **Tra cứu hồ sơ qua mã QR công khai:** GET `/api/v1/public/qr-lookup` và GET `/api/v1/public/qr-lookup/{**token}`
+  - *Mục đích*: Cho phép người dân, cán bộ hoặc cơ quan kiểm tra quét mã QR in trên giấy tờ/tờ khai kết xuất để kiểm tra tính hợp lệ và xác thực của hồ sơ. Endpoint này hoàn toàn công khai (`AllowAnonymous`), không yêu cầu đăng nhập.
+  - *Cách gọi*:
+    + Qua query param: `GET /api/v1/public/qr-lookup?applicationId={id}` hoặc `GET /api/v1/public/qr-lookup?token={token}`
+    + Qua path param: `GET /api/v1/public/qr-lookup/{token_hoặc_url}`
+  - *Phản hồi thành công*: `200 OK` kèm `QrLookupResultDto` (`applicationId`, `submissionId`, `qrCodeValue`, `status`, `isValid`, `message`, `generatedAt`).
+  - *Lỗi thường gặp*: 400 Validation nếu không truyền `applicationId` hoặc `token`; 404 NotFound nếu không tìm thấy mã QR đã được phê duyệt trong hệ thống.
 
 ### Cập nhật kiểm tra liên service — 15/10/2026 (FLOW-REVIEW-001)
 
@@ -3175,24 +3190,77 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
 - **Kết quả thành công (200 OK)**: File nhị phân `image/png`, tên file `qr-{applicationId}.png`.
 - **Lỗi & Phục hồi**: Tương tự như endpoint lấy thông tin (401, 403, 404, 409).
 
-### Cấu hình local và trình tự đối soát
+### Cập nhật API Mới — 19/10/2026 (TASK-OFFICER-LIST-QR-LOOKUP)
 
-DocumentForm cần `Services__ApplicationWorkflow__BaseUrl`, Blob Storage, JWT chung,
-`QrCode__VerificationBaseUrl` (tùy chọn, mặc định trỏ Gateway Azure), và `Gotenberg__Url`.
-Compose đã thêm service gotenberg nội bộ cổng 3000 và cấu hình URL;
-chủ dự án tự build/chạy Docker. Azure cần cấu hình URL tới Gotenberg nội bộ tương ứng,
-không trỏ localhost. Đã bổ sung migration `AddApprovedQrTable` tạo bảng `document.approved_qrs`.
+#### 1. Danh sách Tổng hợp Toàn bộ Hồ sơ của Phường (Cán bộ một cửa)
+- **Endpoint**: `GET /api/v1/officer/applications`
+- **Mục đích**: Cung cấp danh sách tổng hợp toàn bộ hồ sơ thuộc phường của cán bộ đang đăng nhập, thay vì chỉ xem được danh sách chờ (`pending`). Hỗ trợ xem lịch sử các hồ sơ đã duyệt, bị từ chối, cần sửa đổi hoặc đang xử lý.
+- **Ai dùng**: Cán bộ một cửa (`FRONT_DESK_OFFICER`).
+- **Khi nào và cách gọi**: Gửi `GET` request kèm Bearer Token của cán bộ.
+  - Query parameters hỗ trợ:
+    - `status`: Lọc theo trạng thái hồ sơ (VD: `APPROVED`, `NEED_REVISION`, `SUBMITTED`, `UNDER_REVIEW`, `REJECTED`). Hỗ trợ truyền nhiều trạng thái cách nhau bởi dấu phẩy, ví dụ: `status=DOCUMENTS_READY,NEED_REVISION,READY_TO_SUBMIT` hoặc `status=SUBMITTED,UNDER_REVIEW`.
+    - `procedureId`: UUID của thủ tục hành chính.
+    - `applicationCode`: Tìm kiếm theo mã số hồ sơ (tìm tương đối chứa chuỗi).
+    - `submittedFrom`, `submittedTo`: Khoảng thời gian nộp hồ sơ (ISO 8601).
+    - `page` (mặc định 1), `pageSize` (mặc định 20, tối đa 100).
+- **Kết quả thành công (200 OK)**:
+  ```json
+  {
+    "items": [
+      {
+        "id": "b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9",
+        "applicationCode": "HS-20261015-001",
+        "procedureId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "procedureTitle": "Đăng ký khai sinh",
+        "status": "APPROVED",
+        "createdAt": "2026-10-15T08:00:00Z",
+        "submittedAt": "2026-10-15T08:30:00Z",
+        "wardCode": "W01"
+      }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "total": 1
+  }
+  ```
+- **Lỗi thường gặp & Phục hồi**:
+  - `401 Unauthorized`: Thiếu Bearer Token hoặc token hết hạn.
+  - `403 Forbidden`: Tài khoản không có role `FRONT_DESK_OFFICER` hoặc không có claim `ward_code`.
 
+#### 2. Tra cứu Hồ sơ Công khai bằng Mã QR (Không cần đăng nhập)
+- **Endpoint**: 
+  - `GET /api/v1/public/qr-lookup?token={token}` hoặc `GET /api/v1/public/qr-lookup?applicationId={applicationId}`
+  - `GET /api/v1/public/qr-lookup/{token}`
+- **Mục đích**: Cho phép bất kỳ ai (người dân, cơ quan chức năng, cán bộ xác minh) dùng điện thoại thông minh quét mã QR in trên tờ khai hoặc giấy tờ đã phê duyệt để tra cứu tính hợp lệ và thông tin hồ sơ mà không cần đăng nhập.
+- **Ai dùng**: Công chúng, người quét mã QR.
+- **Khi nào và cách gọi**: Gửi `GET` request không cần Header `Authorization`. Tham số `token` có thể là:
+  - Chuỗi URL đầy đủ quét từ mã QR (ví dụ: `https://.../api/v1/public/qr-lookup?applicationId=b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9`).
+  - Mã GUID của ApplicationId hoặc SubmissionId.
+  - Mã token tra cứu trực tiếp.
+- **Kết quả thành công (200 OK)**:
+  ```json
+  {
+    "applicationId": "b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9",
+    "submissionId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "qrCodeValue": "https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/public/qr-lookup?applicationId=b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9",
+    "generatedAt": "2026-10-15T15:42:30Z",
+    "status": "APPROVED",
+    "documentName": "Tờ khai đăng ký khai sinh",
+    "isValid": true,
+    "message": "Hồ sơ điện tử hợp lệ, đã được cơ quan có thẩm quyền phê duyệt và đóng dấu xác thực."
+  }
+  ```
+- **Lỗi thường gặp & Phục hồi**:
+  - `400 Bad Request` (`qr.token_required`): Chưa truyền token hoặc applicationId.
+  - `404 Not Found` (`qr.not_found`): Mã QR không khớp với bất kỳ hồ sơ nào trong hệ thống hoặc hồ sơ chưa từng được duyệt cấp mã QR.
+
+### Cấu hình và trình tự đối soát quy trình QR
 Trình tự: tạo hồ sơ/đơn -> chốt đơn -> COMPLETED checklist -> submit hồ sơ -> cán bộ assign
 -> xem/ghi chú -> tạo comment OPEN và request-revision nếu cần -> dân sửa/chốt/resubmit
--> cán bộ assign lại -> confirm-readiness Workflow -> generate-pdf sinh QR vào `approved_qrs` -> dân/cán bộ generate-pdf (tự động đóng dấu QR) -> download PDF hoặc tải QR PNG.
+-> cán bộ assign lại -> confirm-readiness Workflow -> generate-pdf sinh QR vào `approved_qrs` trỏ tới `/api/v1/public/qr-lookup?applicationId={id}` -> dân/cán bộ generate-pdf (tự động đóng dấu QR) -> download PDF hoặc quét QR tra cứu công khai không cần token.
 Kiểm tra âm: cán bộ khác phường/cùng phường chưa phân công, giả OfficerId, xuất trước duyệt,
 sửa sau duyệt, Workflow hoặc Gotenberg mất kết nối. Các trường hợp này không được trả file chính thức mới.
 
-Đã xác minh local với Workflow/DocumentForm, PostgreSQL, Azurite và Gotenberg thật;
-IAM/ProcedureCatalog giả lập. Không xác nhận triển khai Azure hoặc FE editor trong phiên này.
-Đồng bộ đọc có thử lại, chưa phải giao dịch phân tán; các thao tác đang chạy đồng thời ở
-hai service vẫn cần cơ chế lease/outbox nếu yêu cầu đóng băng nguyên tử tuyệt đối.
 
 
 
