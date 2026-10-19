@@ -9,6 +9,8 @@ using WardMate.SharedKernel.Blob;
 using WardMate.SharedKernel.Common;
 using WardMate.SharedKernel.CQRS;
 
+using Microsoft.Extensions.Logging;
+
 namespace WardMate.Services.DocumentForm.Application.Commands;
 
 
@@ -30,19 +32,22 @@ public sealed class GeneratePdfDocumentCommandHandler
     private readonly IPdfRenderEngine _pdfRenderEngine;
     private readonly IDocxQrStamper _qrStamper;
     private readonly IApprovedQrService _qrService;
+    private readonly ILogger<GeneratePdfDocumentCommandHandler> _logger;
 
     public GeneratePdfDocumentCommandHandler(
         IDocumentDbContext dbContext,
         IBlobStorageClient blobClient,
         IPdfRenderEngine pdfRenderEngine,
         IDocxQrStamper qrStamper,
-        IApprovedQrService qrService)
+        IApprovedQrService qrService,
+        ILogger<GeneratePdfDocumentCommandHandler> logger)
     {
         _dbContext = dbContext;
         _blobClient = blobClient;
         _pdfRenderEngine = pdfRenderEngine;
         _qrStamper = qrStamper;
         _qrService = qrService;
+        _logger = logger;
     }
 
     public async Task<Result<GeneratedDocumentDto>> Handle(
@@ -138,6 +143,8 @@ public sealed class GeneratePdfDocumentCommandHandler
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
+                _logger.LogError(ex, "Gotenberg PDF conversion failed for ApplicationId: {ApplicationId}, SubmissionId: {SubmissionId}, File: {FileName}. Error: {Message}",
+                    request.ApplicationId, request.SubmissionId, fileName, ex.Message);
                 if (approvedQr is not null && !ReferenceEquals(docxForRender, cleanDocxStream))
                     await docxForRender.DisposeAsync();
                 return DocumentFormErrors.PdfRenderFailed("Dịch vụ chuyển đổi chưa sẵn sàng. Vui lòng thử lại.");
@@ -165,6 +172,8 @@ public sealed class GeneratePdfDocumentCommandHandler
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Azure Blob upload failed for ApplicationId: {ApplicationId}, Path: {BlobPath}. Error: {Message}",
+                    request.ApplicationId, blobPath, ex.Message);
                 return DocumentFormErrors.BlobUploadFailed(ex.Message);
             }
 
