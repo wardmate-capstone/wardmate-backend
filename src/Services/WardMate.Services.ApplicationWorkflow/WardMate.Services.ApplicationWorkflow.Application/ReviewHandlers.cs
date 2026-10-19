@@ -10,6 +10,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
     IRequestHandler<RequestRevisionCommand, WorkflowResult<ReviewResultDto>>,
     IRequestHandler<ResubmitApplicationCommand, WorkflowResult<ReviewResultDto>>,
     IRequestHandler<GetOfficerPendingApplicationsPagedQuery, ApplicationPage>,
+    IRequestHandler<GetOfficerApplicationsPagedQuery, ApplicationPage>,
     IRequestHandler<GetApplicationCommentsQuery, WorkflowResult<CommentDto[]>>,
     IRequestHandler<GetApplicationVersionsQuery, WorkflowResult<VersionDto[]>>,
     IRequestHandler<CompareApplicationVersionsQuery, WorkflowResult<FieldDiffDto[]>>
@@ -95,6 +96,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
     }, ct);
 
     public Task<ApplicationPage> Handle(GetOfficerPendingApplicationsPagedQuery r, CancellationToken ct) => store.Pending(r.Actor, r.Input, ct);
+    public Task<ApplicationPage> Handle(GetOfficerApplicationsPagedQuery r, CancellationToken ct) => store.ListAll(r.Actor, r.Input, ct);
     public async Task<WorkflowResult<CommentDto[]>> Handle(GetApplicationCommentsQuery r, CancellationToken ct)
     {
         var a = await store.Read(r.Actor, r.Id, ct);
