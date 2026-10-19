@@ -3254,6 +3254,12 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
   - `400 Bad Request` (`qr.token_required`): Chưa truyền token hoặc applicationId.
   - `404 Not Found` (`qr.not_found`): Mã QR không khớp với bất kỳ hồ sơ nào trong hệ thống hoặc hồ sơ chưa từng được duyệt cấp mã QR.
 
+#### 3. Cơ chế tương thích ngược khi quét QR cũ (`GET /api/v1/applications/{id}`)
+- **Endpoint**: `GET /api/v1/applications/{id}`
+- **Mục đích**: Đối với các tài liệu PDF đã in/tải trước đây có nhúng mã QR chứa URL `/api/v1/applications/{id}`, khi người dân dùng camera điện thoại quét (không kèm Header `Authorization`), hệ thống tự động trả về `302 Found` Redirect chuyển hướng sang `GET /api/v1/public/qr-lookup?applicationId={id}` để hiển thị kết quả kiểm tra tính hợp lệ mà không báo lỗi 401/403.
+- **Ai dùng**: Bất kỳ người quét mã QR cũ nào.
+- **Khi có Bearer token**: API vẫn hoạt động bình thường, trả về chi tiết `ApplicationDto` cho chủ hồ sơ hoặc cán bộ thụ lý.
+
 ### Cấu hình và trình tự đối soát quy trình QR
 Trình tự: tạo hồ sơ/đơn -> chốt đơn -> COMPLETED checklist -> submit hồ sơ -> cán bộ assign
 -> xem/ghi chú -> tạo comment OPEN và request-revision nếu cần -> dân sửa/chốt/resubmit
