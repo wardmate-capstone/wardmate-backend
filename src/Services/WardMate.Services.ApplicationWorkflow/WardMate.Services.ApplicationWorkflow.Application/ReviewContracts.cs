@@ -19,11 +19,22 @@ public sealed record FieldDiffDto(string FieldKey, string FieldLabel, JsonNode? 
 public sealed record OfficerPendingInput(string? Status = null, Guid? ProcedureId = null,
     DateTimeOffset? SubmittedFrom = null, DateTimeOffset? SubmittedTo = null, int Page = 1, int PageSize = 20);
 
+// Dùng cho GET /api/v1/officer/applications — trả toàn bộ hồ sơ phường (kể cả đã duyệt/từ chối)
+public sealed record OfficerListInput(
+    string? Status = null,
+    Guid? ProcedureId = null,
+    string? ApplicationCode = null,
+    DateTimeOffset? SubmittedFrom = null,
+    DateTimeOffset? SubmittedTo = null,
+    int Page = 1,
+    int PageSize = 20);
+
 public sealed record AssignOfficerCommand(ReviewActor Actor, Guid Id) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record AddApplicationCommentCommand(ReviewActor Actor, Guid Id, AddCommentInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record RequestRevisionCommand(ReviewActor Actor, Guid Id, RequestRevisionInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record ResubmitApplicationCommand(Guid UserId, Guid Id, ResubmitInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record GetOfficerPendingApplicationsPagedQuery(ReviewActor Actor, OfficerPendingInput Input) : IRequest<ApplicationPage>;
+public sealed record GetOfficerApplicationsPagedQuery(ReviewActor Actor, OfficerListInput Input) : IRequest<ApplicationPage>;
 public sealed record GetApplicationCommentsQuery(ReviewActor Actor, Guid Id, int? VersionNumber = null, string? Status = null) : IRequest<WorkflowResult<CommentDto[]>>;
 public sealed record GetApplicationVersionsQuery(ReviewActor Actor, Guid Id) : IRequest<WorkflowResult<VersionDto[]>>;
 public sealed record CompareApplicationVersionsQuery(ReviewActor Actor, Guid Id, int FromVersionNumber, int ToVersionNumber) : IRequest<WorkflowResult<FieldDiffDto[]>>;
@@ -33,6 +44,7 @@ public interface IApplicationReviewStore
     Task<WorkflowResult<ReviewResultDto>> Mutate(Guid id, Func<ApplicationRecord, WorkflowResult<ReviewResultDto>> action, CancellationToken ct);
     Task<ApplicationRecord?> Read(ReviewActor actor, Guid id, CancellationToken ct);
     Task<ApplicationPage> Pending(ReviewActor actor, OfficerPendingInput input, CancellationToken ct);
+    Task<ApplicationPage> ListAll(ReviewActor actor, OfficerListInput input, CancellationToken ct);
 }
 
 public static class ApplicationSnapshots
