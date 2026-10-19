@@ -44,4 +44,17 @@ public sealed class ApprovedQr
 
     /// <summary>Thời điểm sinh mã QR (UTC).</summary>
     public DateTime GeneratedAt { get; private set; }
+
+    /// <summary>Cập nhật mã QR khi URL tra cứu hoặc nội dung thay đổi.</summary>
+    public void Update(string qrCodeValue, byte[] qrImagePng)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(qrCodeValue);
+        if (qrImagePng is null || qrImagePng.Length == 0)
+            throw new ArgumentException("Dữ liệu hình ảnh QR không được rỗng.", nameof(qrImagePng));
+
+        QrCodeValue = qrCodeValue;
+        QrImagePng = qrImagePng;
+        GeneratedAt = DateTime.UtcNow;
+    }
 }
+
