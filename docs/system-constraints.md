@@ -570,10 +570,14 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 - [Thẩm định/nộp lại hồ sơ](../src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewHandlers.cs).
 - [Kiểm tra bằng chứng file trước nộp](../src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/DocumentContentsClient.cs).
 - [Phạm vi tài liệu theo hồ sơ](../src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Security/ApplicationAccess.cs).
+- [Tra cứu QR công khai](../src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/QrLookupQuery.cs).
+- [Danh sách hồ sơ cán bộ](../src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewContracts.cs).
 - [Schema và dữ liệu biểu mẫu](../src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Services/FormSchemaEngine.cs).
 - [Thông báo của người nhận](../src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationService.cs).
 
 ## Nhật ký tài liệu
+
+- 19/10/2026 — OFFICER-QR-001: bổ sung endpoint danh sách tổng hợp hồ sơ phường `GET /api/v1/officer/applications` (ràng buộc: chỉ xem hồ sơ cùng `ward_code`, không xem hồ sơ do chính cán bộ nộp, hỗ trợ lọc nhiều trạng thái phân tách bằng dấu phẩy, phân trang tối đa 100). Thêm endpoint tra cứu QR công khai không cần auth `GET /api/v1/public/qr-lookup` hỗ trợ phân giải URL/GUID/token trả thông tin hợp lệ của tờ khai đã duyệt. Cấu hình Gotenberg URL trên Azure Container Apps yêu cầu HTTPS.
 
 - 15/10/2026 — QR-PDF-001 (TASK-22, TASK-23): thêm ràng buộc mã QR tra cứu hồ sơ đã phê duyệt
   (bảng `document.approved_qrs`, unique index `application_id`), đóng dấu QR OpenXML 3.5cm x 3.5cm
