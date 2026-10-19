@@ -14,15 +14,17 @@ public sealed class ApprovedQrService : IApprovedQrService
 
     public ApprovedQrService(IConfiguration configuration)
     {
-        // Fallback về Gateway Azure nếu chưa cấu hình
+        // Fallback về endpoint tra cứu công khai nếu chưa cấu hình
         _verificationBaseUrl = (configuration["QrCode:VerificationBaseUrl"]
-            ?? "https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/applications")
+            ?? "https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/public/qr-lookup?applicationId=")
             .TrimEnd('/');
     }
 
     public ApprovedQr Generate(Guid applicationId, Guid submissionId)
     {
-        var verificationUrl = $"{_verificationBaseUrl}/{applicationId}";
+        var verificationUrl = _verificationBaseUrl.Contains('?')
+            ? $"{_verificationBaseUrl}{applicationId}"
+            : $"{_verificationBaseUrl}/{applicationId}";
 
         using var generator = new QRCodeGenerator();
         using var data = generator.CreateQrCode(verificationUrl, QRCodeGenerator.ECCLevel.Q);
