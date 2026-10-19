@@ -32,9 +32,16 @@ public sealed class ApplicationsController(ISender sender, IDocumentContentsClie
 
     [HttpGet("{id:guid}")]
     [ProducesResponseType<ApplicationDto>(200)]
-    [Authorize(Policy = "workflow.read")]
-    public async Task<IActionResult> Get(Guid id, CancellationToken ct) =>
-        Respond(await sender.Send(new GetApplicationQuery(Actor, id), ct));
+    [AllowAnonymous]
+    public async Task<IActionResult> Get(Guid id, CancellationToken ct)
+    {
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            return Redirect($"/api/v1/public/qr-lookup?applicationId={id}");
+        }
+
+        return Respond(await sender.Send(new GetApplicationQuery(Actor, id), ct));
+    }
 
     [HttpPatch("{id:guid}/checklists/{checklistId:guid}"), RequestSizeLimit(128 * 1024)]
     [ProducesResponseType<ApplicationDto>(200)]
