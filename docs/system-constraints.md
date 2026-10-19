@@ -577,6 +577,8 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 
 ## Nhật ký tài liệu
 
+- 20/10/2026 — QR-BACKWARD-COMPAT-001: Bổ sung cơ chế tương thích ngược cho mã QR đã cấp trước đây: (1) Endpoint `GET /api/v1/applications/{id}` cho phép truy cập nặc danh (`[AllowAnonymous]`), nếu không có Bearer token sẽ tự động HTTP 302 Redirect về `GET /api/v1/public/qr-lookup?applicationId={id}`, đảm bảo người dân quét lại mã QR cũ trên PDF in trước đây vẫn xem được thông tin công khai hợp lệ mà không bị lỗi 401/403. (2) `GeneratePdfDocumentCommand` tự động cập nhật bản ghi `ApprovedQr` cũ sang URL tra cứu công khai mới và sinh lại hình ảnh QR khi xuất PDF mới.
+
 - 19/10/2026 — OFFICER-QR-001: bổ sung endpoint danh sách tổng hợp hồ sơ phường `GET /api/v1/officer/applications` (ràng buộc: chỉ xem hồ sơ cùng `ward_code`, không xem hồ sơ do chính cán bộ nộp, hỗ trợ lọc nhiều trạng thái phân tách bằng dấu phẩy, phân trang tối đa 100). Thêm endpoint tra cứu QR công khai không cần auth `GET /api/v1/public/qr-lookup` hỗ trợ phân giải URL/GUID/token trả thông tin hợp lệ của tờ khai đã duyệt. Cấu hình Gotenberg URL trên Azure Container Apps yêu cầu HTTPS.
 
 - 15/10/2026 — QR-PDF-001 (TASK-22, TASK-23): thêm ràng buộc mã QR tra cứu hồ sơ đã phê duyệt
