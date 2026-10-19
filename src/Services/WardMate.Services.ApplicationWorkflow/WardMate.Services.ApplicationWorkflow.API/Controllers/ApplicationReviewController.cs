@@ -1,3 +1,4 @@
+
 using System.Security.Claims;
 using FluentValidation;
 using MediatR;
@@ -40,6 +41,15 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
     [Authorize(Policy = "workflow.queue.read")]
     public async Task<IActionResult> Pending([FromQuery] OfficerPendingInput input, CancellationToken ct) =>
         Ok(await sender.Send(new GetOfficerPendingApplicationsPagedQuery(Actor, input), ct));
+
+    /// <summary>
+    /// Danh sách tổng hợp toàn bộ hồ sơ của phường (kể cả đã duyệt / từ chối / cần sửa).
+    /// Hỗ trợ lọc: status, procedureId, applicationCode, submittedFrom, submittedTo, page, pageSize.
+    /// </summary>
+    [HttpGet, ProducesResponseType<ApplicationPage>(200)]
+    [Authorize(Policy = "workflow.queue.read")]
+    public async Task<IActionResult> List([FromQuery] OfficerListInput input, CancellationToken ct) =>
+        Ok(await sender.Send(new GetOfficerApplicationsPagedQuery(Actor, input), ct));
 
     [HttpPost("{id:guid}/assign"), ProducesResponseType<ReviewResultDto>(200)]
     [Authorize(Policy = "workflow.assign")]
