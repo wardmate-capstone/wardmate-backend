@@ -12,5 +12,6 @@ public interface IIdentityStore
     Task<RefreshToken?> FindRefreshToken(string tokenHash, CancellationToken ct);
     void AddUser(User user);
     void AddRefreshToken(RefreshToken token);
+    Task<SaveOutcome> ChangePassword(Guid userId, string expectedHash, string newHash, DateTime now, CancellationToken ct);
     Task<SaveOutcome> SaveChanges(CancellationToken ct);
 }

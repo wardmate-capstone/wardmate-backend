@@ -21,6 +21,18 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
         => db.RefreshTokens.SingleOrDefaultAsync(x => x.Token == tokenHash, ct);
     public void AddUser(User user) => db.Users.Add(user);
     public void AddRefreshToken(RefreshToken token) => db.RefreshTokens.Add(token);
+    public async Task<SaveOutcome> ChangePassword(Guid userId, string expectedHash, string newHash, DateTime now, CancellationToken ct)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var current = await db.Users.FromSqlInterpolated($"SELECT * FROM users WHERE id = {userId} FOR UPDATE").AsNoTracking().SingleOrDefaultAsync(ct);
+        if (current is null || !current.IsActive || current.PasswordHash != expectedHash) return SaveOutcome.ConcurrentUpdate;
+        await db.Users.Where(x => x.Id == userId).ExecuteUpdateAsync(s => s.SetProperty(x => x.PasswordHash, newHash).SetProperty(x => x.UpdatedAt, now), ct);
+        await db.RefreshTokens.Where(x => x.UserId == userId && !x.IsRevoked).ExecuteUpdateAsync(s => s.SetProperty(x => x.IsRevoked, true), ct);
+        await tx.CommitAsync(ct);
+        db.ChangeTracker.Clear();
+        return SaveOutcome.Saved;
+    }
+
     public async Task<SaveOutcome> SaveChanges(CancellationToken ct)
     {
         // Managed profile writes already run inside the scope-check transaction.
@@ -35,7 +47,7 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
             {
                 var current = await db.Users.FromSqlInterpolated($"SELECT * FROM users WHERE id = {owner} FOR UPDATE")
                     .AsNoTracking().SingleOrDefaultAsync(ct);
-                if (current is null || !current.IsActive)
+                if (current is null || !current.IsActive || db.Users.Local.Any(x => x.Id == owner && x.PasswordHash != current.PasswordHash))
                 {
                     db.ChangeTracker.Clear();
                     return SaveOutcome.ConcurrentUpdate;
