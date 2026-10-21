@@ -40,6 +40,7 @@ public static class WorkflowInfrastructureRegistration
             ?? throw new InvalidOperationException("Cần cấu hình ConnectionStrings:WorkflowDatabase.");
         services.AddDbContext<WorkflowDbContext>(o => o.UseNpgsql(NormalizeConnectionString(rawConn)).UseSnakeCaseNamingConvention());
         services.AddScoped<IApplicationStore, ApplicationStore>();
+        services.AddScoped<IWorkflowAnalyticsSource, WorkflowAnalyticsSource>();
         services.AddScoped<IApplicationReviewStore, ApplicationReviewStore>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(config.GetSection("RabbitMq").Get<WardMate.EventBus.RabbitOptions>() ?? new());
