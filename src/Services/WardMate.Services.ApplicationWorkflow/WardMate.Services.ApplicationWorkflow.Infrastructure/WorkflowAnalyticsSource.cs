@@ -6,6 +6,20 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 
 public sealed class WorkflowAnalyticsSource(WorkflowDbContext db, TimeProvider clock) : IWorkflowAnalyticsSource
 {
+    public async Task<DeadlineFacts> ReadDeadlines(string ward, DateOnly from, DateOnly to, Guid? procedureId, CancellationToken ct)
+    {
+        var start = new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(7)).UtcDateTime;
+        var end = new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(7)).UtcDateTime;
+        var asOf = clock.GetUtcNow().UtcDateTime;
+        // Completed cohort uses readiness date; open backlog is a separate current snapshot, not a sum across days.
+        var rows = await db.Applications.AsNoTracking().Where(a => a.WardCode == ward && (procedureId == null || a.ProcedureId == procedureId)
+            && ((a.DocumentsReadyAt >= start && a.DocumentsReadyAt < end)
+                || (a.DocumentsReadyAt == null && (a.Status == "SUBMITTED" || a.Status == "UNDER_REVIEW" || a.Status == "NEED_REVISION"))))
+            .Select(a => new DeadlineFact(a.Id, a.Status, a.FirstSubmittedAtUtc, a.DueAtUtc, a.DocumentsReadyAt, a.DeadlineStatus, a.DeadlinePausedAtUtc))
+            .Take(100001).ToArrayAsync(ct);
+        if (rows.Length > 100000) throw new InvalidOperationException("analytics.daily_source_limit");
+        return new(1, asOf, rows);
+    }
     public async Task<AnalyticsDay> ReadDay(DateOnly date, CancellationToken ct)
     {
         var start = new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(7)).UtcDateTime;
