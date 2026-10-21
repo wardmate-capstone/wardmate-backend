@@ -23,7 +23,7 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         var items = await source.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
             .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId,
-                x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId)).ToArrayAsync(ct);
+                x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc)).ToArrayAsync(ct);
         return new(items, page, pageSize, count);
     }
     public async Task<WorkflowResult<ApplicationDto>> WithLock(Guid userId, Guid applicationId,
@@ -52,4 +52,5 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         return $"HS-{now.AddHours(7):yyyyMMdd}-{sequence:D8}";
     }
 }
+
 
