@@ -11,6 +11,9 @@ builder.Services.AddControllers().ConfigureApiBehaviorOptions(options => options
     new BadRequestObjectResult(new ValidationProblemDetails(context.ModelState.Where(x => x.Value?.Errors.Count > 0)
         .ToDictionary(x => x.Key, _ => new[] { "Trường dữ liệu bị thiếu hoặc không đúng định dạng." }))
     { Status = 400, Title = "Dữ liệu không hợp lệ.", Extensions = { ["code"] = "validation.failed" } }));
+var deadlinePolicy = builder.Configuration.GetSection("ReviewDeadline").Get<WardMate.Services.ApplicationWorkflow.Domain.ReviewDeadlinePolicy>() ?? new();
+if (deadlinePolicy.Enabled) deadlinePolicy.Validate();
+builder.Services.AddSingleton(deadlinePolicy);
 builder.Services.AddWorkflowApplication();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient<IDocumentContentsClient, DocumentContentsClient>(client => client.Timeout = TimeSpan.FromSeconds(10))
@@ -44,4 +47,5 @@ app.MapGet("/", () => Results.Ok(new { service = "WardMate.Services.ApplicationW
 app.Run();
 
 public partial class Program;
+
 
