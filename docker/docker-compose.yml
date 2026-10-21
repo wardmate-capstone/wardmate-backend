@@ -300,6 +300,13 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in docker/.env}
+      Jwt__Issuer: wardmate
+      Jwt__Audience: wardmate-client
+      Assistant__Enabled: ${AIOCR_ASSISTANT_ENABLED:-false}
+      ConnectionStrings__AiOcrDatabase: ${AIOCR_DATABASE_CONNECTION_STRING:-}
+      Database__AutoMigrate: ${AIOCR_AUTO_MIGRATE:-false}
+      Services__DocumentForm__BaseUrl: http://document-form:8080/
       Extraction__Enabled: ${PROCEDURE_EXTRACTION_ENABLED:-false}
       Extraction__UseAI: ${PROCEDURE_USE_AI:-false}
       Extraction__OcrFallbackEnabled: ${PROCEDURE_OCR_FALLBACK_ENABLED:-false}
