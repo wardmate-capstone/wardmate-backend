@@ -1,5 +1,37 @@
 # WardMate — Sổ tay ràng buộc hệ thống
 
+## Bổ sung TASK-31–33 — 21/10/2026 (Asia/Saigon)
+
+Các luật sau đã triển khai trong source local. Chưa xác nhận Azure. Luật cũ vẫn giữ nguyên;
+phần này chỉ áp dụng Analytics/Feedback và nguồn tổng hợp nội bộ Workflow.
+
+| ID | Điều kiện/phạm vi đã kiểm tra | Lỗi, khắc phục và nguồn |
+|---|---|---|
+| ANA-01 | Bearer JWT hợp lệ; mỗi API dashboard/job/feedback đọc lại IAM access-context, so UserId với sub. Role MANAGER và ward không rỗng mới đọc dashboard; role REGISTERED_CITIZEN mới gửi/xem feedback; IT_ADMIN mới chạy/xem job toàn hệ thống. Không dùng role/ward cũ trong JWT làm quyết định cuối. | 401 tài khoản/token sai, 403 role/ward thiếu, 503 IAM lỗi; đăng nhập lại/cấu hình IAM, không fail-open. `AnalyticsSystem.API/AnalyticsAccess.cs`, `NotificationSecurity.cs`. |
+| ANA-02 | Dashboard lọc ward từ IAM trước tổng hợp/phân trang. Không nhận ward scope từ client, nhóm thiếu ward không được Manager xem. Nhận xét không public, không trả CitizenId. | Người khác phường thấy dữ liệu phường của họ hoặc danh sách rỗng; không có chế độ xem toàn quốc ngầm. `AnalyticsService.cs`. |
+| ANA-03 | From/To gồm hai đầu, ngày UTC+7, From >= 2000-01-01, không tương lai, tối đa 366 ngày. Page 1–100000, PageSize 1–100; ProcedureId không GUID rỗng. | 400 ValidationProblemDetails hoặc `validation.date_range`/`validation.failed`; sửa query. `AnalyticsContracts.cs`, `AnalyticsController.cs`. |
+| ANA-04 | Đếm theo sự kiện lịch sử: nộp đầu DRAFT→SUBMITTED, nộp lại NEED_REVISION→SUBMITTED, xác nhận DOCUMENTS_READY. Approved/Rejected cũ tách riêng. Cán bộ là ChangedBy, không dùng assignedOfficer hiện tại. Thời gian từ lần nộp đầu đến xác nhận, gồm thời gian chờ/bổ sung. | Không dùng tổng các cột làm tổng hồ sơ duy nhất, không dùng elapsed làm giờ lao động. Nguồn thiếu lịch sử thì không có số liệu suy đoán. `WorkflowAnalyticsSource.cs`. |
+| ANA-05 | Workflow chưa có deadline chuẩn hóa: tỷ lệ đúng/trễ hạn null, `UNAVAILABLE_NO_WORKFLOW_DEADLINE`. | Giới hạn còn lại của TASK-32: phải có hợp đồng deadline/lịch làm việc/tạm dừng xử lý từ Workflow trước khi tính SLA thực. Không suy từ chuỗi mô tả thủ tục. `AnalyticsService.cs`, `AnalyticsContracts.cs`. |
+| ANA-06 | Nguồn nội bộ dùng key chuyên biệt >=32 byte, so hash constant-time, contract version=1; chỉ trả aggregate và ID cán bộ/thủ tục/ward. Tối đa 100000 history rows/ngày, transaction RepeatableRead. | 401 key sai/thiếu; 400 ngày sai; 503 quá giới hạn, cần chia nguồn. Không đọc chéo DB. `AnalyticsSourceController.cs`, `WorkflowAnalyticsSource.cs`, `AnalyticsWorkflowClient.cs`. |
+| ANA-07 | Hai bảng metric + watermark ngày được thay thế atomically, advisory lock PostgreSQL theo ngày lấy trước đọc nguồn; snapshot sai/nguồn lỗi rollback, giữ số liệu cũ. Job retry 3 lần. | Có thể hoàn thành một số ngày trước khi ngày khác lỗi; xem coverage + job status, rebuild lại khoảng an toàn. `AnalyticsAggregationJob.cs`. |
+| ANA-08 | JobsEnabled mặc định false. Khi bật phải có service key giống Workflow, LookbackDays 1–366, PostgreSQL storage schema analytics_jobs. Cron mặc định 01:15 UTC+7, nhìn lại 7 ngày; server phải luôn chạy. | 503 jobs_disabled; startup lỗi nếu cấu hình sai. Nhập/sửa lịch sử ngoài lookback cần IT_ADMIN rebuild. Không mở dashboard Hangfire. `AnalyticsRegistration.cs`, API/Program.cs, AnalyticsController.cs. |
+| ANA-09 | MissingDates không đồng nghĩa không có hồ sơ; ngày có watermark nhưng nguồn cũ vẫn có thể stale. API trả timestamp nguồn/cập nhật và coverage, đọc metric + watermark trong cùng DB snapshot. | FE đánh dấu chưa đầy đủ/đã cũ thay vì công bố 0 hồ sơ; đợi/chạy lại job. `AnalyticsService.cs`. |
+| FB-01 | CitizenId chỉ từ IAM/sub; POST kiểm tra Workflow bằng token của người gọi và so chủ hồ sơ, ID, procedure/ward. Chỉ DOCUMENTS_READY được đánh giá. Không coi APPROVED cũ là sẵn sàng tự động. | 404 không thuộc chủ/không có; 409 not_ready; 503 nguồn lỗi/thiếu thông tin. `AnalyticsService.cs`, `CitizenFeedbackController.cs`. |
+| FB-02 | Rating nguyên 1–5, comment <=2000 ký tự, trim, trắng thành null, body <=16KiB; mỗi ApplicationId một đánh giá (unique DB), DB check rating. Không có sửa/xóa. | 400 sai nội dung, 413 body lớn, 409 already_exists kể cả request đồng thời. GET lại bản ghi sau duplicate. FE escape comment khi render. `AnalyticsContracts.cs`, `AnalyticsDbContext.cs`, controller/service. |
+| FB-03 | GET chỉ đọc feedback có CitizenId hiện tại; không gọi Workflow lại. Manager xem theo ward snapshot tại lúc đánh giá. Điểm trung bình có trọng số; satisfaction = tỷ lệ sao 4–5; chưa có đánh giá trả average/rate null. | 404 feedback của người khác/chưa có. Luật hiện tại không di chuyển feedback khi hồ sơ chuyển ward sau này; nếu thêm chuyển ward cần hợp đồng đồng bộ. `AnalyticsService.cs`. |
+| FB-04 | Kiểm tra trạng thái qua HTTP và ghi feedback ở DB riêng không phải distributed transaction. | Có cửa sổ giữa đọc Workflow và lưu feedback; vòng đời hiện tại DOCUMENTS_READY kết thúc, nếu bổ sung reopen phải thêm version/eligibility contract. Không tuyên bố bảo đảm trạng thái xuyên hai DB tại cùng một thời điểm. |
+
+Nguồn Analytics viết tắt trong bảng nằm dưới
+`src/Services/WardMate.Services.AnalyticsSystem`; nguồn Workflow dưới
+`src/Services/WardMate.Services.ApplicationWorkflow`. Schema `analytics` gồm
+`daily_performance_metrics`, `application_procedure_metrics`, `citizen_feedback`, `metric_refreshes`.
+Khóa metric gồm date/ward/procedure và thêm officer cho hiệu suất. Không tạo FK sang database khác.
+Migration history riêng `analytics.__AnalyticsMigrationsHistory`, connection AnalyticsDatabase hoặc
+fallback NotificationsDatabase của cùng AnalyticsSystem. Giữ secrets trong env/secret store, không commit.
+
+Nhật ký 21/10/2026: thêm ANA-01..09 và FB-01..04; TASK-31 worker/metrics, TASK-32 dashboard có giới hạn
+SLA rõ ràng, TASK-33 feedback. Các rule không biến DOCUMENTS_READY thành phê duyệt hành chính.
+
 Cập nhật: 15/10/2026, Asia/Saigon (UTC+07:00).
 
 Tài liệu này tổng hợp các ràng buộc nghiệp vụ, dữ liệu, quyền truy cập và cấu hình
