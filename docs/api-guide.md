@@ -5,6 +5,133 @@
 
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
+## TASK-31–33 — Analytics và đánh giá công dân (21/10/2026)
+
+Phần này mô tả code local mới; không xác nhận đã deploy Azure. AnalyticsSystem vẫn chứa
+Notifications, bổ sung schema `analytics` với DbContext/migration riêng. Không truy vấn DB
+Workflow/IAM từ Analytics. Swagger: `/api/analytics-system/swagger/index.html` qua Gateway,
+hoặc `http://localhost:5006/swagger/index.html` khi chạy local bật Swagger.
+
+### Cách hiểu số liệu trước khi tích hợp FE
+
+- Số liệu **sự kiện theo ngày**, múi giờ `Asia/Ho_Chi_Minh` (UTC+7). Khoảng ngày gồm cả From/To.
+  Không phải snapshot số hồ sơ đang nằm trong từng trạng thái. Không cộng Received + Ready
+  để suy ra số hồ sơ duy nhất: một hồ sơ có thể được tiếp nhận và xác nhận trong cùng ngày.
+- `receivedCount`: hồ sơ chuyển DRAFT → SUBMITTED lần đầu trong ngày;
+  `resubmittedCount`: số lượt NEED_REVISION → SUBMITTED;
+  `revisionRequestedCount`: số lượt yêu cầu bổ sung; `readyCount`: hồ sơ đạt DOCUMENTS_READY.
+  `cancelledCount`: hồ sơ hủy. `legacyApprovedCount`/`legacyRejectedCount` chỉ phản ánh lịch sử cũ,
+  không cộng vào Ready và không khôi phục API phê duyệt cũ.
+- Cán bộ được ghi nhận bằng người thực hiện sự kiện (`ChangedBy`), không phải người đang được giao
+  hồ sơ tại thời điểm chạy job. `averageElapsedMinutes` tính từ lần nộp đầu đến DOCUMENTS_READY,
+  bao gồm thời gian công dân bổ sung và chờ; **không phải số phút cán bộ trực tiếp làm việc**.
+  Bình quân có trọng số theo `durationSampleCount`, thiếu mẫu trả null.
+- Workflow chưa có deadline chuẩn hóa: `onTimeRate` và `lateRate` trả null,
+  `timelinessStatus=UNAVAILABLE_NO_WORKFLOW_DEADLINE`. FE hiển thị “Chưa có dữ liệu hạn xử lý”,
+  không hiển thị 0%/100%. Không suy deadline từ ProcessingTimeSummary hoặc ApprovedAt cũ.
+- `coverage.missingDates` cho biết ngày chưa từng tổng hợp thành công; biểu đồ có điểm 0 cho ngày
+  đó nhưng FE phải đánh dấu thiếu dữ liệu. `oldestSourceAtUtc`/`latestRefreshAtUtc` cho biết độ mới.
+  Nếu job lỗi, số liệu cũ được giữ lại. Ngày hiện tại có thể chưa đầy đủ đến cuối ngày.
+- ID cán bộ/thủ tục là ID liên service. FE lấy tên qua API mà người dùng có quyền; backend không
+  đọc chéo database để lấy tên. Dữ liệu lịch sử thiếu ward được lưu nhóm rỗng và không lộ cho Manager.
+
+### Quyền và bộ lọc chung
+
+Dashboard dùng Bearer JWT IAM và role **MANAGER**, chỉ xem phường hiện tại lấy từ IAM
+`access-context` mỗi request. `PROCEDURE_MANAGER` không thay thế MANAGER. Không có tham số ward
+để tự mở rộng quyền, không tin ward/role cũ trong token. IT_ADMIN chỉ có quyền job bên dưới,
+không tự được đọc dashboard hoặc nhận xét của người dân.
+
+Các API GET dashboard nhận `from=2026-10-01&to=2026-10-21`, tùy chọn `procedureId`.
+Ngày bắt buộc, tối đa 366 ngày, From >= 2000-01-01, To không vượt hôm nay UTC+7.
+Các danh sách có `page` (1–100000), `pageSize` (1–100, mặc định 20).
+Ví dụ: `GET /api/v1/analytics/overview?from=2026-10-01&to=2026-10-21`.
+
+Lỗi chung: 400 ngày/GUID/phân trang sai; 401 thiếu/hết hạn token hoặc tài khoản không khả dụng;
+403 thiếu role/phường; 503 IAM không truy cập được. Sửa query, đăng nhập lại hoặc thử lại sau,
+không bỏ kiểm tra quyền khi IAM lỗi. Lỗi nghiệp vụ trả ProblemDetails có `code`, `traceId`;
+lỗi model binding trả ValidationProblemDetails, có thể không có `code`. Challenge JWT 401 có thể
+không có JSON body, FE không được giả định mọi lỗi đều có body.
+
+| Method / route | Ai gọi, lúc nào và FE dùng thế nào | Kết quả thành công / cách khắc phục sai dùng |
+|---|---|---|
+| GET `/api/v1/analytics/overview` | Manager mở các thẻ thống kê | 200 `{totals,coverage,onTimeRate,lateRate,timelinessStatus}`; kiểm tra coverage trước khi ghi “không có hồ sơ” |
+| GET `/api/v1/analytics/trends` | Manager mở biểu đồ theo ngày | 200 `{items:[{date,totals}],coverage}`; khoảng ngày không phải UTC, tránh tự dịch thêm 7 giờ |
+| GET `/api/v1/analytics/procedures` | Manager xem bảng theo thủ tục | 200 `{items:[{procedureId,totals}],page,pageSize,totalCount,coverage}`; sort Received giảm rồi ID để phân trang ổn định |
+| GET `/api/v1/analytics/officers` | Manager xem bảng hiệu suất cán bộ | 200 `{items:[{officerId,readyCount,revisionRequestedCount,durationSampleCount,averageElapsedMinutes}],page,pageSize,totalCount,coverage}`; không gọi thời gian này là thời gian lao động trực tiếp |
+| GET `/api/v1/analytics/feedback/summary` | Manager mở biểu đồ hài lòng | 200 `{totalCount,averageRating,satisfactionRate,ratingCounts}`; số sao 1–5 luôn đủ nhóm; không có đánh giá thì average/rate null |
+| GET `/api/v1/analytics/feedback` | Manager đọc nhận xét thuộc phường | 200 danh sách phân trang FeedbackDto, sắp ngày mới nhất rồi ID; không trả citizenId, không có API công khai toàn bộ nhận xét |
+
+Điểm trung bình = tổng sao / số lượt. `satisfactionRate` = 100 × số đánh giá 4–5 sao / số lượt,
+khác với averageRating/5. Bộ lọc ngày feedback dùng **ngày gửi đánh giá**, không phải ngày nộp hồ sơ.
+
+### Công dân gửi và xem đánh giá
+
+Role **REGISTERED_CITIZEN**, danh tính lấy từ token đã xác minh và IAM hiện tại; không nhận applicantId
+hoặc citizenId từ body.
+
+1. `POST /api/v1/citizen/feedback/{applicationId}` — người dân bấm “Gửi đánh giá” sau khi hồ sơ
+   đạt DOCUMENTS_READY. JSON: `{"rating":5,"comment":"Hướng dẫn rõ ràng"}`.
+   Rating là số nguyên 1–5; comment tùy chọn tối đa 2000 ký tự, trim, chuỗi trắng lưu null.
+   Backend gọi Workflow bằng token người dùng và kiểm tra chủ hồ sơ, trạng thái, procedure/ward.
+   Thành công 201 + Location, body `{id,applicationId,rating,comment,createdAtUtc}`.
+   400 sai sao/comment/GUID; 404 hồ sơ không thuộc bạn/không tồn tại; 409 `feedback.not_ready`
+   nếu chưa DOCUMENTS_READY; 409 `feedback.already_exists` nếu đã gửi (kể cả gửi đồng thời).
+   503 nguồn Workflow lỗi/thiếu ward hợp lệ. Chưa gửi lại khi 409 trùng; gọi GET bên dưới.
+2. `GET /api/v1/citizen/feedback/{applicationId}` — khi mở lại màn hình hồ sơ, lấy đánh giá của
+   chính người đăng nhập. 200 FeedbackDto; 404 nếu chưa có hoặc thuộc người khác. GET đọc bản ghi
+   của chủ sở hữu đã lưu, không cần gọi Workflow lại; vẫn xác minh IAM mỗi request.
+
+Mỗi hồ sơ chỉ một đánh giá, hiện không có sửa/xóa. Đây là đánh giá trải nghiệm chuẩn bị giấy tờ,
+không phải đánh giá kết quả giải quyết hành chính chính thức tại phường. FE hiển thị comment dạng
+text đã escape, không render HTML từ người dùng. Nếu gặp 503 sau POST, có thể GET trước để biết
+đánh giá đã lưu hay chưa thay vì tự gửi nhiều lần.
+
+### Job tổng hợp và hợp đồng nội bộ
+
+- `POST /api/v1/analytics/jobs/rebuild` — **IT_ADMIN** dùng khi backfill hoặc tính lại dữ liệu lịch sử.
+  JSON `{"from":"2026-10-01","to":"2026-10-21"}`. 202 `{jobId}` chỉ nghĩa đã xếp hàng, chưa hoàn tất.
+  400 khoảng ngày sai; 403 không phải IT_ADMIN; 503 `analytics.jobs_disabled` nếu job chưa bật.
+- `GET /api/v1/analytics/jobs/{jobId}` — IT_ADMIN theo dõi job vừa tạo. 200 `{jobId,state,createdAtUtc}`.
+  `Succeeded` mới là kết thúc thành công; `Scheduled` có thể đang chờ retry; `Failed` cần xem log vận hành
+  rồi sửa kết nối/nguồn và chạy lại. 400 ID không hợp lệ; 404 job không tồn tại hoặc không phải job Analytics;
+  503 nếu job tắt. Không trả tham số, stack trace hay secrets của Hangfire. Không mở Hangfire Dashboard công khai.
+- `GET /internal/analytics/v1/daily?date=yyyy-MM-dd` — chỉ worker Analytics gọi trực tiếp Workflow,
+  header `X-Analytics-Key` khớp `Analytics:ServiceKey` ít nhất 32 byte. Không dùng token công dân,
+  không xuất Swagger công khai. 200 snapshot contractVersion=1 gồm các nhóm procedure/officer;
+  không chứa formData, tên công dân, comment hay file. 401 key sai/chưa cấu hình, 400 ngày sai,
+  503 nếu ngày vượt 100000 bản ghi lịch sử cần chia nhỏ nguồn. Không retry bằng cách bỏ key.
+
+Job mặc định cron `15 1 * * *` (01:15 UTC+7), tính lại 7 ngày gần nhất kể cả hôm nay;
+Hangfire retry tối đa 3 lần. Mỗi ngày thay thế hai bảng metric và watermark trong **một transaction**,
+khóa advisory PostgreSQL ngăn hai worker ghi đè kết quả cũ. Có ngày thành công trước khi một ngày khác
+lỗi: xem coverage; chạy lại cả khoảng an toàn. Dữ liệu được nhập/sửa lùi ngày ngoài lookback cần rebuild.
+Không có cross-service FK, không coi job chạy là xác nhận dữ liệu đầy đủ nếu nguồn thiếu lịch sử.
+
+### Cấu hình, migration và kiểm tra local
+
+1. Analytics dùng `ConnectionStrings:AnalyticsDatabase`, hoặc fallback `NotificationsDatabase` của cùng
+   service. Không dùng connection string của Workflow/IAM. Migration mới
+   `20261021031538_AnalyticsMetricsAndCitizenFeedback` tạo schema analytics, ba bảng nghiệp vụ và
+   `metric_refreshes`; lịch sử riêng `analytics.__AnalyticsMigrationsHistory`.
+2. Apply EF với `--context AnalyticsDbContext`, Infrastructure project và API startup project;
+   có thể dùng `Database:AutoMigrate=true` ở local. Schema Hangfire `analytics_jobs` được storage tạo
+   khi bật job. Tài khoản DB cần quyền tạo schema/bảng lúc khởi tạo. Không tự apply Azure trong task này.
+3. Cấu hình secret `ANALYTICS_SERVICE_KEY` giống nhau ở Workflow/Analytics, `ANALYTICS_JOBS_ENABLED=true`,
+   `ANALYTICS_LOOKBACK_DAYS=7`, `ANALYTICS_CRON="15 1 * * *"`, JWT chung IAM và mật khẩu Notifications DB.
+   `Workflow:BaseUrl` phải trỏ Workflow thật. Docker Compose hỗ trợ profile `analytics` dùng DB của
+   AnalyticsSystem hiện có; không khởi chạy lại service khác ngoài nhu cầu tích hợp.
+4. Process Hangfire phải chạy liên tục để thực hiện cron; môi trường scale-to-zero không bảo đảm lịch.
+   Xem [tài liệu Hangfire](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html).
+5. Local: build Release toàn solution, chạy `python scripts/verify-analytics-local.py` với Docker khả dụng.
+   Script mới của TASK-31–33 dùng DB/container/cổng tạm, dữ liệu giả và IAM mô phỏng; không khôi phục
+   các test project cũ. Workflow, Analytics, PostgreSQL, Hangfire và Gateway đều chạy thật.
+   Kiểm tra thêm trên IAM thật trước bàn giao production; test mô phỏng không thay thế bước này.
+
+FE kiểm tra theo thứ tự: IT_ADMIN chạy rebuild → đợi job Succeeded → Manager mở overview/trends/bảng
+→ công dân gửi đánh giá hồ sơ của mình → Manager xem điểm và nhận xét. Thử thêm khác phường, sai chủ,
+role bị thu hồi, rating 0/6, gửi trùng, IAM/Workflow mất kết nối và ngày chưa tổng hợp.
+
 Tra cứu các điều kiện dữ liệu, quyền, trạng thái và giới hạn file tại
 [Sổ tay ràng buộc hệ thống](system-constraints.md). Cập nhật hai tài liệu cùng nhau
 khi thay đổi hành vi API hoặc quy tắc nghiệp vụ.
