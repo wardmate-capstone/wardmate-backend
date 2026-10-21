@@ -34,10 +34,11 @@ public sealed class RefreshTokenCookie(IOptions<RefreshCookieOptions> options, I
     }
 }
 
-// Public transport DTO deliberately excludes the refresh-token secret.
+// Refresh token is serialized only for the explicit mobile transport.
 public sealed record BrowserAuthResponse(string AccessToken, DateTime AccessTokenExpiresAt,
-    DateTime RefreshTokenExpiresAt, string TokenType)
+    DateTime RefreshTokenExpiresAt, string TokenType,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RefreshToken = null)
 {
-    public static BrowserAuthResponse From(AuthResponseDto tokens) =>
-        new(tokens.AccessToken, tokens.AccessTokenExpiresAt, tokens.RefreshTokenExpiresAt, tokens.TokenType);
+    public static BrowserAuthResponse From(AuthResponseDto tokens, bool mobile = false) =>
+        new(tokens.AccessToken, tokens.AccessTokenExpiresAt, tokens.RefreshTokenExpiresAt, tokens.TokenType, mobile ? tokens.RefreshToken : null);
 }

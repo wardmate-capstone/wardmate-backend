@@ -17,6 +17,13 @@ public sealed class BrowserAuthProtectionAttribute : Attribute, IAsyncResourceFi
         context.HttpContext.Response.Headers.Pragma = "no-cache";
         var request = context.HttpContext.Request;
         var origin = request.Headers.Origin.ToString();
+        // Native clients have no ambient browser cookies in this flow. A browser still passes the normal CSRF/origin checks.
+        if (string.Equals(request.Headers["X-Client-Type"].ToString(), "Mobile", StringComparison.OrdinalIgnoreCase)
+            && origin.Length == 0 && !request.Headers.ContainsKey("Sec-Fetch-Site"))
+        {
+            await next();
+            return;
+        }
         var policy = await context.HttpContext.RequestServices.GetRequiredService<ICorsPolicyProvider>()
             .GetPolicyAsync(context.HttpContext, BrowserCorsExtensions.PolicyName);
         var sameOrigin = string.Equals(origin, $"{request.Scheme}://{request.Host}", StringComparison.OrdinalIgnoreCase);

@@ -14,6 +14,8 @@ namespace WardMate.Services.IAM.API.Controllers;
 [BrowserAuthProtection]
 public sealed class AuthController(ISender sender, RefreshTokenCookie cookie) : ControllerBase
 {
+    private bool IsMobile => string.Equals(Request.Headers["X-Client-Type"].ToString(), "Mobile", StringComparison.OrdinalIgnoreCase);
+
     [HttpPost("register"), AllowAnonymous]
     [ProducesResponseType<CurrentUserDto>(201)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
@@ -26,26 +28,30 @@ public sealed class AuthController(ISender sender, RefreshTokenCookie cookie) : 
 
     [HttpPost("login"), AllowAnonymous]
     [ProducesResponseType<BrowserAuthResponse>(200)]
+    [RequestSizeLimit(4096)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
     [ProducesResponseType<ProblemDetails>(401)]
     public async Task<IActionResult> Login(LoginCommand request, CancellationToken ct)
     {
         var result = await sender.Send(request, ct);
         if (!result.IsSuccess) return result.ToProblem(HttpContext);
+        if (IsMobile) return Ok(BrowserAuthResponse.From(result.Value!, mobile: true));
         cookie.Write(HttpContext, result.Value!);
         return Ok(BrowserAuthResponse.From(result.Value!));
     }
 
     [HttpPost("refresh-token"), AllowAnonymous]
     [ProducesResponseType<BrowserAuthResponse>(200)]
+    [RequestSizeLimit(4096)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
     [ProducesResponseType<ProblemDetails>(401)]
-    public async Task<IActionResult> Refresh(CancellationToken ct)
+    public async Task<IActionResult> Refresh([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] RefreshTokenCommand? input, CancellationToken ct)
     {
-        var refresh = cookie.Read(HttpContext);
+        var refresh = IsMobile ? input?.RefreshToken : cookie.Read(HttpContext);
         if (string.IsNullOrWhiteSpace(refresh)) return Result<AuthResponseDto>.Failure(AuthErrors.InvalidToken).ToProblem(HttpContext);
         var result = await sender.Send(new RefreshTokenCommand(refresh), ct);
         if (!result.IsSuccess) return result.ToProblem(HttpContext);
+        if (IsMobile) return Ok(BrowserAuthResponse.From(result.Value!, mobile: true));
         cookie.Write(HttpContext, result.Value!);
         return Ok(BrowserAuthResponse.From(result.Value!));
     }
@@ -54,18 +60,18 @@ public sealed class AuthController(ISender sender, RefreshTokenCookie cookie) : 
     [ProducesResponseType(204)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
     [ProducesResponseType<ProblemDetails>(401)]
-    public async Task<IActionResult> Revoke(CancellationToken ct)
+    public async Task<IActionResult> Revoke([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] RefreshTokenCommand? input, CancellationToken ct)
     {
-        var refresh = cookie.Read(HttpContext);
+        var refresh = IsMobile ? input?.RefreshToken : cookie.Read(HttpContext);
         if (string.IsNullOrWhiteSpace(refresh))
         {
-            cookie.Delete(HttpContext);
+            if (!IsMobile) cookie.Delete(HttpContext);
             return NoContent();
         }
         var userId = Guid.Parse(User.FindFirstValue("sub")!);
         var result = await sender.Send(new RevokeTokenCommand(userId, refresh), ct);
         if (!result.IsSuccess) return result.ToProblem(HttpContext);
-        cookie.Delete(HttpContext);
+        if (!IsMobile) cookie.Delete(HttpContext);
         return NoContent();
     }
 }
