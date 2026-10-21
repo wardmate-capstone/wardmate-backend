@@ -13,7 +13,7 @@ public sealed class WorkflowNotificationConsumer(IServiceScopeFactory scopes, Ra
     public static bool Valid(WorkflowEvent? e) => e is { Version: 1 } && e.EventId != Guid.Empty && e.ApplicationId != Guid.Empty &&
         e.ApplicantId != Guid.Empty && e.AssignedOfficerId != Guid.Empty && e.OccurredAt != default && e.OccurredAt.Kind == DateTimeKind.Utc && !string.IsNullOrWhiteSpace(e.WardCode) && e.WardCode.Length <= 50 &&
         !string.IsNullOrWhiteSpace(e.ApplicationCode) && e.ApplicationCode.Length <= 50 && e.Kind is "STATUS" or "COMMENT" &&
-        e.Status is "SUBMITTED" or "UNDER_REVIEW" or "NEED_REVISION" or "DOCUMENTS_READY" or "APPROVED" or "REJECTED" or "CANCELLED";
+        e.Status is "SUBMITTED" or "UNDER_REVIEW" or "NEED_REVISION" or "OFFICIALLY_RECEIVED" or "DOCUMENTS_READY" or "APPROVED" or "REJECTED" or "CANCELLED";
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {

@@ -18,6 +18,8 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
         Title = officer ? e.Status == "UNDER_REVIEW" ? "Hồ sơ được phân công" : "Có hồ sơ cần tiếp nhận" : e.Kind == "COMMENT" ? "Hồ sơ có nhận xét mới" : e.Status switch
         {
             "SUBMITTED" => "Hồ sơ đã được nộp", "UNDER_REVIEW" => "Giấy tờ đang được kiểm tra", "NEED_REVISION" => "Hồ sơ yêu cầu bổ sung",
+            "OFFICIALLY_RECEIVED" => "Hồ sơ đã được tiếp nhận tại quầy",
+            "CANCELLED" => "Hồ sơ đã được hủy",
             "DOCUMENTS_READY" => "Giấy tờ đã sẵn sàng để mang đến phường",
             "APPROVED" or "REJECTED" => "Cập nhật hồ sơ từ luồng cũ", _ => "Trạng thái hồ sơ đã thay đổi"
         },
