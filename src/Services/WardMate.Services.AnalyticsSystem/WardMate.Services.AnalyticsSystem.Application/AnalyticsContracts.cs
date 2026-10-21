@@ -11,6 +11,7 @@ public sealed record AnalyticsDay(int ContractVersion, DateOnly Date, DateTime G
 public sealed record FeedbackApplication(Guid Id, Guid UserId, Guid ProcedureId, string Status, string? WardCode);
 public interface IAnalyticsWorkflowClient
 {
+    Task<DeadlineFacts> ReadDeadlines(string ward, AnalyticsQuery query, CancellationToken ct);
     Task<AnalyticsDay> ReadDay(DateOnly date, CancellationToken ct);
     Task<FeedbackApplication> ReadOwned(Guid id, string bearerToken, CancellationToken ct);
 }
@@ -32,7 +33,7 @@ public sealed record MetricTotals(long ReceivedCount, long ReadyCount, long Revi
 public sealed record Coverage(DateOnly From, DateOnly To, DateOnly[] MissingDates, DateTime? OldestSourceAtUtc,
     DateTime? LatestRefreshAtUtc, string TimeZone = "Asia/Ho_Chi_Minh");
 public sealed record DashboardOverview(MetricTotals Totals, Coverage Coverage, double? OnTimeRate,
-    double? LateRate, string TimelinessStatus = "UNAVAILABLE_NO_WORKFLOW_DEADLINE");
+    double? LateRate, string TimelinessStatus = "UNAVAILABLE_NO_WORKFLOW_DEADLINE", DeadlineStatistics? Deadlines = null);
 public sealed record TrendPoint(DateOnly Date, MetricTotals Totals);
 public sealed record TrendResult(TrendPoint[] Items, Coverage Coverage);
 public sealed record ProcedureStatistics(Guid ProcedureId, MetricTotals Totals);

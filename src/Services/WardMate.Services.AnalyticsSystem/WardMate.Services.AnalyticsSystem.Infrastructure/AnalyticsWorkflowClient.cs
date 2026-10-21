@@ -9,6 +9,13 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure;
 
 public sealed class AnalyticsWorkflowClient(HttpClient http, IConfiguration config) : IAnalyticsWorkflowClient
 {
+    public async Task<DeadlineFacts> ReadDeadlines(string ward, AnalyticsQuery query, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"internal/analytics/v1/deadlines?ward={Uri.EscapeDataString(ward)}&from={query.From:yyyy-MM-dd}&to={query.To:yyyy-MM-dd}"
+            + (query.ProcedureId is Guid id ? $"&procedureId={id}" : ""));
+        request.Headers.Add("X-Analytics-Key", config["Analytics:ServiceKey"]);
+        return await Send<DeadlineFacts>(request, ct);
+    }
     public async Task<AnalyticsDay> ReadDay(DateOnly date, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"internal/analytics/v1/daily?date={date:yyyy-MM-dd}");
