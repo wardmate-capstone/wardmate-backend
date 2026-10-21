@@ -28,6 +28,15 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         var a = b.Entity<ApplicationRecord>();
         a.ToTable("applications", t => t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','DOCUMENTS_READY','OFFICIALLY_RECEIVED','APPROVED','CANCELLED','REJECTED')"));
         a.HasKey(x => x.Id);
+        a.Property(x => x.DeadlineStatus).HasMaxLength(20).HasDefaultValue("UNKNOWN");
+        a.Property(x => x.DeadlinePolicyCode).HasMaxLength(100);
+        a.Property(x => x.DeadlinePolicyVersion).HasMaxLength(100);
+        a.Property(x => x.DeadlineCalendarCode).HasMaxLength(100);
+        a.Property(x => x.DeadlineCalendarVersion).HasMaxLength(100);
+        a.Property(x => x.DeadlinePolicySnapshot).HasColumnType("jsonb");
+        a.Property(x => x.DeadlineHistory).HasColumnType("jsonb").HasDefaultValue("[]");
+        a.HasIndex(x => new { x.WardCode, x.DeadlineStatus, x.DueAtUtc });
+        a.ToTable(t => t.HasCheckConstraint("ck_applications_deadline", "(deadline_status = 'KNOWN' AND due_at_utc IS NOT NULL AND first_submitted_at_utc IS NOT NULL AND deadline_policy_snapshot IS NOT NULL AND deadline_policy_code IS NOT NULL AND deadline_policy_version IS NOT NULL AND deadline_calendar_code IS NOT NULL AND deadline_calendar_version IS NOT NULL) OR (deadline_status IN ('UNKNOWN','NOT_APPLICABLE') AND due_at_utc IS NULL AND deadline_paused_at_utc IS NULL)"));
         a.Property(x => x.ReceiptNumber).HasMaxLength(64);
         a.HasIndex(x => x.ReceiptNumber).IsUnique();
         a.Property(x => x.WardCode).HasMaxLength(50);

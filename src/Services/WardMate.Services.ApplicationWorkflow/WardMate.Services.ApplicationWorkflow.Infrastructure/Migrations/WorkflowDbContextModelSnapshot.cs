@@ -228,9 +228,60 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("DeadlineCalendarCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("deadline_calendar_code");
+
+                    b.Property<string>("DeadlineCalendarVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("deadline_calendar_version");
+
+                    b.Property<string>("DeadlineHistory")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValue("[]")
+                        .HasColumnName("deadline_history");
+
+                    b.Property<DateTime?>("DeadlinePausedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deadline_paused_at_utc");
+
+                    b.Property<string>("DeadlinePolicyCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("deadline_policy_code");
+
+                    b.Property<string>("DeadlinePolicySnapshot")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("deadline_policy_snapshot");
+
+                    b.Property<string>("DeadlinePolicyVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("deadline_policy_version");
+
+                    b.Property<string>("DeadlineStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("UNKNOWN")
+                        .HasColumnName("deadline_status");
+
                     b.Property<DateTime?>("DocumentsReadyAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("documents_ready_at");
+
+                    b.Property<DateTime?>("DueAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_at_utc");
+
+                    b.Property<DateTime?>("FirstSubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_submitted_at_utc");
 
                     b.Property<string>("FormData")
                         .IsRequired()
@@ -311,11 +362,16 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                     b.HasIndex("Status", "SubmittedAt", "Id")
                         .HasDatabaseName("ix_applications_status_submitted_at_id");
 
+                    b.HasIndex("WardCode", "DeadlineStatus", "DueAtUtc")
+                        .HasDatabaseName("ix_applications_ward_code_deadline_status_due_at_utc");
+
                     b.HasIndex("WardCode", "Status", "SubmittedAt")
                         .HasDatabaseName("ix_applications_ward_code_status_submitted_at");
 
                     b.ToTable("applications", null, t =>
                         {
+                            t.HasCheckConstraint("ck_applications_deadline", "(deadline_status = 'KNOWN' AND due_at_utc IS NOT NULL AND first_submitted_at_utc IS NOT NULL AND deadline_policy_snapshot IS NOT NULL AND deadline_policy_code IS NOT NULL AND deadline_policy_version IS NOT NULL AND deadline_calendar_code IS NOT NULL AND deadline_calendar_version IS NOT NULL) OR (deadline_status IN ('UNKNOWN','NOT_APPLICABLE') AND due_at_utc IS NULL AND deadline_paused_at_utc IS NULL)");
+
                             t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','DOCUMENTS_READY','OFFICIALLY_RECEIVED','APPROVED','CANCELLED','REJECTED')");
                         });
                 });
