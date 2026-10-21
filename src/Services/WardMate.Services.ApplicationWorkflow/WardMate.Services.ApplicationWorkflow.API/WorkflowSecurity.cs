@@ -56,7 +56,7 @@ public static class WorkflowSecurity
         {
             options.AddPolicy("workflow.queue.read", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.queue.read")
                 .RequireRole("FRONT_DESK_OFFICER", "MANAGER"));
-            foreach (var permission in new[] { "workflow.assign", "workflow.comments.write", "workflow.revision.request", "workflow.readiness.confirm" })
+            foreach (var permission in new[] { "workflow.receipt.confirm", "workflow.assign", "workflow.comments.write", "workflow.revision.request", "workflow.readiness.confirm" })
                 options.AddPolicy(permission, p => p.RequireAuthenticatedUser().RequireClaim("permissions", permission)
                     .RequireRole("FRONT_DESK_OFFICER").RequireAssertion(c => !c.User.IsInRole("MANAGER")));
         });

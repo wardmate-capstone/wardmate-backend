@@ -34,7 +34,7 @@ public static class WorkflowOutboxCapture
     private static void Add(WorkflowDbContext db, ApplicationRecord a, Guid id, string kind, string status, DateTime now)
     {
         if (string.IsNullOrWhiteSpace(a.WardCode) || db.Outbox.Local.Any(x => x.Id == id)) return;
-        var message = new WorkflowEvent(id, 1, a.Id, a.UserId, a.AssignedOfficerId, a.WardCode, a.ApplicationCode, kind, status, now);
+        var message = new WorkflowEvent(id, 1, a.Id, a.UserId, a.AssignedOfficerId, a.WardCode, string.IsNullOrWhiteSpace(a.ApplicationCode) ? a.Id.ToString("N") : a.ApplicationCode, kind, status, now);
         db.Outbox.Add(new() { Id = id, Payload = JsonSerializer.Serialize(message), CreatedAt = now, NextAttemptAt = now });
     }
 }

@@ -51,6 +51,16 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
     public async Task<IActionResult> List([FromQuery] OfficerListInput input, CancellationToken ct) =>
         Ok(await sender.Send(new GetOfficerApplicationsPagedQuery(Actor, input), ct));
 
+    [HttpPost("{id:guid}/officially-received"), Authorize(Policy = "workflow.receipt.confirm"), RequestSizeLimit(16384)]
+    [ProducesResponseType<OfficialReceiptDto>(200)]
+    public async Task<IActionResult> Receive(Guid id, OfficialReceiptInput input, CancellationToken ct)
+    {
+        var result = await sender.Send(new ReceiveApplicationCommand(Actor, id, input), ct);
+        if (result.Error is not null) return Respond(result);
+        var a = result.Value!.Application;
+        return Ok(new OfficialReceiptDto(a.Id, a.Status, a.ReceiptNumber, a.ReceivedAt, a.AppointmentDate));
+    }
+
     [HttpPost("{id:guid}/assign"), ProducesResponseType<ReviewResultDto>(200)]
     [Authorize(Policy = "workflow.assign")]
     public async Task<IActionResult> Assign(Guid id, CancellationToken ct) => Respond(await sender.Send(new AssignOfficerCommand(Actor, id), ct));

@@ -207,13 +207,13 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("application_code");
 
+                    b.Property<DateTime?>("AppointmentDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("appointment_date");
+
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("approved_at");
-
-                    b.Property<DateTime?>("DocumentsReadyAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("documents_ready_at");
 
                     b.Property<Guid?>("AssignedOfficerId")
                         .HasColumnType("uuid")
@@ -227,6 +227,10 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DocumentsReadyAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("documents_ready_at");
 
                     b.Property<string>("FormData")
                         .IsRequired()
@@ -246,6 +250,15 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("procedure_title");
+
+                    b.Property<string>("ReceiptNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("receipt_number");
+
+                    b.Property<DateTime?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
 
                     b.Property<int>("ResubmitCount")
                         .ValueGeneratedOnAdd()
@@ -288,6 +301,10 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                     b.HasIndex("AssignedOfficerId")
                         .HasDatabaseName("ix_applications_assigned_officer_id");
 
+                    b.HasIndex("ReceiptNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_applications_receipt_number");
+
                     b.HasIndex("UserId", "CreatedAt")
                         .HasDatabaseName("ix_applications_user_id_created_at");
 
@@ -299,7 +316,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.ToTable("applications", null, t =>
                         {
-                            t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','DOCUMENTS_READY','APPROVED','CANCELLED','REJECTED')");
+                            t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','DOCUMENTS_READY','OFFICIALLY_RECEIVED','APPROVED','CANCELLED','REJECTED')");
                         });
                 });
 

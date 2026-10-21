@@ -15,6 +15,9 @@ public sealed class ApplicationsController(ISender sender, IDocumentContentsClie
 {
     private Guid Actor => Guid.Parse(User.FindFirstValue("sub")!);
 
+    [HttpPost("{id:guid}/cancel"), Authorize(Policy = "workflow.cancel"), ProducesResponseType<ApplicationDto>(200)]
+    public async Task<IActionResult> Cancel(Guid id, CancellationToken ct) => Respond(await sender.Send(new CancelApplicationCommand(Actor, id), ct));
+
     [HttpPost, RequestSizeLimit(128 * 1024)]
     [ProducesResponseType<ApplicationDto>(201)]
     [Authorize(Policy = "workflow.create")]

@@ -26,8 +26,10 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         o.HasIndex(x => new { x.PublishedAt, x.NextAttemptAt });
         b.HasSequence<long>("application_code_sequence");
         var a = b.Entity<ApplicationRecord>();
-        a.ToTable("applications", t => t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','DOCUMENTS_READY','APPROVED','CANCELLED','REJECTED')"));
+        a.ToTable("applications", t => t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','DOCUMENTS_READY','OFFICIALLY_RECEIVED','APPROVED','CANCELLED','REJECTED')"));
         a.HasKey(x => x.Id);
+        a.Property(x => x.ReceiptNumber).HasMaxLength(64);
+        a.HasIndex(x => x.ReceiptNumber).IsUnique();
         a.Property(x => x.WardCode).HasMaxLength(50);
         a.HasIndex(x => new { x.WardCode, x.Status, x.SubmittedAt });
         a.Property(x => x.ApplicationCode).HasMaxLength(50);

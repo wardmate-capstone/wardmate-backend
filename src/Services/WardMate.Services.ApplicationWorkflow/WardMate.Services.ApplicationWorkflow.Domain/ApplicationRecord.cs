@@ -7,6 +7,7 @@ public static class ApplicationStates
     public const string UnderReview = "UNDER_REVIEW";
     public const string NeedRevision = "NEED_REVISION";
     public const string DocumentsReady = "DOCUMENTS_READY";
+    public const string OfficiallyReceived = "OFFICIALLY_RECEIVED";
     public const string Cancelled = "CANCELLED";
 }
 
@@ -37,6 +38,9 @@ public sealed class ApplicationRecord
     // Historical value only; old decisions are not automatically readiness confirmations.
     public DateTime? ApprovedAt { get; set; }
     public DateTime? DocumentsReadyAt { get; set; }
+    public string? ReceiptNumber { get; set; }
+    public DateTime? ReceivedAt { get; set; }
+    public DateTime? AppointmentDate { get; set; }
     public List<ApplicationComment> Comments { get; set; } = [];
     public List<ApplicationVersion> Versions { get; set; } = [];
     public List<ApplicationChecklist> Checklists { get; set; } = [];
