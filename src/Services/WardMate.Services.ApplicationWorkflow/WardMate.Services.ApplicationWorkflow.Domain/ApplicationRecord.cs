@@ -30,6 +30,16 @@ public sealed class ApplicationRecord
     public string Status { get; set; } = ApplicationStates.Draft;
     public string FormData { get; set; } = "{}";
     public DateTime? SubmittedAt { get; set; }
+    public DateTime? FirstSubmittedAtUtc { get; set; }
+    public DateTime? DueAtUtc { get; set; }
+    public string DeadlineStatus { get; set; } = "UNKNOWN";
+    public string? DeadlinePolicyCode { get; set; }
+    public string? DeadlinePolicyVersion { get; set; }
+    public string? DeadlineCalendarCode { get; set; }
+    public string? DeadlineCalendarVersion { get; set; }
+    public string? DeadlinePolicySnapshot { get; set; }
+    public DateTime? DeadlinePausedAtUtc { get; set; }
+    public string DeadlineHistory { get; set; } = "[]";
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public Guid? AssignedOfficerId { get; set; }
