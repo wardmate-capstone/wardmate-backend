@@ -11,6 +11,11 @@ public sealed class ProcedureRepository(ProcedureDbContext db) : IProcedureRepos
     public async Task<IReadOnlyList<ProcedureCategoryDto>> ListCategories(CancellationToken ct = default) =>
         await db.ProcedureCategories.AsNoTracking().OrderBy(c => c.CategoryName).ThenBy(c => c.Id)
             .Select(c => new ProcedureCategoryDto(c.Id, c.CategoryName, c.Description)).ToArrayAsync(ct);
+    public async Task<IReadOnlyList<ProcedureSummaryDto>> Featured(CancellationToken ct = default) =>
+        await db.Procedures.AsNoTracking().Where(x => x.IsActive).OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Take(5)
+            .Select(x => new ProcedureSummaryDto(x.Id, x.ProcedureCode, x.Title, x.Category.CategoryName,
+                x.LevelOfImplementation, x.FeeSummary, x.ProcessingTimeSummary, x.OriginalPdfUrl, x.UpdatedAt)).ToArrayAsync(ct);
+
     public Task<Procedure?> GetById(Guid id, CancellationToken ct = default) => db.Procedures.AsNoTracking()
         .Include(x => x.Category).SingleOrDefaultAsync(x => x.Id == id, ct);
     public void Add(Procedure procedure) => db.Procedures.Add(procedure);

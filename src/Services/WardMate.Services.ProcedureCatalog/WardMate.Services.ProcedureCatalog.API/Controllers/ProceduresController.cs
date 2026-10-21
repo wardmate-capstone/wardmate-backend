@@ -8,6 +8,10 @@ namespace WardMate.Services.ProcedureCatalog.API.Controllers;
 [ApiController, Route("api/v1/procedures")]
 public sealed class ProceduresController(ISender sender) : ControllerBase
 {
+    [HttpGet("featured"), Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    [ProducesResponseType<IReadOnlyList<ProcedureSummaryDto>>(200)]
+    public async Task<IActionResult> Featured(CancellationToken ct) => Ok(await sender.Send(new GetFeaturedProceduresQuery(), ct));
+
     [HttpGet("categories")]
     [ProducesResponseType<IReadOnlyList<ProcedureCategoryDto>>(200)]
     public async Task<IActionResult> Categories(CancellationToken ct) =>
