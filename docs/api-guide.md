@@ -3195,10 +3195,10 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
 #### 1. Danh sách Tổng hợp Toàn bộ Hồ sơ của Phường (Cán bộ một cửa)
 - **Endpoint**: `GET /api/v1/officer/applications`
 - **Mục đích**: Cung cấp danh sách tổng hợp toàn bộ hồ sơ thuộc phường của cán bộ đang đăng nhập, thay vì chỉ xem được danh sách chờ (`pending`). Hỗ trợ xem lịch sử các hồ sơ đã duyệt, bị từ chối, cần sửa đổi hoặc đang xử lý.
-- **Ai dùng**: Cán bộ một cửa (`FRONT_DESK_OFFICER`).
+- **Ai dùng**: Cán bộ một cửa hoặc Manager có `workflow.queue.read`.
 - **Khi nào và cách gọi**: Gửi `GET` request kèm Bearer Token của cán bộ.
   - Query parameters hỗ trợ:
-    - `status`: Lọc theo trạng thái hồ sơ (VD: `APPROVED`, `NEED_REVISION`, `SUBMITTED`, `UNDER_REVIEW`, `REJECTED`). Hỗ trợ truyền nhiều trạng thái cách nhau bởi dấu phẩy, ví dụ: `status=DOCUMENTS_READY,NEED_REVISION,READY_TO_SUBMIT` hoặc `status=SUBMITTED,UNDER_REVIEW`.
+    - `status`: Lọc theo trạng thái hồ sơ (VD: `APPROVED`, `NEED_REVISION`, `SUBMITTED`, `UNDER_REVIEW`, `REJECTED`). Hỗ trợ truyền nhiều trạng thái cách nhau bởi dấu phẩy, ví dụ: `status=DOCUMENTS_READY,NEED_REVISION` hoặc `status=SUBMITTED,UNDER_REVIEW`.
     - `procedureId`: UUID của thủ tục hành chính.
     - `applicationCode`: Tìm kiếm theo mã số hồ sơ (tìm tương đối chứa chuỗi).
     - `submittedFrom`, `submittedTo`: Khoảng thời gian nộp hồ sơ (ISO 8601).
@@ -3212,10 +3212,11 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
         "applicationCode": "HS-20261015-001",
         "procedureId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
         "procedureTitle": "Đăng ký khai sinh",
-        "status": "APPROVED",
+        "status": "DOCUMENTS_READY",
         "createdAt": "2026-10-15T08:00:00Z",
         "submittedAt": "2026-10-15T08:30:00Z",
-        "wardCode": "W01"
+        "wardCode": "W01",
+        "assignedOfficerId": null
       }
     ],
     "page": 1,
@@ -3225,7 +3226,7 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
   ```
 - **Lỗi thường gặp & Phục hồi**:
   - `401 Unauthorized`: Thiếu Bearer Token hoặc token hết hạn.
-  - `403 Forbidden`: Tài khoản không có role `FRONT_DESK_OFFICER` hoặc không có claim `ward_code`.
+  - `403 Forbidden`: Thiếu role FD/Manager hoặc permission `workflow.queue.read`; chưa gán phường thì danh sách rỗng.
 
 #### 2. Tra cứu Hồ sơ Công khai bằng Mã QR (Không cần đăng nhập)
 - **Endpoint**: 
@@ -3333,3 +3334,36 @@ Truy vấn cuối phải không có dòng. Đối chiếu EventId với inbox.Id
 Sửa nguyên nhân trước (IAM/service key/DB), sau đó người vận hành mới reset đúng một bản ghi Dead được đối soát về Pending, Attempts=0, NextAttemptAt=now(), ErrorCode=NULL trong DB tương ứng. Giữ nguyên Id/Payload; không xóa notification đã lưu và không reset toàn bảng. Delivery chỉ reset bản IN_APP cần thiết; có thể gửi realtime lặp nên FE deduplicate theo notification id. Sự kiện sai JSON/hợp đồng vào RabbitMQ queue wardmate.notifications.workflow.v1.dead: không redrive nguyên trạng khi chưa sửa nguyên nhân. Chưa có API quản trị replay trong bản này.
 
 Các bước trên là checklist kiểm thử cần thực hiện trên môi trường chạy; build không xác nhận các ca này đã pass.
+
+
+## Chặng 1 P0 — Phạm vi cán bộ/Manager và đổi mật khẩu (21/10/2026)
+
+### GET /api/v1/officer/applications
+
+FD/Manager có workflow.queue.read dùng để xem lịch sử hồ sơ phường mình. Bearer bắt buộc; phường lấy từ IAM hiện hành, không lấy phường do client gửi. Query: status (đơn hoặc danh sách phân cách dấu phẩy), procedureId, applicationCode (tìm chuỗi con), submittedFrom/submittedTo, page=1, pageSize=20 (tối đa100). status lọc theo giá trị đang lưu, không phân biệt hoa/thường; giá trị chưa tồn tại trả danh sách rỗng. Loại hồ sơ do chính người xem nộp; muốn xem hồ sơ riêng dùng API công dân.
+
+200 trả { items, page, pageSize, total }, mỗi item thêm assignedOfficerId nullable. FE dùng null để hiển thị “Chưa phân công”. Danh sách tổng hợp chuẩn hóa page tối thiểu1 và pageSize trong1..100 theo logic sẵn có; token sai401, thiếu quyền/role403. Chưa có phường trả danh sách rỗng; Admin cần gán phường cho tài khoản. Không đổi tên total thành totalCount.
+
+### GET /api/v1/officer/applications/pending
+
+Vẫn lọc SUBMITTED/UNDER_REVIEW, query và phân trang hiện có. FD thấy hồ sơ chưa giao hoặc giao cho mình; Manager có workflow.queue.read thấy các hồ sơ pending của phường để giám sát. Response items thêm assignedOfficerId; không mở quyền assign cho Manager.
+
+### GET /api/v1/officer/applications/{id}
+
+FD hoặc Manager có workflow.read xem chi tiết bất kỳ hồ sơ cùng phường, trừ hồ sơ tự nộp; không còn yêu cầu người xem là assignedOfficerId. 200 trả ApplicationDto. Không có role/phường403, khác phường/tự nộp/không tồn tại404. Dùng API công dân cho hồ sơ riêng. Cán bộ khác người thụ lý được xem nhưng không được sửa. Manager không được assign, thêm comment, request-revision, confirm-readiness dù có permission tương ứng; tài khoản đồng thời Manager+FD cũng chỉ đọc nghiệp vụ cán bộ.
+
+### POST /api/v1/users/me/change-password
+
+Mọi người dùng đăng nhập bằng Bearer dùng để đổi mật khẩu của chính mình trong phần tài khoản. Không dùng cho quên mật khẩu hoặc đổi hộ người khác.
+
+```json
+{ "currentPassword": "MatKhauCu123!", "newPassword": "MatKhauMoi456!", "confirmNewPassword": "MatKhauMoi456!" }
+```
+
+Mật khẩu mới tối thiểu8 ký tự, gồm hoa, thường, số, ký tự đặc biệt; tối đa72 byte UTF-8. 200 trả { message: "Đổi mật khẩu thành công. Vui lòng đăng nhập lại." }. FE xóa access token hiện tại, quay về đăng nhập; toàn bộ refresh token cũ đã bị thu hồi. Access token cũ không bị vô hiệu ngay và có thể dùng tới khi hết hạn. Không hiển thị rằng đã đăng xuất tức thì mọi thiết bị.
+
+400 validation_failed khi dữ liệu sai (xem errors theo trường); 400 iam.current_password_invalid nếu mật khẩu hiện tại sai; 400 iam.password_unchanged nếu dùng lại mật khẩu; 401 khi Bearer/tài khoản không hợp lệ; 409 iam.concurrent_update nếu tài khoản thay đổi đồng thời, đăng nhập lại rồi thử. Không lưu mật khẩu vào log/localStorage. API này dùng Bearer, không xác thực bằng refresh cookie, không yêu cầu CSRF header của endpoint refresh. Body quá4096 byte bị từ chối413.
+
+### Triển khai và xác nhận P0
+
+Áp dụng migration IAM 20261021090000_ManagerWorkflowReadScope để Manager có hai permission đọc. Workflow tiếp tục xác minh quyền hiện hành qua IAM; FE refresh/login để đồng bộ menu. Đưa IAM, Workflow và Gateway bản mới vào môi trường test. Xác nhận FD B đọc hồ sơ FD A cùng phường được nhưng không sửa; khác phường/tự nộp bị chặn; Manager đọc được nhưng POST thao tác403; danh sách có assignedOfficerId thật. Kiểm tra đổi mật khẩu sai/không khớp/yếu/đúng, login mật khẩu cũ thất bại, mới thành công, refresh token cũ thất bại. Chưa triển khai P1/P2.

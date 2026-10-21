@@ -2566,3 +2566,29 @@ Owner explicitly approved push main after Docker handoff. Fetched origin; main w
 - Gợi ý commit: fix(notifications): harden inbox retries and realtime authorization. Antigravity tách các thay đổi chức năng theo AGENTS.md.
 
 - Hoàn tất kiểm tra local: 2026-10-17 10:41:15 +07:00 (Asia/Saigon). Solution Release build: dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 thành công, 0 Error(s), 0 Warning(s), thời gian 00:06:29.39. TASK-25/27 đã gia cố local; kiểm chứng tích hợp runtime/Azure còn chờ thực hiện theo checklist, không đánh dấu E2E hoàn tất.
+
+
+## P0-1.1–1.4 — Workflow read scope và đổi mật khẩu (21/10/2026)
+
+- Phạm vi đúng Chặng1; không thực hiện P1/P2, không chạy Git/Docker/deploy hoặc cập nhật database Azure. Đọc audit FE, đối chiếu source; giữ danh sách ListAll/query/handler hiện có sau khi rà soát lại bản file, loại khai báo bổ sung trùng trong lần build đầu.
+- Task1.1: GET /api/v1/officer/applications/{id} cho FD/Manager có workflow.read xem cùng phường, trừ hồ sơ tự nộp; không yêu cầu assignment. 200 ApplicationDto, thiếu role/phường403, ngoài phạm vi/tự nộp404. Store.Read mở phạm vi đọc đồng bộ, giữ nhánh chủ hồ sơ cho API công dân.
+- Task1.2: ApplicationSummaryDto thêm Guid? AssignedOfficerId=null; map ở Pending/ListAll và danh sách công dân. JSON assignedOfficerId nullable; metadata total giữ nguyên. Giữ bộ lọc/tìm kiếm/phân trang ListAll hiện có.
+- Task1.3: ReviewActor tách CanReadWard và CanMutate; chỉ FD không có role Manager được thao tác, kể cả người có đồng thời hai role. Policy queue yêu cầu FD/Manager + permission; mutation policies bắt buộc FD và không Manager. Handler vẫn kiểm tra cùng phường/assignment/không tự xử lý. Pending của Manager đọc các hồ sơ pending cùng phường, không giới hạn assignedOfficerId. Migration IAM 20261021090000_ManagerWorkflowReadScope cấp workflow.queue.read/workflow.read cho Manager và gỡ bốn quyền thao tác; Down không tự phục hồi grant vì cần đối soát backup.
+- Task1.4: POST /api/v1/users/me/change-password, Bearer; body currentPassword,newPassword,confirmNewPassword (không nhận userId), giới hạn4096byte; 200 {message}. Validator min8, hoa/thường/số/đặc biệt, <=72 byte UTF-8, xác nhận khớp. Sai mật khẩu hiện tại400 iam.current_password_invalid; trùng mật khẩu400 iam.password_unchanged; validation400 validation_failed; user/token không hợp lệ401; tranh chấp409 iam.concurrent_update.
+- Đổi hash và thu hồi refresh token trong transaction khóa user; CAS expectedHash ngăn ghi đè đổi mật khẩu đồng thời. Token issuance đối chiếu hash sau khi lấy khóa để chặn phiên cấp bằng password cũ đang chạy cạnh tranh. Không thu hồi JWT access token tức thì; FE xóa token/đưa về đăng nhập, không quảng bá đăng xuất tức thì mọi thiết bị. Không đổi policy registration hiện có.
+- Không có schema mới; migration chỉ cập nhật RBAC. EF pending-model-check IAM và Workflow đều pass. SQL idempotent migration Manager được sinh và đọc thành công; chưa chạy trên database. Sáu kiểm tra cấu trúc source/projection/route JSON đều đạt (không phải unit/integration tests).
+- Test: dotnet test WardMate.sln -c Release --no-build --no-restore (và lần verbosity normal) exit1 ở VSTest target, không chạy test nào, 0 diagnostic errors/warnings. Solution không có test projects theo chính sách owner; không tạo lại project test và không tuyên bố 100% tests passed. Cần kiểm thử runtime bằng FD cùng/khác phường, Manager, tài khoản có hai role và các ca đổi mật khẩu/refresh/login.
+
+### Danh sách file P0
+
+- Workflow API: src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationReviewController.cs; WorkflowSecurity.cs.
+- Workflow Application: src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/ReviewContracts.cs; ReviewHandlers.cs; DocumentReadinessRequests.cs; WorkflowContracts.cs.
+- Workflow Infrastructure: src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/ApplicationReviewStore.cs; ApplicationStore.cs.
+- IAM Application: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Commands/ChangePasswordCommand.cs (mới, command/handler/validator); Interfaces/IIdentityStore.cs; Common/Result.cs.
+- IAM Infrastructure: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/IdentityStore.cs; Persistence/Migrations/20261021090000_ManagerWorkflowReadScope.cs (mới, data migration).
+- IAM API: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Controllers/UsersController.cs; Errors/ResultExtensions.cs.
+- Gateway: src/Gateways/WardMate.YarpGateway/appsettings.json (giữ root route officer/applications hiện có); docs/api-guide.md; docs/system-constraints.md; PROGRESS.md.
+- OfficerListQuery.cs được tạo tạm rồi bỏ trong phiên vì trùng triển khai sẵn có; không phải file bàn giao mới.
+- Gợi ý commit chức năng cho Antigravity: fix(workflow): allow ward-scoped read-only manager access; feat(iam): add authenticated password change; fix(iam): grant manager workflow read permissions. Tách từng file mới riêng theo AGENTS.md. Chờ chỉ thị P1.
+
+- Hoàn tất local: 2026-10-21 09:11:55 +07:00 (Asia/Saigon). Build cuối: dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 PASS, 0 lỗi/0 cảnh báo, 00:01:55.03. Lần build trước có 5 lỗi khai báo danh sách trùng, đã sửa trước lần build đạt này. Chưa xác nhận integration/runtime hoặc triển khai Azure.

@@ -333,8 +333,9 @@ AIOCR API `Controllers/ProcedureExtractionsController.cs`, Infrastructure `Extra
 
 ### WF-04 — Phường, người thụ lý, comments và version
 
-- Hàng đợi cán bộ chỉ trong phường công tác; chi tiết/thao tác thụ lý còn kiểm tra
-  AssignedOfficerId. Cán bộ không tự thẩm định hồ sơ mình nộp.
+- FD hoặc Manager có workflow.read được xem chi tiết cùng phường, trừ hồ sơ tự nộp; không yêu cầu AssignedOfficerId cho quyền đọc. Thiếu phường bị chặn. Quyền đọc không cấp quyền thao tác.
+- Manager chỉ đọc (kể cả tài khoản có đồng thời role FD); assign/comment/request-revision/confirm-readiness yêu cầu FD không có role Manager và permission tương ứng. Sau assign, thao tác còn kiểm tra đúng người thụ lý. Không tự thẩm định hồ sơ mình nộp.
+- Danh sách tổng hợp loại hồ sơ tự nộp, cùng phường; pending Manager thấy tất cả SUBMITTED/UNDER_REVIEW trong phường, FD giữ bộ lọc chưa phân công/được giao cho mình. Cả hai trả assignedOfficerId nullable.
 - Role Admin/Manager không tự động bỏ qua điều kiện cán bộ thụ lý.
 - Comment chỉ khi UNDER_REVIEW, đúng version hiện tại; target FORM_FIELD hoặc CHECKLIST_ITEM
   phải thực sự có trong snapshot. Version cũ trả 409.
@@ -607,3 +608,15 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 
 - Cập nhật NOTI-02: rollback Inbox trước khi ghi retry, log định danh sự kiện/delivery và số lần lỗi; kiểm tra từng connection trước khi gửi notification/bộ đếm. Không log token hoặc payload.
 - Phân biệt Sent với xác nhận client; giới hạn một replica/revision do chưa có backplane. SMS/Email giữ hoãn. Nguồn: NotificationInboxWorker.cs, NotificationDeliveryWorker.cs, NotificationConnectionGuard.cs, NotificationService.cs.
+
+### IAM-07 — Đổi mật khẩu cá nhân (P0, 21/10/2026)
+
+- POST /api/v1/users/me/change-password lấy UserId từ Bearer; không nhận UserId tùy ý, không yêu cầu quyền quản trị. Tài khoản phải active. Body tối đa 4096 byte.
+- currentPassword phải đúng hash, newPassword khác mật khẩu cũ, confirmNewPassword khớp. Mật khẩu mới >=8 ký tự, có hoa/thường/số/ký tự đặc biệt; mật khẩu hiện tại/mới tối đa72 byte UTF-8 do bcrypt. Không trim mật khẩu. Sai mật khẩu/validation trả400; tài khoản không khả dụng401; cập nhật cạnh tranh409.
+- Khóa hàng user, so hash kỳ vọng trước cập nhật và revoke toàn bộ refresh token trong cùng transaction. Token issuance kiểm tra hash chưa thay đổi sau khi chờ khóa. JWT access token đã cấp KHÔNG bị thu hồi tức thì: tồn tại tới hết hạn. FE xóa access token, quay lại đăng nhập; refresh cookie cũ không còn refresh được.
+- Nguồn: ChangePasswordCommand.cs, IdentityStore.cs, UsersController.cs.
+
+### 21/10/2026 — Chặng 1 P0
+
+- Cập nhật WF-04, thêm IAM-07; ReviewActor tách CanReadWard/CanMutate. Manager nhận workflow.queue.read và workflow.read qua migration ManagerWorkflowReadScope, gỡ các grant thao tác của Manager. Không tự cấp role FD cho Manager.
+- Comments/version/diff vẫn yêu cầu permission riêng; migration này chỉ cấp hai quyền đọc theo yêu cầu. Danh sách dùng metadata total (không phải totalCount trong ví dụ audit); status READY_TO_SUBMIT chưa có, lọc sẽ không có kết quả. DocumentForm không được mở quyền ghi theo thay đổi này.
