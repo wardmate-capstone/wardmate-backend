@@ -12,7 +12,7 @@ namespace WardMate.Services.ApplicationWorkflow.API.Controllers;
  ProducesResponseType<ProblemDetails>(403), ProducesResponseType<ProblemDetails>(404), ProducesResponseType<ProblemDetails>(409)]
 public abstract class ReviewControllerBase : ControllerBase
 {
-    protected ReviewActor Actor => new(Guid.Parse(User.FindFirstValue("sub")!), User.IsInRole("FRONT_DESK_OFFICER"), User.FindFirstValue("ward_code"));
+    protected ReviewActor Actor => new(Guid.Parse(User.FindFirstValue("sub")!), User.IsInRole("FRONT_DESK_OFFICER"), User.FindFirstValue("ward_code"), User.IsInRole("MANAGER"));
     protected IActionResult Respond<T>(WorkflowResult<T> result)
     {
         if (result.Error is null) return Ok(result.Value);
@@ -31,10 +31,10 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
     public async Task<IActionResult> Detail(Guid id, [FromServices] IApplicationReviewStore store, CancellationToken ct)
     {
         var actor = Actor;
-        if (!actor.IsOfficer) return Forbid();
+        if (!actor.CanReadWard || string.IsNullOrWhiteSpace(actor.WardCode)) return Forbid();
         var a = await store.Read(actor, id, ct);
-        if (a is null || a.UserId == actor.Id || a.AssignedOfficerId != actor.Id || a.WardCode != actor.WardCode)
-            return Respond(WorkflowResult<ApplicationDto>.Fail(404, "application.not_found", "Không tìm thấy hồ sơ đang được bạn thụ lý."));
+        if (a is null || a.UserId == actor.Id || a.WardCode != actor.WardCode)
+            return Respond(WorkflowResult<ApplicationDto>.Fail(404, "application.not_found", "Không tìm thấy hồ sơ trong phạm vi phường của bạn."));
         return Ok(ApplicationDto.From(a));
     }
     [HttpGet("pending"), ProducesResponseType<ApplicationPage>(200)]
@@ -69,7 +69,7 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
         var actor = Actor;
         var application = await store.Read(actor, id, ct);
         if (application is null) return Respond(WorkflowResult<ReviewResultDto>.Fail(404, "application.not_found", "Không tìm thấy hồ sơ trong phạm vi."));
-        if (!actor.IsOfficer || string.IsNullOrWhiteSpace(actor.WardCode) || application.WardCode != actor.WardCode
+        if (!actor.CanMutate || string.IsNullOrWhiteSpace(actor.WardCode) || application.WardCode != actor.WardCode
             || application.AssignedOfficerId != actor.Id || application.UserId == actor.Id) return Forbid();
         if (application.Status != "UNDER_REVIEW") return Respond(WorkflowResult<ReviewResultDto>.Fail(409, "application.invalid_status", "Chỉ xác nhận giấy tờ của hồ sơ đang UNDER_REVIEW."));
         var error = await documents.Validate(id, ApplicationDto.From(application).Checklists.Where(x => x.IsRequired || x.Status == "COMPLETED"), ct);

@@ -5,7 +5,11 @@ using WardMate.Services.ApplicationWorkflow.Domain;
 
 namespace WardMate.Services.ApplicationWorkflow.Application;
 
-public sealed record ReviewActor(Guid Id, bool IsOfficer, string? WardCode = null);
+public sealed record ReviewActor(Guid Id, bool IsOfficer, string? WardCode = null, bool IsManager = false)
+{
+    public bool CanReadWard => IsOfficer || IsManager;
+    public bool CanMutate => IsOfficer && !IsManager;
+}
 public sealed record AddCommentInput(int VersionNumber, string TargetType, string TargetId, string FieldLabel, string CommentText);
 public sealed record RequestRevisionInput(string Reason);
 public sealed record ResubmitChecklistInput(Guid Id, string Status, string? FileUrl, string? Note);
@@ -43,8 +47,9 @@ public interface IApplicationReviewStore
 {
     Task<WorkflowResult<ReviewResultDto>> Mutate(Guid id, Func<ApplicationRecord, WorkflowResult<ReviewResultDto>> action, CancellationToken ct);
     Task<ApplicationRecord?> Read(ReviewActor actor, Guid id, CancellationToken ct);
-    Task<ApplicationPage> Pending(ReviewActor actor, OfficerPendingInput input, CancellationToken ct);
     Task<ApplicationPage> ListAll(ReviewActor actor, OfficerListInput input, CancellationToken ct);
+    Task<ApplicationPage> Pending(ReviewActor actor, OfficerPendingInput input, CancellationToken ct);
+
 }
 
 public static class ApplicationSnapshots

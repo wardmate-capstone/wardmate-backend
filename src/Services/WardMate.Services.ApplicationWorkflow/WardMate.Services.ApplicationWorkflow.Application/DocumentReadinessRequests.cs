@@ -10,7 +10,7 @@ public sealed class ConfirmDocumentReadinessHandler(IApplicationReviewStore stor
     public Task<WorkflowResult<ReviewResultDto>> Handle(ConfirmDocumentReadinessCommand r, CancellationToken ct) => store.Mutate(r.Id, a =>
     {
         var actor = r.Actor;
-        if (!actor.IsOfficer || string.IsNullOrWhiteSpace(actor.WardCode) || a.WardCode != actor.WardCode || a.AssignedOfficerId != actor.Id || a.UserId == actor.Id)
+        if (!actor.CanMutate || string.IsNullOrWhiteSpace(actor.WardCode) || a.WardCode != actor.WardCode || a.AssignedOfficerId != actor.Id || a.UserId == actor.Id)
             return WorkflowResult<ReviewResultDto>.Fail(403, "application.forbidden", "Chỉ cán bộ được phân công đúng phường được xác nhận giấy tờ; không được tự xác nhận hồ sơ của mình.");
         if (a.Status != ApplicationStates.UnderReview)
             return WorkflowResult<ReviewResultDto>.Fail(409, "application.invalid_status", "Chỉ xác nhận giấy tờ của hồ sơ đang UNDER_REVIEW.");

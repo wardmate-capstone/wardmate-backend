@@ -8,27 +8,27 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
 {
     public Task<ApplicationRecord?> Read(ReviewActor actor, Guid id, CancellationToken ct) => db.Applications.AsNoTracking()
         .Include(x => x.Versions).Include(x => x.Comments).Include(x => x.Checklists).Include(x => x.History).AsSplitQuery()
-        .SingleOrDefaultAsync(x => x.Id == id && (x.UserId == actor.Id || actor.IsOfficer && actor.WardCode != null && x.WardCode == actor.WardCode && x.AssignedOfficerId == actor.Id), ct);
+        .SingleOrDefaultAsync(x => x.Id == id && (x.UserId == actor.Id || actor.CanReadWard && actor.WardCode != null && actor.WardCode != "" && x.WardCode == actor.WardCode && x.UserId != actor.Id), ct);
 
     public async Task<ApplicationPage> Pending(ReviewActor actor, OfficerPendingInput input, CancellationToken ct)
     {
-        if (!actor.IsOfficer || string.IsNullOrEmpty(actor.WardCode)) return new([], input.Page, input.PageSize, 0);
+        if (!actor.CanReadWard || string.IsNullOrEmpty(actor.WardCode)) return new([], input.Page, input.PageSize, 0);
         var q = db.Applications.AsNoTracking().Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id
             && (x.Status == ApplicationStates.Submitted || x.Status == ApplicationStates.UnderReview)
-            && (x.AssignedOfficerId == null || x.AssignedOfficerId == actor.Id));
+            && (actor.IsManager || x.AssignedOfficerId == null || x.AssignedOfficerId == actor.Id));
         if (input.Status is not null) q = q.Where(x => x.Status == input.Status);
         if (input.ProcedureId is not null) q = q.Where(x => x.ProcedureId == input.ProcedureId);
         if (input.SubmittedFrom is not null) q = q.Where(x => x.SubmittedAt >= input.SubmittedFrom.Value.UtcDateTime);
         if (input.SubmittedTo is not null) q = q.Where(x => x.SubmittedAt <= input.SubmittedTo.Value.UtcDateTime);
         var total = await q.CountAsync(ct);
         var items = await q.OrderBy(x => x.SubmittedAt).ThenBy(x => x.Id).Skip((input.Page - 1) * input.PageSize).Take(input.PageSize)
-            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode)).ToArrayAsync(ct);
+            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId)).ToArrayAsync(ct);
         return new(items, input.Page, input.PageSize, total);
     }
 
     public async Task<ApplicationPage> ListAll(ReviewActor actor, OfficerListInput input, CancellationToken ct)
     {
-        if (!actor.IsOfficer || string.IsNullOrEmpty(actor.WardCode)) return new([], input.Page, input.PageSize, 0);
+        if (!actor.CanReadWard || string.IsNullOrEmpty(actor.WardCode)) return new([], input.Page, input.PageSize, 0);
         // Trả toàn bộ hồ sơ thuộc phường — trừ hồ sơ của chính cán bộ đó (tránh lộ dữ liệu/xung đột)
         var q = db.Applications.AsNoTracking()
             .Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id);
@@ -61,7 +61,7 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
         var items = await q
             .OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id)
             .Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode))
+            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId))
             .ToArrayAsync(ct);
         return new(items, page, pageSize, total);
     }

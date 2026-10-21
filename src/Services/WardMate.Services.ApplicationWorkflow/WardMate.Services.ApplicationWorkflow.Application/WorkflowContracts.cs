@@ -32,7 +32,7 @@ public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserI
         a.AssignedOfficerId, a.ResubmitCount, a.Status == ApplicationStates.Draft ? 0 : a.ResubmitCount + 1, a.Notes, a.DocumentsReadyAt, a.WardCode);
 }
 public sealed record ApplicationSummaryDto(Guid Id, string? ApplicationCode, Guid ProcedureId,
-    string ProcedureTitle, string Status, DateTime CreatedAt, DateTime? SubmittedAt, string? WardCode = null);
+    string ProcedureTitle, string Status, DateTime CreatedAt, DateTime? SubmittedAt, string? WardCode = null, Guid? AssignedOfficerId = null);
 public sealed record ApplicationPage(ApplicationSummaryDto[] Items, int Page, int PageSize, int Total);
 
 // Integration contract, not a reference to another service's domain or database.
