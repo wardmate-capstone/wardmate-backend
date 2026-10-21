@@ -3554,3 +3554,63 @@ Public, không cần Bearer/body. Trả200 là mảng tối đa5 ProcedureSummar
 Công dân có quyền DocumentCitizen dùng khi đã tải và điền mẫu Word trên máy. Đây là alias của POST /api/v1/citizen/submissions/draft, cùng xử lý và kiểm tra. Gửi Bearer và multipart/form-data gồm `TemplateId`, `ApplicantId`, `ApplicationId`, `ChecklistId`, `File` (.docx). Hai ID hồ sơ/checklist vẫn bắt buộc để gắn đúng giấy tờ; không upload chỉ với ba trường đầu trong đề xuất FE. Để trình duyệt tự đặt boundary multipart.
 
 Thành công201 trả DTO chứa `submissionId`, trạng thái và thông tin file. ApplicantId phải là người đăng nhập; hồ sơ phải thuộc người đó và đang DRAFT/NEED_REVISION; checklist phải thuộc hồ sơ và đúng template. Sai file/dữ liệu400, sai quyền403, thiếu dữ liệu liên quan404, trùng bản nháp hoặc trạng thái không phù hợp409. Dùng submissionId đã có để cập nhật thay vì tạo trùng. API này lưu bản điền, không tự submit hồ sơ hay xác nhận đủ giấy tờ.
+
+## Chặng 3 P2 — AI/OCR cho công dân (21/10/2026)
+
+Các API dưới đây nằm trong AIOCR, yêu cầu Bearer JWT IAM hợp lệ, không yêu cầu role quản trị riêng. Gateway có route giữ nguyên /api/v1/ai-ocr/... và /api/v1/ai/chat/... . Quyền đọc giấy tờ vẫn do DocumentForm/Workflow kiểm tra; đăng nhập không có nghĩa được đọc giấy tờ người khác.
+
+### POST /api/v1/ai-ocr/cccd/extract
+
+Dùng để điền gợi ý thông tin từ ảnh CCCD; người dùng phải xem lại trước khi lưu hồ sơ. Multipart/form-data: frontImage bắt buộc, backImage tùy chọn; PNG/JPEG, mỗi ảnh tối đa8MiB, tổng request tối đa17MiB. Không tự đặt boundary khi dùng FormData. Không lưu ảnh hoặc kết quả CCCD vào DB.
+
+200 trả citizenId, fullName, dateOfBirth, gender, nationality, placeOfOrigin, placeOfResidence, dateOfExpiry, confidenceScore. Ngày YYYY-MM-DD; dữ liệu không đọc được/hạn không xác định có thể null. CCCD nếu có phải đủ12 chữ số. Confidence0..1 do AI tự đánh giá, không phải bằng chứng xác thực danh tính. Không dùng kết quả làm eKYC.
+
+Thiếu ảnh/sai kích thước400, request quá lớn413, sai định dạng415, token thiếu/sai401; AI chưa bật/chưa có key/model/quota hết503; output sai/cắt502, timeout504. Chụp ảnh rõ đủ góc và thử lại; không tự thay dữ liệu null bằng thông tin đoán.
+
+### POST /api/v1/ai/chat/completions
+
+Dùng để hỏi cách chuẩn bị giấy tờ. Body:
+
+```json
+{ "message": "Tôi cần chuẩn bị gì để đăng ký tạm trú?", "conversationId": null, "wardCode": "WARD_001" }
+```
+
+Message bắt buộc, tối đa4000 ký tự; wardCode gồm chữ/số/gạch dưới/gạch ngang,1..50 ký tự. ConversationId null tạo phiên mới; các lượt tiếp dùng ID từ response và cùng wardCode. Phường là ngữ cảnh do user khai báo, chưa xác minh danh mục phường và không cấp quyền nghiệp vụ.
+
+200 trả {conversationId,answer,relatedProcedures:[]}. Bản P2 này gọi Gemini thuần, CHƯA truy xuất catalog/pgvector và không cung cấp trích dẫn đã xác minh. Không xem câu trả lời là phí/thời hạn/quy định địa phương chính thức. FE hiển thị như văn bản, không render HTML không tin cậy. Không nhập mật khẩu, token hay số CCCD vào chat.
+
+Chỉ chủ phiên được tiếp tục, ID khác chủ/không tồn tại404. Đổi wardCode trong phiên409: tạo phiên mới. Gửi đồng thời cùng phiên409 chat.busy: đợi lượt trước xong. Input sai400; database/migration/AI chưa sẵn sàng503; kết quả AI sai502; timeout504. User+Assistant lưu cùng transaction; nếu AI lỗi rollback cả lượt, không tạo câu trả lời giả. Không có idempotency key: timeout mạng sau commit có thể đã lưu; hãy đọc lịch sử trước gửi lại. Context gửi AI chỉ tối đa10 tin gần nhất và tin mới, không phải toàn bộ lịch sử.
+
+### GET /api/v1/ai/chat/sessions
+
+Lấy các phiên của chính người đăng nhập, mới nhất trước. Query pageNumber mặc định1 (1..100000), pageSize mặc định20 (1..50). 200 {items:[{id,wardCode,createdAt}],pageNumber,pageSize,totalCount}. Không có phiên trảitems rỗng. Sai phân trang400; token401; DB chưa sẵn sàng503.
+
+### GET /api/v1/ai/chat/sessions/{sessionId}/messages
+
+Lấy lịch sử một phiên của mình theo thời gian tăng dần, cùng query phân trang như trên. 200 {items:[{id,role,content,createdAt}],pageNumber,pageSize,totalCount}; role User hoặc Assistant. Phiên khác chủ/không tồn tại404; không thử ID người khác. Lịch sử lưu DB AIOCR, không đọc DB IAM. Hiện chưa có API xóa phiên hoặc chính sách tự xóa lịch sử.
+
+### POST /api/v1/ai-ocr/documents/verify
+
+Tiền kiểm giấy tờ đã upload, không upload lần hai:
+
+```json
+{ "applicationId": "GUID_HO_SO", "documentId": "GUID_GIAY_TO", "expectedType": "Giấy xác nhận tình trạng hôn nhân" }
+```
+
+Hai ID phải khác Guid.Empty; expectedType bắt buộc<=255 ký tự; body<=4096byte. AIOCR chuyển Bearer sang API danh sách giấy tờ của hồ sơ trong DocumentForm, kiểm tra documentId nằm đúng applicationId rồi gọi download. Không dùng service key để bỏ qua quyền. Người gọi phải là chủ hoặc cán bộ được phân công theo DocumentForm; Manager không tự có quyền tải.
+
+Hỗ trợ PDF/PNG/JPEG tối đa8MiB. 200 {isValid,documentTypeDetected,qualityIssues:[],confidence}. Kiểm tra mờ/lóa và loại giấy tờ là gợi ý từ AI; expectedType do client khai báo, chưa đối chiếu tự động checklist. Không xác nhận thật giả/tính pháp lý. Nếu có vấn đề, loại rỗng hoặc confidence<0.7 thì isValid bị hạ false. Không tự cập nhật checklist/trạng thái hồ sơ; cán bộ và công dân vẫn đối soát.
+
+Sai IDs/body400; thiếu token401; bị DocumentForm từ chối403/404; file không thuộc hồ sơ404; file quá lớn413; DOC/DOCX/định dạng không hỗ trợ415 (chuyển sang PDF/ảnh); phụ thuộc không sẵn sàng503; AI trả sai502; timeout504. Lỗi trả ProblemDetails với code,traceId; lỗi model binding mặc định có errors. JWT401 và limiter429 có thể không có body ProblemDetails.
+
+### Cấu hình và giới hạn P2
+
+- Assistant__Enabled=true để bật các lời gọi Gemini mới; mặc địnhfalse. Không ảnh hưởng Extraction__Enabled/UseAI của thủ tục.
+- Gemini__Key tham chiếu secret; Gemini__Model dùng model của dự án đã chọn. Không đổi billing hoặc tự chọn model khác. Các request gửi dữ liệu tài liệu tới Google Gemini; kiểm thử bằng tài liệu mẫu không chứa dữ liệu thật trước.
+- Jwt__Key/Jwt__Issuer/Jwt__Audience phải khớp IAM. Thiếu/sai khóa thì public AI endpoints không xác thực được. Luồng procedure-extractions nội bộ vẫn dùng X-Service-Key riêng.
+- ConnectionStrings__AiOcrDatabase: PostgreSQL riêng AIOCR; không dùng database/schema của service khác. Cần migration 20261021080951_ChatSessions trước dùng chat.
+- Database__AutoMigrate mặc địnhfalse; chỉ bậttrue nếu muốn service tự apply migration lúc startup và đã cấu hình đúng database. Khi thiếu connection và bật migration, startup dừng.
+- Services__DocumentForm__BaseUrl: URL cố định DocumentForm; dùng HTTPS trên Azure. Không có URL tùy ý trong request.
+- Docker Compose profile ai thêm AIOCR_ASSISTANT_ENABLED, AIOCR_DATABASE_CONNECTION_STRING, AIOCR_AUTO_MIGRATE; dùng JWT_KEY hiện có. Không tự tạo PostgreSQL AIOCR trong Compose: phải cung cấp database riêng.
+- Mỗi user tối đa10 request/phút cho nhóm endpoint mới (kể cả đọc lịch sử), vượt trả429. Bộ đếm ở từng replica, chưa là quota phân tán. HTTP Gemini timeout90giây; không tự retry để tránh nhân chi phí. Health hiện là liveness, Healthy không chứng minh DB/Gemini hoạt động.
+- Gemini adapter dùng generateContent + inlineData + JSON Schema. Tham khảo hợp đồng: https://ai.google.dev/api/generate-content .

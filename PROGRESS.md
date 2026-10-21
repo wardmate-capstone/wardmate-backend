@@ -2713,3 +2713,48 @@ Các đường dẫn nhóm dưới đây tính từ src/Services tương ứng:
 - Số automated tests chạy:0 (owner đã gỡ test projects). Chưa xác nhận runtime HTTP/transaction/RabbitMQ/Blob/Mobile trên Docker hoặc Azure. Không tuyên bố 100% tests passed.
 - Khi bàn giao: apply migration IAM và Workflow, cập nhật IAM/Workflow/DocumentForm/ProcedureCatalog/AnalyticsSystem đồng bộ; không yêu cầu đổi Gemini/billing. Kiểm thử FD đúng/sai phường, Manager403 khi tiếp nhận, lặp nhận409, cancel chính chủ/sai trạng thái, mobile rotation và Web cookie, preview415, alias DOCX đúng/sai checklist, featured inactive bị loại.
 - Gợi ý Conventional Commits theo chức năng: feat(workflow): add counter receipt and citizen cancellation; feat(iam): support native refresh token transport; feat(document-form): add inline preview and filled docx upload alias; feat(procedure): expose featured active procedures; fix(notifications): handle counter receipt and cancellation events; docs: document phase two API contracts. Antigravity phải tách mỗi file mới thành commit riêng và mỗi cập nhật chức năng riêng theo AGENTS.md; đây không phải lệnh Git hay số commit đã tạo.
+
+## 2026-10-21 — Chặng 3 P2: CCCD OCR, chat và tiền kiểm tài liệu
+
+Hoàn tất triển khai local lúc 2026-10-21 15:15 +07:00 (Asia/Saigon). Không chạy Git, không tạo test project, không chạy Docker/deploy/apply database, không gọi Gemini thật hoặc thay billing/model. SMS/Email ngoài phạm vi.
+
+### Kết quả API
+
+- Task3.1 POST /api/v1/ai-ocr/cccd/extract: Bearer, multipart frontImage bắt buộc/backImage optional. ICccdExtractionService nhận stream, Gemini multimodal inlineData + JSON Schema. 200 {citizenId,fullName,dateOfBirth,gender,nationality,placeOfOrigin,placeOfResidence,dateOfExpiry,confidenceScore}; field không đọc được nullable; không lưu DB. JPEG/PNG,8MiB/file,17MiB/request. 400/413/415 input;401 token;502 output;503 disabled/config/provider;504 timeout. Confidence tự đánh giá, không eKYC.
+- Task3.2 POST /api/v1/ai/chat/completions body {message,conversationId:null|guid,wardCode};200 {conversationId,answer,relatedProcedures:[]}. GET /api/v1/ai/chat/sessions và GET /api/v1/ai/chat/sessions/{sessionId}/messages có pageNumber/pageSize, trả {items,pageNumber,pageSize,totalCount}. Bearer, chỉ chủ phiên;404 nếu khác chủ,409 ward mismatch/phiên bận. Chat thuần LLM, chưa RAG/pgvector/nguồn trích dẫn. Transaction lưu cặp User/Assistant, lỗi AI rollback lượt; context10tin gần nhất; không có idempotency/retention/deleteAPI.
+- Task3.3 POST /api/v1/ai-ocr/documents/verify body {applicationId,documentId,expectedType}; Bearer được chuyển DocumentForm để đọc danh sách hồ sơ, kiểm tra document/application khớp rồi download; không bypass token.200 {isValid,documentTypeDetected,qualityIssues,confidence}. PDF/PNG/JPEG<=8MiB; không DOCX. Không ghi checklist hoặc phê duyệt hồ sơ. expectedType do user nhập chưa match checklist server; AI không xác minh pháp lý/thật giả. Sai quyền401/403/404, input400/413/415, phụ thuộc503,output502,timeout504.
+- Tất cả5endpoints mới có limiter10request/user/phút/replica, không phải quota phân tán. JWT HS256 issuer/audience/sub/expiry; không thêm role mới;401/429 có thể không body, validation có errors, lỗi AI/DB ProblemDetails có code/traceId. CORS theo sharedpolicy. FE không render HTML trả về từ model.
+- Endpoint đọc thủ tục nội bộ giữ X-Service-Key, không chuyển sang Bearer. Gateway thêm2route giữ nguyên path /api/v1/ai-ocr và /api/v1/ai/chat; giữ prefix service cũ.
+
+### Migration/cấu hình
+
+- 20261021080951_ChatSessions: chat_sessions (id,user_id,ward_code,created_at); chat_messages (id,session_id,role,content,created_at), FK nội bộ cascade, role check User/Assistant, chỉ mục user+created/session+created. DB riêng AIOCR, không FK chéo IAM. Down xóa lịch sử nên phải đối soát/backup trước rollback.
+- Cần ConnectionStrings__AiOcrDatabase PostgreSQL riêng + migration; Assistant__Enabled=true + Gemini__Key/Model; Jwt__Key/Issuer/Audience khớp IAM; Services__DocumentForm__BaseUrl. Database__AutoMigrate mặc địnhfalse; chỉ bật khi đã cấu hình đúng DB.
+- Compose profile ai bổ sung AIOCR_ASSISTANT_ENABLED, AIOCR_DATABASE_CONNECTION_STRING, AIOCR_AUTO_MIGRATE và JWT/DocumentForm. Không thêm DB container hoặc sửa .env chứa secret. Cần chuẩn bị DB riêng trước dùng chat. Health chỉ liveness.
+
+### Danh sách file mới
+
+Prefix src/Services/WardMate.Services.AIOCR/:
+- WardMate.Services.AIOCR.Domain/ChatSession.cs.
+- WardMate.Services.AIOCR.Application/AssistantContracts.cs.
+- WardMate.Services.AIOCR.Infrastructure/ChatDbContext.cs; ChatService.cs; GeminiAssistant.cs; AuthorizedDocumentSource.cs.
+- WardMate.Services.AIOCR.Infrastructure/Migrations/20261021080951_ChatSessions.cs; 20261021080951_ChatSessions.Designer.cs; ChatDbContextModelSnapshot.cs.
+- WardMate.Services.AIOCR.API/AssistantRegistration.cs; Controllers/AssistantController.cs.
+
+### File hiện có đã sửa
+
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/WardMate.Services.AIOCR.Infrastructure.csproj.
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/WardMate.Services.AIOCR.API.csproj; Program.cs; appsettings.json.
+- src/Gateways/WardMate.YarpGateway/appsettings.json; docker/docker-compose.yml.
+- docs/api-guide.md; docs/system-constraints.md; PROGRESS.md.
+
+### Kiểm tra
+
+- dotnet restore WardMate.sln: PASS sau khi cho phép truy cập NuGet; lần đầu sandbox bị NU1900 không tải được vulnerability metadata, không tắt audit để che lỗi.
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1: PASS0warnings0errors, 00:00:56.67 (sau migration và kiểm tra schema JSON). Build trước đó cũng0warnings0errors.
+- EF has-pending-model-changes: PASS. Sinh SQL idempotent và đọc script thành công; chưa thực thi DB.
+- Smoke local bằng JWT tạm, AI disabled, không dữ liệu thật: Swagger đủ5route; không token401; chat input rỗng400; database chưa cấu hình503 chat.not_configured; OCR chưa bật503 ai.disabled. Tổng5kiểm tra được xác nhận. Một assertion PowerShell ban đầu không decode byte[] response nên báo thất bại dù HTTP503 đúng; đọc lại response xác nhận code đúng. Sandbox ban đầu chặn loopback/DataProtection path, thực hiện lại local ngoài sandbox; không đổi code để bypass bảo vệ hệ thống.
+- Automated test project/count:0, không tạo mới theo chỉ thị. Chưa kiểm thử provider thật, transaction với PostgreSQL, ownership chéo user trên DB, quyền download liên service, hoặc Azure. Không tuyên bố production-ready/toàn bộ integration đã pass.
+- Cần test bàn giao: migrate DB riêng; cấu hìnhsecret/model đã chọn; CCCD mẫu/mờ/null; chat2user không đọc chéo, gửi đồng thời409; verify đúng/sai applicationId, FD được giao/khác người, fileDOCX415; lỗi quota/timeout AI. Không dùng tài liệu cá nhân thật khi chưa có đồng ý xử lý bởi nhà cung cấp.
+- Hợp đồng Gemini đối chiếu tài liệu chính thức https://ai.google.dev/api/generate-content (inlineData, responseJsonSchema). Adapter không tự đổi model, không auto retry/quota-upgrade.
+- Gợi ý commit chức năng: feat(aiocr): add citizen card extraction; feat(aiocr): persist authenticated chat sessions; feat(aiocr): add authorized document prevalidation; chore(aiocr): configure public endpoints and chat database; docs: document phase three AI contracts. Antigravity tách mỗi file mới thành commit riêng và từng cập nhật chức năng riêng theo AGENTS.md; chưa có Git/commit/push từ Codex.
