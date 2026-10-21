@@ -19,7 +19,7 @@ public sealed record ChecklistDto(Guid Id, string Code, string Title, bool IsReq
 public sealed record HistoryDto(Guid Id, string? FromStatus, string ToStatus, Guid ChangedBy, string? Reason, DateTime CreatedAt);
 public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserId, Guid ProcedureId,
     string ProcedureTitle, string? CaseCode, string Status, JsonElement FormData, DateTime? SubmittedAt,
-    DateTime CreatedAt, DateTime UpdatedAt, ChecklistDto[] Checklists, HistoryDto[] History, Guid? AssignedOfficerId = null, int ResubmitCount = 0, int CurrentVersionNumber = 0, string? Notes = null, DateTime? DocumentsReadyAt = null, string? WardCode = null, string? ReceiptNumber = null, DateTime? ReceivedAt = null, DateTime? AppointmentDate = null)
+    DateTime CreatedAt, DateTime UpdatedAt, ChecklistDto[] Checklists, HistoryDto[] History, Guid? AssignedOfficerId = null, int ResubmitCount = 0, int CurrentVersionNumber = 0, string? Notes = null, DateTime? DocumentsReadyAt = null, string? WardCode = null, string? ReceiptNumber = null, DateTime? ReceivedAt = null, DateTime? AppointmentDate = null, DateTime? FirstSubmittedAtUtc = null, DateTime? DueAtUtc = null, DateTime? DocumentsReadyAtUtc = null, string DeadlineStatus = "UNKNOWN", string? DeadlinePolicyCode = null, string? DeadlinePolicyVersion = null, string? DeadlineCalendarCode = null, string? DeadlineCalendarVersion = null, DateTime? DeadlinePausedAtUtc = null, DeadlineEvent[]? DeadlineHistory = null)
 {
     public static ApplicationDto From(ApplicationRecord a) => new(a.Id, a.ApplicationCode, a.UserId, a.ProcedureId,
         a.ProcedureTitle, a.CaseCode, a.Status, JsonSerializer.Deserialize<JsonElement>(a.FormData),
@@ -29,10 +29,10 @@ public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserI
             x.SortOrder, x.CaseCode, x.SubmissionType, x.DocumentCopyType, x.Quantity, x.ConditionNote)).ToArray(),
         a.History.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new HistoryDto(x.Id,
             x.FromStatus, x.ToStatus, x.ChangedBy, x.Reason, x.CreatedAt)).ToArray(),
-        a.AssignedOfficerId, a.ResubmitCount, a.SubmittedAt is null ? 0 : a.ResubmitCount + 1, a.Notes, a.DocumentsReadyAt, a.WardCode, a.ReceiptNumber, a.ReceivedAt, a.AppointmentDate);
+        a.AssignedOfficerId, a.ResubmitCount, a.SubmittedAt is null ? 0 : a.ResubmitCount + 1, a.Notes, a.DocumentsReadyAt, a.WardCode, a.ReceiptNumber, a.ReceivedAt, a.AppointmentDate, a.FirstSubmittedAtUtc, a.DueAtUtc, a.DocumentsReadyAt, a.DeadlineStatus, a.DeadlinePolicyCode, a.DeadlinePolicyVersion, a.DeadlineCalendarCode, a.DeadlineCalendarVersion, a.DeadlinePausedAtUtc, JsonSerializer.Deserialize<DeadlineEvent[]>(a.DeadlineHistory));
 }
 public sealed record ApplicationSummaryDto(Guid Id, string? ApplicationCode, Guid ProcedureId,
-    string ProcedureTitle, string Status, DateTime CreatedAt, DateTime? SubmittedAt, string? WardCode = null, Guid? AssignedOfficerId = null);
+    string ProcedureTitle, string Status, DateTime CreatedAt, DateTime? SubmittedAt, string? WardCode = null, Guid? AssignedOfficerId = null, DateTime? FirstSubmittedAtUtc = null, DateTime? DueAtUtc = null, DateTime? DocumentsReadyAtUtc = null, string DeadlineStatus = "UNKNOWN", DateTime? DeadlinePausedAtUtc = null);
 public sealed record ApplicationPage(ApplicationSummaryDto[] Items, int Page, int PageSize, int Total);
 
 // Integration contract, not a reference to another service's domain or database.
@@ -57,6 +57,7 @@ public interface IApplicationStore
         Func<ApplicationRecord, Task<WorkflowResult<ApplicationDto>>> operation, CancellationToken ct);
     Task<string> NextCode(DateTime now, CancellationToken ct);
 }
+
 
 
 

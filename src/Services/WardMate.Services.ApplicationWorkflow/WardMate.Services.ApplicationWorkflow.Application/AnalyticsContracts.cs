@@ -10,5 +10,6 @@ public sealed record AnalyticsDay(int ContractVersion, DateOnly Date, DateTime G
     string TimeZone, ProcedureDay[] Procedures, OfficerDay[] Officers);
 public interface IWorkflowAnalyticsSource
 {
+    Task<DeadlineFacts> ReadDeadlines(string ward, DateOnly from, DateOnly to, Guid? procedureId, CancellationToken ct);
     Task<AnalyticsDay> ReadDay(DateOnly date, CancellationToken ct);
 }

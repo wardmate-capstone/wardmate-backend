@@ -41,7 +41,9 @@ public sealed class CancelApplicationHandler(IApplicationStore store, TimeProvid
             return Task.FromResult(WorkflowResult<ApplicationDto>.Fail(409, "application.invalid_status", "Chỉ hủy hồ sơ DRAFT hoặc NEED_REVISION."));
         var now = clock.GetUtcNow().UtcDateTime;
         a.History.Add(new() { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.Cancelled, ChangedBy = r.UserId, Reason = "Công dân hủy hồ sơ tiền kiểm.", CreatedAt = now });
+        ReviewDeadline.CancelPause(a, now, r.UserId);
         a.Status = ApplicationStates.Cancelled; a.UpdatedAt = now;
         return Task.FromResult(WorkflowResult<ApplicationDto>.Ok(ApplicationDto.From(a)));
     }, ct);
 }
+

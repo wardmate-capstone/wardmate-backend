@@ -64,7 +64,9 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         if (!a.Comments.Any(x => x.ApplicationVersionId == version.Id && x.Status == "OPEN"))
             return Fail(409, "comments_required", "Cần ít nhất một nhận xét OPEN trên phiên bản hiện tại.");
         a.Notes = r.Input.Reason.Trim();
-        Transition(a, ApplicationStates.NeedRevision, r.Actor.Id, Now, a.Notes);
+        var now = Now;
+        ReviewDeadline.Pause(a, now, r.Actor.Id);
+        Transition(a, ApplicationStates.NeedRevision, r.Actor.Id, now, a.Notes);
         return Ok(a);
     }, ct);
 
@@ -88,6 +90,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         }
         a.ResubmitCount++;
         a.SubmittedAt = now;
+        ReviewDeadline.Resume(a, now, r.UserId);
         a.Versions.Add(ApplicationSnapshots.Capture(a, r.UserId, now));
         foreach (var comment in a.Comments.Where(x => x.Status == "OPEN" && x.ApplicationVersionId == version.Id))
         { comment.Status = "RESOLVED"; comment.UpdatedAt = now; }
@@ -126,4 +129,5 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         return WorkflowResult<FieldDiffDto[]>.Ok(ApplicationSnapshots.Compare(from, to, comments));
     }
 }
+
 
