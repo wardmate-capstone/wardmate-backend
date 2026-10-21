@@ -27,8 +27,12 @@ public sealed class AnalyticsService(AnalyticsDbContext db, IAnalyticsWorkflowCl
     // Coverage and metrics are read from the same database snapshot while jobs may replace a day.
     public async Task<DashboardOverview> Overview(string ward, AnalyticsQuery q, CancellationToken ct)
     {
+        var deadlines = DeadlineAggregation.Aggregate(await workflow.ReadDeadlines(ward, q, ct));
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
-        return new(Totals(await Metrics(ward, q).ToArrayAsync(ct)), await Coverage(q, ct), null, null);
+        return new(Totals(await Metrics(ward, q).ToArrayAsync(ct)), await Coverage(q, ct),
+            deadlines.CompletedSampleCount == 0 ? null : 100.0 * deadlines.CompletedOnTime / deadlines.CompletedSampleCount,
+            deadlines.CompletedSampleCount == 0 ? null : 100.0 * deadlines.CompletedLate / deadlines.CompletedSampleCount,
+            deadlines.CompletedSampleCount == 0 ? "NO_KNOWN_COMPLETED_DEADLINES" : "AVAILABLE", deadlines);
     }
     public async Task<TrendResult> Trends(string ward, AnalyticsQuery q, CancellationToken ct)
     {
