@@ -124,3 +124,9 @@ Tài liệu Microsoft: https://learn.microsoft.com/en-us/aspnet/core/host-and-de
 Bộ kiểm thử cookie trước đây (đã gỡ theo yêu cầu ngày 2026-10-14) bổ sung regression checks cho origin Azure giả lập qua HTTP local: cùng host/proto forwarded thành công dù không nằm allowlist; bỏ forwarded headers thì bị từ chối; thiếu CSRF hoặc origin lạ vẫn403; FE trong allowlist vẫn có credentialed CORS. Đây là kiểm thử local, không phải xác nhận đã deploy/sửa thành công trên Azure. Sau deploy cần kiểm tra revision mới và Execute trên Swagger thật. Swagger vẫn chỉ bật trong Development theo cấu hình cũ; bản sửa không bật Swagger ở Production.
 
 
+
+## Mobile native (P1, 21/10/2026)
+
+React Native gửi X-Client-Type: Mobile tại login/refresh/revoke. Login/refresh trả refreshToken trong JSON thay vì Set-Cookie; refresh/revoke nhận body {"refreshToken":"..."}. Revoke vẫn cần Bearer. Token phải lưu trong secure storage của thiết bị và thay sau mỗi refresh. Không đổi hợp đồng Web: Web không gửi header này và tiếp tục dùng cookie + CSRF.
+
+Header Mobile không chứng minh danh tính thiết bị. Filter chỉ bỏ CSRF cho native không có Origin và không có Sec-Fetch-Site; request trình duyệt vẫn được kiểm tra. Mobile không lấy token từ cookie nên không dùng ambient cookie để refresh. Không dùng nhánh Mobile để chữa CORS của Web.

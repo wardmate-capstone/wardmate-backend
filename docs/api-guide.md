@@ -3494,3 +3494,63 @@ Mật khẩu mới tối thiểu8 ký tự, gồm hoa, thường, số, ký tự
 ### Triển khai và xác nhận P0
 
 Áp dụng migration IAM 20261021090000_ManagerWorkflowReadScope để Manager có hai permission đọc. Workflow tiếp tục xác minh quyền hiện hành qua IAM; FE refresh/login để đồng bộ menu. Đưa IAM, Workflow và Gateway bản mới vào môi trường test. Xác nhận FD B đọc hồ sơ FD A cùng phường được nhưng không sửa; khác phường/tự nộp bị chặn; Manager đọc được nhưng POST thao tác403; danh sách có assignedOfficerId thật. Kiểm tra đổi mật khẩu sai/không khớp/yếu/đúng, login mật khẩu cũ thất bại, mới thành công, refresh token cũ thất bại. Chưa triển khai P1/P2.
+
+## Chặng 2 P1 — API bổ sung ngày 21/10/2026
+
+### Tiếp nhận hồ sơ giấy tại quầy
+
+`POST /api/v1/officer/applications/{id}/officially-received`
+
+Cán bộ đang thụ lý gọi sau khi người dân đến phường và đã đối chiếu giấy tờ. Cần Bearer, role FRONT_DESK_OFFICER và permission `workflow.receipt.confirm`; Manager chỉ đọc, kể cả tài khoản có thêm role cán bộ. Hồ sơ phải cùng phường, được giao cho cán bộ này và không do chính cán bộ nộp.
+
+```json
+{
+  "paperDossierVerified": true,
+  "notes": "Đã đối chiếu bộ hồ sơ giấy tại quầy",
+  "appointmentDate": "2026-11-23T09:00:00Z"
+}
+```
+
+Ngày hẹn có thể bỏ trống/null, nếu có phải không nằm trong quá khứ; ghi chú tối đa 4.000 ký tự. Body tối đa 16 KiB. Chỉ nhận hồ sơ DOCUMENTS_READY. Thành công 200 trả `applicationId`, `status: OFFICIALLY_RECEIVED`, `receiptNumber`, `receivedAt`, `appointmentDate`. Số biên nhận dạng BN-ngày UTC-GUID hồ sơ; đây là số hệ thống sinh, không đồng bộ số biên nhận của hệ thống hành chính bên ngoài.
+
+Sai dữ liệu trả400; thiếu đăng nhập401; sai quyền/phường/người thụ lý403; không có hồ sơ404; chưa sẵn sàng hoặc gọi lại sau tiếp nhận409. Khi409, tải lại chi tiết hồ sơ trước khi thao tác. Không dùng API này để phê duyệt kết quả hành chính. Hồ sơ sau tiếp nhận vẫn được tải tài liệu nhưng không sửa nội dung.
+
+### Công dân hủy hồ sơ tiền kiểm
+
+`POST /api/v1/applications/{id}/cancel`
+
+Chủ hồ sơ có Bearer và `workflow.cancel` gọi khi không muốn tiếp tục hồ sơ DRAFT hoặc NEED_REVISION. Không cần body. Thành công200 trả ApplicationDto với status CANCELLED và lưu lịch sử; dữ liệu không bị xóa. Hồ sơ không thuộc mình/không tồn tại trả404; thiếu quyền403; trạng thái khác hoặc hủy lần hai409. Đọc lại hồ sơ khi gặp409. Không thể hủy bằng API này sau khi đã nộp hoặc đã sẵn sàng.
+
+### Đăng nhập và refresh cho React Native
+
+`POST /api/v1/auth/login`: giữ body đăng nhập hiện có, thêm header `X-Client-Type: Mobile`. Thành công200 có thêm `refreshToken` trong JSON, không ghi cookie. Lưu refresh token trong kho bảo mật của thiết bị; không log hoặc đưa vào URL.
+
+`POST /api/v1/auth/refresh-token`: cũng gửi header Mobile và body:
+
+```json
+{ "refreshToken": "TOKEN_DANG_LUU_TREN_THIET_BI" }
+```
+
+Thành công200 trả cặp token mới; thay refresh token cũ ngay vì token chỉ dùng một lần. Thiếu/sai/hết hạn token trả401: yêu cầu đăng nhập lại; không gửi nhiều refresh đồng thời. Login/refresh giới hạn body4096 byte. `POST /api/v1/auth/revoke-token` trên Mobile dùng cùng body và header, kèm Bearer; thành công204, ứng dụng xóa token cục bộ.
+
+Web không gửi header Mobile: tiếp tục dùng HttpOnly cookie và header CSRF hiện có; refresh token không xuất hiện trong JSON Web. Native không có Origin/Sec-Fetch-Site được đi qua kiểm tra CSRF; request có dấu hiệu trình duyệt vẫn phải qua kiểm tra CSRF/Origin. Header Mobile không cấp role hay quyền. Không dùng header này như cách sửa lỗi CORS trên FE web.
+
+### Xem trực tiếp giấy tờ minh chứng
+
+`GET /api/v1/supporting-documents/{documentId}/preview`
+
+Gửi Bearer của chủ tài liệu hoặc cán bộ được phép theo kiểm tra download hiện có. Trả200 stream PDF/PNG/JPEG với Content-Disposition inline; hỗ trợ range khi stream cho phép. FE dùng fetch có Bearer, tạo URL từ Blob để hiển thị; mở URL trực tiếp bằng tab thường không tự gửi Bearer. Response không cache. Sai quyền403, không có tài liệu404, dịch vụ lưu trữ không khả dụng503; DOC/DOCX trả415, hãy dùng API download. Preview không chuyển Word thành PDF và không mở truy cập công khai.
+
+### Thủ tục nổi bật
+
+`GET /api/v1/procedures/featured`
+
+Public, không cần Bearer/body. Trả200 là mảng tối đa5 ProcedureSummaryDto, chỉ thủ tục active, mới tạo nhất trước. Đây là danh sách mới nhất, chưa phải thống kê lượt xem. Có thể trả mảng rỗng hoặc dưới5 mục. Không có metadata phân trang; muốn tìm kiếm/phân trang dùng GET /api/v1/procedures.
+
+### Upload Word đã điền offline
+
+`POST /api/v1/citizen/submissions/upload-filled-docx`
+
+Công dân có quyền DocumentCitizen dùng khi đã tải và điền mẫu Word trên máy. Đây là alias của POST /api/v1/citizen/submissions/draft, cùng xử lý và kiểm tra. Gửi Bearer và multipart/form-data gồm `TemplateId`, `ApplicantId`, `ApplicationId`, `ChecklistId`, `File` (.docx). Hai ID hồ sơ/checklist vẫn bắt buộc để gắn đúng giấy tờ; không upload chỉ với ba trường đầu trong đề xuất FE. Để trình duyệt tự đặt boundary multipart.
+
+Thành công201 trả DTO chứa `submissionId`, trạng thái và thông tin file. ApplicantId phải là người đăng nhập; hồ sơ phải thuộc người đó và đang DRAFT/NEED_REVISION; checklist phải thuộc hồ sơ và đúng template. Sai file/dữ liệu400, sai quyền403, thiếu dữ liệu liên quan404, trùng bản nháp hoặc trạng thái không phù hợp409. Dùng submissionId đã có để cập nhật thay vì tạo trùng. API này lưu bản điền, không tự submit hồ sơ hay xác nhận đủ giấy tờ.

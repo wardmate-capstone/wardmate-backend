@@ -359,8 +359,7 @@ AIOCR API `Controllers/ProcedureExtractionsController.cs`, Infrastructure `Extra
 
 - DOCUMENTS_READY ghi DocumentsReadyAt UTC, lịch sử và Outbox cùng transaction; không cho sửa/bắt lỗi tiếp. Endpoint confirm-readiness không có body, chỉ FD được phân công đúng phường, không tự xác nhận hồ sơ. API xác nhận lần hai trả 409.
 - Reason từ chối/yêu cầu sửa chịu validator tương ứng, tối đa 4.000 ký tự.
-- CANCELLED là giá trị trạng thái có trong database; không vì vậy kết luận có API
-  hủy hoặc mọi chuyển đổi đến CANCELLED đã được triển khai.
+- DRAFT/NEED_REVISION → CANCELLED: chủ hồ sơ gọi POST /api/v1/applications/{id}/cancel với workflow.cancel; các trạng thái khác trả409. Hủy không xóa hồ sơ.
 - Không gửi trực tiếp chuỗi Status để tùy ý nhảy qua vòng đời.
 
 ### WF-04 — Phường, người thụ lý, comments và version
@@ -449,7 +448,7 @@ API `DocumentContentsClient.cs`; Infrastructure `ApplicationReviewStore.cs`.
 ### DOC-05 — Xác nhận giấy tờ sẵn sàng và kết xuất PDF
 
 - Workflow sở hữu trạng thái. DocumentForm confirm-readiness/request-revision chuyển yêu cầu sang Workflow, không xác nhận form độc lập để vượt điều kiện của Application.
-- Workflow DOCUMENTS_READY mới cho phép xuất/list/download PDF và đọc QR. Thiếu điều kiện trả 409 document.application_not_ready; không nới quyền cho cán bộ.
+- Workflow DOCUMENTS_READY hoặc OFFICIALLY_RECEIVED cho phép xuất/list/download PDF và đọc QR. Thiếu điều kiện trả 409 document.application_not_ready; không nới quyền cho cán bộ.
 - DocumentForm đồng bộ submission Submitted sang ReadyForDownload khi xác minh truy cập. Đây là đồng bộ khi đọc, có thể thử lại, không phải transaction xuyên service. Form Draft/RevisionRequested không tự được xác nhận.
 - PDF dùng submission đã lưu, đúng application, chưa xóa, ReadyForDownload; không nhận file thay thế. Form chưa sẵn sàng trả document.submission_not_ready.
 - QR chỉ là tham chiếu giấy tờ chuẩn bị. Giữ tên bảng document.approved_qrs và routes approved-qr để tương thích. QR được tạo khi kết xuất PDF nếu chưa có; unique application_id giữ nguyên. Không phải ký số/con dấu/quyết định hành chính.
@@ -652,3 +651,14 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 
 - Cập nhật WF-04, thêm IAM-07; ReviewActor tách CanReadWard/CanMutate. Manager nhận workflow.queue.read và workflow.read qua migration ManagerWorkflowReadScope, gỡ các grant thao tác của Manager. Không tự cấp role FD cho Manager.
 - Comments/version/diff vẫn yêu cầu permission riêng; migration này chỉ cấp hai quyền đọc theo yêu cầu. Danh sách dùng metadata total (không phải totalCount trong ví dụ audit); status READY_TO_SUBMIT chưa có, lọc sẽ không có kết quả. DocumentForm không được mở quyền ghi theo thay đổi này.
+
+
+### 21/10/2026 — Chặng 2 P1
+
+- WF-03 bổ sung DOCUMENTS_READY → OFFICIALLY_RECEIVED qua CounterReceiptRequests.cs: chỉ CanMutate, đúng phường/assignment và không tự xử lý; policy workflow.receipt.confirm. PaperDossierVerified phải true, notes<=4000 ký tự, appointmentDate nullable nhưng nếu có không được quá khứ. Chuyển trạng thái, ReceivedAt UTC, biên nhận và lịch sử/Outbox trong transaction khóa hồ sơ. Lần hai409. Không thêm approve/reject.
+- WF-03 bổ sung DRAFT/NEED_REVISION → CANCELLED qua API chính chủ với workflow.cancel. Trạng thái khác409, không sở hữu404, không xóa dữ liệu. Bản nháp chưa từng nộp có currentVersionNumber=0 sau hủy.
+- DB-P1: receipt_number nullable varchar64 unique, received_at/appointment_date nullable timestamptz; migration Workflow 20261021073245_CounterReceipt. Down chặn khi đã có dữ liệu biên nhận hoặc OFFICIALLY_RECEIVED để tránh mất dữ liệu. IAM CounterReceiptPermissions cấp receipt cho FD, cancel cho role đang có workflow.submit; Manager không được cấp quyền tiếp nhận. Cần áp dụng cả hai migration trước dùng endpoint.
+- DOC-05: OFFICIALLY_RECEIVED tiếp tục cho phép đọc/xuất PDF như DOCUMENTS_READY; không mở quyền sửa. Preview kế thừa kiểm tra download; chỉ PDF/PNG/JPEG inline, Word415; nosniff/no-store. Alias upload-filled-docx giữ đầy đủ ApplicationId/ChecklistId, ownership và giới hạn DOCX của draft hiện có.
+- IAM-P1: X-Client-Type Mobile chỉ chọn cách truyền token, không phải xác thực thiết bị. Mobile login/refresh trả refreshToken JSON, bỏ đọc/ghi cookie; refresh/revoke đọc token body. Web giữ cookie. Request có Origin hoặc Sec-Fetch-Site vẫn qua CSRF; native không có hai header này được miễn CSRF. Rotation/revocation vẫn dùng logic hiện có, access JWT còn hiệu lực tới expiry. Nguồn AuthController.cs, BrowserAuthProtectionAttribute.cs, RefreshTokenCookie.cs.
+- PROC-P1: featured chỉ5 bản active theo CreatedAt giảm dần, Id để ổn định thứ tự; projection summary không lấy JSON lớn. Không khẳng định là thủ tục được xem nhiều nhất.
+- NOTI-02: consumer chấp nhận OFFICIALLY_RECEIVED, thông báo có tiêu đề cho tiếp nhận/hủy. Draft hủy chưa có mã hồ sơ dùng GUID làm mã trong event để hợp đồng sự kiện hợp lệ; không thay mã hồ sơ trong DB. SMS/Email vẫn hoãn.

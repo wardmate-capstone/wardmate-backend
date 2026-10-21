@@ -2592,6 +2592,7 @@ Owner explicitly approved push main after Docker handoff. Fetched origin; main w
 - Gợi ý commit chức năng cho Antigravity: fix(workflow): allow ward-scoped read-only manager access; feat(iam): add authenticated password change; fix(iam): grant manager workflow read permissions. Tách từng file mới riêng theo AGENTS.md. Chờ chỉ thị P1.
 
 - Hoàn tất local: 2026-10-21 09:11:55 +07:00 (Asia/Saigon). Build cuối: dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 PASS, 0 lỗi/0 cảnh báo, 00:01:55.03. Lần build trước có 5 lỗi khai báo danh sách trùng, đã sửa trước lần build đạt này. Chưa xác nhận integration/runtime hoặc triển khai Azure.
+<<<<<<< Updated upstream
 ## TASK-31..36 - Source implementation assessment (2026-10-21T09:58:56+07:00)
 - Scope: inspected current local source, EF mappings/migrations, workers and documentation; no Git commands or Azure changes.
 - TASK-31/32/33: no metrics aggregation/Hangfire, manager analytics endpoints or citizen feedback implementation found. Planned tables remain SYS_FUTURE in docs/system-unified-erd.md.
@@ -2672,3 +2673,43 @@ Antigravity handoff: suggested commit themes feat(analytics): add daily metrics 
 - User explicitly approved rebasing 30 commits onto latest kha, resolving conflicts, revalidating and pushing. Rebased onto origin/kha 1bcfc59; kept all 30 commits. Only conflict was appended PROGRESS sections; both retained. Session stash restored.
 - Post-rebase solution Release build PASS: 0 warnings/0 errors (logs/task31-33-rebase-build.log). Integration smoke PASS 44/44 (logs/task31-33-rebase-smoke.log), simulated IAM and actual Workflow/Analytics/PostgreSQL/Hangfire/Gateway; temporary resources cleaned.
 - No API/source edits for conflict resolution; existing Docker images predate integration and must be rebuilt before release. Preparing authorized normal push to kha only; no force-push/main/deploy/Azure action.
+
+## 2026-10-21 — Chặng 2 P1: tiếp nhận tại quầy, Mobile và tiện ích tài liệu
+
+Hoàn tất code và kiểm tra build local lúc 2026-10-21 14:38 +07:00 (Asia/Saigon). Không chạy Git, Docker, deploy hoặc cập nhật database. Không tạo test project.
+
+### Hợp đồng FE
+
+- Task2.1 POST /api/v1/officer/applications/{id}/officially-received: body paperDossierVerified=true, notes nullable<=4000, appointmentDate nullable (ISO offset, không quá khứ). Bearer + workflow.receipt.confirm, FD đang thụ lý/cùng phường/không tự xử lý; Manager bị chặn. Chỉ DOCUMENTS_READY → OFFICIALLY_RECEIVED. 200 {applicationId,status,receiptNumber,receivedAt,appointmentDate}; validation400, unauthorized401, forbidden403, missing404, invalid status409. Body16KiB. Receipt BN-yyyyMMdd-GuidN unique, UTC. Không phê duyệt kết quả hành chính.
+- Task2.2 POST /api/v1/applications/{id}/cancel: không body, Bearer + workflow.cancel, chính chủ; DRAFT/NEED_REVISION → CANCELLED. 200 ApplicationDto, wrong owner404, state409. Hủy giữ dữ liệu/lịch sử, không sửa/nộp lại. Draft chưa nộp giữ currentVersionNumber=0.
+- Task2.3 login/refresh thêm header X-Client-Type: Mobile, trả refreshToken JSON không cookie. Refresh/revoke body {refreshToken}; revoke vẫn Bearer,204. Web không header giữ cookie/CSRF, không lộ refresh JSON. Native không Origin/Sec-Fetch-Site miễn CSRF; browser vẫn qua kiểm tra. Login/refresh4096byte. Rotation hiện có; token sai401, CSRF403; không log token. Không thay đổi RBAC theo header.
+- Task2.4 GET /api/v1/supporting-documents/{documentId}/preview: quyền download giữ nguyên, stream inline PDF/PNG/JPEG200, định dạng khác415 hãy download; nosniff/no-store. Lỗi truy cập403/404, storage503. Không tự chuyển DOCX thành PDF.
+- Task2.5 GET /api/v1/procedures/featured: public200 mảng tối đa5 summary active mới tạo nhất, không phân trang/không thống kê view, không load content_payload.
+- Task2.6 POST /api/v1/citizen/submissions/upload-filled-docx: alias draft, multipart TemplateId,ApplicantId,ApplicationId,ChecklistId,File; trả201 có submissionId. Giữ kiểm tra quyền/owner/trạng thái/template/file/duplicate của draft, các lỗi400/403/404/409. Hai ID hồ sơ/checklist vẫn bắt buộc, không bỏ liên kết vì đề xuất FE chỉ liệt kê3 trường.
+- Chi tiết ApplicationDto có receiptNumber/receivedAt/appointmentDate nullable. Lỗi Workflow vẫn ProblemDetails và code theo Respond/validator; preview415 dùng ProblemDetails. FE tải lại khi409 và refresh/login sau cập nhật quyền.
+
+### File thay đổi / mới
+
+Các đường dẫn nhóm dưới đây tính từ src/Services tương ứng:
+
+- ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Domain/ApplicationRecord.cs.
+- ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WorkflowContracts.cs; CounterReceiptRequests.cs (mới).
+- ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/ApplicationReviewController.cs; Controllers/ApplicationsController.cs; WorkflowSecurity.cs.
+- ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDbContext.cs; WorkflowOutbox.cs; Migrations/20261021073245_CounterReceipt.cs (mới); Migrations/20261021073245_CounterReceipt.Designer.cs (mới); Migrations/WorkflowDbContextModelSnapshot.cs.
+- IAM/WardMate.Services.IAM.API/Controllers/AuthController.cs; Security/RefreshTokenCookie.cs; Security/BrowserAuthProtectionAttribute.cs.
+- IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261021100000_CounterReceiptPermissions.cs (mới).
+- DocumentForm/WardMate.Services.DocumentForm.API/Controllers/CitizenSubmissionsController.cs; Controllers/SupportingDocumentsController.cs; Security/ApplicationAccess.cs.
+- ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/Interfaces/IProcedureRepository.cs; Queries/GetFeaturedProceduresQuery.cs (mới).
+- ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/Persistence/ProcedureRepository.cs; ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/Controllers/ProceduresController.cs.
+- AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/WorkflowNotificationConsumer.cs; NotificationInboxWorker.cs: nhận trạng thái tiếp nhận/hủy và tiêu đề thông báo. Workflow Outbox dùng GUID khi draft hủy chưa có mã; không thay mã DB.
+- src/BuildingBlocks/WardMate.SharedKernel/Web/FeaturePermissions.cs.
+- docs/api-guide.md; docs/system-constraints.md; docs/iam-httponly.md; PROGRESS.md.
+
+### Xác minh và bàn giao
+
+- dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1: PASS, 0 warnings, 0 errors, 00:00:56.96.
+- EF has-pending-model-changes IAM/Workflow: PASS cả2, model khớp snapshot. Sinh và đọc SQL idempotent cho cả2 migration thành công, chưa apply database.
+- Workflow migration thêm3 cột nullable, unique receipt_number, cập nhật check constraint; Down chặn nếu đã có dữ liệu biên nhận. IAM migration cấp receipt cho FD và cancel cho role đang có workflow.submit; không tự restore quyền khi rollback.
+- Số automated tests chạy:0 (owner đã gỡ test projects). Chưa xác nhận runtime HTTP/transaction/RabbitMQ/Blob/Mobile trên Docker hoặc Azure. Không tuyên bố 100% tests passed.
+- Khi bàn giao: apply migration IAM và Workflow, cập nhật IAM/Workflow/DocumentForm/ProcedureCatalog/AnalyticsSystem đồng bộ; không yêu cầu đổi Gemini/billing. Kiểm thử FD đúng/sai phường, Manager403 khi tiếp nhận, lặp nhận409, cancel chính chủ/sai trạng thái, mobile rotation và Web cookie, preview415, alias DOCX đúng/sai checklist, featured inactive bị loại.
+- Gợi ý Conventional Commits theo chức năng: feat(workflow): add counter receipt and citizen cancellation; feat(iam): support native refresh token transport; feat(document-form): add inline preview and filled docx upload alias; feat(procedure): expose featured active procedures; fix(notifications): handle counter receipt and cancellation events; docs: document phase two API contracts. Antigravity phải tách mỗi file mới thành commit riêng và mỗi cập nhật chức năng riêng theo AGENTS.md; đây không phải lệnh Git hay số commit đã tạo.
