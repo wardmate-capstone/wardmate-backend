@@ -2758,3 +2758,53 @@ Prefix src/Services/WardMate.Services.AIOCR/:
 - Cần test bàn giao: migrate DB riêng; cấu hìnhsecret/model đã chọn; CCCD mẫu/mờ/null; chat2user không đọc chéo, gửi đồng thời409; verify đúng/sai applicationId, FD được giao/khác người, fileDOCX415; lỗi quota/timeout AI. Không dùng tài liệu cá nhân thật khi chưa có đồng ý xử lý bởi nhà cung cấp.
 - Hợp đồng Gemini đối chiếu tài liệu chính thức https://ai.google.dev/api/generate-content (inlineData, responseJsonSchema). Adapter không tự đổi model, không auto retry/quota-upgrade.
 - Gợi ý commit chức năng: feat(aiocr): add citizen card extraction; feat(aiocr): persist authenticated chat sessions; feat(aiocr): add authorized document prevalidation; chore(aiocr): configure public endpoints and chat database; docs: document phase three AI contracts. Antigravity tách mỗi file mới thành commit riêng và từng cập nhật chức năng riêng theo AGENTS.md; chưa có Git/commit/push từ Codex.
+
+## 2026-10-21 — WF-DEADLINE-001: hạn tiền kiểm giấy tờ và Analytics
+
+### Hiện trạng và quyết định
+
+- Trước sửa: có DocumentsReadyAt, SubmittedAt bị ghi đè khi nộp lại; chưa có due/first-submit/policy/calendar/pause, overview trảnull tỷ lệ với UNAVAILABLE_NO_WORKFLOW_DEADLINE.
+- Chủ dự án chốt trong lượt này:1tuần=5ngày làm việc45giờ, thứHai–thứSáu07:30–16:30 giờVN, pause khi chờ bổ sung. Không phải hạn giải quyết hành chính, không dùng AppointmentDate. Holidays hiện[] chưa loại ngày lễ; cần chốt lịch trước khi sử dụng như SLA chính thức.
+
+### Đã triển khai
+
+- FirstSubmittedAtUtc bất biến từ submit đầu; dueAtUtc, deadlineStatus KNOWN/UNKNOWN/NOT_APPLICABLE; mã/phiênbản policy/calendar, snapshot đầy đủ JSONB và lịch sử PAUSE/RESUME/CANCEL. AlltimestampsUTC. documentsReadyAtUtc là aliasDocumentsReadyAt cũ, giữ tương thích.
+- Submit đầu tính45giờ bằng lịch đã chụp; nộp ngoài giờ/cuối tuần chuyển thời gian tính sang cửa sổ làm việc. Request-revision pause, resubmit cộng workingticks tạm dừng vào due cũ, không reset45giờ. Giữ phần quá hạn trướcpause. Hủy đóngpause mà không tạo hoàn thành.
+- Detail/list cho công dân/cán bộ có deadlinefields; quyền ward/owner/Managerread-only không đổi. Không có API sửa hạn tùy ý từFE. Metadata+deadline+lịch sử trạng thái lưu cùng transaction nghiệp vụ hiện có.
+- Analytics GET /api/v1/analytics/overview bổ sung deadlines gồm completedOnTime,completedLate,completedMissingDeadline,completedNotApplicable,completedSampleCount,openOverdue,openMissingDeadline,openNotApplicable,openPaused,asOfUtc. OnTime<=due;Late>due;rate0..100 chỉ chia cho known completed;sample0=>null. UNKNOWN vàNA không tínhmẫu.
+- Completed cohort theo ngàyready trongFrom/To; openbacklog snapshot hiện tại cùngward/procedure, không gộp vào completedLate, không lọc ngày nộp và không phải lịch sử tạiTo. Pause trướcdue không tính thêmchậm; pause sau due vẫnopenOverdue. CANCELLED/DRAFT/legacyApproved/Rejected không giảhoàn thànhready.
+- Nguồn HTTP GET /internal/analytics/v1/deadlines?ward=...&from=...&to=...&procedureId=... dùng X-Analytics-Key>=32bytes, không DBcross-service; nguồn>100000 trả503 khôngtruncation. Analytics tự tổnghợp facts và kiểmtra version/UTC/status/knownconsistency; Managerward lấy accesscontext, không FEward.
+- Overviewdeadline đọc Workflow live và cóasOfUtc riêng; totals/cache giữCoverage riêng. Trends/procedure/officer metrics chưa có deadline. KhiWorkflow chưa deploy/mấtkết nối/key sai,overview lỗi thayvìfake0. Cần Workflow:BaseUrl và Analytics:ServiceKey kể cả jobsdisabled.
+
+### Migration/config
+
+- Mới 20261021144055_ReviewDeadline:10cột metadata/deadline/audit, index ward+deadlineStatus+due, checkconstraint. Tất cả dữliệu cũ defaultUNKNOWN/dueNULL/firstNULL, khôngUPDATEbackfill. Downchặn nếu đã có chứngcứ mới.
+- ReviewDeadline trong appsettings Workflow: Enabled=true,Applicable=true,Code DOCUMENT_PREPARATION,Version2026-10-21-v1,CalendarCode VN_MON_FRI_0730_1630,CalendarVersion2026-10-21-v1,WorkingMinutes2700,PauseOnRevisiontrue,StartMinute450,EndMinute990,WorkingDaysMon..Fri,Holidays[]. Configinvalidfailstartup;EnabledfalseUNKNOWN;ApplicablefalseNA. Tăngversion khi đổi rule/lịch, không sửa snapshot hồ sơcũ.
+- Chỉ cần migration Workflow; Analytics không thêm bảng vì phần deadline aggregate trực tiếp từ Workflow, không sửa DBcache/dailycontractv1.
+
+### File mới
+
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Domain/ReviewDeadline.cs.
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/DeadlineFacts.cs.
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261021144055_ReviewDeadline.cs và 20261021144055_ReviewDeadline.Designer.cs.
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Application/DeadlineStatistics.cs.
+
+### File sửa
+
+- Workflow Domain: ApplicationRecord.cs.
+- Workflow Application: WorkflowRequests.cs,ReviewHandlers.cs,CounterReceiptRequests.cs,WorkflowContracts.cs,AnalyticsContracts.cs.
+- Workflow Infrastructure: WorkflowDbContext.cs,ApplicationStore.cs,ApplicationReviewStore.cs,WorkflowAnalyticsSource.cs,Migrations/WorkflowDbContextModelSnapshot.cs.
+- Workflow API: Program.cs,appsettings.json,Controllers/AnalyticsSourceController.cs.
+- AnalyticsSystem Application: AnalyticsContracts.cs; Infrastructure:AnalyticsWorkflowClient.cs,AnalyticsService.cs.
+- docs/api-guide.md,docs/system-constraints.md,PROGRESS.md.
+
+### Xác minh
+
+- Release solution build: dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 PASS0errors0warnings,00:00:58.01. Build trước migration cũngđạt.
+- EF modelkhớp migration; SQLidempotent sinh/đọc thànhcông. HaiEFcommands chạy đồngthời banđầu tranh fileobj; chạy lại tuần tự modelcheckPASS. ChưaapplyDB.
+-21assertions trực tiếp trên DLL qua PowerShell/reflection PASS:9calendar/firstsubmit/snapshot/audit/weekend/holiday/legacy/NA;8Analytics equality/late/missing/NA/denominator/openoverdue/unknown/paused;2overduepreservation/weekendpause;2invalidsourceguards. Khôngtạo testproject; khôngtuyênbố integrationtests đãđạt. Lần thửreflection trướcDomainbuild xong chưa thấytypenew; thực hiện lại saubuild vàPASS.
+- Chưa kiểmthửDBtransaction/APIHTTP/Rabbit/Azure với migration mới. KhôngchạyGit,Docker,deploy hoặc dùngdữliệu thật. Bàn giao cần migrateWorkflow, deployWorkflow+Analytics, thửsubmit→revision→resubmit→ready, xácminhUNKNOWNold vàManagerphường.
+- Gợi ý Conventional Commits: feat(workflow): track versioned document review deadlines; feat(analytics): report deadline compliance and open overdue dossiers; docs: document review deadline rules and reporting scope. Antigravity tách mỗi file mới và chức năng theoAGENTS.md; Codex chưa tạo commit.
+
+- Hoàn tất local: 2026-10-21 21:44:59 +07:00 (Asia/Saigon).
+

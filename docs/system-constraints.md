@@ -678,3 +678,25 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 ### Nhật ký 21/10/2026 — Chặng 3 P2
 
 Thêm AI-P2-01 và tài liệu cấu hình. Chỉ thay đổi local; không áp dụng DB, không gọi Gemini với dữ liệu cá nhân, không triển khai Azure. OCR CCCD không thay đổi danh tính IAM; prevalidation không thay workflow/checklist. API nội bộ đọc thủ tục giữ hợp đồng cũ.
+
+### WF-05 — Hạn tiền kiểm giấy tờ (21/10/2026)
+
+- Workflow sở hữu cách tính; Analytics chỉ phân loại/tổng hợp theo mốc Workflow. Không dùng AppointmentDate, ApprovedAt hay processingTimeSummary làm hạn kiểm tra. Mặc định mới theo chủ dự án:45giờ làm việc, thứHai–thứSáu07:30–16:30 UTC+07, khung liên tục; pause khi yêu cầu bổ sung. Holidays=[] hiện chưa loại ngày lễ, cần cấu hình lịch thực tế và tăng CalendarVersion trước áp dụng.
+- FirstSubmittedAtUtc chỉ gán trong submit lần đầu; SubmittedAt cũ vẫn là lần nộp gần nhất. Không backfill hồ sơ cũ bằng ngày hiện tại, lịch hiện tại hoặc ngày hẹn. UNKNOWN/due=null cho dữ liệu cũ. Draft cũ nếu CHƯA nộp và nộp lần đầu sau nâng cấp được chụp chính sách mới.
+- Khi Enabled=true, snapshot chính sách và calendar JSONB được lưu cùng transaction với submit; code/version,khung giờ,ngày làm,holidays,PauseOnRevision,WorkingMinutes đi cùng hồ sơ. Không đổi hạn cũ khi cấu hình mới thay đổi. Applicable=false tạo NOT_APPLICABLE; Enabled=false giữ UNKNOWN. Config invalid fail startup, không im lặng gán hạn giả.
+- Tất cả timestamps UTC; lịch VN cố định+07. AddWorkingTicks bảo toàn phần giây/ticks và nhảy cuối tuần/ngày nghỉ. Không reset45giờ khi resubmit. Pause ghi PAUSE; Resume cộng số workingticks trong khoảng pause vào due cũ rồi ghi RESUME với dueBefore/dueAfter và actor. Nếu đã quá hạn trước pause, giữ phần trễ. Cancel ghi CANCEL đóng pause, không giả lập resume/hoàn thành.
+- DB check: KNOWN cần due/firstsubmit/snapshot/mãphiênbản; UNKNOWN/NOT_APPLICABLE không códue hoặc pause. Index WardCode+DeadlineStatus+DueAtUtc. deadlineHistory JSONB [] mặc định. documentsReadyAtUtc là DTO alias của DocumentsReadyAt cũ; không cần cột timestamp thứ hai. Down migration chặn nếu có chứng cứ deadline mới để tránh xóa audit.
+- Quyền/status/locking của submit,revision,resubmit,cancel giữ nguyên; client không được đặt deadline. Detail+list có trường mới, không bỏ fields cũ.
+- Nguồn: ApplicationWorkflow.Domain/ReviewDeadline.cs, ApplicationRecord.cs; Application/WorkflowRequests.cs,ReviewHandlers.cs,CounterReceiptRequests.cs,WorkflowContracts.cs; Infrastructure/WorkflowDbContext.cs,ApplicationStore.cs,ApplicationReviewStore.cs; API/Program.cs,appsettings.json.
+
+### ANA-DEADLINE-01 — Đúng/trễ hạn và backlog riêng
+
+- Analytics overview chỉ lấy mẫu completed KNOWN (documentsReadyAtUtc<=due đúng; >due trễ), rate0..100, mẫu0 trảnull. CompletedUNKNOWN và NOT_APPLICABLE ghi riêng và loại mẫu số. Không gộp openOverdue với completedLate.
+- Completed cohort theo ngày sẵn sàng trong From–To (UTC+07). Backlog hiện tại cùng phường/thủ tục, không lọc ngày nộp và không phải backlog lịch sử ngàyTo. Open statuses chỉSUBMITTED/UNDER_REVIEW/NEED_REVISION; loạiDRAFT/CANCELLED/legacyAPPROVED/REJECTED/OFFICIALLY_RECEIVED khi không có readiness. Open có pause so due với thời điểm pause để tránh tính thời gian chờ; đãtrễ trướcpause vẫntrễ.
+- Snapshot facts qua HTTP internal /internal/analytics/v1/deadlines, servicekey>=32byte cốđịnh và so sánh constant-time. Không truy cập DB chéo service. Manager chỉ lấy ward từ access-context, không nhận ward tùy ý của FE. Query1..366ngày, ward<=50; nguồn>100000rows trả503 không cắt mẫu gây sai tỷ lệ. DTO kiểm tra version,UTC,status,uniqueness và nhấtquán known/due.
+- Overview đọc deadline trực tiếp Workflow; totals cũ đọc cache Analytics với Coverage riêng. asOfUtc riêng cho deadline, không khẳng định cùng snapshot với cache. Endpointoverview nay cần Workflow và Analytics:ServiceKey kể cảjobsdisabled; lỗi nguồn không giả0. Chưa thêm deadline vào trends/officer/procedure statistics hoặc tạo metric cache mới, chưa lưu backlog snapshot lịch sử.
+- Nguồn: WorkflowAnalyticsSource.cs,AnalyticsSourceController.cs,Application/DeadlineFacts.cs; AnalyticsSystem.Application/DeadlineStatistics.cs,AnalyticsContracts.cs; Infrastructure/AnalyticsService.cs,AnalyticsWorkflowClient.cs.
+
+### Nhật ký 21/10/2026 — Workflow review deadline
+
+Thêm WF-05/ANA-DEADLINE-01 theo quyết định chủ dự án45giờ,Monday–Friday07:30–16:30, pause khi bổ sung. Migration Workflow mới; không backfill deadline cũ, không đổi hạn hành chính, không chạyGit/DBdeploy. Các chú thích cũ UNAVAILABLE_NO_WORKFLOW_DEADLINE là lịch sử trước lần bổ sung này.

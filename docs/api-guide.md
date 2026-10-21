@@ -3614,3 +3614,42 @@ Sai IDs/body400; thiếu token401; bị DocumentForm từ chối403/404; file kh
 - Docker Compose profile ai thêm AIOCR_ASSISTANT_ENABLED, AIOCR_DATABASE_CONNECTION_STRING, AIOCR_AUTO_MIGRATE; dùng JWT_KEY hiện có. Không tự tạo PostgreSQL AIOCR trong Compose: phải cung cấp database riêng.
 - Mỗi user tối đa10 request/phút cho nhóm endpoint mới (kể cả đọc lịch sử), vượt trả429. Bộ đếm ở từng replica, chưa là quota phân tán. HTTP Gemini timeout90giây; không tự retry để tránh nhân chi phí. Health hiện là liveness, Healthy không chứng minh DB/Gemini hoạt động.
 - Gemini adapter dùng generateContent + inlineData + JSON Schema. Tham khảo hợp đồng: https://ai.google.dev/api/generate-content .
+
+## Hạn kiểm tra/chuẩn bị giấy tờ — 21/10/2026
+
+Đây là hạn hoàn tất tiền kiểm trên WardMate, KHÔNG phải hạn giải quyết hành chính hoặc AppointmentDate tại phường. Chính sách chủ dự án chốt:5ngày làm việc=45giờ, thứHai–thứSáu,07:30–16:30 Asia/Ho_Chi_Minh (UTC+07), tạm dừng khi chờ công dân bổ sung. Khung liên tục chưa trừ nghỉ trưa. Holidays hiệnrỗng do chưa cung cấp danh sách ngày nghỉ; không tự suy ra ngày lễ.
+
+### Đọc deadline trong API hồ sơ
+
+GET /api/v1/applications/{id}, GET /api/v1/officer/applications/{id} và response thao tác hồ sơ có thêm:
+
+- firstSubmittedAtUtc: thời điểm nộp đầu, không đổi khi resubmit; dữ liệu cũ chưa có căn cứ để điền vẫnnull.
+- dueAtUtc: hạnUTC do Workflow tính, có thể thay khi resume.
+- documentsReadyAtUtc: aliasUTC của documentsReadyAt hiện có, không thêm mốc hoàn thành khác.
+- deadlineStatus: KNOWN, UNKNOWN hoặc NOT_APPLICABLE. UNKNOWN không đồng nghĩa trễ hạn; NOT_APPLICABLE chỉ khi chính sách được cấu hình rõ Applicable=false lúc nộp đầu.
+- deadlinePolicyCode/deadlinePolicyVersion, deadlineCalendarCode/deadlineCalendarVersion: mã/phiên bản đã áp dụng cho hồ sơ.
+- deadlinePausedAtUtc: thời điểm bắt đầu pause đang mở, null nếu không pause.
+- deadlineHistory: mảng {action,atUtc,actorId,dueBeforeUtc,dueAfterUtc}, action PAUSE/RESUME/CANCEL. Đây là auditdeadline riêng, không thay lịch sử trạng thái.
+
+Các API danh sách công dân/cán bộ cũng trả firstSubmittedAtUtc,dueAtUtc,documentsReadyAtUtc,deadlineStatus,deadlinePausedAtUtc. FE không gửi dueAtUtc hay tự tính hạn để lưu. Quyền owner/cùng phường/Manager read-only giữ nguyên.
+
+POST submit thành công khởi tạo firstSubmittedAtUtc và chụp toàn bộ chính sách/lịch ngày nghỉ vào DB. POST request-revision dừng đồng hồ; POST resubmit dùng lịch đã chụp để cộng giờ làm việc bị tạm dừng vào dueAtUtc. Không reset45giờ khi nộp lại. Hồ sơ trễ trước pause vẫn trễ, không được xóa phần trễ bằng yêu cầu bổ sung. Cancel đóng pause bằng sự kiện CANCEL, không chuyển sang hoàn thành.
+
+Ví dụ nộp thứHai07:30 thì hạn thứSáu16:30; nộp ngoài giờ bắt đầu tính vào phiên làm việc tiếp theo. Backend lưuUTC, FE hiển thị giờViệtNam. Với lịch ngày nghỉ đã chốt cần tạo CalendarVersion mới trong cấu hình; hồ sơ cũ giữ snapshot, không tự áp dụng lịch mới.
+
+### GET /api/v1/analytics/overview
+
+Giữ Bearer và quyền Manager/phường hiện có, query From,To,ProcedureId như trước. Thêm deadlines:
+
+- completedOnTime: đã sẵn sàng và documentsReadyAtUtc<=dueAtUtc.
+- completedLate: đã sẵn sàng và documentsReadyAtUtc>dueAtUtc.
+- completedMissingDeadline: đã sẵn sàng nhưng UNKNOWN, ghi riêng.
+- completedNotApplicable: đã sẵn sàng nhưng NOT_APPLICABLE, ghi riêng.
+- completedSampleCount: completedOnTime+completedLate. Chỉ số này là mẫu số của onTimeRate/lateRate, tỷ lệ0..100; không có mẫu trảnull.
+- openOverdue: hồ sơ SUBMITTED/UNDER_REVIEW/NEED_REVISION còn mở và quá hạn, tách khỏi completedLate.
+- openMissingDeadline, openNotApplicable, openPaused: số hồ sơ mở tương ứng.
+- asOfUtc: thời điểm snapshotdeadline.
+
+Hồ sơ hoàn thành lọc theo ngày documentsReadyAtUtc trong From–To (ngàyVN). Backlog mở là snapshot HIỆN TẠI của cùng phường/thủ tục, không giới hạn ngày nộp và không cộng dồn từng ngày; không dùng nó như backlog tại ngày To trong quá khứ. Pause trước hạn không bị tính quá hạn trong lúc chờ; pause sau hạn vẫn thuộc openOverdue. openPaused có thể giao với openOverdue.
+
+TimelinessStatus=AVAILABLE nếu có mẫu hợp lệ; NO_KNOWN_COMPLETED_DEADLINES nếu không có. Metrics/totals cũ vẫn dùng cache theo Coverage; phầndeadline đọc trực tiếp Workflow nên có asOfUtc riêng và có thể mới hơn totals. Trends/procedures/officers chưa bổ sung tỷ lệdeadline trong lần này. Nguồn Workflow mất kết nối/chưa deploy/khóa sai/nguồn quá lớn:overview trả lỗi, không giả lập0 hoặc tính UNKNOWN thành trễ. API nội bộ /internal/analytics/v1/deadlines dùng X-Analytics-Key, không dùng trực tiếp từ FE. Analytics cần Workflow:BaseUrl và Analytics:ServiceKey kể cả JobsEnabled=false.
