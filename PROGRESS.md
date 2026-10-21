@@ -2592,3 +2592,83 @@ Owner explicitly approved push main after Docker handoff. Fetched origin; main w
 - Gợi ý commit chức năng cho Antigravity: fix(workflow): allow ward-scoped read-only manager access; feat(iam): add authenticated password change; fix(iam): grant manager workflow read permissions. Tách từng file mới riêng theo AGENTS.md. Chờ chỉ thị P1.
 
 - Hoàn tất local: 2026-10-21 09:11:55 +07:00 (Asia/Saigon). Build cuối: dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 PASS, 0 lỗi/0 cảnh báo, 00:01:55.03. Lần build trước có 5 lỗi khai báo danh sách trùng, đã sửa trước lần build đạt này. Chưa xác nhận integration/runtime hoặc triển khai Azure.
+## TASK-31..36 - Source implementation assessment (2026-10-21T09:58:56+07:00)
+- Scope: inspected current local source, EF mappings/migrations, workers and documentation; no Git commands or Azure changes.
+- TASK-31/32/33: no metrics aggregation/Hangfire, manager analytics endpoints or citizen feedback implementation found. Planned tables remain SYS_FUTURE in docs/system-unified-erd.md.
+- TASK-34: partial foundation only: IAM rbac_audit_logs and shared HTTP/IP logging exist; no global data-change audit_logs or system_settings implementation found.
+- TASK-35: basic /health endpoints exist; no registered DB/RabbitMQ health probes, persisted health history or automated database backup/restore workflow found.
+- TASK-36: existing B-Tree/GIN and business indexes plus Swagger/API documentation; no HNSW tuning, benchmark evidence or Postman export found. Historical 35-table scope must be reconciled with current migrations.
+- Changed paths: PROGRESS.md only. No endpoint/request/status-code, DTO, ProblemDetails, token, authorization or configuration behavior changed.
+- Verification: static source/document inspection only; 0 tests executed; build not run because no executable code changed. No claim about deployed Azure/database state.
+- Suggested Conventional Commit for Antigravity: docs(progress): assess TASK-31 through TASK-36 implementation status
+## TASK-31/32/33 — Analytics aggregation, dashboard and citizen feedback
+Completed local implementation/verification: 2026-10-21T10:25:12+07:00 (Asia/Saigon).
+
+Plan executed: inspect Workflow/IAM contracts -> implement daily aggregate HTTP source -> persist metrics and Hangfire job -> ward-scoped dashboard -> owner-checked feedback -> migration/config/docs -> local verification. No Git commands or Azure changes.
+
+Status:
+- TASK-31: implemented two metric tables plus refresh watermark, Hangfire PostgreSQL storage/cron/retry, transactional day replacement and advisory lock, IT_ADMIN rebuild/status APIs. Default jobs disabled pending configuration.
+- TASK-32: overview/trends/procedure/officer APIs implemented; MANAGER live IAM ward scope. Timeliness remains explicitly unavailable (null and UNAVAILABLE_NO_WORKFLOW_DEADLINE): Workflow has no normalized deadline/working-calendar contract. Do not mark SLA computation complete or infer from procedure text. Metrics are daily history events, not current queue-size snapshots.
+- TASK-33: POST/GET owner feedback, 1..5 stars, optional <=2000-char comment, DOCUMENTS_READY eligibility, DB unique ApplicationId, manager ward-scoped summary/list. No feedback update/delete. Status validation is an HTTP check, not a distributed transaction.
+
+New source paths (prefix src/Services/):
+- WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/AnalyticsContracts.cs
+- WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowAnalyticsSource.cs
+- WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/AnalyticsSourceController.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Domain/AnalyticsModels.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Application/AnalyticsContracts.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/AnalyticsDbContext.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/AnalyticsWorkflowClient.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/AnalyticsService.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/AnalyticsAggregationJob.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/AnalyticsRegistration.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/Analytics/20261021031538_AnalyticsMetricsAndCitizenFeedback.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/Analytics/20261021031538_AnalyticsMetricsAndCitizenFeedback.Designer.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/Migrations/Analytics/AnalyticsDbContextModelSnapshot.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/AnalyticsAccess.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/Controllers/AnalyticsController.cs
+- WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/Controllers/CitizenFeedbackController.cs
+- scripts/verify-analytics-local.py (standalone disposable integration smoke; no test project created).
+Modified existing paths:
+- ApplicationWorkflow.Infrastructure/ProcedureCatalogClient.cs: source registration.
+- AnalyticsSystem.Infrastructure/*.csproj and AnalyticsSystem.API/*.csproj: Hangfire/PostgreSQL/Swagger packages.
+- AnalyticsSystem.API/Program.cs and appsettings.json: DI, Swagger, migration, recurring job/config.
+- src/Gateways/WardMate.YarpGateway/appsettings.json: analytics route; specific citizen feedback route precedes DocumentForm catch-all.
+- docker/docker-compose.yml, docker/.env.example: optional analytics profile and non-secret settings.
+- docs/api-guide.md, docs/system-constraints.md, docs/system-unified-erd.md, PROGRESS.md.
+
+API contract summary:
+- Workflow GET /internal/analytics/v1/daily?date=yyyy-MM-dd: dedicated X-Analytics-Key >=32 bytes, 200 versioned aggregate; 400/401/503. Excluded from Swagger.
+- MANAGER GET /api/v1/analytics/{overview,trends,procedures,officers}: from/to <=366 days, optional procedureId and bounded page/pageSize; 200 DTO + coverage; 400/401/403/503.
+- MANAGER GET /api/v1/analytics/feedback and /feedback/summary: same date/procedure scope, 200 page or weighted rating/distribution/satisfaction summary; 400/401/403/503.
+- REGISTERED_CITIZEN POST /api/v1/citizen/feedback/{applicationId}: {rating,comment}, 201; 400/401/403/404/409/413/503. GET same route: 200 own feedback or 404, IAM auth applies.
+- IT_ADMIN POST /api/v1/analytics/jobs/rebuild: {from,to}, 202 {jobId}; GET /api/v1/analytics/jobs/{jobId}: 200 {jobId,state,createdAtUtc}; validation/auth/not-found/disabled errors 400/401/403/404/503.
+- FE: Bearer JWT; IAM roles/ward checked per request; no citizenId/applicantId accepted in body; comments are plain text. Display missingDates/stale source timestamps, never turn unavailable SLA or empty ratings into zero. Problems include code/traceId for business errors; binding errors use ValidationProblemDetails and JWT challenge may be bodyless.
+
+Validation:
+- Solution-wide Release build: succeeded, 0 errors, 0 warnings (logs/task31-33-build.log).
+- 44/44 integration smoke checks passed (logs/task31-33-smoke.log): real PostgreSQL16 temporary container; real Workflow/Analytics/Hangfire/Gateway; simulated IAM access-context and synthetic JWT/users. Verified date boundary, metrics replay, ownership, ward scope, role revocation, rating validation, concurrent duplicate, coverage, weighted score, gateway routing, source outage retry and retention of old metrics.
+- First smoke run found record validation metadata error; corrected before final successful run.
+- EF has-pending-model-changes: none. Design-time factory used; host startup notes missing NotificationsDatabase in shell, does not affect factory result. Actual migration applied successfully on disposable DB in smoke.
+- Docker Compose analytics profile config --quiet: passed. Existing containers/data not changed; temporary processes/container removed by script.
+- No new test projects, no Azure deploy, no real IAM integration verification. Production remains dependent on shared secret configuration, migrations, running Hangfire server and normalized Workflow deadline for SLA.
+
+Antigravity handoff: suggested commit themes feat(analytics): add daily metrics aggregation; feat(analytics): add ward-scoped dashboard; feat(feedback): add citizen satisfaction feedback; docs(analytics): document metrics and feedback contracts. Follow repository granularity: each new file own commit, separate functional updates for existing files; no commits executed here.
+## TASK-31–33 handoff/deployment preflight — 2026-10-21 (Asia/Saigon)
+- User explicitly requested ordered commits and Azure deployment; this turn authorizes local Git commit on current kha. Push/release gate still requires exact commit report and Docker user acceptance.
+- Added docs/workflow-deadline-contract.md: proposed source fields, calendar/pause policy, versioned aggregate contract, null/unknown handling, readiness-vs-administrative-SLA distinction and acceptance cases. Proposal only, no deadline implementation/API changes.
+- Release solution build reconfirmed 0 warnings/0 errors (logs/task31-33-handoff-build.log); prior 44-check smoke applies to unchanged source.
+- Azure read-only preflight confirmed existing wardmate-application-workflow and wardmate-analytics-system, both Succeeded; analytics currently harden-20261017-01, workflow workflow-20261020-02. New Analytics ServiceKey/Jobs/Workflow URL settings absent; no Azure mutations performed.
+- Prepared local Docker builds for Analytics, Workflow and Gateway. Push/release awaits repository gate; CI workflow currently builds only, no Azure deployment steps. Do not equate push with deploy.
+- Handoff result: 30 ordered local commits on kha, working tree clean before this log amendment. Types: 17 feat, 2 build, 4 chore, 6 docs, 1 test. Full commit manifest: logs/task31-33-commits.txt (ignored). Docker images wardmate-analytics/workflow/gateway:task31-33-local all built successfully. No push/deploy; pending explicit push approval and Docker user acceptance under AGENTS.md.
+
+## TASK-31–33 push attempt — 2026-10-21 (Asia/Saigon)
+- User approved pushing the reported 30 commits to kha. git push origin kha was rejected (fetch first); no remote mutation succeeded.
+- Read-only fetch found 5 newer remote commits, origin/kha=1bcfc59 (IAM password change, manager Workflow read scope, documentation). Local HEAD remains 7cbaec6 with 30 unique local commits.
+- Proposed rebase was rejected before execution by automatic approval review: explicit authorization to rewrite the 30 local commits is required; risk of conflicts with team changes. No rebase/merge/force push executed.
+- Pending user approval for synchronization, then revalidation before push. Azure not deployed; previous build/smoke results predate remote integration. PROGRESS.md updated only; no API/DTO/token behavior changed this session.
+
+## TASK-31–33 authorized synchronization — 2026-10-21T10:45:07+07:00
+- User explicitly approved rebasing 30 commits onto latest kha, resolving conflicts, revalidating and pushing. Rebased onto origin/kha 1bcfc59; kept all 30 commits. Only conflict was appended PROGRESS sections; both retained. Session stash restored.
+- Post-rebase solution Release build PASS: 0 warnings/0 errors (logs/task31-33-rebase-build.log). Integration smoke PASS 44/44 (logs/task31-33-rebase-smoke.log), simulated IAM and actual Workflow/Analytics/PostgreSQL/Hangfire/Gateway; temporary resources cleaned.
+- No API/source edits for conflict resolution; existing Docker images predate integration and must be rebuilt before release. Preparing authorized normal push to kha only; no force-push/main/deploy/Azure action.
