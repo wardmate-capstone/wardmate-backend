@@ -2,7 +2,7 @@ name: wardmate
 
 services:
   notifications-db:
-    profiles: [notifications]
+    profiles: [notifications, analytics]
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: wardmate_notifications_db
@@ -19,7 +19,7 @@ services:
       retries: 10
 
   analytics-system:
-    profiles: [notifications]
+    profiles: [notifications, analytics]
     build:
       context: ..
       dockerfile: src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/Dockerfile
@@ -31,6 +31,11 @@ services:
       Jwt__Issuer: wardmate
       Jwt__Audience: wardmate-client
       Iam__BaseUrl: http://iam-api:8080/
+      Workflow__BaseUrl: http://application-workflow:8080/
+      Analytics__ServiceKey: ${ANALYTICS_SERVICE_KEY:-}
+      Analytics__JobsEnabled: ${ANALYTICS_JOBS_ENABLED:-false}
+      Analytics__LookbackDays: ${ANALYTICS_LOOKBACK_DAYS:-7}
+      Analytics__Cron: ${ANALYTICS_CRON:-15 1 * * *}
       Database__AutoMigrate: "true"
       RabbitMq__Enabled: ${NOTIFICATIONS_ENABLED:-false}
       RabbitMq__Host: rabbitmq
@@ -81,6 +86,7 @@ services:
       Database__AutoMigrate: "true"
       ProcedureCatalog__BaseUrl: http://procedure-catalog:8080/
       Services__DocumentForm__BaseUrl: http://document-form:8080/
+      Analytics__ServiceKey: ${ANALYTICS_SERVICE_KEY:-}
       Iam__BaseUrl: http://iam-api:8080/
       RabbitMq__Enabled: ${NOTIFICATIONS_ENABLED:-false}
       RabbitMq__Host: rabbitmq
@@ -220,6 +226,7 @@ services:
       ReverseProxy__Clusters__procedure-catalog__Destinations__primary__Address: http://procedure-catalog:8080/
       ReverseProxy__Clusters__document-form__Destinations__primary__Address: http://document-form:8080/
       ReverseProxy__Clusters__application-workflow__Destinations__primary__Address: http://application-workflow:8080/
+      ReverseProxy__Clusters__analytics-system__Destinations__primary__Address: http://analytics-system:8080/
     ports:
       - "5000:8080"
     depends_on:
