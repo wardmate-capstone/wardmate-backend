@@ -54,10 +54,10 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
                 return Problem(400, "document.template_mismatch", "Mục này cần đơn DOCX đúng FormTemplateId của hồ sơ, không dùng giấy tờ thay thế.");
             if (write && (officer ? application.Status != "UNDER_REVIEW" : application.Status is not ("DRAFT" or "NEED_REVISION")))
                 return Problem(409, "document.application_locked", "Trạng thái hồ sơ không cho phép sửa tài liệu.");
-            if (requireReady && application.Status != "DOCUMENTS_READY")
+            if (requireReady && application.Status is not ("DOCUMENTS_READY" or "OFFICIALLY_RECEIVED"))
                 return Problem(409, "document.application_not_ready", "Hồ sơ phải được xác nhận giấy tờ sẵn sàng tại Workflow trước khi xuất hoặc tải PDF giấy tờ chuẩn bị.");
             verifiedStates[applicationId] = application.Status;
-            if (application.Status == "DOCUMENTS_READY")
+            if (application.Status is "DOCUMENTS_READY" or "OFFICIALLY_RECEIVED")
             {
                 if (application.AssignedOfficerId is not Guid reviewer || reviewer == Guid.Empty)
                     return Problem(409, "document.readiness_invalid", "Hồ sơ thiếu cán bộ xác nhận giấy tờ sẵn sàng. Vui lòng kiểm tra Workflow.");

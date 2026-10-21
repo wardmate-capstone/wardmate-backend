@@ -130,6 +130,27 @@ public sealed class SupportingDocumentsController : ControllerBase
         return File(result.Value.FileStream, result.Value.ContentType, result.Value.FileName);
     }
 
+    /// <summary>Xem trực tiếp PDF/ảnh; giữ nguyên kiểm tra quyền của download.</summary>
+    [HttpGet("supporting-documents/{documentId:guid}/preview")]
+    [ProducesResponseType(200), ProducesResponseType<ProblemDetails>(415)]
+    public async Task<IActionResult> Preview(Guid documentId, CancellationToken ct)
+    {
+        var error = await _access.Supporting(documentId, false, ct);
+        if (error is not null) return error;
+        var result = await _mediator.Send(new DownloadSupportingDocumentQuery(documentId), ct);
+        if (!result.IsSuccess) return Failure(result.Error);
+        var file = result.Value;
+        if (file.ContentType is not ("application/pdf" or "image/png" or "image/jpeg"))
+        {
+            await file.FileStream.DisposeAsync();
+            return StatusCode(415, new ProblemDetails { Status = 415, Title = "Chỉ xem trực tiếp PDF, PNG hoặc JPEG. Dùng download cho định dạng khác." });
+        }
+        Response.Headers.ContentDisposition = "inline";
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        Response.Headers.CacheControl = "no-store";
+        return File(file.FileStream, file.ContentType, enableRangeProcessing: true);
+    }
+
     private ObjectResult Failure(Error error)
     {
         var status = error.Type switch

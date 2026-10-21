@@ -41,6 +41,7 @@ public sealed class CitizenSubmissionsController(IMediator mediator, WardMate.Se
 
     /// <summary>Lưu nguyên file DOCX do editor xuất ra; không thay đổi mẫu gốc.</summary>
     [HttpPost("draft")]
+    [HttpPost("upload-filled-docx")]
     [ProducesResponseType(typeof(SaveSubmissionResultDto), StatusCodes.Status201Created)]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateDraft([FromForm] CreateOnlineDraftRequest request, CancellationToken ct)
