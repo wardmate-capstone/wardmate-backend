@@ -11,8 +11,9 @@ public sealed class UserOtpConfiguration : IEntityTypeConfiguration<UserOtp>
         {
             t.HasCheckConstraint("ck_user_otps_attempts", "attempts BETWEEN 0 AND 5");
             t.HasCheckConstraint("ck_user_otps_channel", "channel IN ('EMAIL','SMS')");
-            t.HasCheckConstraint("ck_user_otps_purpose", "purpose IN ('CHANGE_PASSWORD','FORGOT_PASSWORD')");
+            t.HasCheckConstraint("ck_user_otps_purpose", "purpose IN ('CHANGE_PASSWORD','FORGOT_PASSWORD','VERIFY_PHONE')");
         });
+        b.Property(x => x.TargetPhoneNumber).HasMaxLength(20);
         b.HasKey(x => x.Id); b.Property(x => x.OtpHash).HasMaxLength(64).IsRequired();
         b.Property(x => x.Channel).HasMaxLength(10).IsRequired(); b.Property(x => x.Purpose).HasMaxLength(30).IsRequired();
         b.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);

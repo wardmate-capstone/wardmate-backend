@@ -347,6 +347,10 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("password_hash");
 
+                    b.Property<Guid>("SecurityStamp")
+                        .HasColumnType("uuid")
+                        .HasColumnName("security_stamp");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -356,6 +360,10 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("username");
+
+                    b.Property<string>("VerifiedPhoneNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("verified_phone_number");
 
                     b.Property<Guid?>("WardId")
                         .HasColumnType("uuid")
@@ -419,6 +427,11 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(30)")
                         .HasColumnName("purpose");
 
+                    b.Property<string>("TargetPhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("target_phone_number");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
@@ -435,7 +448,7 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_user_otps_channel", "channel IN ('EMAIL','SMS')");
 
-                            t.HasCheckConstraint("ck_user_otps_purpose", "purpose IN ('CHANGE_PASSWORD','FORGOT_PASSWORD')");
+                            t.HasCheckConstraint("ck_user_otps_purpose", "purpose IN ('CHANGE_PASSWORD','FORGOT_PASSWORD','VERIFY_PHONE')");
                         });
                 });
 
