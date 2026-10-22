@@ -3815,3 +3815,34 @@ Tài liệu nhà cung cấp: https://developers.esms.vn/esms-api/ham-gui-tin/tin
 **Dọn dữ liệu:** worker IAM chạy mỗi giờ, mỗi loại tối đa1000 hàng/lượt; xóa OTP hết hạn, refresh token hết hạn và welcome mail gửi thành công quá30ngày. AccountSecurity__RetentionDays clamp2..365; giữ tối thiểu2ngày để không mất cửa sổ hạn mức24h. Email đang chờ/thất bại giữ lại để điều tra; chưa có màn quản trị gửi lại.
 
 Khi sửa số qua profile hoặc xóa profile, các mã OTP SMS đang hiệu lực cũng bị hủy. FE phải yêu cầu mã mới sau khi hoàn tất xác minh số.
+
+
+### TASK-25/27 — Chốt hợp đồng thông báo Workflow (23/10/2026)
+
+Luồng BE: lưu trạng thái/nhận xét và workflow_outbox cùng SaveChanges -> publisher persistent RabbitMQ có confirms/mandatory -> queue wardmate.notifications.workflow.v1 -> notification_inbox theo EventId (ACK chỉ sau insert) -> transaction tạo notifications và notification_deliveries -> worker phát tín hiệu PostgreSQL -> listener mỗi replica Analytics -> kiểm tra IAM -> SignalR ReceiveNotification/UpdateUnreadCount.
+
+Người nhận: công dân chủ hồ sơ nhận thay đổi trạng thái/nhận xét; hồ sơ SUBMITTED chưa phân công báo cán bộ cùngphường có workflow.queue.read; SUBMITTED/UNDER_REVIEW đã phân công chỉ cán bộ đó nếu còn đúngphường/quyền. Không gửi nội dung biểu mẫu/nhận xét hay token qua RabbitMQ; notification chỉ hướng dẫn mởhồsơ. Tài khoản khóa/đổi phường bị kiểm tra lại trước gửi; người dùng offline vẫn có thông báo trong DB.
+
+SignalR /hubs/notifications giữ nguyên JWT và contract: GetNotifications(page=1,pageSize=20) (1..100), GetUnreadCount(), MarkRead(notificationId). FE gọi GetNotifications/GetUnreadCount sau mỗi kết nối/reconnect và khi quay lại tab; deduplicate ReceiveNotification theo id vì transport có thể giao lại. MarkRead chỉ chínhchủ/đúngphường; cập nhật bộđếm tới replica khác bằngNOTIFY. Không có HTTP REST notifications mới trong lượt này.
+
+Triển khai: bật RabbitMq__Enabled trên Workflow/Analytics, Notifications__WorkersEnabled trên Analytics; cùng host/vhost/user/password/TLS RabbitMQ. IAM/Analytics dùng cùng Notifications__ServiceKey đủ32ký tự. Analytics Iam__BaseUrl đúng; migrations outbox/inbox/deliveries hiện hữu đã áp dụng. Giữ ít nhất1replica Workflow và Analytics khi cần worker xử lý liên tục; HTTP scale-to-zero không tự thức dậy chỉ vì có hàng trong DB. RabbitMQ cần volume bền và quyền giới hạn vhost.
+
+Realtime nhiều replica: NotificationsDatabase phải cùngdatabase giữa các replica; LISTEN cần kết nối direct hoặc session-pooling, không dùng transaction-pooling. Nếu connection DB chính dùng transaction pool, thêm ConnectionStrings__NotificationRealtimeDatabase trỏ trực tiếp/session tới cùngDB. Listener tắt multiplexing, keepalive30s; không có Redis dependency. SignalR vẫn cần sticky session khi dùng negotiate và nhiều replica (hoặc WebSocket skipNegotiation phù hợp). NOTIFY chỉ có UUID, phát sau commit, không bền khi listener offline; client tải lại DB qua hub sau reconnect/refresh. Sent của IN_APP nghĩa tín hiệu đã commit, không phải UI đã nhận/đãđọc.
+
+Vận hành: Outbox retry không giới hạn với backoff tối đa300s; Inbox/Delivery tối đa10lần rồiDead. Event sai contract vào Rabbit dead queue; Blocked là kênh chưacấuhình, Suppressed là người nhận khôngcònphùhợp. SQL kiểmtra dưới đây chạy ở DB tươngứng, không trộn database service:
+
+Workflow:
+```sql
+SELECT count(*) AS pending, min(created_at) AS oldest_pending
+FROM workflow_outbox WHERE published_at IS NULL;
+SELECT id, attempts, next_attempt_at, last_error
+FROM workflow_outbox WHERE published_at IS NULL ORDER BY created_at LIMIT 50;
+```
+Analytics:
+```sql
+SELECT "State", count(*) FROM notification_inbox GROUP BY "State";
+SELECT "Channel", "State", count(*) FROM notification_deliveries GROUP BY "Channel", "State";
+SELECT "Id", "Attempts", "ErrorCode" FROM notification_inbox WHERE "State"='Dead' LIMIT 50;
+SELECT "Id", "NotificationId", "Channel", "ErrorCode" FROM notification_deliveries WHERE "State" IN ('Dead','Blocked') LIMIT 50;
+```
+Sau khi sửa nguyên nhân, operator có thể replay đúng một InboxDead hoặc DeliveryDead/Blocked: cập nhật State=Pending,Attempts=0,NextAttemptAt=now(),ErrorCode=NULL theo Id và điều kiệnstate. Không xóa notification/inbox, không đổi EventId, không replay Sent tựđộng (Email cóthểgửitrùng). Dead queue Rabbit phải kiểmtra/sửa producer và replay cóchọnlọc giữ EventId, không đẩy lại toàn bộ vôhạn. Hiện chưa có API quản trịreplay; thao tácDB/broker dooperator cóquyền. Email/SMS làTASK26; SMSAnalytics vẫnstub, khácSMSOTP IAM.

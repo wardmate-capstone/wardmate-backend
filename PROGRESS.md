@@ -3049,3 +3049,19 @@ Validation: buildInfrastructure sơ bộ0warning/error; dotnet build WardMate.sl
 Bàn giao: áp dụng docs/sql/iam-account-security-hardening.sql vàoIAM trước deploy; deployIAM+5service, Iam__BaseUrl đúngcloud; clientJWT cũ thiếuclaim cầnlogin/refresh. GiữSMS secret ngoài repo; gửi thật xácminhphone cầnSandbox0. Tài liệu API/constraints đã cập nhật.
 
 Commit gợi ý cho Antigravity (mỗi file mới commit riêng, functional update riêng): feat(iam): verify phone ownership before SMS recovery; feat(iam): enforce rolling OTP quotas; feat(auth): invalidate sessions after password changes; feat(iam): clean expired account security records; chore(iam): add account security migration; docs(auth): document account security rollout. Không có commit nào được thực thi bởi Codex.
+
+
+## TASK-25/27 — audit và sửa realtime nhiều replica — 2026-10-23 00:38:02 UTC+07:00
+
+Ràsoát source WorkflowOutboxCapture/Worker, RabbitTransport, WorkflowNotificationConsumer, NotificationInboxWorker, DeliveryWorker, DBuniqueconstraints, IAMrecipient resolution, NotificationHub/Service/ConnectionGuard. Xácnhận OutboxcùngSaveChanges, Rabbitpersistent/confirm/mandatory, InboxACKsauinsert, EventIdidempotency, savepoint/rowlocks, retry10Dead choInbox/Delivery, Outboxretrybackoffkhônggiớihạn, ward/activeaccess checks. Không xácnhậnAzure chỉ bằngsource.
+
+Lỗi tìmđược: DeliveryWorker chỉ nhìn connectionregistry local, cóthể Sent mà client ởreplica khác khôngnhận. Đã thay IN_APP bằng transactionpg_notify(UUID), thêm listener mỗi replica querynotification+revalidateIAM+gửi local; markread publish tínhiệu crossreplica. Sent nghĩa phát tínhiệu thànhcông, không proofUIread. DữliệulưuDB, reconnectFEreload. LISTENdirect/sessionpool, optional ConnectionStrings__NotificationRealtimeDatabase, tắtmultiplexing/keepalive30s; khôngRedis/migration. Nếu listeneroffline/overflow10000/lỗisend thìtínhiệukhôngbền, FEloadlist/count làrecovery. Khôngcamkếtexactonce.
+
+Files mới: src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationRealtimeListener.cs.
+Files sửa cùngInfrastructure: NotificationDeliveryWorker.cs, NotificationService.cs, DependencyInjection.cs. Tài liệu: docs/api-guide.md (luồng,contract,SQLdiagnostics/replayrunbook,deployprerequisites), docs/system-constraints.md (NOTIFY-PIPELINE-02), PROGRESS.md.
+
+API/DTOkhôngđổi: /hubs/notifications JWT; GetNotifications(page,pageSize),GetUnreadCount(),MarkRead(id); ReceiveNotification/UpdateUnreadCount. Recipientownership/wardscopegiữ nguyên. UI dedupId,reload sauconnect/reconnect. KhôngthêmRESTroute hayadminreplayAPI. Workers cầnminimum1replicađểchạyliêntục; RabbitMQdurablevolume/config/servicekey/IAMbase cầnđúng. SMSAnalytics vẫnstubTASK26, khôngđụngSMSOTP IAM.
+
+Validation: dotnet build WardMate.sln -c Release -warnaserror -m:1 PASS0warnings/0errors lầnđầu00:00:55.20; lầncuối sauconfiglistener00:00:32.69. Khôngtạotestproject,khôngintegrationtestDB/Rabbit/SignalR,khôngtestUI; khôngGit,Docker,Azure,Email/SMSthật. Sourceaudit/build hoànthành; nghiệmthu runtime/đa replica/mấtkếtnối cònFE/triểnkhai. Chưaalert tựđộng/adminreplayAPI; operatorrunbookđãcó.
+
+Gợi ýcommit riêngfilemới: feat(notifications): add cross-replica realtime listener. Functionalupdates: fix(notifications): broadcast delivery and read signals across replicas. Docs: docs(notifications): document pipeline audit and recovery runbook. Không thựcthiGit.
