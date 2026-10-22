@@ -10,6 +10,18 @@ namespace WardMate.Services.ApplicationWorkflow.API.Controllers;
 [Route("internal/analytics/v1/daily")]
 public sealed class AnalyticsSourceController(IWorkflowAnalyticsSource source, IConfiguration config, TimeProvider clock) : ControllerBase
 {
+    [HttpGet("/internal/notifications/v1/applications/{applicationId:guid}/events/{eventId:guid}/email-context")]
+    public async Task<IActionResult> EmailContext(Guid applicationId, Guid eventId, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var key = config["Analytics:ServiceKey"] ?? "";
+        var supplied = Request.Headers["X-Analytics-Key"].ToString();
+        if (Encoding.UTF8.GetByteCount(key) < 32 || !CryptographicOperations.FixedTimeEquals(
+            SHA256.HashData(Encoding.UTF8.GetBytes(key)), SHA256.HashData(Encoding.UTF8.GetBytes(supplied))))
+            return Problem(statusCode: 401, title: "Không có quyền đọc dữ liệu email.");
+        var result = await source.ReadEmailContext(applicationId, eventId, ct);
+        return result is null ? NotFound() : Ok(result);
+    }
     [HttpGet("/internal/analytics/v1/deadlines")]
     public async Task<IActionResult> Deadlines([FromQuery] string ward, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] Guid? procedureId, CancellationToken ct)
     {

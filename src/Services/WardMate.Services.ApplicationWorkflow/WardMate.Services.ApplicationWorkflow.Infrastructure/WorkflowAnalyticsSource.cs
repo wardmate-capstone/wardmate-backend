@@ -6,6 +6,14 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 
 public sealed class WorkflowAnalyticsSource(WorkflowDbContext db, TimeProvider clock) : IWorkflowAnalyticsSource
 {
+    public Task<NotificationEmailContext?> ReadEmailContext(Guid applicationId, Guid eventId, CancellationToken ct) =>
+        (from h in db.StatusHistory.AsNoTracking()
+         join a in db.Applications.AsNoTracking() on h.ApplicationId equals a.Id
+         where a.Id == applicationId && h.Id == eventId
+         select new NotificationEmailContext(a.UserId, a.ApplicationCode ?? a.Id.ToString(), a.ProcedureTitle,
+             h.ToStatus, h.Reason, h.ToStatus == "OFFICIALLY_RECEIVED" ? a.ReceiptNumber : null,
+             h.ToStatus == "OFFICIALLY_RECEIVED" ? a.AppointmentDate : null, h.CreatedAt)).SingleOrDefaultAsync(ct);
+
     public async Task<DeadlineFacts> ReadDeadlines(string ward, DateOnly from, DateOnly to, Guid? procedureId, CancellationToken ct)
     {
         var start = new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(7)).UtcDateTime;
