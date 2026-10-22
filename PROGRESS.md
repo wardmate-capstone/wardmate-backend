@@ -3017,3 +3017,35 @@ Commit gợi ý (mỗi file mới commit riêng): feat(iam): define SMS OTP send
    - `POST /api/v1/auth/password-otp/request` (channel: "SMS"): HTTP 202 Accepted.
    - Response message: `"Mã OTP đã được gửi về số điện thoại 090****484. Vui lòng kiểm tra tin nhắn và đợi ít nhất 60 giây trước khi yêu cầu lại."`
    - Kiểm tra trực tiếp số dư eSMS qua API: Đã trừ cước thực tế từ 5.000 đ xuống **4.210 đ** (CodeResponse: 100). Tin nhắn SMS OTP thật đã được mạng viễn thông tiếp nhận thành công. PASS.
+
+
+## IAM-ACCOUNT-SECURITY — 2026-10-23 00:11:07 UTC+07:00
+
+Hoàn thành BE cho xác minh số, hạn mức OTP, thu hồi phiên sau đổi mật khẩu, dọn dữ liệu. Không Git, không Docker/Azure, không gửiEmail/SMS, không chạy giao diện.
+
+Files mới:
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Interfaces/IPhoneVerificationService.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Security/PhoneVerificationService.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Security/OtpLimits.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Security/AccountSecurityCleanupWorker.cs
+- src/BuildingBlocks/WardMate.SharedKernel/Web/AccountSessionMiddleware.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261022170202_AccountSecurityHardening.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261022170202_AccountSecurityHardening.Designer.cs
+- docs/sql/iam-account-security-hardening.sql
+
+Files sửa (gốc src/Services/WardMate.Services.IAM): Domain/Entities/User.cs,UserOtp.cs; Infrastructure/Persistence/Configurations/UserOtpConfiguration.cs; Infrastructure/Persistence/IdentityStore.cs; Infrastructure/Persistence/Migrations/IamDbContextModelSnapshot.cs; Infrastructure/Security/JwtTokenService.cs,PasswordOtpService.cs; Infrastructure/DependencyInjection.cs; API/Controllers/UsersController.cs; API/appsettings.json (mỗi tầng có prefix WardMate.Services.IAM tương ứng).
+Ngoài IAM: Program.cs của5API AIOCR/AnalyticsSystem/ApplicationWorkflow/DocumentForm/ProcedureCatalog; appsettings.json3API AIOCR/DocumentForm/ProcedureCatalog; docker/docker-compose.yml; docs/api-guide.md; docs/system-constraints.md; PROGRESS.md.
+
+Endpoints mới: GET /api/v1/users/me/phone-verification ->200 {verified,maskedPhoneNumber}; POST /api/v1/users/me/phone-verification/request {phoneNumber,currentPassword}->202 message,400 phone_invalid/sms_unavailable/otp_limit,401 invalidcredentials,503deliveryfailed; POST /api/v1/users/me/phone-verification/confirm {otp}->200message/400otp_invalid/profile_required. Bearer chính chủ; request/confirm dùng rate limiter chung10/IP/phút và body4KiB. OTP6số,5phút,5lần, targetphone gắn hash. Sửa/xóa profile hủy dấu xác minh và SMSOTP đang sống.
+
+Password OTP request giữ routes/body,202 chung thay masked/missingphone response để giảm enumeration; không chốngtiming tuyệt đối. Hạn mức10OTP/5SMS rolling24h/account, cooldown60s, giữ row tối thiểu2ngày. SMSrecovery chỉ verifiedphone khớpprofile. Không ngân sách toàn hệ thống, không chốnglạm dụng số qua nhiều tài khoản; không exactonce khi provider đã nhận nhưng transaction bị hủy.
+
+SecurityStamp claim vàoJWT, soIAM; hai đường đổi mật khẩu thaystamp+revoke refresh+expireOTP trongtransaction.5service dùngmiddleware IAMaccess-context mỗi authenticatedrequest khôngcache;503failclosed nếuIAMdown,401sessionrevoked nếuIAMtừchối. FE401loginlại;503không xóa phiên. SignalR guard hiện hữu kiểmtra trướcsend/hub và polling15s; không hủyrequest đang thực thi/không cam kết đóngsocket tức thì.
+
+Cleanupworker mỗi giờ/batch1000 OTPexpired/refresh expired/welcome sent cũ hơnretention30ngày,clamp2..365; giữmailfailed/pending. Migration thêmsecurity_stamp,verified_phone_number,target_phone_number và purposeVERIFY_PHONE, dữliệucũ chưa verified. ScriptEF idempotent baselineAddUserOtpsTable, preflight/publicsearchpath, chưa chạyDBcloud.
+
+Validation: buildInfrastructure sơ bộ0warning/error; dotnet build WardMate.sln -c Release -warnaserror -m:1 lần đầu0warning/error00:06:11.51; lần cuối saufix expireSMSOTP khi đổi/xóaprofile PASS0warning/0error00:01:11.19. EF has-pending-model-changes: không có thayđổi. SQL generated/đọc kiểmtra. Không testproject, không automatedintegration/UItest; FE nghiệmthu runtime sau triểnkhai. Chưa benchmark tảiIAM, chưa xácnhận concurrency/provider thực bằngDB.
+
+Bàn giao: áp dụng docs/sql/iam-account-security-hardening.sql vàoIAM trước deploy; deployIAM+5service, Iam__BaseUrl đúngcloud; clientJWT cũ thiếuclaim cầnlogin/refresh. GiữSMS secret ngoài repo; gửi thật xácminhphone cầnSandbox0. Tài liệu API/constraints đã cập nhật.
+
+Commit gợi ý cho Antigravity (mỗi file mới commit riêng, functional update riêng): feat(iam): verify phone ownership before SMS recovery; feat(iam): enforce rolling OTP quotas; feat(auth): invalidate sessions after password changes; feat(iam): clean expired account security records; chore(iam): add account security migration; docs(auth): document account security rollout. Không có commit nào được thực thi bởi Codex.
