@@ -2808,3 +2808,37 @@ Prefix src/Services/WardMate.Services.AIOCR/:
 
 - Hoàn tất local: 2026-10-21 21:44:59 +07:00 (Asia/Saigon).
 
+
+## BE-CLOSURE-01 — Đánh giá sau tiếp nhận, tiền kiểm theo checklist, thống kê deadline
+
+Hoàn thành local: 2026-10-22 09:56:31 +07:00 (Asia/Saigon, UTC+07:00).
+
+- Feedback: POST /api/v1/citizen/feedback/{applicationId}, Bearer REGISTERED_CITIZEN, body {rating,comment}. Nhận DOCUMENTS_READY hoặc OFFICIALLY_RECEIVED;201 thành công,409 sai trạng thái/đã đánh giá; giữ owner, unique ApplicationId, rating1–5/comment2000. Không sửa/xóa đánh giá.
+- AIOCR: POST /api/v1/ai-ocr/documents/verify, Bearer, body {applicationId,documentId}. expectedType cũ tùy chọn nhưng bị bỏ qua. DocumentForm xác thực tài liệu và ChecklistId; Workflow xác thực hồ sơ và Title của checklist snapshot. Không đọc DB chéo service. AI dùng Title BE;200 thêm checklistId/expectedType;409 thiếu liên kết/mục;503 thiếu cấu hình/nguồn không hợp lệ;401/403/404 giữ phạm vi tài liệu. Không tự hoàn thành checklist, không kiểm định tính pháp lý. Thêm Services__ApplicationWorkflow__BaseUrl cho AIOCR trong Compose.
+- Workflow GET /internal/analytics/v1/deadlines (X-Analytics-Key) bổ sung ProcedureId/AssignedOfficerId vào facts; không migration. Giữ lọc ward và deadline UNKNOWN cũ.
+- Analytics GET /api/v1/analytics/trends|procedures|officers (Manager cùng phường, From/To, ProcedureId tùy chọn, Page/PageSize cho danh sách):200 thêm deadlines và tỷ lệ0–100/null khi không mẫu. Trends chỉ đếm completed theo ngày UTC+07; currentBacklog riêng. Procedures/officers hợp nhất nhóm live và cache; officers trả unassignedDeadlines riêng. Dữ liệu nguồn thiếu chiều nhóm503 analytics.deadline_dimensions_missing. CompletedMissingDeadline/NotApplicable loại khỏi mẫu số; OpenOverdue tách CompletedLate, giữ pause/resume hiện hành. asOfUtc riêng Coverage; không phải backlog lịch sử/ngày To hoặc trách nhiệm theo lịch sử điều chuyển.
+
+Files sửa (không tạo file mới):
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/AnalyticsService.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Application/AnalyticsContracts.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Application/DeadlineStatistics.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/DeadlineFacts.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowAnalyticsSource.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Application/AssistantContracts.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/Controllers/AssistantController.cs
+- src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/AuthorizedDocumentSource.cs
+- docker/docker-compose.yml
+- docs/api-guide.md
+- docs/system-constraints.md (giữ và cập nhật FB-01, AI-P2-01, ANA-DEADLINE-01)
+- PROGRESS.md
+
+Validation: dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 PASS,0 warnings,0 errors,00:02:11.82. Không tạo/chạy test project;0 automated tests executed. Theo yêu cầu chủ dự án, FE nghiệm thu giao diện. Chưa chạy Docker/Azure/API end-to-end, không gọi Gemini, không chạy Git. Lệnh Python sửa file ban đầu không chạy được do Windows App alias; chưa thay đổi file, đã dùng Node để thực hiện. Không ảnh hưởng kết quả build.
+
+Bàn giao: deploy Workflow mới trước AnalyticsSystem; AIOCR cần Services__ApplicationWorkflow__BaseUrl bên cạnh DocumentForm URL. Không migration mới, không đổi JWT/token/role, model, billing, Email/SMS. Tài liệu có payload/lỗi/khôi phục/DTO mới.
+
+Gợi ý các nhóm Conventional Commit cho Antigravity (chưa thực hiện Git):
+- fix(analytics): allow feedback after official receipt
+- feat(aiocr): validate document types against application checklists
+- feat(analytics): add deadline breakdowns by day procedure and officer
+- docs: document backend completion rules and handoff
+Tuân thủ granularity AGENTS.md: các cập nhật chức năng trong file hiện có tách riêng, không gộp phần không liên quan.

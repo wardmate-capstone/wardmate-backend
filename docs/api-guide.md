@@ -71,12 +71,12 @@ Role **REGISTERED_CITIZEN**, danh tính lấy từ token đã xác minh và IAM 
 hoặc citizenId từ body.
 
 1. `POST /api/v1/citizen/feedback/{applicationId}` — người dân bấm “Gửi đánh giá” sau khi hồ sơ
-   đạt DOCUMENTS_READY. JSON: `{"rating":5,"comment":"Hướng dẫn rõ ràng"}`.
+   đạt DOCUMENTS_READY hoặc OFFICIALLY_RECEIVED. JSON: `{"rating":5,"comment":"Hướng dẫn rõ ràng"}`.
    Rating là số nguyên 1–5; comment tùy chọn tối đa 2000 ký tự, trim, chuỗi trắng lưu null.
    Backend gọi Workflow bằng token người dùng và kiểm tra chủ hồ sơ, trạng thái, procedure/ward.
    Thành công 201 + Location, body `{id,applicationId,rating,comment,createdAtUtc}`.
    400 sai sao/comment/GUID; 404 hồ sơ không thuộc bạn/không tồn tại; 409 `feedback.not_ready`
-   nếu chưa DOCUMENTS_READY; 409 `feedback.already_exists` nếu đã gửi (kể cả gửi đồng thời).
+   nếu không ở DOCUMENTS_READY/OFFICIALLY_RECEIVED; 409 `feedback.already_exists` nếu đã gửi (kể cả gửi đồng thời).
    503 nguồn Workflow lỗi/thiếu ward hợp lệ. Chưa gửi lại khi 409 trùng; gọi GET bên dưới.
 2. `GET /api/v1/citizen/feedback/{applicationId}` — khi mở lại màn hình hồ sơ, lấy đánh giá của
    chính người đăng nhập. 200 FeedbackDto; 404 nếu chưa có hoặc thuộc người khác. GET đọc bản ghi
@@ -3594,12 +3594,12 @@ Lấy lịch sử một phiên của mình theo thời gian tăng dần, cùng q
 Tiền kiểm giấy tờ đã upload, không upload lần hai:
 
 ```json
-{ "applicationId": "GUID_HO_SO", "documentId": "GUID_GIAY_TO", "expectedType": "Giấy xác nhận tình trạng hôn nhân" }
+{ "applicationId": "GUID_HO_SO", "documentId": "GUID_GIAY_TO" }
 ```
 
-Hai ID phải khác Guid.Empty; expectedType bắt buộc<=255 ký tự; body<=4096byte. AIOCR chuyển Bearer sang API danh sách giấy tờ của hồ sơ trong DocumentForm, kiểm tra documentId nằm đúng applicationId rồi gọi download. Không dùng service key để bỏ qua quyền. Người gọi phải là chủ hoặc cán bộ được phân công theo DocumentForm; Manager không tự có quyền tải.
+Hai ID phải khác Guid.Empty; body<=4096byte. expectedType cũ vẫn được nhận (tối đa255 ký tự) nhưng bị bỏ qua, không dùng làm căn cứ AI. AIOCR chuyển Bearer sang API danh sách giấy tờ của hồ sơ trong DocumentForm, kiểm tra documentId nằm đúng applicationId rồi gọi download. Không dùng service key để bỏ qua quyền. Người gọi phải là chủ hoặc cán bộ được phân công theo DocumentForm; Manager không tự có quyền tải.
 
-Hỗ trợ PDF/PNG/JPEG tối đa8MiB. 200 {isValid,documentTypeDetected,qualityIssues:[],confidence}. Kiểm tra mờ/lóa và loại giấy tờ là gợi ý từ AI; expectedType do client khai báo, chưa đối chiếu tự động checklist. Không xác nhận thật giả/tính pháp lý. Nếu có vấn đề, loại rỗng hoặc confidence<0.7 thì isValid bị hạ false. Không tự cập nhật checklist/trạng thái hồ sơ; cán bộ và công dân vẫn đối soát.
+Hỗ trợ PDF/PNG/JPEG tối đa8MiB. 200 {isValid,documentTypeDetected,qualityIssues:[],confidence}. Kiểm tra mờ/lóa và loại giấy tờ là gợi ý từ AI; expectedType được lấy từ Title của mục checklist đã sao chép vào hồ sơ Workflow, thông qua ChecklistId của giấy tờ trong DocumentForm. Không lấy từ bản thủ tục hiện tại và không dùng loại do client truyền. Response thêm checklistId và expectedType để đối soát. Không xác nhận thật giả/tính pháp lý. Nếu có vấn đề, loại rỗng hoặc confidence<0.7 thì isValid bị hạ false. Không tự cập nhật checklist/trạng thái hồ sơ; cán bộ và công dân vẫn đối soát.
 
 Sai IDs/body400; thiếu token401; bị DocumentForm từ chối403/404; file không thuộc hồ sơ404; file quá lớn413; DOC/DOCX/định dạng không hỗ trợ415 (chuyển sang PDF/ảnh); phụ thuộc không sẵn sàng503; AI trả sai502; timeout504. Lỗi trả ProblemDetails với code,traceId; lỗi model binding mặc định có errors. JWT401 và limiter429 có thể không có body ProblemDetails.
 
@@ -3652,4 +3652,29 @@ Giữ Bearer và quyền Manager/phường hiện có, query From,To,ProcedureId
 
 Hồ sơ hoàn thành lọc theo ngày documentsReadyAtUtc trong From–To (ngàyVN). Backlog mở là snapshot HIỆN TẠI của cùng phường/thủ tục, không giới hạn ngày nộp và không cộng dồn từng ngày; không dùng nó như backlog tại ngày To trong quá khứ. Pause trước hạn không bị tính quá hạn trong lúc chờ; pause sau hạn vẫn thuộc openOverdue. openPaused có thể giao với openOverdue.
 
-TimelinessStatus=AVAILABLE nếu có mẫu hợp lệ; NO_KNOWN_COMPLETED_DEADLINES nếu không có. Metrics/totals cũ vẫn dùng cache theo Coverage; phầndeadline đọc trực tiếp Workflow nên có asOfUtc riêng và có thể mới hơn totals. Trends/procedures/officers chưa bổ sung tỷ lệdeadline trong lần này. Nguồn Workflow mất kết nối/chưa deploy/khóa sai/nguồn quá lớn:overview trả lỗi, không giả lập0 hoặc tính UNKNOWN thành trễ. API nội bộ /internal/analytics/v1/deadlines dùng X-Analytics-Key, không dùng trực tiếp từ FE. Analytics cần Workflow:BaseUrl và Analytics:ServiceKey kể cả JobsEnabled=false.
+TimelinessStatus=AVAILABLE nếu có mẫu hợp lệ; NO_KNOWN_COMPLETED_DEADLINES nếu không có. Metrics/totals cũ vẫn dùng cache theo Coverage; phầndeadline đọc trực tiếp Workflow nên có asOfUtc riêng và có thể mới hơn totals. Trends/procedures/officers cũng trả deadline và tỷ lệ; xem hướng dẫn bổ sung bên dưới. Nguồn Workflow mất kết nối/chưa deploy/khóa sai/nguồn quá lớn:overview trả lỗi, không giả lập0 hoặc tính UNKNOWN thành trễ. API nội bộ /internal/analytics/v1/deadlines dùng X-Analytics-Key, không dùng trực tiếp từ FE. Analytics cần Workflow:BaseUrl và Analytics:ServiceKey kể cả JobsEnabled=false.
+
+
+### Bổ sung BE ngày 22/10/2026 — Đánh giá, tiền kiểm theo checklist và thống kê deadline
+
+**POST /api/v1/citizen/feedback/{applicationId}**
+
+Công dân có role REGISTERED_CITIZEN đánh giá hồ sơ của chính mình, kể cả sau khi cán bộ tiếp nhận tại quầy. Gửi Bearer và body `{"rating":5,"comment":"Hướng dẫn rõ ràng"}`. Hai trạng thái nhận đánh giá là DOCUMENTS_READY và OFFICIALLY_RECEIVED. Thành công201; mỗi hồ sơ chỉ có một đánh giá. Sai trạng thái409 feedback.not_ready: đợi giấy tờ sẵn sàng; đã đánh giá409 feedback.already_exists: gọi GET cùng đường dẫn để xem lại. Rating1–5, comment tối đa2000; không đổi quyền sở hữu hoặc cho phép sửa/xóa đánh giá. Hồ sơ người khác404, thiếu quyền403, token không hợp lệ401.
+
+**POST /api/v1/ai-ocr/documents/verify**
+
+Dùng kiểm tra sơ bộ ảnh/PDF đã tải lên đúng mục giấy tờ. FE chỉ gửi applicationId và documentId cùng Bearer. BE lấy ChecklistId từ DocumentForm, đọc checklist của hồ sơ từ Workflow và dùng Title làm loại giấy tờ cần đối chiếu. Giữ nguyên quyền tải của DocumentForm: chủ hoặc cán bộ được phân công; không dùng token đặc quyền. expectedType từ FE được bỏ qua kể cả khi khác checklist. Response200 giữ các trường cũ, thêm checklistId và expectedType thực tế.
+
+Thiếu liên kết409 ai.checklist_required: tải giấy tờ lên đúng mục; mục không còn trong hồ sơ hoặc không có tên409 ai.checklist_mismatch: đối soát checklist. Sai hồ sơ/quyền401/403/404; Workflow chưa cấu hình503 ai.workflow_not_configured, dữ liệu nguồn sai503 ai.checklist_source_invalid. Cấu hình trên AIOCR thêm `Services__ApplicationWorkflow__BaseUrl` là địa chỉ Workflow; giữ `Services__DocumentForm__BaseUrl`. Docker Compose đã thêm URL nội bộ. Không thay model/key AI. AI chỉ tư vấn về loại và chất lượng, không chứng minh tính pháp lý, số bản, hay tự đánh dấu checklist hoàn tất.
+
+**GET /api/v1/analytics/trends**, **GET /api/v1/analytics/procedures**, **GET /api/v1/analytics/officers**
+
+Manager dùng Bearer, dữ liệu giới hạn phường của Manager do IAM xác minh. Giữ query From/To dạng yyyy-MM-dd (1–366ngày, không tương lai), ProcedureId tùy chọn; procedures/officers giữ Page/PageSize. Thành công200; mỗi item thêm deadlines với completedOnTime, completedLate, completedMissingDeadline, completedNotApplicable, completedSampleCount, openOverdue, openMissingDeadline, openNotApplicable, openPaused, asOfUtc, onTimeRate, lateRate.
+
+- Trends: phân ngày hoàn tất theo UTC+07; deadlines của mỗi ngày chỉ chứa hồ sơ đã sẵn sàng. currentBacklog ở cấp response là hồ sơ đang mở tại asOfUtc, không phải lịch sử backlog ngày To; không cộng backlog vào từng ngày.
+- Procedures: nhóm theo procedureId của hồ sơ; gồm cả nhóm có deadline nhưng cache metrics chưa có. Coverage vẫn phản ánh phần cache chưa cập nhật.
+- Officers: nhóm theo assignedOfficerId lưu trên hồ sơ, không suy đoán người phụ trách cho dữ liệu cũ. unassignedDeadlines ở cấp response chứa hồ sơ chưa có cán bộ, không nằm trong totalCount cán bộ. Không dùng đây như bằng chứng trách nhiệm cá nhân hoặc thống kê lịch sử điều chuyển.
+- Hoàn tất đúng hạn khi ready<=due; trễ khi ready>due. UNKNOWN/NOT_APPLICABLE tách riêng và loại khỏi mẫu số. Tỷ lệ0–100, null khi mẫu số0. OpenOverdue chỉ tính hồ sơ đang mở, giữ quy tắc pause hiện có; openPaused có thể giao với openOverdue nếu đã quá hạn trước khi dừng.
+- Deadline đọc trực tiếp Workflow còn totals đọc cache Analytics: xem asOfUtc và Coverage riêng. Cả ba API nay cần Workflow:BaseUrl và Analytics:ServiceKey kể cả JobsEnabled=false. Nguồn thiếu procedureId trả503 analytics.deadline_dimensions_missing: deploy Workflow mới trước Analytics. Các lỗi nguồn khác giữ ProblemDetails, không giả0. Dữ liệu cũ vẫn UNKNOWN; không tạo deadline hồi tố.
+
+Không có migration mới trong lượt này. Cần cập nhật image Workflow, AnalyticsSystem, AIOCR; FE nghiệm thu trên giao diện sau deploy.
