@@ -39,12 +39,13 @@ public sealed class PasswordOtpService(IamDbContext db, IIamEmailSender email, I
         if (r.Channel == "SMS")
         {
             var profile = await db.Set<UserProfile>().AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user!.Id, ct);
-            if (string.IsNullOrWhiteSpace(profile?.PhoneNumber)) return Result<string>.Failure(new("iam.phone_not_configured",
-                "Tài khoản của bạn chưa cập nhật số điện thoại. Vui lòng chọn nhận mã qua Email hoặc liên hệ cán bộ.", ErrorKind.BadRequest));
+            if (string.IsNullOrWhiteSpace(profile?.PhoneNumber)) return Accepted();
             phone = IamSmsSender.NormalizePhone(profile.PhoneNumber);
-            if (phone is null) return Result<string>.Failure(new("iam.phone_invalid", "Số điện thoại chưa đúng định dạng di động Việt Nam. Vui lòng cập nhật hoặc chọn Email.", ErrorKind.BadRequest));
+            if (phone is null) return Accepted();
         }
+        if (r.Channel == "SMS" && phone != user!.VerifiedPhoneNumber) return Accepted();
         var now = clock.GetUtcNow().UtcDateTime;
+        if (await OtpLimits.Exceeded(db, config, user!.Id, r.Channel, now, ct)) return Accepted();
         if (await db.UserOtps.AnyAsync(x => x.UserId == user!.Id && x.CreatedAtUtc > now.AddSeconds(-60), ct)) return Accepted();
         await db.UserOtps.Where(x => x.UserId == user!.Id && !x.IsUsed && x.ExpiresAtUtc > now)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresAtUtc, now), ct);
@@ -71,12 +72,6 @@ public sealed class PasswordOtpService(IamDbContext db, IIamEmailSender email, I
             logger.LogWarning("IAM OTP delivery failed; challenge invalidated. No OTP or recipient is logged.");
         }
         await tx.CommitAsync(ct);
-        if (delivery is { IsSuccess: false }) return Result<string>.Failure(delivery.Error!);
-        if (r.Channel == "SMS" && delivery is { IsSuccess: true })
-        {
-            if (config["Sms:Sandbox"] == "1") return Result<string>.Success("Yêu cầu SMS thử nghiệm đã được chấp nhận; Sandbox không gửi tin nhắn tới điện thoại.");
-            return Result<string>.Success($"Mã OTP đã được gửi về số điện thoại {phone![..3]}****{phone[^3..]}. Vui lòng kiểm tra tin nhắn và đợi ít nhất 60 giây trước khi yêu cầu lại.");
-        }
         return Accepted();
     }
     public async Task<Result<string>> Verify(VerifyPasswordOtpCommand r, CancellationToken ct)
@@ -95,7 +90,7 @@ public sealed class PasswordOtpService(IamDbContext db, IIamEmailSender email, I
         }
         var newHash = passwords.Hash(r.NewPassword);
         await db.Users.Where(x => x.Id == user!.Id).ExecuteUpdateAsync(s => s.SetProperty(x => x.PasswordHash, newHash)
-            .SetProperty(x => x.UpdatedAt, now), ct);
+            .SetProperty(x => x.UpdatedAt, now).SetProperty(x => x.SecurityStamp, Guid.NewGuid()), ct);
         await db.RefreshTokens.Where(x => x.UserId == user!.Id && !x.IsRevoked).ExecuteUpdateAsync(s => s.SetProperty(x => x.IsRevoked, true), ct);
         await db.UserOtps.Where(x => x.UserId == user!.Id && !x.IsUsed && x.Id != otp.Id && x.ExpiresAtUtc > now)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresAtUtc, now), ct);

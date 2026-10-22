@@ -27,7 +27,7 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var current = await db.Users.FromSqlInterpolated($"SELECT * FROM users WHERE id = {userId} FOR UPDATE").AsNoTracking().SingleOrDefaultAsync(ct);
         if (current is null || !current.IsActive || current.PasswordHash != expectedHash) return SaveOutcome.ConcurrentUpdate;
-        await db.Users.Where(x => x.Id == userId).ExecuteUpdateAsync(s => s.SetProperty(x => x.PasswordHash, newHash).SetProperty(x => x.UpdatedAt, now), ct);
+        await db.Users.Where(x => x.Id == userId).ExecuteUpdateAsync(s => s.SetProperty(x => x.PasswordHash, newHash).SetProperty(x => x.UpdatedAt, now).SetProperty(x => x.SecurityStamp, Guid.NewGuid()), ct);
         await db.RefreshTokens.Where(x => x.UserId == userId && !x.IsRevoked).ExecuteUpdateAsync(s => s.SetProperty(x => x.IsRevoked, true), ct);
         await db.UserOtps.Where(x => x.UserId == userId && !x.IsUsed && x.ExpiresAtUtc > now).ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresAtUtc, now), ct);
         await tx.CommitAsync(ct);
@@ -54,6 +54,13 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
                     db.ChangeTracker.Clear();
                     return SaveOutcome.ConcurrentUpdate;
                 }
+            }
+            foreach (var profile in db.ChangeTracker.Entries<UserProfile>().Where(x => x.State == EntityState.Deleted || (x.State == EntityState.Modified && x.Property(p => p.PhoneNumber).IsModified)))
+            {
+                await db.Users.Where(x => x.Id == profile.Entity.UserId).ExecuteUpdateAsync(s => s.SetProperty(x => x.VerifiedPhoneNumber, (string?)null), ct);
+                var invalidatedAt = DateTime.UtcNow;
+                await db.UserOtps.Where(x => x.UserId == profile.Entity.UserId && x.Channel == "SMS" && !x.IsUsed && x.ExpiresAtUtc > invalidatedAt)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresAtUtc, invalidatedAt), ct);
             }
             await db.SaveChangesAsync(ct);
             if (transaction is not null) await transaction.CommitAsync(ct);

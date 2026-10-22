@@ -20,6 +20,7 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options, TimeProvider c
         var payload = new JwtPayload(settings.Issuer, settings.Audience, null, now, expires, now)
         {
             ["sub"] = user.Id.ToString(),
+            ["security_stamp"] = user.SecurityStamp.ToString(),
             ["email"] = user.Email,
             ["jti"] = Guid.NewGuid().ToString(),
             ["role"] = dto.Roles,
