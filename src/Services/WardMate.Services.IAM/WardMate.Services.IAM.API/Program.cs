@@ -1,3 +1,5 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Serilog;
 using WardMate.SharedKernel.Logging;
 using WardMate.SharedKernel.Web;
@@ -19,7 +21,20 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = WebApplication.CreateBuilder(args);
-
+    builder.Services.AddRateLimiter(o =>
+    {
+        o.RejectionStatusCode = 429;
+        o.AddPolicy("password-otp", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
+            { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+        o.OnRejected = async (context, ct) =>
+        {
+            context.HttpContext.Response.Headers.RetryAfter = "60";
+            await context.HttpContext.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
+            { Status = 429, Title = "Quá nhiều yêu cầu OTP. Vui lòng đợi một phút.", Extensions = { ["code"] = "iam.otp_rate_limited" } }, cancellationToken: ct);
+        };
+    });
+    
     // ── Centralised Serilog (Console + File, JSON in Prod) ───────────────────
     builder.AddWardMateLogging();
 
@@ -128,6 +143,7 @@ try
     app.UseCors(BrowserCorsExtensions.PolicyName);
     if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
     app.UseAuthentication();
+    app.UseRateLimiter();
     app.UseAuthorization();
     app.MapControllers();
     app.MapHealthChecks("/health");

@@ -16,6 +16,28 @@ public sealed class AuthController(ISender sender, RefreshTokenCookie cookie) : 
 {
     private bool IsMobile => string.Equals(Request.Headers["X-Client-Type"].ToString(), "Mobile", StringComparison.OrdinalIgnoreCase);
 
+    [HttpPost("password-otp/request"), AllowAnonymous, RequestSizeLimit(4096)]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("password-otp")]
+    [ProducesResponseType(202), ProducesResponseType<ProblemDetails>(400), ProducesResponseType<ProblemDetails>(429)]
+    public async Task<IActionResult> RequestOtp(PasswordOtpRequest input, CancellationToken ct)
+    {
+        Guid? actor = User.Identity?.IsAuthenticated == true && Guid.TryParse(User.FindFirstValue("sub"), out var id) ? id : null;
+        var result = await sender.Send(new RequestPasswordOtpCommand(input.EmailOrUsername, input.Channel, input.Purpose, actor), ct);
+        return result.IsSuccess ? Accepted(new { message = result.Value }) : result.ToProblem(HttpContext);
+    }
+    [HttpPost("password-otp/verify-and-change"), AllowAnonymous, RequestSizeLimit(4096)]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("password-otp")]
+    [ProducesResponseType(200), ProducesResponseType<ProblemDetails>(400), ProducesResponseType<ProblemDetails>(429)]
+    public async Task<IActionResult> VerifyOtp(PasswordOtpVerification input, CancellationToken ct)
+    {
+        Guid? actor = User.Identity?.IsAuthenticated == true && Guid.TryParse(User.FindFirstValue("sub"), out var id) ? id : null;
+        var result = await sender.Send(new VerifyPasswordOtpCommand(input.EmailOrUsername, input.Otp, input.NewPassword,
+            input.ConfirmNewPassword, input.Purpose, actor), ct);
+        if (!result.IsSuccess) return result.ToProblem(HttpContext);
+        if (!IsMobile) cookie.Delete(HttpContext);
+        return Ok(new { message = result.Value });
+    }
+
     [HttpPost("register"), AllowAnonymous]
     [ProducesResponseType<CurrentUserDto>(201)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
@@ -75,3 +97,6 @@ public sealed class AuthController(ISender sender, RefreshTokenCookie cookie) : 
         return NoContent();
     }
 }
+
+public sealed record PasswordOtpRequest(string EmailOrUsername, string Channel = "EMAIL", string Purpose = "FORGOT_PASSWORD");
+public sealed record PasswordOtpVerification(string EmailOrUsername, string Otp, string NewPassword, string ConfirmNewPassword, string Purpose = "FORGOT_PASSWORD");
