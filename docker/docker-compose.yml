@@ -44,6 +44,7 @@ services:
       Notifications__WorkersEnabled: ${NOTIFICATIONS_ENABLED:-false}
       Notifications__ServiceKey: ${NOTIFICATIONS_SERVICE_KEY:-}
       Notifications__RevalidateSeconds: "15"
+      Email__FrontendBaseUrl: ${NOTIFICATION_FRONTEND_URL:-https://wardmate-frontend.vercel.app/}
       Email__Enabled: ${NOTIFICATION_EMAIL_ENABLED:-false}
       Email__Host: ${NOTIFICATION_EMAIL_HOST:-}
       Email__Port: ${NOTIFICATION_EMAIL_PORT:-587}

@@ -10,3 +10,6 @@ appsettings.Development.json
 !src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/appsettings.Development.json
 **/logs/
 *.log
+
+# Safe TASK-26 sample; password is supplied through environment variables.
+!src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/appsettings.Development.json
