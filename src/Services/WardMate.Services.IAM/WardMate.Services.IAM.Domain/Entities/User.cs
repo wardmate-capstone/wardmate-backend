@@ -2,6 +2,8 @@ namespace WardMate.Services.IAM.Domain.Entities;
 
 public sealed class User
 {
+    public Guid SecurityStamp { get; set; } = Guid.NewGuid();
+    public string? VerifiedPhoneNumber { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
