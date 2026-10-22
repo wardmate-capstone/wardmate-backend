@@ -26,7 +26,7 @@ public sealed class NotificationDelivery
     public DateTime? SentAt { get; set; }
 }
 
-public sealed record RecipientContact(Guid UserId, string Email, string? PhoneNumber, string? WardCode, bool IsOfficer);
+public sealed record RecipientContact(Guid UserId, string Email, string? PhoneNumber, string? WardCode, bool IsOfficer, string? FullName = null);
 public interface IRecipientContacts
 {
     Task<RecipientContact[]> Find(Guid[] userIds, string? wardCode, CancellationToken ct);

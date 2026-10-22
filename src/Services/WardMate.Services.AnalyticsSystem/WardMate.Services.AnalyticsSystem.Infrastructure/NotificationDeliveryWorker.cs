@@ -37,10 +37,10 @@ public sealed class NotificationDeliveryWorker(IServiceScopeFactory scopes, ICon
             row.SentAt = row.State == "Sent" ? DateTime.UtcNow : null;
             row.ErrorCode = row.State == "Blocked" ? "notification.channel_not_configured" : null;
         }
-        catch (Exception) when (!ct.IsCancellationRequested)
+        catch (Exception error) when (!ct.IsCancellationRequested)
         {
             row.Attempts++; row.State = row.Attempts >= 10 ? "Dead" : "Pending";
-            row.NextAttemptAt = RetrySchedule.Next(row.Attempts); row.ErrorCode = "notification.delivery_failed";
+            row.NextAttemptAt = RetrySchedule.Next(row.Attempts); row.ErrorCode = error is NotificationSendException failure ? failure.Code : "notification.delivery_failed";
             logger.LogWarning("Notification delivery {DeliveryId} failed; attempt {Attempt}, state {State}.", row.Id, row.Attempts, row.State);
         }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return true;

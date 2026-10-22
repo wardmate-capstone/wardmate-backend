@@ -22,6 +22,11 @@ public static class DependencyInjection
         services.AddHostedService(sp => sp.GetRequiredService<NotificationConnectionGuard>());
         services.AddSingleton<ISmsSender, UnconfiguredSmsSender>();
         services.AddScoped<ExternalNotificationSender>();
+        services.AddHttpClient<NotificationEmailSource>(http =>
+        {
+            http.BaseAddress = new Uri((configuration["Workflow:BaseUrl"] ?? "http://localhost:5003/").TrimEnd('/') + "/");
+            http.Timeout = TimeSpan.FromSeconds(10); http.MaxResponseContentBufferSize = 128 * 1024;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddHttpClient<IRecipientContacts, RecipientContacts>(http =>
         {
             http.BaseAddress = new Uri((configuration["Iam:BaseUrl"] ?? "http://localhost:5001/").TrimEnd('/') + "/");
