@@ -23,6 +23,8 @@ public static class DependencyInjection
             .Validate(o => o.AccessTokenMinutes is >= 1 and <= 60 && o.RefreshTokenDays is >= 1 and <= 30, "Invalid token lifetime.")
             .ValidateOnStart();
         services.AddSingleton(TimeProvider.System);
+        services.AddHttpClient<IIamSmsSender, IamSmsSender>(client => client.Timeout = TimeSpan.FromSeconds(10))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<WardMate.Services.IAM.Application.Commands.IIamEmailSender, IamEmailSender>();
         services.AddScoped<WardMate.Services.IAM.Application.Commands.IPasswordOtpService, PasswordOtpService>();
         services.AddHostedService<WelcomeEmailWorker>();
