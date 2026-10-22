@@ -736,3 +736,11 @@ Nhật ký22/10/2026: thêm IAM-OTP-01; không đổi SMTP credential thật, kh
 
 
 Nhật ký 22/10/2026 — IAM-OTP-01: bổ sung script catch-up docs/sql/iam-catchup-readiness-to-otp.sql cho baseline WorkflowReadinessPermission. Preflight kiểm tra baseline và bảng IAM trong từng transaction, cố định search_path public, giữ lịch sử service khác; không chạy đồng thời auto-migrate. Script thay đổi quyền MANAGER thành read-only theo migration có sẵn, thêm quyền receipt/cancel và bảng OTP/welcome. Không xác nhận dữ liệu cloud chỉ từ việc sinh SQL.
+
+
+### IAM-SMS-01 — OTP eSMS (22/10/2026)
+- Mở kênh SMS của IAM-OTP-01; stub SMS Analytics vẫn không đổi. Số nhận chỉ từ profile tài khoản hợp lệ; normalize 0/84/+84 về dạng0, chấp nhận mobile10số đầu03/05/07/08/09. Không xác minh số còn hoạt động hay chủ thuê bao.
+- IIamSmsSender/IamSmsSender: HTTPS endpoint eSMS cố định, không redirect, timeout10s, không tự retry; chỉ CodeResult100 thành công. Log HTTP status hoặc mã lỗi numeric giới hạn4ký tự/loại exception, không raw response/content/OTP/khóa/số điện thoại. Keys chỉ cấu hình môi trường. Provider=eSMS, SmsType2, Sandbox0/1; brand ASCII chữ/số/khoảng trắng1..32. Đổi brand cần duyệt template nhà mạng.
+- PasswordOtpService: channel ghi SMS, giữ HMAC-SHA256 có khóa và salt hiện có (không hạ xuống SHA256 thuần). Khóa user, cooldown60s xuyên kênh/purpose, expire challenge cũ,5phút,5lần thử, dùng một lần. Verify lấy challenge mới nhất theo purpose không lọcEMAIL. Lỗi gửi được invalidate và giữ cooldown. Không có bảo đảm exactly-once khi nhà mạng đã nhận nhưng timeout/transaction lỗi.
+- Phản hồi SMS có số masked và400 thiếu/sai phone theo yêu cầu nên có thể phân biệt tài khoản tồn tại; không tuyên bố chống enumeration hoàn toàn. Sandbox không gửi thực; CodeResult100 không chứng minh SMS đã đến máy. Cấu hình mẫu disabled/Sandbox1; bật gửi thật phải cung cấp secret và Sandbox0.
+- Nguồn: Application/Interfaces/IIamSmsSender.cs; Infrastructure/Security/IamSmsSender.cs, PasswordOtpService.cs; Infrastructure/DependencyInjection.cs; API/appsettings.json; docker/docker-compose.yml, docker/.env.example. Không đổi schema/API routes. Lịch sử22/10/2026: thay hạn chế SMS stub của IAM-OTP-01 bằng tích hợp eSMS, giữ các giới hạn access JWT và rate limit hiện có.

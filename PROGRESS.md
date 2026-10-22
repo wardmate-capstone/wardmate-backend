@@ -2988,3 +2988,16 @@ Commit gợi ý: chore(iam): add guarded readiness-to-otp catch-up script; docs(
    - Mật khẩu yếu: Trả về HTTP 400 code `validation_failed` kèm chi tiết yêu cầu chữ hoa, chữ thường, số, ký tự đặc biệt. PASS.
 5. **Đăng ký công dân & Email chào mừng**:
    - `POST /api/v1/auth/register`: HTTP 201 Created. User profile và quyền `REGISTERED_CITIZEN` khởi tạo thành công. Hàng đợi `iam.welcome_emails` được nạp và `WelcomeEmailWorker` xử lý gửi HTML email chào mừng tới Gmail. PASS.
+
+
+## IAM-SMS-OTP — 2026-10-22 21:17:14 UTC+07:00
+
+Hoàn thành tích hợp eSMS cho OTP mật khẩu. File mới: src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Interfaces/IIamSmsSender.cs; src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Security/IamSmsSender.cs. File sửa: Infrastructure/Security/PasswordOtpService.cs, Infrastructure/DependencyInjection.cs, API/appsettings.json (cùng gốc IAM); docker/docker-compose.yml; docker/.env.example; docs/api-guide.md; docs/system-constraints.md; PROGRESS.md.
+
+POST /api/v1/auth/password-otp/request nhận emailOrUsername,channel=SMS,purpose=FORGOT_PASSWORD hoặc CHANGE_PASSWORD (JWT chính chủ).202 message số masked khi provider chấp nhận; Sandbox202 thông báo không gửi thật;400 iam.phone_not_configured/iam.phone_invalid/iam.sms_unavailable;503 iam.sms_delivery_failed;429 limiter hiện hữu. POST /api/v1/auth/password-otp/verify-and-change giữ body emailOrUsername,otp,newPassword,confirmNewPassword,purpose,200 thành công/400 mã không hợp lệ; lấy challenge mới nhất cảEMAIL/SMS. Refresh thu hồi, JWTaccess chưa revoke ngay.
+
+Giữ HMAC-SHA256 thay vì hạ xuống SHA256 thuần, OTP5phút/5lần/cooldown60s xuyên kênh; provider lỗi invalidates challenge. Profilephone chuẩn VN0/84/+84; timeout10s; không redirect/retry; log numeric provider code/HTTP status/type không raw data. Chưa xác minh quyền sở hữu số; phản hồi thiếuphone/masked làm lộ dấu hiệu tồn tại tài khoản theo đặc tả. Không migration mới. Không ghi keys vào repo; config mẫu false/Sandbox1, bật thật qua envsecret và Sandbox0. AnalyticsSMS không đổi.
+
+Validation: dotnet build WardMate.sln -c Release -warnaserror -m:1 PASS,0warnings/0errors,00:06:50.17. Kiểm tra source/config mapping và tài liệu chính thức eSMS. Không tạo/chạy testproject; không gửi SMS sandbox/thật hoặc thực thi DB, không Git/Docker/Azure. Chưa nghiệm thu delivery trên thiết bị; chủ dự án cấu hình env và FE kiểm tra sau deploy.
+
+Commit gợi ý (mỗi file mới commit riêng): feat(iam): define SMS OTP sender contract; feat(iam): add eSMS OTP adapter; feat(iam): support SMS password OTP requests and verification; chore(iam): configure eSMS environment mapping; docs(iam): document SMS OTP flow and limitations.

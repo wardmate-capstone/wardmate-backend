@@ -3784,3 +3784,16 @@ Nếu SQL OTP báo thiếu baseline CounterReceiptPermissions và migration IAM 
 Script cấp MANAGER quyền đọc Workflow và bỏ bốn quyền xử lý (assign/comments/revision/readiness); cấp quyền tiếp nhận cho FRONT_DESK_OFFICER và quyền hủy cho role đã có workflow.submit; cuối cùng tạo iam.user_otps và iam.welcome_emails. Giữ nguyên lịch sử Procedure nếu database đang dùng chung. Không xóa preflight hay chèn migration history thủ công. Mỗi migration có transaction riêng; nếu bước sau lỗi, bước trước có thể đã commit. Sửa nguyên nhân rồi chạy lại script. Không chạy đồng thời với auto-migrate của ứng dụng.
 
 Xác nhận đủ ba migration mới trong public."__EFMigrationsHistory" và hai bảng iam.user_otps, iam.welcome_emails trước khi thử API OTP. Đây là cập nhật schema/quyền, không đổi hợp đồng API.
+
+
+### IAM — OTP qua eSMS (22/10/2026)
+
+Dùng POST /api/v1/auth/password-otp/request với body {"emailOrUsername":"ten-dang-nhap","channel":"SMS","purpose":"FORGOT_PASSWORD"}. API dùng số di động đã lưu trong UserProfile, không nhận số tùy ý từ client. CHANGE_PASSWORD cần Bearer của chính tài khoản. Browser tiếp tục cần Origin được phép và X-CSRF-Protection: 1; giới hạn 10 request/IP/phút hiện hữu không đổi.
+
+202 trả message chứa số đã che khi eSMS chấp nhận yêu cầu gửi thật. CodeResult=100 là nhà cung cấp chấp nhận, không phải xác nhận điện thoại đã nhận. Sandbox=1 trả message thử nghiệm không gửi SMS. Tài khoản không khả dụng hoặc đang cooldown vẫn trả 202 chung. Thiếu số:400 iam.phone_not_configured; sai định dạng:400 iam.phone_invalid; tắt/thiếu cấu hình:400 iam.sms_unavailable; eSMS lỗi/timeout:503 iam.sms_delivery_failed. Cập nhật số hoặc chọn EMAIL; đợi tối thiểu60s khi gửi lại. Không tự retry SMS để tránh gửi trùng/tính phí trùng.
+
+Xác nhận bằng POST /api/v1/auth/password-otp/verify-and-change với {"emailOrUsername":"ten-dang-nhap","otp":"123456","newPassword":"<mật khẩu mới>","confirmNewPassword":"<mật khẩu mới>","purpose":"FORGOT_PASSWORD"}. Không cần channel; lấy challenge mới nhất theo purpose dù EMAIL hay SMS. Thành công200, sai/hết hạn400 iam.otp_invalid; dùng một lần,5phút,5lần thử. Thành công thu hồi refresh token; JWT access hiện hữu vẫn có thể sống đến hết hạn. FE xóa token và yêu cầu đăng nhập lại.
+
+Cấu hình IAM: Sms__Enabled=true, Sms__Provider=eSMS, Sms__ApiKey/Sms__SecretKey từ secret môi trường, Sms__Brandname=Baotrixemay, Sms__SmsType=2. Sms__Sandbox=1 chỉ kiểm tra tích hợp; =0 gửi thật có thể tính phí. Compose đọc đúng các tên Sms__* từ docker/.env; appsettings và .env.example không chứa khóa, mặc định tắt và Sandbox1. Nội dung mẫu: {CODE} la ma xac minh dang ky Baotrixemay cua ban. Brandname khác được thay vào cùng mẫu nhưng phải đăng ký/duyệt mẫu tương ứng với eSMS. Không thay cấu hình SMS của AnalyticsSystem. Không cần migration mới vì user_otps đã hỗ trợ SMS.
+
+Tài liệu nhà cung cấp: https://developers.esms.vn/esms-api/ham-gui-tin/tin-nhan-sms-otp-cskh và https://developers.esms.vn/en/esms-api/moi-truong-test-sandbox .
