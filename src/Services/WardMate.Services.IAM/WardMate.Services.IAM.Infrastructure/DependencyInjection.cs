@@ -23,6 +23,9 @@ public static class DependencyInjection
             .Validate(o => o.AccessTokenMinutes is >= 1 and <= 60 && o.RefreshTokenDays is >= 1 and <= 30, "Invalid token lifetime.")
             .ValidateOnStart();
         services.AddSingleton(TimeProvider.System);
+        services.AddScoped<WardMate.Services.IAM.Application.Commands.IIamEmailSender, IamEmailSender>();
+        services.AddScoped<WardMate.Services.IAM.Application.Commands.IPasswordOtpService, PasswordOtpService>();
+        services.AddHostedService<WelcomeEmailWorker>();
         services.AddScoped<IIdentityStore, IdentityStore>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.INotificationRecipients, NotificationRecipients>();
         services.AddScoped<IProfileStore, ProfileStore>();

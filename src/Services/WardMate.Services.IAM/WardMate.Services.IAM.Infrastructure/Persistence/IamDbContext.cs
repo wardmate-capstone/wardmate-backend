@@ -5,6 +5,8 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence;
 
 public sealed class IamDbContext(DbContextOptions<IamDbContext> options) : DbContext(options)
 {
+    public DbSet<UserOtp> UserOtps => Set<UserOtp>();
+    public DbSet<WelcomeEmail> WelcomeEmails => Set<WelcomeEmail>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Ward> Wards => Set<Ward>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();

@@ -19,6 +19,7 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
         .SingleAsync(x => x.RoleName == RoleNames.RegisteredCitizen, ct);
     public Task<RefreshToken?> FindRefreshToken(string tokenHash, CancellationToken ct)
         => db.RefreshTokens.SingleOrDefaultAsync(x => x.Token == tokenHash, ct);
+    public void QueueWelcome(User user) => db.WelcomeEmails.Add(new WelcomeEmail { UserId = user.Id, NextAttemptAtUtc = user.CreatedAt });
     public void AddUser(User user) => db.Users.Add(user);
     public void AddRefreshToken(RefreshToken token) => db.RefreshTokens.Add(token);
     public async Task<SaveOutcome> ChangePassword(Guid userId, string expectedHash, string newHash, DateTime now, CancellationToken ct)
@@ -28,6 +29,7 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
         if (current is null || !current.IsActive || current.PasswordHash != expectedHash) return SaveOutcome.ConcurrentUpdate;
         await db.Users.Where(x => x.Id == userId).ExecuteUpdateAsync(s => s.SetProperty(x => x.PasswordHash, newHash).SetProperty(x => x.UpdatedAt, now), ct);
         await db.RefreshTokens.Where(x => x.UserId == userId && !x.IsRevoked).ExecuteUpdateAsync(s => s.SetProperty(x => x.IsRevoked, true), ct);
+        await db.UserOtps.Where(x => x.UserId == userId && !x.IsUsed && x.ExpiresAtUtc > now).ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresAtUtc, now), ct);
         await tx.CommitAsync(ct);
         db.ChangeTracker.Clear();
         return SaveOutcome.Saved;

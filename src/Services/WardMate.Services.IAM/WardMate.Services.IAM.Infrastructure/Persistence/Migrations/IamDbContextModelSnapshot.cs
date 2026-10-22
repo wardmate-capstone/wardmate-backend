@@ -378,6 +378,67 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.UserOtp", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_used");
+
+                    b.Property<string>("OtpHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("otp_hash");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("purpose");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_otps");
+
+                    b.HasIndex("UserId", "CreatedAtUtc")
+                        .HasDatabaseName("ix_user_otps_user_id_created_at_utc");
+
+                    b.ToTable("user_otps", "iam", t =>
+                        {
+                            t.HasCheckConstraint("ck_user_otps_attempts", "attempts BETWEEN 0 AND 5");
+
+                            t.HasCheckConstraint("ck_user_otps_channel", "channel IN ('EMAIL','SMS')");
+
+                            t.HasCheckConstraint("ck_user_otps_purpose", "purpose IN ('CHANGE_PASSWORD','FORGOT_PASSWORD')");
+                        });
+                });
+
             modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.UserProfile", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -479,6 +540,42 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                     b.ToTable("wards", (string)null);
                 });
 
+            modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.WelcomeEmail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<DateTime>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at_utc");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at_utc");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_welcome_emails");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_welcome_emails_user_id");
+
+                    b.HasIndex("SentAtUtc", "NextAttemptAtUtc")
+                        .HasDatabaseName("ix_welcome_emails_sent_at_utc_next_attempt_at_utc");
+
+                    b.ToTable("welcome_emails", "iam");
+                });
+
             modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("WardMate.Services.IAM.Domain.Entities.User", "User")
@@ -523,6 +620,16 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                     b.Navigation("Ward");
                 });
 
+            modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.UserOtp", b =>
+                {
+                    b.HasOne("WardMate.Services.IAM.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_otps_users_user_id");
+                });
+
             modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.UserProfile", b =>
                 {
                     b.HasOne("WardMate.Services.IAM.Domain.Entities.User", "User")
@@ -554,6 +661,16 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.WelcomeEmail", b =>
+                {
+                    b.HasOne("WardMate.Services.IAM.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_welcome_emails_users_user_id");
                 });
 
             modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.Role", b =>
