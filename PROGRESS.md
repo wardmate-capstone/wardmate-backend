@@ -3001,3 +3001,19 @@ Giữ HMAC-SHA256 thay vì hạ xuống SHA256 thuần, OTP5phút/5lần/cooldow
 Validation: dotnet build WardMate.sln -c Release -warnaserror -m:1 PASS,0warnings/0errors,00:06:50.17. Kiểm tra source/config mapping và tài liệu chính thức eSMS. Không tạo/chạy testproject; không gửi SMS sandbox/thật hoặc thực thi DB, không Git/Docker/Azure. Chưa nghiệm thu delivery trên thiết bị; chủ dự án cấu hình env và FE kiểm tra sau deploy.
 
 Commit gợi ý (mỗi file mới commit riêng): feat(iam): define SMS OTP sender contract; feat(iam): add eSMS OTP adapter; feat(iam): support SMS password OTP requests and verification; chore(iam): configure eSMS environment mapping; docs(iam): document SMS OTP flow and limitations.
+
+
+## IAM-SMS-DEPLOY-VERIFY — 2026-10-22 23:38:00 (UTC+07:00)
+
+Đã hoàn tất deploy và xác nhận live trên Azure Container App cho IAM Service tích hợp eSMS:
+- Image: `acrwardmate2026.azurecr.io/wardmate-iam:iam-20261022-03` (build sạch `--no-cache`, digest `sha256:6add69132dfbb4c3b405133822fe7f0f575779fdff2940208ebe86b00826a3a6`).
+- Azure Secrets & Env: `esms-api-key`, `esms-secret-key`, `Sms__Enabled=true`, `Sms__Provider=eSMS`, `Sms__Brandname=Baotrixemay`, `Sms__SmsType=2`, `Sms__Sandbox=0`.
+
+### Kết quả kiểm thử trực tiếp trên Azure Gateway (Live)
+1. **Kiểm tra tài khoản chưa có số điện thoại**:
+   - `POST /api/v1/auth/password-otp/request` (channel: "SMS", user: cit1792676690 lúc chưa có phone): HTTP 400 ProblemDetails code `iam.phone_not_configured` ("Tài khoản của bạn chưa cập nhật số điện thoại. Vui lòng chọn nhận mã qua Email hoặc liên hệ cán bộ."). PASS.
+2. **Kiểm tra gửi tin nhắn SMS OTP thật qua eSMS**:
+   - Cập nhật số điện thoại qua `PUT /api/v1/users/me/profile`: Phone `0901888484`.
+   - `POST /api/v1/auth/password-otp/request` (channel: "SMS"): HTTP 202 Accepted.
+   - Response message: `"Mã OTP đã được gửi về số điện thoại 090****484. Vui lòng kiểm tra tin nhắn và đợi ít nhất 60 giây trước khi yêu cầu lại."`
+   - Kiểm tra trực tiếp số dư eSMS qua API: Đã trừ cước thực tế từ 5.000 đ xuống **4.210 đ** (CodeResponse: 100). Tin nhắn SMS OTP thật đã được mạng viễn thông tiếp nhận thành công. PASS.
