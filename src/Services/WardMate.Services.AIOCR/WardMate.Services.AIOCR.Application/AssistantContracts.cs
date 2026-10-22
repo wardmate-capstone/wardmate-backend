@@ -2,7 +2,7 @@ namespace WardMate.Services.AIOCR.Application;
 
 public sealed record CccdResult(string? CitizenId, string? FullName, string? DateOfBirth, string? Gender,
     string? Nationality, string? PlaceOfOrigin, string? PlaceOfResidence, string? DateOfExpiry, double ConfidenceScore);
-public sealed record VerificationResult(bool IsValid, string DocumentTypeDetected, string[] QualityIssues, double Confidence);
+public sealed record VerificationResult(bool IsValid, string DocumentTypeDetected, string[] QualityIssues, double Confidence, Guid? ChecklistId = null, string? ExpectedType = null);
 public sealed record ChatInput(string Message, Guid? ConversationId, string WardCode);
 public sealed record ChatResult(Guid ConversationId, string Answer, object[] RelatedProcedures);
 public sealed record SessionDto(Guid Id, string WardCode, DateTime CreatedAt);
@@ -34,5 +34,7 @@ public interface IChatService
 }
 public interface IAuthorizedDocumentSource
 {
-    Task<byte[]> Download(Guid applicationId, Guid documentId, string bearer, CancellationToken ct);
+    Task<ChecklistDocument> Download(Guid applicationId, Guid documentId, string bearer, CancellationToken ct);
 }
+
+public sealed record ChecklistDocument(byte[] Bytes, Guid ChecklistId, string ExpectedType);

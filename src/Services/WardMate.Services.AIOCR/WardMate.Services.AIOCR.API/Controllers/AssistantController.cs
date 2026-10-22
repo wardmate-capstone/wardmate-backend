@@ -24,11 +24,12 @@ public sealed class AssistantController(ICccdExtractionService cccd, IDocumentPr
     [HttpPost("/api/v1/ai-ocr/documents/verify"), RequestSizeLimit(4096)]
     public async Task<ActionResult<VerificationResult>> Verify(VerifyInput input, CancellationToken ct)
     {
-        if (input.ApplicationId == Guid.Empty || input.DocumentId == Guid.Empty || string.IsNullOrWhiteSpace(input.ExpectedType))
-            throw new AiFailure(400, "ai.invalid_input", "Cần ApplicationId, DocumentId và ExpectedType.");
-        var bytes = await documents.Download(input.ApplicationId, input.DocumentId, Request.Headers.Authorization.ToString(), ct);
-        await using var stream = new MemoryStream(bytes, writable: false);
-        return Ok(await validator.Verify(stream, input.ExpectedType.Trim(), ct));
+        if (input.ApplicationId == Guid.Empty || input.DocumentId == Guid.Empty)
+            throw new AiFailure(400, "ai.invalid_input", "Cần ApplicationId và DocumentId hợp lệ.");
+        var document = await documents.Download(input.ApplicationId, input.DocumentId, Request.Headers.Authorization.ToString(), ct);
+        await using var stream = new MemoryStream(document.Bytes, writable: false);
+        var result = await validator.Verify(stream, document.ExpectedType, ct);
+        return Ok(result with { ChecklistId = document.ChecklistId, ExpectedType = document.ExpectedType });
     }
     [HttpPost("/api/v1/ai/chat/completions"), RequestSizeLimit(32768)]
     public async Task<ActionResult<ChatResult>> Complete(ChatRequest input, CancellationToken ct)
@@ -49,6 +50,6 @@ public sealed class CccdUpload
     [Required] public IFormFile FrontImage { get; set; } = null!;
     public IFormFile? BackImage { get; set; }
 }
-public sealed record VerifyInput(Guid ApplicationId, Guid DocumentId, [Required, StringLength(255)] string ExpectedType);
+public sealed record VerifyInput(Guid ApplicationId, Guid DocumentId, [StringLength(255)] string? ExpectedType = null);
 public sealed record ChatRequest([Required, StringLength(4000)] string Message, Guid? ConversationId,
     [Required, RegularExpression("^[A-Za-z0-9_-]{1,50}$")] string WardCode);
