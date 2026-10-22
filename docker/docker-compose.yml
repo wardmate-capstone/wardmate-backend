@@ -206,6 +206,13 @@ services:
       ConnectionStrings__Database: Host=iam-db;Port=5432;Database=wardmate_iam_db;Username=wardmate;Password=${IAM_DB_PASSWORD:-wardmate_secret}
       Notifications__ServiceKey: ${NOTIFICATIONS_SERVICE_KEY:-}
       Database__AutoMigrate: "true"
+      Email__Enabled: ${NOTIFICATION_EMAIL_ENABLED:-false}
+      Email__Host: ${NOTIFICATION_EMAIL_HOST:-smtp.gmail.com}
+      Email__Port: ${NOTIFICATION_EMAIL_PORT:-587}
+      Email__From: ${NOTIFICATION_EMAIL_FROM:-}
+      Email__Username: ${NOTIFICATION_EMAIL_USERNAME:-}
+      Email__Password: ${NOTIFICATION_EMAIL_PASSWORD:-}
+      Email__LoginUrl: ${IAM_EMAIL_LOGIN_URL:-https://wardmate-frontend.vercel.app/login}
       Jwt__Key: ${JWT_KEY}
     ports:
       - "5001:8080"
