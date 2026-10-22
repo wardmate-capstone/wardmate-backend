@@ -34,12 +34,12 @@ public sealed record Coverage(DateOnly From, DateOnly To, DateOnly[] MissingDate
     DateTime? LatestRefreshAtUtc, string TimeZone = "Asia/Ho_Chi_Minh");
 public sealed record DashboardOverview(MetricTotals Totals, Coverage Coverage, double? OnTimeRate,
     double? LateRate, string TimelinessStatus = "UNAVAILABLE_NO_WORKFLOW_DEADLINE", DeadlineStatistics? Deadlines = null);
-public sealed record TrendPoint(DateOnly Date, MetricTotals Totals);
-public sealed record TrendResult(TrendPoint[] Items, Coverage Coverage);
-public sealed record ProcedureStatistics(Guid ProcedureId, MetricTotals Totals);
+public sealed record TrendPoint(DateOnly Date, MetricTotals Totals, DeadlineStatistics? Deadlines = null);
+public sealed record TrendResult(TrendPoint[] Items, Coverage Coverage, DeadlineStatistics? CurrentBacklog = null);
+public sealed record ProcedureStatistics(Guid ProcedureId, MetricTotals Totals, DeadlineStatistics? Deadlines = null);
 public sealed record OfficerStatistics(Guid OfficerId, long ReadyCount, long RevisionRequestedCount,
-    long DurationSampleCount, double? AverageElapsedMinutes);
-public sealed record AnalyticsPage<T>(T[] Items, int Page, int PageSize, int TotalCount, Coverage? Coverage = null);
+    long DurationSampleCount, double? AverageElapsedMinutes, DeadlineStatistics? Deadlines = null);
+public sealed record AnalyticsPage<T>(T[] Items, int Page, int PageSize, int TotalCount, Coverage? Coverage = null, DeadlineStatistics? UnassignedDeadlines = null);
 public sealed record CreateFeedback([Range(1, 5)] int Rating,
     [StringLength(2000)] string? Comment);
 public sealed record FeedbackDto(Guid Id, Guid ApplicationId, int Rating, string? Comment, DateTime CreatedAtUtc);

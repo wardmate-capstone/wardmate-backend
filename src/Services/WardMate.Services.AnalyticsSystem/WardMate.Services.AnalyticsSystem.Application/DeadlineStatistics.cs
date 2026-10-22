@@ -1,12 +1,25 @@
 namespace WardMate.Services.AnalyticsSystem.Application;
 public sealed record DeadlineFact(Guid Id, string Status, DateTime? FirstSubmittedAtUtc, DateTime? DueAtUtc,
-    DateTime? DocumentsReadyAtUtc, string DeadlineStatus, DateTime? PausedAtUtc);
+    DateTime? DocumentsReadyAtUtc, string DeadlineStatus, DateTime? PausedAtUtc, Guid ProcedureId = default, Guid? AssignedOfficerId = null);
 public sealed record DeadlineFacts(int ContractVersion, DateTime AsOfUtc, DeadlineFact[] Items);
 public sealed record DeadlineStatistics(long CompletedOnTime, long CompletedLate, long CompletedMissingDeadline,
     long CompletedNotApplicable, long CompletedSampleCount, long OpenOverdue, long OpenMissingDeadline,
-    long OpenNotApplicable, long OpenPaused, DateTime AsOfUtc);
+    long OpenNotApplicable, long OpenPaused, DateTime AsOfUtc)
+{
+    public double? OnTimeRate => CompletedSampleCount == 0 ? null : 100.0 * CompletedOnTime / CompletedSampleCount;
+    public double? LateRate => CompletedSampleCount == 0 ? null : 100.0 * CompletedLate / CompletedSampleCount;
+}
 public static class DeadlineAggregation
 {
+    public static DeadlineStatistics Subset(DeadlineFacts source, IEnumerable<DeadlineFact> rows) =>
+        Aggregate(source with { Items = rows.ToArray() });
+    public static void ValidateDimensions(DeadlineFacts source)
+    {
+        _ = Aggregate(source);
+        if (source.Items.Any(x => x.ProcedureId == Guid.Empty || x.AssignedOfficerId == Guid.Empty))
+            throw new AnalyticsException(503, "analytics.deadline_dimensions_missing", "Cần cập nhật Workflow để cung cấp thủ tục/cán bộ cho deadline.");
+    }
+
     public static DeadlineStatistics Aggregate(DeadlineFacts source)
     {
         if (source.ContractVersion != 1 || source.AsOfUtc.Kind != DateTimeKind.Utc || source.Items is null

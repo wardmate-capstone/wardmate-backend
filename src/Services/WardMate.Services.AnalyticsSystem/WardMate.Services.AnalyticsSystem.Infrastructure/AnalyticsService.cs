@@ -34,38 +34,60 @@ public sealed class AnalyticsService(AnalyticsDbContext db, IAnalyticsWorkflowCl
             deadlines.CompletedSampleCount == 0 ? null : 100.0 * deadlines.CompletedLate / deadlines.CompletedSampleCount,
             deadlines.CompletedSampleCount == 0 ? "NO_KNOWN_COMPLETED_DEADLINES" : "AVAILABLE", deadlines);
     }
+    private async Task<DeadlineFacts> DeadlineSource(string ward, AnalyticsQuery q, CancellationToken ct)
+    {
+        var source = await workflow.ReadDeadlines(ward, q, ct);
+        DeadlineAggregation.ValidateDimensions(source);
+        return source;
+    }
     public async Task<TrendResult> Trends(string ward, AnalyticsQuery q, CancellationToken ct)
     {
+        var source = await DeadlineSource(ward, q, ct);
+        var completed = source.Items.Where(x => x.DocumentsReadyAtUtc.HasValue)
+            .ToLookup(x => DateOnly.FromDateTime(x.DocumentsReadyAtUtc!.Value.AddHours(7)));
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
         var groups = (await Metrics(ward, q).ToArrayAsync(ct)).GroupBy(x => x.MetricDate).ToDictionary(x => x.Key, Totals);
         return new(Enumerable.Range(0, q.To.DayNumber - q.From.DayNumber + 1).Select(q.From.AddDays)
-            .Select(d => new TrendPoint(d, groups.GetValueOrDefault(d, Zero))).ToArray(), await Coverage(q, ct));
+            .Select(d => new TrendPoint(d, groups.GetValueOrDefault(d, Zero), DeadlineAggregation.Subset(source, completed[d]))).ToArray(),
+            await Coverage(q, ct), DeadlineAggregation.Subset(source, source.Items.Where(x => x.DocumentsReadyAtUtc is null)));
     }
     public async Task<AnalyticsPage<ProcedureStatistics>> Procedures(string ward, AnalyticsQuery q, CancellationToken ct)
     {
+        var source = await DeadlineSource(ward, q, ct);
+        var deadlines = source.Items.ToLookup(x => x.ProcedureId);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
-        var rows = (await Metrics(ward, q).ToArrayAsync(ct)).GroupBy(x => x.ProcedureId)
-            .Select(g => new ProcedureStatistics(g.Key, Totals(g))).OrderByDescending(x => x.Totals.ReceivedCount).ThenBy(x => x.ProcedureId).ToArray();
+        var metrics = (await Metrics(ward, q).ToArrayAsync(ct)).GroupBy(x => x.ProcedureId).ToDictionary(x => x.Key, Totals);
+        // Include live-only groups even when the cached aggregation job has not run yet.
+        var rows = metrics.Keys.Union(deadlines.Select(x => x.Key))
+            .Select(id => new ProcedureStatistics(id, metrics.GetValueOrDefault(id, Zero), DeadlineAggregation.Subset(source, deadlines[id])))
+            .OrderByDescending(x => x.Totals.ReceivedCount).ThenBy(x => x.ProcedureId).ToArray();
         return new(rows.Skip((q.Page - 1) * q.PageSize).Take(q.PageSize).ToArray(), q.Page, q.PageSize, rows.Length, await Coverage(q, ct));
     }
     public async Task<AnalyticsPage<OfficerStatistics>> Officers(string ward, AnalyticsQuery q, CancellationToken ct)
     {
+        var source = await DeadlineSource(ward, q, ct);
+        var deadlines = source.Items.Where(x => x.AssignedOfficerId.HasValue).ToLookup(x => x.AssignedOfficerId!.Value);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
-        var rows = (await db.Officers.AsNoTracking().Where(x => x.WardCode == ward && x.MetricDate >= q.From && x.MetricDate <= q.To &&
-            (q.ProcedureId == null || x.ProcedureId == q.ProcedureId)).ToArrayAsync(ct)).GroupBy(x => x.OfficerId)
-            .Select(g => new OfficerStatistics(g.Key, g.Sum(x => (long)x.ReadyCount), g.Sum(x => (long)x.RevisionRequestedCount),
-                g.Sum(x => (long)x.DurationSampleCount), g.Sum(x => (long)x.DurationSampleCount) == 0 ? null :
-                    g.Sum(x => x.TotalProcessingMinutes) / g.Sum(x => (long)x.DurationSampleCount)))
-            .OrderByDescending(x => x.ReadyCount).ThenBy(x => x.OfficerId).ToArray();
-        return new(rows.Skip((q.Page - 1) * q.PageSize).Take(q.PageSize).ToArray(), q.Page, q.PageSize, rows.Length, await Coverage(q, ct));
+        var metrics = (await db.Officers.AsNoTracking().Where(x => x.WardCode == ward && x.MetricDate >= q.From && x.MetricDate <= q.To &&
+            (q.ProcedureId == null || x.ProcedureId == q.ProcedureId)).ToArrayAsync(ct)).ToLookup(x => x.OfficerId);
+        var rows = metrics.Select(x => x.Key).Union(deadlines.Select(x => x.Key)).Select(id =>
+        {
+            var g = metrics[id].ToArray();
+            var samples = g.Sum(x => (long)x.DurationSampleCount);
+            return new OfficerStatistics(id, g.Sum(x => (long)x.ReadyCount), g.Sum(x => (long)x.RevisionRequestedCount),
+                samples, samples == 0 ? null : g.Sum(x => x.TotalProcessingMinutes) / samples,
+                DeadlineAggregation.Subset(source, deadlines[id]));
+        }).OrderByDescending(x => x.ReadyCount).ThenBy(x => x.OfficerId).ToArray();
+        return new(rows.Skip((q.Page - 1) * q.PageSize).Take(q.PageSize).ToArray(), q.Page, q.PageSize, rows.Length, await Coverage(q, ct),
+            DeadlineAggregation.Subset(source, source.Items.Where(x => x.AssignedOfficerId is null)));
     }
     public async Task<FeedbackDto> CreateFeedback(Guid citizen, Guid id, string token, CreateFeedback input, CancellationToken ct)
     {
         var application = await workflow.ReadOwned(id, token, ct);
         if (application.Id != id || application.UserId != citizen)
             throw new AnalyticsException(404, "feedback.application_not_found", "Không tìm thấy hồ sơ trong phạm vi của bạn.");
-        if (application.Status != "DOCUMENTS_READY")
-            throw new AnalyticsException(409, "feedback.not_ready", "Chỉ đánh giá sau khi hồ sơ đạt DOCUMENTS_READY.");
+        if (application.Status is not ("DOCUMENTS_READY" or "OFFICIALLY_RECEIVED"))
+            throw new AnalyticsException(409, "feedback.not_ready", "Chỉ đánh giá hồ sơ DOCUMENTS_READY hoặc OFFICIALLY_RECEIVED.");
         if (application.ProcedureId == Guid.Empty || string.IsNullOrWhiteSpace(application.WardCode) || application.WardCode.Length > 50)
             throw new AnalyticsException(503, "feedback.invalid_source", "Hồ sơ thiếu thông tin thủ tục/phường hợp lệ.");
         var row = new CitizenFeedback { ApplicationId = id, CitizenId = citizen, ProcedureId = application.ProcedureId,
