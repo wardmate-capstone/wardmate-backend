@@ -24,13 +24,9 @@ public sealed class NotificationDeliveryWorker(IServiceScopeFactory scopes, ICon
             if (contact is null || n.RecipientWardCode != null && (!contact.IsOfficer || contact.WardCode != n.RecipientWardCode)) row.State = "Suppressed";
             else if (row.Channel == "IN_APP")
             {
-                var guard = scope.ServiceProvider.GetRequiredService<NotificationConnectionGuard>();
-                var connections = await guard.ValidatedConnections(n.RecipientUserId, n.RecipientWardCode, ct);
-                var hub = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub, INotificationClient>>();
-                var client = hub.Clients.Clients(connections);
-                await client.ReceiveNotification(new(n.Id, n.RecipientUserId, n.ApplicationId, n.Title, n.Content, n.Type, n.Channel, n.IsRead, n.ReadAt, n.ActionUrl, n.CreatedAt));
-                await client.UpdateUnreadCount(await db.Notifications.CountAsync(x => x.RecipientUserId == n.RecipientUserId && !x.IsRead && x.Channel == "IN_APP" &&
-                    (x.RecipientWardCode == null || contact.IsOfficer && x.RecipientWardCode == contact.WardCode), ct));
+                // Transactional NOTIFY reaches listeners on all replicas only after this transaction commits.
+                var payload = n.Id.ToString();
+                await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_notify({NotificationRealtimeListener.Channel}, {payload})", ct);
                 row.State = "Sent";
             }
             else row.State = await scope.ServiceProvider.GetRequiredService<ExternalNotificationSender>().Send(n, contact, row, ct);

@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddHostedService<WorkflowNotificationConsumer>();
         services.AddHostedService<NotificationInboxWorker>();
         services.AddHostedService<NotificationDeliveryWorker>();
+        services.AddHostedService<NotificationRealtimeListener>();
         services.AddSingleton<NotificationConnectionGuard>();
         services.AddHostedService(sp => sp.GetRequiredService<NotificationConnectionGuard>());
         services.AddSingleton<ISmsSender, UnconfiguredSmsSender>();

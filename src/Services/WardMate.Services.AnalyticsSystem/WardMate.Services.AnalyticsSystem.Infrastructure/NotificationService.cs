@@ -53,6 +53,8 @@ public sealed class NotificationService(NotificationDbContext db, IHubContext<No
         if (changed == 0 && !await owned.AnyAsync(ct)) return false;
         try
         {
+            var signalId = notificationId.ToString();
+            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_notify({NotificationRealtimeListener.Channel}, {signalId})", ct);
             var connections = await guard.ValidatedConnections(recipient, wardCode, ct);
             await hub.Clients.Clients(connections).UpdateUnreadCount(await UnreadCountAsync(recipient, ct, wardCode));
         }
