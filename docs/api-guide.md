@@ -3708,3 +3708,70 @@ SMTP bật TLS, timeout thực tế bằng cancellation15giây (thêm SmtpClient
 SMS vẫn tắt. ISmsSender trả SmsDeliveryResult(Success,Status,ProviderMessageId,ErrorCode); adapter chưa có nhà cung cấp trả false/Blocked/null/sms.provider_not_configured, không gọi mạng. Chưa lưu ProviderMessageId vào DB hoặc nhận webhook trạng thái. Khi chọn Brandname sẽ bổ sung adapter, quy tắc retry và lưu mã nhà cung cấp; không báo đã hoàn tất gửi SMS thật.
 
 Deploy code liên quan IAM và Workflow trước Analytics để có fullName và email-context; giữ hai service key đúng. Không migration mới. Không thay Gemini/billing.
+
+## IAM — Email chào mừng và OTP đổi/đặt lại mật khẩu (22/10/2026)
+
+**Đăng ký**: POST `/api/v1/auth/register` giữ body và response201 hiện tại. Tạo tài khoản và một bản ghi `iam.welcome_emails` trong cùng giao dịch; worker gửi HTML/plain-text chào mừng gồm FullName, Username, Email, hướng dẫn và CTA đăng nhập. SMTP lỗi không làm mất đăng ký; retry tối đa10 lần, không tạo trùng hàng theo UserId. SMTP không có bảo đảm exactly-once: trường hợp đã nhận thư nhưng commit DB lỗi có thể gửi trùng. Email này không xác minh quyền sở hữu email và không phải bước kích hoạt tài khoản.
+
+### Yêu cầu OTP
+
+POST `/api/v1/auth/password-otp/request`
+
+Dùng khi quên mật khẩu hoặc muốn xác nhận bằng email. Browser gửi `X-CSRF-Protection: 1`, Origin đúng cấu hình như login; body JSON:
+
+```json
+{ "emailOrUsername": "ten_dang_nhap", "channel": "EMAIL", "purpose": "FORGOT_PASSWORD" }
+```
+
+Channel mặc định EMAIL, Purpose mặc định FORGOT_PASSWORD (không cần đăng nhập). Nếu purpose=CHANGE_PASSWORD, gửi thêm Bearer của chính tài khoản cần đổi; thiếu đăng nhập401. Purpose và channel phân biệt hoa thường. FE không nhận/gửi actorId; BE lấy từ JWT.
+
+202 trả `{message: ...}` chung cho tài khoản hợp lệ, tài khoản không tồn tại/khóa/không đúng chủ, hoặc chưa đủ60giây. Không hiểu202 là SMTP đã giao thư vào inbox. Kiểm tra đúng email/tên đăng nhập và thư rác; đợi60giây rồi thử lại. Lỗi SMTP được ghi mã log chung và vô hiệu mã vừa tạo, vẫn trả202 để không lộ tài khoản. Cấu hình email bị tắt/thiếu503 iam.email_unavailable. SMS luôn400 iam.sms_unavailable “Kênh SMS đang được bảo trì, vui lòng chọn Email”. Dữ liệu sai400 validation_failed; CSRF/Origin sai403 iam.csrf_rejected.
+
+Mỗi tài khoản (kể cả dùng cả email lẫn username, cả hai purpose) chỉ sinh mã mới sau60giây; mã mới vô hiệu mọi mã chưa dùng cũ. Mã ngẫu nhiên mật mã6chữ số,5phút tính từ lúc sinh. Thời gian SMTP có thể làm thời gian còn lại ngắn hơn5phút khi thư đến. Rate limit theo IP chung cho hai API:10request/phút/replica, vượt429 iam.otp_rate_limited + Retry-After60. Giới hạn tài khoản/attempt được thực thi trong DB; giới hạn IP không phải distributed limiter.
+
+### Xác nhận OTP và đổi mật khẩu
+
+POST `/api/v1/auth/password-otp/verify-and-change`
+
+```json
+{
+  "emailOrUsername": "ten_dang_nhap",
+  "otp": "839201",
+  "newPassword": "ViDu-MatKhauMoi!2026",
+  "confirmNewPassword": "ViDu-MatKhauMoi!2026",
+  "purpose": "FORGOT_PASSWORD"
+}
+```
+
+OTP là chuỗi6chữ số để giữ số0 đầu. Purpose phải trùng yêu cầu gửi; CHANGE_PASSWORD cần Bearer của chính chủ. Mật khẩu tối thiểu8ký tự, có hoa/thường/số/ký tự đặc biệt, tối đa72byte UTF-8 theo bcrypt; xác nhận phải khớp. Password không được gửi qua query string/log. Body haiAPI tối đa4096byte.
+
+200 `{message: "Đổi mật khẩu thành công. Vui lòng đăng nhập lại."}`. Giao dịch khóa user bảo đảm một mã không dùng hai lần khi request đồng thời: cập nhật password_hash, đánh dấu mã IsUsed=true, vô hiệu các mã khác, thu hồi toàn bộ refresh token. Browser xóa refresh cookie; FE xóa access token trên client rồi về login. Access JWT đã cấp vẫn có thể dùng đến khi hết hạn tại các service; không tuyên bố bị vô hiệu ngay trên toàn hệ thống.
+
+400 iam.otp_invalid dùng chung cho mã sai/hết hạn/đã dùng/tài khoản không khả dụng; sai mã tăng Attempts và hết5lần thì không nhận nữa. Yêu cầu mã mới sau cooldown. Sai định dạng/mật khẩu400 validation_failed; không tăng Attempts khi validation thất bại trước bước kiểm tra OTP. 429 đợi Retry-After. API đổi bằng mật khẩu hiện tại `/api/v1/users/me/change-password` vẫn giữ tương thích và nay cũng vô hiệu OTP cũ; không bắt buộc OTP cho API cũ trong lượt này.
+
+### Cấu hình và migration
+
+IAM appsettings có Email Host smtp.gmail.com, Port587, Username/From, DisplayName; Password rỗng và Enabled=false mặc định. Compose IAM ánh xạ NOTIFICATION_EMAIL_* từ docker/.env giống Analytics. Email:LoginUrl (IAM_EMAIL_LOGIN_URL) là CTA FE cấu hình được. Không đặt app password vào repo. Chạy không Docker cần đặt Email__Enabled=true và các Email__* trong môi trường process hoặc user-secrets; .NET không tự đọc docker/.env.
+
+OTP lưu HMAC-SHA-256 (64hex) có salt Id/UserId/Purpose và khóa bí mật, không lưu OTP thô. PasswordOtp__HashKey tối thiểu32byte nếu cấu hình; nếu không có dùng Jwt:Key hiện có. Các replica phải cùng khóa; thay khóa làm mã đang chờ không dùng được. Đây là SHA-256 có khóa, tăng bảo vệ so với hash trần6số. OTP không nằm trong welcome queue, không tự retry gửiOTP vì không lưu mã thô; người dùng yêu cầu lại. Chưa có job dọn OTP hết hạn hoặc màn hình requeue welcome hết retry.
+
+Áp dụng migration AddUserOtpsTable trên database IAM trước khi deploy code mới (kể cả Email tắt, đăng ký vẫn ghi hàng đợi). Tạo schema iam với user_otps và welcome_emails; FK tới users hiện tại ở public. SQL idempotent và hướng dẫn baseline xem PROGRESS.md. Không chạy script ở DB Workflow/DocumentForm. Chưa áp dụng SQL lên cloud trong lượt này.
+
+### SQL Supabase cho IAM OTP
+
+File: `docs/sql/iam-add-user-otps.sql`. Chỉ chạy trong database IAM, yêu cầu lịch sử đã có `20261021100000_CounterReceiptPermissions`. Script EF idempotent có preflight và transaction; nếu thiếu baseline sẽ dừng, không tự sửa lịch sử migration. Nếu đã có migration đích, script không tạo lại bảng.
+
+1. Chọn đúng dự án Supabase IAM → SQL Editor.
+2. Mở file SQL trên, sao chép toàn bộ và Run.
+3. Xác nhận bằng truy vấn:
+
+```sql
+SELECT migration_id, product_version
+FROM public."__EFMigrationsHistory"
+WHERE migration_id = '20261022063951_AddUserOtpsTable';
+SELECT to_regclass('iam.user_otps'), to_regclass('iam.welcome_emails');
+```
+
+4. Deploy IAM mới với Email__Enabled=true, cấu hình SMTP và Jwt__Key hợp lệ. Đăng ký mới sẽ tạo welcome queue; tài khoản cũ không được gửi chào mừng hồi tố.
+
+Nếu preflight báo thiếu baseline: cập nhật các migration IAM trước đó rồi chạy lại, không INSERT thủ công vào __EFMigrationsHistory. Mất kết nối hoặc lỗi transaction: kiểm tra trạng thái rồi chạy lại script; không tự tạo bảng riêng ngoài migration.

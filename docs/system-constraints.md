@@ -722,3 +722,14 @@ Nhật ký22/10/2026: cập nhật ba nhóm quy tắc trên; chỉ BE local và 
 Nhật ký22/10/2026: thêm NOTIFY-EMAIL-01 cho TASK-26 Email trước/SMS sau; giữ hạn chế SMTP trùng và khóa nội bộ. Không đổi schema, không đưa secret vào repo, không thay billing.
 
 Đính chính trạng thái22/10/2026: các đoạn cũ ghi “SMS/Email hoãn” là lịch sử trước TASK-26. Hiện Email đã triển khai template và adapterSMTP/cấu hình local; chưa xác nhận gửi thật. SMS vẫn hoãn, giữ tắt.
+
+### IAM-OTP-01 — OTP mật khẩu và email chào mừng (22/10/2026)
+
+- RegisterCitizenHandler + IdentityStore: tài khoản và hàng welcome cùng transaction; unique userId ngăn tạo trùng hàng, không bảo đảm SMTP exactly-once. Worker retry10, không log recipient/nội dung/credential; timeout15s, TLS, HTML-encode giá trị động, plain-text alternate. Chưa xác thực email khi đăng ký.
+- RequestPasswordOtpCommand: EMAIL/SMS, CHANGE_PASSWORD/FORGOT_PASSWORD; SMS400 bảo trì. CHANGE cần JWT chính chủ, FORGOT anonymous; không nhận actorId từ client. Body4KiB, nhận dạng<=255. Cùng tài khoản khóa FOR UPDATE: cooldown60s áp dụng mọi purpose/alias, gửi lại expire mã trước. 202 chung không khẳng định gửi tới inbox; SMTP lỗi expire mã và không lộ account qua nội dung response (không cam kết chống phân tích timing).
+- VerifyPasswordOtpCommand: OTP6số,5phút,Attempts<5,IsUsed=false; so constant-time HMAC-SHA256 dùng salt và server key. Sai tăngAttempts commit; dùng thành công ghi mật khẩu/consume/revoke refresh/invalidate mã khác atomically cùng khóa user. Luồng đổi mật khẩu cũ cũng vô hiệu OTP. Không lưu/log mã thô. Password8+ có hoa/thường/số/special,max72byteUTF8, confirmkhớp; lỗi không chứa giá trịpassword.
+- Rate limiter10/IP/phút/replica,429+RetryAfter60, không rate-limit phân tán; cooldown và attempts bảo vệ bằng DB. Browser giữ X-CSRF-Protection/Origin; không bypassCSRF cho anonymousOTP. SMS stub, không gửi SMS.
+- Access JWT cũ chưa bị thu hồi ngay; refresh đã revoked, FE xóa token và login lại. Email chưa bật/thiếu cấu hình503. KhóaPasswordOtp:HashKey (fallbackJwt:Key)>=32byte, thống nhấtreplicas; thaykey vô hiệu OTPpending. Không cleanup OTP hết hạn tự động.
+- Schema iam.user_otps (FKpublic.users,checkattempt0..5,channel/purpose), iam.welcome_emails (uniqueuser). Migration bắt buộc trướccode; chưa chạyDBcloud. Source: UserOtp.cs, UserOtpConfiguration.cs, PasswordOtpCommands.cs, PasswordOtpService.cs, IamEmailSender.cs, WelcomeEmailWorker.cs, RegisterCitizenHandler.cs, IdentityStore.cs, AuthController.cs, Program.cs.
+
+Nhật ký22/10/2026: thêm IAM-OTP-01; không đổi SMTP credential thật, không Git/Cloud; API cũ đổi mật khẩu tiếp tục hỗ trợ, không chuyển toàn hệ thống sang bắtbuộcOTP.

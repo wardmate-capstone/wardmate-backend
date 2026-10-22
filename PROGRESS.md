@@ -2892,3 +2892,66 @@ Gợi ý commit theo từng file mới/chức năng riêng cho Antigravity:
 - refactor(notifications): prepare structured SMS delivery results
 - docs: document TASK-26 email configuration and limitations
 Không thực thi commit/push. Nội dung email bằng tiếng Việt.
+
+## IAM-OTP-01 — Welcome email và xác thực OTP mật khẩu
+
+Hoàn thành local: 2026-10-22 13:44:40 +07:00 (Asia/Saigon, UTC+07:00).
+
+Chức năng:
+- RegisterCitizenHandler xếp welcome email cùng transaction tạo user. Worker async SMTP TLS15s, HTML/plain-text, FullName/Username/Email/CTA, retry10. Unique welcome userId; SMTP accepted không phải inbox/exactly-once. Disabled Email giữ queue chờ; không ghi mật khẩu/code vào log hoặc DB emailqueue.
+- POST /api/v1/auth/password-otp/request: body {emailOrUsername,channel="EMAIL",purpose="FORGOT_PASSWORD"}.202 message chung (không lộ existence qua responsebody/cooldown), EMAIL6số/5phút, RNG cryptographic, resend60s toàn account. SMS400 iam.sms_unavailable, configEmail503 iam.email_unavailable. CHANGE_PASSWORD yêu cầu Bearer chính chủ; không nhận actorId từ FE. Browser giữ X-CSRF-Protection:1 và Origin.
+- POST /api/v1/auth/password-otp/verify-and-change: {emailOrUsername,otp,newPassword,confirmNewPassword,purpose="FORGOT_PASSWORD"}.200 message;400 iam.otp_invalid/validation_failed;401 thiếuactor khiCHANGE;429 IP. Validate password8+,upper/lower/digit/special,<=72byteUTF8,confirmkhớp. WrongOTP tăngAttempts tốiđa5, expired/used không dùng được. Lock user serialize với request/verify/direct password change/tokenissuance; atomic hashpassword/used/invalidateOTP/revokeallrefresh. Browser xóa cookie; accessJWT đã cấp vẫn sống tới expiry, FE cần xóa token/loginlại.
+- Hash là HMAC-SHA-256 có salt challenge/user/purpose và server key, không SHA256trần dễ bruteforce1triệu mã. PasswordOtp:HashKey fallbackJwt:Key>=32byte; cần giốngreplicas, rotatekey làm OTPpendinginvalid. Không lưuplaintextOTP. SMTPfail invalidate challenge và trảgeneric202; clientrequestcancel/DBcommitfailure có thể khiến mã trong email không sử dụng được, yêu cầu lại.
+- IP limiter chung10/phút/replica,429 RetryAfter60; accountcooldown/attempt xuyênreplica bằng DB. Không cam kết chống timing sidechannel. Không tạo public send-email endpoint. API directchange-password cũ còn hoạt động và expireOTP.
+
+Files mới:
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Domain/Entities/UserOtp.cs (UserOtp, WelcomeEmail)
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Commands/PasswordOtpCommands.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Configurations/UserOtpConfiguration.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Security/PasswordOtpService.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Security/IamEmailSender.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Security/WelcomeEmailWorker.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261022063951_AddUserOtpsTable.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/20261022063951_AddUserOtpsTable.Designer.cs
+- docs/sql/iam-add-user-otps.sql
+
+Files sửa:
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Commands/RegisterCitizenHandler.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Common/Result.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Interfaces/IIdentityStore.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/DependencyInjection.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/IamDbContext.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/IdentityStore.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/Migrations/IamDbContextModelSnapshot.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Controllers/AuthController.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Errors/ResultExtensions.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/Program.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/appsettings.json
+- docker/docker-compose.yml (Email mapping đúng service iam-api)
+- docker/.env.example (IAM_EMAIL_LOGIN_URL)
+- docs/api-guide.md
+- docs/system-constraints.md
+- PROGRESS.md
+
+Migration: AddUserOtpsTable tạo schemaiam/user_otps,welcome_emails,FKpublic.users,index/check. Không backfill usercũ. SQL idempotent từ baseline20261021100000_CounterReceiptPermissions tới20261022063951_AddUserOtpsTable; thêm preflight baseline và SET LOCAL search_path public vào transaction. Lệnh sinh:
+
+```powershell
+dotnet ef migrations script 20261021100000_CounterReceiptPermissions 20261022063951_AddUserOtpsTable --idempotent --project src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure --startup-project src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure --context IamDbContext --configuration Release --no-build --output docs/sql/iam-add-user-otps.sql
+```
+
+EF add banđầu chọnstartupAPI thiếu Design nên không chạy; dùngInfrastructure với factory thànhcông, không thêm package. SQL đã xuất/đọckiểmtra, chưa thực thi DBlocal/cloud. Nếu tái sinh script EF, cần giữ lại preflight antoàn hiện có.
+
+Validation: solution Release build với restore và -warnaserror -m:1, cuối PASS0warning/0error,00:00:56.11 (buildtrướcmigration cũngpass00:05:31.57). EF has-pending-model-changes:không có thayđổi.9/9 validatorchecks offline từDLL (valid,leadingzero,badlength,nonnumeric,noupper,nolower,nospecial,nodigit,confirmmismatch). Không tạo testproject, không chạy automatedintegration suite, không kiểmthử transaction concurrency bằngDB hoặc SMTPthật; FE nghiệmthu sau deployment. Không Git/Docker/Cloudmutation, không gửi email trong lượt này.
+
+Bàn giao: chạy docs/sql/iam-add-user-otps.sql ở đúng SupabaseIAM trướccode; không sửa thủcônghistory, không chỉ tạo bảng. DeployIAM với Email config từ env; Password không nằm appsettings/repo. SMS vẫn bảotrì. Welcomequeue tựretry10; chưa có requeueUI/cleanupOTPexpired, chưa revokeaccessJWT ngay.
+
+Gợi ý Conventional Commit theo filemới/chứcnăngriêng cho Antigravity:
+- feat(iam): add OTP and welcome email persistence
+- feat(iam): add password OTP commands and validation
+- feat(iam): implement single-use email password recovery
+- feat(iam): add SMTP welcome and OTP templates
+- feat(iam): queue welcome emails on registration
+- feat(iam): expose throttled password OTP endpoints
+- chore(iam): add user OTP migration and idempotent SQL
+- docs: document IAM OTP recovery and Supabase rollout
+Mỗi file mới commitriêng theo AGENTS.md; gợi ý trên là chủđề, không phải đã tạo commit.
