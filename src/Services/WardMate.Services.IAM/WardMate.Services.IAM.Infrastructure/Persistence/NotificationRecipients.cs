@@ -12,6 +12,6 @@ public sealed class NotificationRecipients(IamDbContext db) : INotificationRecip
         .OrderBy(u => u.Id).Skip((request.Page - 1) * 200).Take(200)
         .Select(u => new NotificationRecipient(u.Id, u.Email, u.Profile == null ? null : u.Profile.PhoneNumber,
             u.Ward == null ? null : u.Ward.Code, u.UserRoles.Any(r => r.Role.RoleName == "FRONT_DESK_OFFICER") &&
-            u.UserRoles.Any(r => r.Role.RolePermissions.Any(p => p.Permission.PermissionCode == "workflow.queue.read"))))
+            u.UserRoles.Any(r => r.Role.RolePermissions.Any(p => p.Permission.PermissionCode == "workflow.queue.read")), u.Profile == null ? null : u.Profile.FullName))
         .ToArrayAsync(ct);
 }
