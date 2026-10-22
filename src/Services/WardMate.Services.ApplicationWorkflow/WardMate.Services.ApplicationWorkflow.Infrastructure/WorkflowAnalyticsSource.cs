@@ -15,7 +15,7 @@ public sealed class WorkflowAnalyticsSource(WorkflowDbContext db, TimeProvider c
         var rows = await db.Applications.AsNoTracking().Where(a => a.WardCode == ward && (procedureId == null || a.ProcedureId == procedureId)
             && ((a.DocumentsReadyAt >= start && a.DocumentsReadyAt < end)
                 || (a.DocumentsReadyAt == null && (a.Status == "SUBMITTED" || a.Status == "UNDER_REVIEW" || a.Status == "NEED_REVISION"))))
-            .Select(a => new DeadlineFact(a.Id, a.Status, a.FirstSubmittedAtUtc, a.DueAtUtc, a.DocumentsReadyAt, a.DeadlineStatus, a.DeadlinePausedAtUtc))
+            .Select(a => new DeadlineFact(a.Id, a.Status, a.FirstSubmittedAtUtc, a.DueAtUtc, a.DocumentsReadyAt, a.DeadlineStatus, a.DeadlinePausedAtUtc, a.ProcedureId, a.AssignedOfficerId))
             .Take(100001).ToArrayAsync(ct);
         if (rows.Length > 100000) throw new InvalidOperationException("analytics.daily_source_limit");
         return new(1, asOf, rows);
