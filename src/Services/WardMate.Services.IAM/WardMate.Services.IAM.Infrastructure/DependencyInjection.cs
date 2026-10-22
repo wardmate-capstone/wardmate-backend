@@ -28,6 +28,8 @@ public static class DependencyInjection
         services.AddScoped<WardMate.Services.IAM.Application.Commands.IIamEmailSender, IamEmailSender>();
         services.AddScoped<WardMate.Services.IAM.Application.Commands.IPasswordOtpService, PasswordOtpService>();
         services.AddHostedService<WelcomeEmailWorker>();
+        services.AddHostedService<AccountSecurityCleanupWorker>();
+        services.AddScoped<WardMate.Services.IAM.Application.Interfaces.IPhoneVerificationService, PhoneVerificationService>();
         services.AddScoped<IIdentityStore, IdentityStore>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.INotificationRecipients, NotificationRecipients>();
         services.AddScoped<IProfileStore, ProfileStore>();
@@ -56,7 +58,7 @@ public static class DependencyInjection
                         }
                         var store = context.HttpContext.RequestServices.GetRequiredService<IIdentityStore>();
                         var user = await store.FindUser(userId, context.HttpContext.RequestAborted);
-                        if (user is null || !user.IsActive) context.Fail("Tài khoản không khả dụng.");
+                        if (user is null || !user.IsActive || context.Principal?.FindFirst("security_stamp")?.Value != user.SecurityStamp.ToString()) context.Fail("Tài khoản không khả dụng.");
                     }
                 };
             });

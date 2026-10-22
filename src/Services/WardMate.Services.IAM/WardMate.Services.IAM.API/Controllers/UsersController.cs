@@ -13,6 +13,28 @@ namespace WardMate.Services.IAM.API.Controllers;
 [ApiController, Authorize, Route("api/v1/users")]
 public sealed class UsersController(ISender sender) : ControllerBase
 {
+    [HttpGet("me/phone-verification")]
+    public async Task<IActionResult> PhoneStatus([FromServices] WardMate.Services.IAM.Application.Interfaces.IPhoneVerificationService service, CancellationToken ct)
+    {
+        var result = await service.Status(Guid.Parse(User.FindFirstValue("sub")!), ct);
+        return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
+    }
+    public sealed record PhoneRequest(string PhoneNumber, string CurrentPassword);
+    public sealed record PhoneConfirmation(string Otp);
+    [HttpPost("me/phone-verification/request"), RequestSizeLimit(4096)]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("password-otp")]
+    public async Task<IActionResult> RequestPhone(PhoneRequest input, [FromServices] WardMate.Services.IAM.Application.Interfaces.IPhoneVerificationService service, CancellationToken ct)
+    {
+        var result = await service.Request(Guid.Parse(User.FindFirstValue("sub")!), input.PhoneNumber, input.CurrentPassword, ct);
+        return result.IsSuccess ? Accepted(new { message = result.Value }) : result.ToProblem(HttpContext);
+    }
+    [HttpPost("me/phone-verification/confirm"), RequestSizeLimit(4096)]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("password-otp")]
+    public async Task<IActionResult> ConfirmPhone(PhoneConfirmation input, [FromServices] WardMate.Services.IAM.Application.Interfaces.IPhoneVerificationService service, CancellationToken ct)
+    {
+        var result = await service.Verify(Guid.Parse(User.FindFirstValue("sub")!), input.Otp, ct);
+        return result.IsSuccess ? Ok(new { message = result.Value }) : result.ToProblem(HttpContext);
+    }
     public sealed record ChangePasswordInput(string CurrentPassword, string NewPassword, string ConfirmNewPassword);
 
     [HttpPost("me/change-password"), RequestSizeLimit(4096)]
