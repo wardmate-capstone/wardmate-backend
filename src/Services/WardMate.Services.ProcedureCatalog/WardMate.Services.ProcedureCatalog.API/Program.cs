@@ -44,6 +44,7 @@ app.UseGlobalExceptionHandling();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseCors(BrowserCorsExtensions.PolicyName);
 app.UseAuthentication();
+    app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");

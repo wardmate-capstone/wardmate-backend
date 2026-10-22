@@ -31,6 +31,7 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
 app.UseGlobalExceptionHandling();
 app.UseCors(BrowserCorsExtensions.PolicyName);
 app.UseAuthentication();
+    app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseSwagger();

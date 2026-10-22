@@ -38,6 +38,7 @@ app.UseGlobalExceptionHandling();
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Swagger:Enabled")) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseCors(BrowserCorsExtensions.PolicyName);
 app.UseAuthentication();
+    app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
 app.UseMiddleware<WorkflowAccessMiddleware>();
 app.UseAuthorization();
 app.MapControllers();

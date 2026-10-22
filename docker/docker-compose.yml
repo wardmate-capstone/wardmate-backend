@@ -127,6 +127,7 @@ services:
     container_name: wardmate_document_form
     restart: unless-stopped
     environment:
+      Iam__BaseUrl: http://iam-api:8080/
       ASPNETCORE_ENVIRONMENT: Development
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: wardmate
@@ -159,6 +160,7 @@ services:
     container_name: wardmate_procedure_catalog
     restart: unless-stopped
     environment:
+      Iam__BaseUrl: http://iam-api:8080/
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__ProcedureDatabase: Host=procedure-db;Port=5432;Database=wardmate_procedure_db;Username=wardmate_procedure;Password=${PROCEDURE_DB_PASSWORD}
       Database__AutoMigrate: "true"
@@ -314,6 +316,7 @@ services:
     image: wardmate-aiocr:local
     restart: unless-stopped
     environment:
+      Iam__BaseUrl: http://iam-api:8080/
       ASPNETCORE_ENVIRONMENT: Production
       Jwt__Key: ${JWT_KEY:?Set JWT_KEY in docker/.env}
       Jwt__Issuer: wardmate

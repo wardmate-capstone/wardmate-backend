@@ -44,6 +44,7 @@ if (builder.Configuration.GetValue("Analytics:JobsEnabled", false))
 }
 app.UseCors(BrowserCorsExtensions.PolicyName);
 app.UseAuthentication();
+    app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
 app.UseAuthorization();
 app.MapHub<NotificationHub>("/hubs/notifications", options => options.CloseOnAuthenticationExpiration = true).RequireAuthorization();
 app.MapControllers();

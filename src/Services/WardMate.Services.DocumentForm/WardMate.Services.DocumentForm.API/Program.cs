@@ -98,7 +98,8 @@ try
     }
 
     app.UseCors(BrowserCorsExtensions.PolicyName);
-    app.UseAuthentication();
+    app.UseAuthentication();
+    app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
     app.UseAuthorization();
     app.MapControllers();
     app.MapHealthChecks("/health");
