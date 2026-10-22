@@ -20,6 +20,7 @@ public sealed class RegisterCitizenHandler(IIdentityStore store, IPasswordHasher
         user.Profile = new UserProfile { UserId = user.Id, FullName = request.FullName.Trim(), UpdatedAt = now };
         user.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id, Role = role });
         store.AddUser(user);
+        store.QueueWelcome(user);
         var outcome = await store.SaveChanges(ct);
         return outcome == SaveOutcome.Saved
             ? Result<CurrentUserDto>.Success(CurrentUserDto.From(user))

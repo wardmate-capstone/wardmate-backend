@@ -1,6 +1,6 @@
 namespace WardMate.Services.IAM.Application.Common;
 
-public enum ErrorKind { BadRequest, Conflict, Unauthorized, NotFound, Forbidden }
+public enum ErrorKind { BadRequest, Conflict, Unauthorized, NotFound, Forbidden, ServiceUnavailable }
 public sealed record Error(string Code, string Message, ErrorKind Kind);
 public sealed record Result<T>(T? Value, Error? Error)
 {
