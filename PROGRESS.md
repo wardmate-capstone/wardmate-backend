@@ -2955,3 +2955,36 @@ Gợi ý Conventional Commit theo filemới/chứcnăngriêng cho Antigravity:
 - chore(iam): add user OTP migration and idempotent SQL
 - docs: document IAM OTP recovery and Supabase rollout
 Mỗi file mới commitriêng theo AGENTS.md; gợi ý trên là chủđề, không phải đã tạo commit.
+
+
+## IAM-OTP-CATCHUP — 2026-10-22 14:42:17 (UTC+07:00)
+
+Ảnh Supabase cho thấy baseline IAM WorkflowReadinessPermission, thiếu hai migration quyền trước OTP. Đã sinh bằng dotnet ef migrations script --idempotent từ 20261016154952_WorkflowReadinessPermission đến 20261022063951_AddUserOtpsTable, thêm preflight mỗi transaction và search_path public.
+
+Paths: docs/sql/iam-catchup-readiness-to-otp.sql (mới), docs/api-guide.md, docs/system-constraints.md, PROGRESS.md. Script giữ lịch sử Procedure hiện có; áp dụng ManagerWorkflowReadScope, CounterReceiptPermissions, AddUserOtpsTable. Quyền MANAGER read-only, receipt/cancel và bảng OTP/welcome theo migration hiện hữu. Không thay endpoint/request/status/token/ProblemDetails.
+
+Kiểm tra: EF script generation exit 0; đã đọc SQL đối chiếu ba migration, transaction và history guards. Không thực thi SQL lên DB, không gửi email, không chạy Git. Chỉ thay SQL/tài liệu; không chạy lại build, build source lượt trước Release -warnaserror đạt 0 warnings/0 errors. Không chạy test suite (test projects đã được gỡ). Cloud apply và xác nhận bảng còn chờ chủ dự án.
+
+Commit gợi ý: chore(iam): add guarded readiness-to-otp catch-up script; docs(iam): explain migration catch-up from deployed baseline. File mới commit riêng theo AGENTS.md.
+
+
+## IAM-OTP-DEPLOY-VERIFY — 2026-10-22 20:45:00 (UTC+07:00)
+
+Đã hoàn tất build và xác nhận live revision trên Azure Container App cho IAM Service:
+- Image: `acrwardmate2026.azurecr.io/wardmate-iam:iam-20261022-02` (build sạch `--no-cache`, digest `sha256:b56e23aa80d4880be7b17d4636f83e14ee1c038e8d17ab1cdf3261989511a395`).
+- Azure Container App: `wardmate-iam` (Resource Group `rg-wardmate-prod`, 100% traffic routed).
+- Cấu hình môi trường Azure: Email__Enabled=true, Email__Host=smtp.gmail.com, Email__Port=587, Email__Username=nhkha452@gmail.com, Email__From=nhkha452@gmail.com, Email__Password=secretref:gmail-app-password, Email__LoginUrl=https://wardmate-frontend.vercel.app/login.
+
+### Kết quả kiểm thử trực tiếp trên Azure Gateway (Live)
+1. **Kiểm tra Swagger**:
+   - `GET /api/iam/swagger/v1/swagger.json`: Xuất hiện đầy đủ 2 endpoints mới: `/api/v1/auth/password-otp/request` và `/api/v1/auth/password-otp/verify-and-change`.
+2. **Kênh SMS (Stub)**:
+   - `POST /api/v1/auth/password-otp/request` (channel: "SMS"): HTTP 400 ProblemDetails code `iam.sms_unavailable` ("Kênh SMS đang được bảo trì, vui lòng chọn Email."). PASS.
+3. **Kênh Email OTP**:
+   - `POST /api/v1/auth/password-otp/request` (channel: "EMAIL"): HTTP 202 Accepted. Hệ thống sinh mã OTP 6 chữ số, lưu hash HMAC-SHA256 vào `iam.user_otps` và gửi email qua Gmail SMTP. PASS.
+   - Chống spam 60s cooldown: gửi request lặp lại lập tức nhận response Accepted mà không sinh thêm OTP spam. PASS.
+4. **Xác nhận OTP & Đổi mật khẩu**:
+   - Sai OTP: `POST /api/v1/auth/password-otp/verify-and-change` với OTP sai trả về HTTP 400 ProblemDetails code `iam.otp_invalid`. PASS.
+   - Mật khẩu yếu: Trả về HTTP 400 code `validation_failed` kèm chi tiết yêu cầu chữ hoa, chữ thường, số, ký tự đặc biệt. PASS.
+5. **Đăng ký công dân & Email chào mừng**:
+   - `POST /api/v1/auth/register`: HTTP 201 Created. User profile và quyền `REGISTERED_CITIZEN` khởi tạo thành công. Hàng đợi `iam.welcome_emails` được nạp và `WelcomeEmailWorker` xử lý gửi HTML email chào mừng tới Gmail. PASS.

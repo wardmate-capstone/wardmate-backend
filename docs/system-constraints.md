@@ -733,3 +733,6 @@ Nhật ký22/10/2026: thêm NOTIFY-EMAIL-01 cho TASK-26 Email trước/SMS sau; 
 - Schema iam.user_otps (FKpublic.users,checkattempt0..5,channel/purpose), iam.welcome_emails (uniqueuser). Migration bắt buộc trướccode; chưa chạyDBcloud. Source: UserOtp.cs, UserOtpConfiguration.cs, PasswordOtpCommands.cs, PasswordOtpService.cs, IamEmailSender.cs, WelcomeEmailWorker.cs, RegisterCitizenHandler.cs, IdentityStore.cs, AuthController.cs, Program.cs.
 
 Nhật ký22/10/2026: thêm IAM-OTP-01; không đổi SMTP credential thật, không Git/Cloud; API cũ đổi mật khẩu tiếp tục hỗ trợ, không chuyển toàn hệ thống sang bắtbuộcOTP.
+
+
+Nhật ký 22/10/2026 — IAM-OTP-01: bổ sung script catch-up docs/sql/iam-catchup-readiness-to-otp.sql cho baseline WorkflowReadinessPermission. Preflight kiểm tra baseline và bảng IAM trong từng transaction, cố định search_path public, giữ lịch sử service khác; không chạy đồng thời auto-migrate. Script thay đổi quyền MANAGER thành read-only theo migration có sẵn, thêm quyền receipt/cancel và bảng OTP/welcome. Không xác nhận dữ liệu cloud chỉ từ việc sinh SQL.

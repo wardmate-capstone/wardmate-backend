@@ -3775,3 +3775,12 @@ SELECT to_regclass('iam.user_otps'), to_regclass('iam.welcome_emails');
 4. Deploy IAM mới với Email__Enabled=true, cấu hình SMTP và Jwt__Key hợp lệ. Đăng ký mới sẽ tạo welcome queue; tài khoản cũ không được gửi chào mừng hồi tố.
 
 Nếu preflight báo thiếu baseline: cập nhật các migration IAM trước đó rồi chạy lại, không INSERT thủ công vào __EFMigrationsHistory. Mất kết nối hoặc lỗi transaction: kiểm tra trạng thái rồi chạy lại script; không tự tạo bảng riêng ngoài migration.
+
+
+### Cập nhật IAM từ baseline cũ (22/10/2026)
+
+Nếu SQL OTP báo thiếu baseline CounterReceiptPermissions và migration IAM mới nhất là `20261016154952_WorkflowReadinessPermission`, dùng toàn bộ `docs/sql/iam-catchup-readiness-to-otp.sql` trong SQL Editor của database mà IAM đang kết nối. Script áp dụng lần lượt ManagerWorkflowReadScope, CounterReceiptPermissions, AddUserOtpsTable; bỏ qua migration đã ghi nhận. Không cần chạy lại script OTP riêng sau đó.
+
+Script cấp MANAGER quyền đọc Workflow và bỏ bốn quyền xử lý (assign/comments/revision/readiness); cấp quyền tiếp nhận cho FRONT_DESK_OFFICER và quyền hủy cho role đã có workflow.submit; cuối cùng tạo iam.user_otps và iam.welcome_emails. Giữ nguyên lịch sử Procedure nếu database đang dùng chung. Không xóa preflight hay chèn migration history thủ công. Mỗi migration có transaction riêng; nếu bước sau lỗi, bước trước có thể đã commit. Sửa nguyên nhân rồi chạy lại script. Không chạy đồng thời với auto-migrate của ứng dụng.
+
+Xác nhận đủ ba migration mới trong public."__EFMigrationsHistory" và hai bảng iam.user_otps, iam.welcome_emails trước khi thử API OTP. Đây là cập nhật schema/quyền, không đổi hợp đồng API.
