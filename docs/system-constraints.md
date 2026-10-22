@@ -710,3 +710,15 @@ Thêm WF-05/ANA-DEADLINE-01 theo quyết định chủ dự án45giờ,Monday–
 - Giới hạn: chưa có lịch sử backlog theo ngày, chưa quy trách nhiệm theo lịch sử điều chuyển, AI không kiểm định tính pháp lý hoặc số bản. Không đổi schema DB, chính sách45giờ/ngày nghỉ hay quyền các API.
 
 Nhật ký22/10/2026: cập nhật ba nhóm quy tắc trên; chỉ BE local và build, không chạy Git/triển khai; nghiệm thu giao diện do FE thực hiện.
+
+### NOTIFY-EMAIL-01 — Email nghiệp vụ và SMS chuẩn bị (22/10/2026)
+
+- Gửi SMTP chỉ khi Email.Enabled và host/from/username/password/contact đủ; thiếu trả Blocked. TLS bắt buộc, timeout gửi15giây. SMTP exception không dừng worker, mã lỗi tách biệt, retry tối đa10 như delivery hiện hành. Sent là SMTP chấp nhận; có thể trùng nếu SMTP nhận nhưng commit DB thất bại. Không có đảm bảo exactly-once, bounce tracking hoặc requeue Blocked tự động.
+- Email HTML/plain-text UTF-8, mọi dữ liệu động HTML-encode; CTA chỉ cùng origin Email.FrontendBaseUrl và HTTP(S). Dữ liệu notes từ status history event được kiểm tra thuộc hồ sơ, tên công dân IAM hiện hành. Thiếu dữ liệu không giả lập tên/ngày hẹn. Nội dung broker giữ tối thiểu như cũ; email-context qua HTTP nội bộ X-Analytics-Key>=32byte/no-store; IAM contact API thêm fullName và vẫn khóa hiện hành. Không truy vấn DB chéo service.
+- Development sample không chứa mật khẩu. Script local đọc docker/.env vào process và khôi phục biến sau chạy; không in secret, không tự migrate/start Docker. Môi trường phải có các DB/service và khóa khớp. Chạy worker có thể gửi thư thật từ backlog; Codex không tự gửi thư trong lượt này.
+- Sms.Enabled=false mặc định; ISmsSender có SmsDeliveryResult. UnconfiguredSmsSender không gọi provider, trả Blocked. Success+Sent mới được đánh Sent, lỗi khác retry; chưa lưu provider ID/webhook. SMS thật chưa hoàn thành.
+- Nguồn: AnalyticsSystem.Infrastructure/ExternalNotificationSender.cs, NotificationEmailTemplate.cs, NotificationEmailSource.cs, NotificationDeliveryWorker.cs; Workflow AnalyticsSourceController/WorkflowAnalyticsSource; IAM NotificationRecipients; scripts/start-notifications-local.ps1.
+
+Nhật ký22/10/2026: thêm NOTIFY-EMAIL-01 cho TASK-26 Email trước/SMS sau; giữ hạn chế SMTP trùng và khóa nội bộ. Không đổi schema, không đưa secret vào repo, không thay billing.
+
+Đính chính trạng thái22/10/2026: các đoạn cũ ghi “SMS/Email hoãn” là lịch sử trước TASK-26. Hiện Email đã triển khai template và adapterSMTP/cấu hình local; chưa xác nhận gửi thật. SMS vẫn hoãn, giữ tắt.

@@ -3678,3 +3678,33 @@ Manager dùng Bearer, dữ liệu giới hạn phường của Manager do IAM x�
 - Deadline đọc trực tiếp Workflow còn totals đọc cache Analytics: xem asOfUtc và Coverage riêng. Cả ba API nay cần Workflow:BaseUrl và Analytics:ServiceKey kể cả JobsEnabled=false. Nguồn thiếu procedureId trả503 analytics.deadline_dimensions_missing: deploy Workflow mới trước Analytics. Các lỗi nguồn khác giữ ProblemDetails, không giả0. Dữ liệu cũ vẫn UNKNOWN; không tạo deadline hồi tố.
 
 Không có migration mới trong lượt này. Cần cập nhật image Workflow, AnalyticsSystem, AIOCR; FE nghiệm thu trên giao diện sau deploy.
+
+## TASK-26 — Email trước, SMS sau (22/10/2026)
+
+Email được tạo từ sự kiện Workflow qua RabbitMQ → inbox → notification_deliveries; không có API public gửi email tùy ý. IN_APP vẫn hoạt động độc lập. Nội dung HTML responsive và plain-text cùng được gửi, tên hiển thị “Hệ thống Một cửa WardMate”. Các trạng thái SUBMITTED/NEED_REVISION/DOCUMENTS_READY/OFFICIALLY_RECEIVED có hướng dẫn tương ứng, mã hồ sơ, thủ tục, tên công dân từ IAM, thời gian UTC+07. Yêu cầu bổ sung hiển thị Reason của lịch sử trạng thái; tiếp nhận tại quầy hiển thị ReceiptNumber/AppointmentDate. Thiếu thông tin hiển thị rõ “Chưa có thông tin”, không suy đoán. Các loại thông báo khác dùng nội dung chung.
+
+### API nội bộ phục vụ email — không gọi từ FE
+
+GET `/internal/notifications/v1/applications/{applicationId}/events/{eventId}/email-context` tại Workflow: gửi header X-Analytics-Key trùng Analytics:ServiceKey (tối thiểu32byte), không body. 200 trả applicantId, applicationCode, procedureTitle, status, notes, receiptNumber, appointmentDate, updatedAtUtc. Chỉ trả khi eventId là lịch sử trạng thái thuộc đúng applicationId; không có404, khóa sai/chưa cấu hình401. Cache-Control:no-store. Chỉ Analytics dùng API này, không đưa khóa lên FE. Notes lấy lịch sử của sự kiện, không phải ghi chú mới nhất; receipt/appointment chỉ trả cho OFFICIALLY_RECEIVED. Tên thủ tục, biên nhận, ngày hẹn là dữ liệu đang lưu trong hồ sơ tại lúc gửi, chưa có snapshot email riêng.
+
+POST `/internal/v1/notification-recipients` tại IAM giữ body/quyền/khóa X-Notification-Service-Key hiện tại; DTO bổ sung fullName nullable từ hồ sơ người dùng. Không thay hợp đồng notification public/SignalR. Tên đọc từ IAM tại thời điểm gửi; không có profile sẽ hiển thị chưa có thông tin. Không đưa tên/ý kiến/email/số điện thoại thêm vào RabbitMQ event.
+
+### Cấu hình và chạy local
+
+Mẫu `appsettings.Development.json` của Analytics có Gmail smtp.gmail.com:587, Email.Enabled=true, From/Username đã cấu hình và Password rỗng. SMS mặc định false. Password phải lấy từ biến môi trường Email__Password; không điền vào file mẫu. Chạy ở root bằng PowerShell:
+
+```powershell
+./scripts/start-notifications-local.ps1
+```
+
+Script đọc docker/.env vào biến môi trường tiến trình rồi chạy Analytics localhost:5006; không tự chạy Docker, migration hoặc gửi email thử. Cần IAM localhost:5001, Workflow localhost:5003, PostgreSQL notifications localhost:5436 đã migration và RabbitMQ localhost:5672. Dừng container Analytics đang chiếm5006 trước khi chạy bản local. Có thể phát sinh email thật cho sự kiện đang chờ khi worker chạy.
+
+Cấu hình cần có: NOTIFICATIONS_DB_PASSWORD, JWT_KEY, NOTIFICATIONS_ENABLED=true, NOTIFICATIONS_SERVICE_KEY (giống IAM), ANALYTICS_SERVICE_KEY (giống Workflow), RABBITMQ_USER/PASSWORD, NOTIFICATION_EMAIL_ENABLED=true, NOTIFICATION_EMAIL_HOST/PORT/FROM/USERNAME/PASSWORD. Script dùng issuer wardmate/audience wardmate-client theo Compose; nếu hệ thống của bạn dùng giá trị khác, chỉnh cho khớp IAM trước khi chạy. Không dùng app password Gmail như mật khẩu tài khoản thường.
+
+Email:FrontendBaseUrl (Compose: NOTIFICATION_FRONTEND_URL) mặc định https://wardmate-frontend.vercel.app/. CTA ghép notification.ActionUrl với URL này, chỉ chấp nhận cùng origin HTTP(S), escape HTML tất cả nội dung. URL sai/khác origin: bỏ CTA và hướng dẫn đăng nhập, không gửi liên kết lạ.
+
+SMTP bật TLS, timeout thực tế bằng cancellation15giây (thêm SmtpClient.Timeout=15000). Lỗi SMTP/timeout ghi mã notification.smtp_failed / notification.smtp_timeout, retry hiện có tối đa10lần rồi Dead; worker tiếp tục. Sent chỉ nghĩa SMTP chấp nhận, không bảo đảm vào inbox. Gmail không có idempotency: nếu đã nhận thư nhưng kết nối/commit DB lỗi, retry có thể gửi trùng. X-WardMate-Delivery-Id giúp đối soát, không tự chống trùng ở Gmail. Thiếu cấu hình/contact trả Blocked; hàng Blocked không tự chạy lại khi đổi cấu hình. Chưa có API requeue hoặc webhook bounce.
+
+SMS vẫn tắt. ISmsSender trả SmsDeliveryResult(Success,Status,ProviderMessageId,ErrorCode); adapter chưa có nhà cung cấp trả false/Blocked/null/sms.provider_not_configured, không gọi mạng. Chưa lưu ProviderMessageId vào DB hoặc nhận webhook trạng thái. Khi chọn Brandname sẽ bổ sung adapter, quy tắc retry và lưu mã nhà cung cấp; không báo đã hoàn tất gửi SMS thật.
+
+Deploy code liên quan IAM và Workflow trước Analytics để có fullName và email-context; giữ hai service key đúng. Không migration mới. Không thay Gemini/billing.

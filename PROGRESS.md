@@ -2842,3 +2842,53 @@ Gợi ý các nhóm Conventional Commit cho Antigravity (chưa thực hiện Git
 - feat(analytics): add deadline breakdowns by day procedure and officer
 - docs: document backend completion rules and handoff
 Tuân thủ granularity AGENTS.md: các cập nhật chức năng trong file hiện có tách riêng, không gộp phần không liên quan.
+
+## TASK-26 — Email trước, SMS sau
+
+Hoàn thành code local: 2026-10-22 10:34:14 +07:00 (Asia/Saigon, UTC+07:00).
+
+Email: HTML responsive + plain-text AlternateViews UTF-8, IsBodyHtml=true, tên gửi Hệ thống Một cửa WardMate. Template4trạng thái SUBMITTED/NEED_REVISION/DOCUMENTS_READY/OFFICIALLY_RECEIVED; mã/thủ tục/công dân/cập nhật, reason cán bộ, receipt/appointment, CTA cùng origin, hỗ trợ/bảo mật. Không tự bịa dữ liệu thiếu. SMTP STARTTLS587, cancellation15s + Timeout15000, SmtpException/timeout được bọc mã an toàn để worker retry10lần rồi Dead, không log secret/nội dung SMTP exception. Sent không bảo đảm inbox; SMTP có thể gửi trùng nếu crash/commit lỗi.
+
+Hợp đồng: Workflow GET /internal/notifications/v1/applications/{applicationId}/events/{eventId}/email-context, X-Analytics-Key>=32byte, no body,200 dữ liệu hồ sơ/historical reason,401 sai khóa,404 event không thuộc hồ sơ; no-store/ẩn Swagger. IAM POST /internal/v1/notification-recipients giữ bảo vệ X-Notification-Service-Key và thêm fullName nullable. Không API public gửi email mới, token/DTO SignalR không đổi. Lấy dữ liệu qua HTTP, không DB chéo/bổ sung PII lên broker. Email source cần Workflow:BaseUrl + Analytics:ServiceKey và IAM key; cập nhật IAM/Workflow trước Analytics.
+
+SMS: ISmsSender.Send trả SmsDeliveryResult(bool Success,string Status,string? ProviderMessageId,string? ErrorCode). UnconfiguredSmsSender trả false/Blocked/null/sms.provider_not_configured; mặc định Sms.Enabled=false. Chưa có provider/Brandname, chưa lưu provider ID/webhook; không nhận là đã gửi SMS thật.
+
+Files mới:
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationEmailSource.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationEmailTemplate.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/appsettings.Development.json
+- scripts/start-notifications-local.ps1
+
+Files cập nhật:
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/ExternalNotificationSender.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationDeliveryWorker.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationPipelineModels.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/DependencyInjection.cs
+- src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/appsettings.json
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/AnalyticsContracts.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowAnalyticsSource.cs
+- src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/AnalyticsSourceController.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Accounts/NotificationRecipients.cs
+- src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/NotificationRecipients.cs
+- .gitignore (allowlist mẫu Development không secret)
+- docker/docker-compose.yml
+- docker/.env.example
+- docs/api-guide.md
+- docs/system-constraints.md
+- PROGRESS.md
+
+Cấu hình sample Gmail có Host/Port/From/Username, Password rỗng. Không chép app password đã cung cấp vào repo. Script lấy thông tin docker/.env vào process, khôi phục env sau chạy; chưa chạy script vì có thể gửi backlog thật. Các dịch vụ/DB/RabbitMQ phải sẵn sàng, không tự start Docker/migrate. Không có migration mới.
+
+Validation: build đầu lỗi raw-string CSS CS9007 đã sửa. Build cuối dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 PASS 0warnings/0errors,00:01:15.82. 5/5 kiểm tra template offline bằng DLL (4trạng thái HTML/plain/escaping/CTA,1cross-originCTA); parser script PowerShell không lỗi. Không tạo test project, không chạy automated suite, không SMTP thật/Azure/Docker/Git. Chưa xác minh Gmail nhận thư, TLS tài khoản, rendering mail client hoặc end-to-end bằng FE.
+
+Gợi ý commit theo từng file mới/chức năng riêng cho Antigravity:
+- feat(notifications): add workflow email context client
+- feat(notifications): add responsive HTML and plain-text email template
+- chore(notifications): add safe local email configuration
+- chore(scripts): add local notification startup helper
+- feat(workflow): expose authenticated notification email context
+- feat(iam): include recipient display names
+- feat(notifications): deliver multipart email with bounded SMTP timeout
+- refactor(notifications): prepare structured SMS delivery results
+- docs: document TASK-26 email configuration and limitations
+Không thực thi commit/push. Nội dung email bằng tiếng Việt.
