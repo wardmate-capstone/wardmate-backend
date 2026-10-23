@@ -18,6 +18,28 @@ namespace WardMate.Services.DocumentForm.API.Controllers;
 public sealed class QrLookupController(IMediator mediator) : ControllerBase
 {
     /// <summary>
+    /// Quét mã QR → redirect 302 thẳng đến file PDF mới nhất của hồ sơ (SAS URL 15 phút).
+    /// Không cần đăng nhập. Mã QR được in trên tờ khai sau khi giấy tờ sẵn sàng.
+    /// </summary>
+    /// <param name="applicationId">ID hồ sơ được mã hoá trong QR</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    [HttpGet("applications/{applicationId:guid}/pdf-redirect")]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> PdfRedirect(
+        Guid applicationId,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetQrPdfRedirectQuery(applicationId), cancellationToken);
+        if (!result.IsSuccess)
+            return Failure(result.Error);
+
+        // Redirect trình duyệt / viewer thẳng đến SAS URL của Azure Blob
+        return Redirect(result.Value.SasUrl);
+    }
+
+    /// <summary>
     /// Tra cứu thông tin hồ sơ bằng token hoặc ApplicationId (query param).
     /// </summary>
     /// <param name="token">Giá trị chuỗi QR hoặc mã token</param>
