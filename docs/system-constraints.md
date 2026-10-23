@@ -799,3 +799,13 @@ Nguồn: AnalyticsRegistration.cs, AnalyticsDbContext.cs, AnalyticsAggregationJo
 - Giới hạn: chỉ kiểm tra độ dài khóa, không kiểm tra khóa có trùng IAM; Iam:BaseUrl trong appsettings vẫn là localhost cho chạy trực tiếp, môi trường cloud phải đặt Iam__BaseUrl. docs/azure-deployment.md còn ví dụ issuer/audience `WardMate.IAM`/`WardMate.Client` cho IAM; giá trị thực tế trên Azure chưa được xác minh trong lượt này.
 - Nguồn: src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/AssistantRegistration.cs. Thay cho mô tả "thiếu/sai khóa thì không xác thực được" trong AI-P2-01.
 - Lịch sử 23/10/2026: thêm AIOCR-JWT-01; không đổi route/body/status của API AI.
+
+### IAM-STAFF-PROVISION-01 — Tạo tài khoản công vụ bởi IT Admin (23/10/2026)
+- Phạm vi: POST /api/v1/accounts/manager và /procedure-manager. Policy AccountManagement + RbacAdministrator + iam.accounts.manage; transaction kiểm tra lại IsAdministrator và HasPermission từ DB để không chỉ tin claim cũ.
+- MANAGER cần wardId (null400 iam.ward_required); mọi wardId khác null phải tồn tại (404 iam.ward_not_found). PROCEDURE_MANAGER có thể không gắn phường. Không tự bổ sung ward-scope cho Catalog.
+- Validator mới tái dùng chuẩn đăng ký và bổ sung lowercase/digit cho hai API; không đổi validator đăng ký/front-desk. FullName bắt buộc <=255; username/email chuẩn hóa và unique; password >=8/<=72byte UTF-8, hoa/thường/số/đặc biệt.
+- Tạo user/profile/đúng một role/audit trong rbac.Exclusive; unique index bảo vệ race với đăng ký công dân ngoài advisory lock. Conflict từ lưu mới được ánh xạ iam.duplicate_account409; không có user/audit một phần sau rollback. Không có migration mới.
+- Không nhận role tự do; missing role404 iam.role_not_found. Audit chỉ wardId, targetUserId, roleId, action, không password. Không trả token/hash, không gửi email welcome hay buộc đổi mật khẩu lần đầu.
+- Giới hạn: RBAC nâng cao vẫn có thể gán thêm role; quyền tạo front-desk giữ nguyên. Không có bảo đảm cấm đa role toàn hệ thống. Response bỏ null theo serializer hiện hữu.
+- Nguồn: IAM Application/Accounts/ProvisionStaffRequests.cs, IManagementScope.cs; Infrastructure/Persistence/StaffAdministration.cs, RbacStore.cs; API/Controllers/StaffAdministrationController.cs.
+- Lịch sử: thêm rule IAM-STAFF-PROVISION-01 ngày23/10/2026, không thay các rule cũ.

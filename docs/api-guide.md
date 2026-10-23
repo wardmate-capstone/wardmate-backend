@@ -3889,3 +3889,39 @@ Log "IAM session check failed" phân biệt invalid_base_url, upstream_response 
 
 ### Analytics Azure migration và worker — 23/10/2026
 Đã áp dụng migration AnalyticsMetricsAndCitizenFeedback vào database cấu hình của Analytics (fallback NotificationsDatabase), tạo schema analytics riêng. Không dùng Database__AutoMigrate để chạy migration các context không liên quan. Analytics__JobsEnabled=true, LookbackDays=7, Cron=15 1 * * *, timezone Asia/Ho_Chi_Minh; worker đã có heartbeat. Dữ liệu metrics chưa có trước lượt tổng hợp đầu tiên: FE hiển thị coverage/missingDates; IT_ADMIN có thể gọi POST /api/v1/analytics/jobs/rebuild với {"from":"2026-10-17","to":"2026-10-23"}, sau đó GET /api/v1/analytics/jobs/{jobId}. Không coi bảng rỗng là đầy đủ dữ liệu. Chưa kiểm tra lại endpoint với JWT người dùng thật sau sửa.
+
+## IAM — Khởi tạo Manager và Procedure Manager (Option A, 23/10/2026)
+
+Hai API dành cho IT_ADMIN đang hoạt động, có quyền RBAC quản trị hiện hữu và `iam.accounts.manage`. Dùng để tạo tài khoản công vụ trực tiếp, không đăng ký công dân trước rồi nâng role. Bearer token và JSON; không nhận role từ client.
+
+### POST /api/v1/accounts/manager
+
+Tạo lãnh đạo gắn phường. Ví dụ body (dữ liệu minh họa):
+
+```json
+{"username":"manager_demo","email":"manager@example.com","password":"Example@123","fullName":"Lãnh đạo minh họa","wardId":"11111111-1111-1111-1111-111111111111"}
+```
+
+Lấy wardId thật từ `GET /api/v1/accounts/wards`, không dùng GUID minh họa. wardId thiếu/null trả400 `iam.ward_required`; GUID đúng định dạng nhưng không tồn tại (kể cả Guid.Empty) trả404 `iam.ward_not_found`; GUID sai định dạng trả lỗi binding400.
+
+### POST /api/v1/accounts/procedure-manager
+
+Tạo người quản lý danh mục thủ tục. Body cùng các trường như trên; wardId có thể null hoặc bỏ qua. Nếu truyền thì phải tồn tại. Role cố định PROCEDURE_MANAGER, không tự giới hạn quyền Catalog theo wardId.
+
+```json
+{"username":"procedure_demo","email":"procedure@example.com","password":"Example@123","fullName":"Cán bộ danh mục minh họa","wardId":null}
+```
+
+### Kết quả và cách xử lý lỗi cho cả hai API
+
+- 201 Created: Location `/api/v1/accounts/{id}`; body ManagedUserDto gồm id,username,email,isActive,wardId,wardName,profile,roles. Chỉ có role MANAGER hoặc PROCEDURE_MANAGER tương ứng; profile có fullName; không trả password/hash. ID role lấy từ DB, không hard-code số trong FE. JSON hiện bỏ thuộc tính null: wardId/wardName/các field profile trống có thể không xuất hiện.
+- Username <=100 ký tự theo mẫu chữ không dấu/số/_.-; email hợp lệ <=255; fullName bắt buộc <=255. Username/email lưu trim và lowercase, fullName trim.
+- Password >=8 ký tự, có hoa/thường/số/ký tự đặc biệt, <=72 byte UTF-8. Không dùng mật khẩu mẫu trong vận hành.
+- 400 `validation_failed`: sửa trường theo lỗi; body null hoặc JSON/GUID sai có thể do model binding trả400 theo pipeline ASP.NET hiện tại.
+- 401: thiếu/token không hợp lệ, đăng nhập lại. 403 `iam.forbidden` theo policy/handler: tài khoản không đủ vai trò/quyền, không xử lý bằng cách thử lại token của công dân.
+- 404 `iam.ward_not_found`: tải lại danh sách phường. 404 `iam.role_not_found`: role hệ thống bị thiếu, nhờ IT Admin khôi phục cấu hình role trước khi thử lại.
+- 409 `iam.duplicate_account`: username/email đã có, kể cả tạo đồng thời; đổi thông tin hoặc kiểm tra tài khoản vừa tạo trước khi retry.
+- User/profile/role/audit lưu chung transaction dưới khóa RBAC. Audit action `account.manager_created` / `account.procedure_manager_created`, details chỉ wardId; không ghi mật khẩu.
+- API này không gửi email welcome/OTP, không tạo token đăng nhập, không thêm cơ chế buộc đổi mật khẩu lần đầu. Người dùng đăng nhập bằng luồng IAM hiện có.
+- Giữ nguyên API RBAC nâng cao và quyền tạo front-desk của IT_ADMIN/Manager hiện tại. “Một role” chỉ bảo đảm tại thời điểm tạo qua hai API này, không cấm quản trị RBAC gán thêm role sau đó.
+- Không cần migration/cấu hình mới. Cần deploy IAM mới để Swagger/routes xuất hiện; build local không chứng minh đã deploy.

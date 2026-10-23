@@ -13,3 +13,6 @@ appsettings.Development.json
 
 # Safe TASK-26 sample; password is supplied through environment variables.
 !src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.API/appsettings.Development.json
+
+# graphify
+graphify-out/
