@@ -843,3 +843,7 @@ Nguồn: AnalyticsRegistration.cs, AnalyticsDbContext.cs, AnalyticsAggregationJo
 - Đính chính Email: Email.Enabled tạo delivery cho cả sự kiện phân công, dùng template dự phòng khi không có STATUS context; không chứa lý do nội bộ. Giữ pipeline/nhóm người nhận hiện tại.
 - Nguồn: Application/WorkflowContracts.cs, AssignmentRequests.cs; Analytics Infrastructure/NotificationInboxWorker.cs, NotificationEmailSource.cs, ExternalNotificationSender.cs. Lịch sử24/10/2026: khắc phục lọt reason qua status history; không migration/deploy/gửi tin trong phiên này.
 
+### WORKFLOW-RESUBMIT-01 — Số lần nộp lại trên summary (24/10/2026)
+
+ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dân, cán bộ và pending đều map giá trị lưu trong DB. Không suy ra từ AssignedOfficerId. Giữ quy tắc ResubmitApplicationCommand tăng bộ đếm khi nộp lại thành công, vềSUBMITTED và giữ cán bộ; assign chuyển sangUNDER_REVIEW. Không đổi schema/validation/quyền. Nguồn: Application/WorkflowContracts.cs, ReviewHandlers.cs; Infrastructure/ApplicationReviewStore.cs, ApplicationStore.cs. Bản đính chính này thay mô tả nullable trước đó riêng cho resubmitCount của summary.
+

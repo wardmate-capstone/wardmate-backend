@@ -1,5 +1,9 @@
 # Bàn giao WardMate cho Claude
 
+### Cập nhật 24/10/2026 — summary resubmitCount
+
+Ba projection danh sách đã có x.ResubmitCount từ đợt phân công. Nay chuẩn hóa ApplicationSummaryDto thành int ResubmitCount=0 (trước là int?=null), không đổi thứ tự tham số đang dùng hoặc các field mới khác. Không migration, không đổi resubmit/assign; FE đọc số thật thay suy luận AssignedOfficerId. Xem PROGRESS để biết build, không coi là đã deploy.
+
 ## Sửa sau review — 24/10/2026: lý do phân công và Email
 
 Đã sửa lỗ hổng còn lại của ForApplicant: ẩn assignmentHistory chưa đủ vì history.reason từng sao chép lý do giao/trả. Nay DTO công dân redact reason của SUBMITTED→UNDER_REVIEW và UNDER_REVIEW→SUBMITTED, bao gồm dữ liệu cũ; các lý do yêu cầu bổ sung giữ nguyên. ASSIGN/RELEASE mới chỉ ghi lý do vào application_assignment_history, cán bộ/Manager đọc qua AssignmentHistory. Không cần migration hoặc cập nhật DB cũ. Không bỏ lớp lọc DTO dù handler mới đã ngừng sao chép lý do.

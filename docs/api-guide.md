@@ -4004,3 +4004,9 @@ Các thao tác giao/trả mới chỉ lưu lý do trong application_assignment_h
 
 Email phân công vẫn được gửi khi bật Email, theo người nhận CLAIM/ASSIGN/TRANSFER/RELEASE đã mô tả. NotificationEmailSource không lấy ngữ cảnh STATUS cho các event này; sender vẫn render template dự phòng và gửi SMTP. Thư chứa thông báo và liên kết hồ sơ, không chứa lý do nội bộ. Chưa gửi Email thật trong lượt sửa này.
 
+### ResubmitCount trong danh sách hồ sơ — 24/10/2026
+
+GET `/api/v1/officer/applications`, GET `/api/v1/officer/applications/pending` và GET `/api/v1/applications` trả `items[].resubmitCount` là số nguyên, mặc định0. Cả ba truy vấn lấy trực tiếp cột resubmit_count, không suy luận từ người phụ trách. Hồ sơ chưa nộp lại trả0, nộp lại thành công lần1 trả1, lần2 trả2. FE dùng số này để hiển thị nhãn gửi lại; không suy luận từ SUBMITTED + assignedOfficerId.
+
+Nộp lại vẫn về SUBMITTED, giữ AssignedOfficerId. Cán bộ phụ trách gọi POST `/api/v1/officer/applications/{id}/assign` để bắt đầu kiểm tra phiên bản mới (UNDER_REVIEW). Không thêm trạng thái RESUBMITTED, không đổi request, phân quyền, HTTP status hay ProblemDetails. Không cần migration. FE đang nhận nullable vẫn tương thích với giá trị số nguyên này.
+

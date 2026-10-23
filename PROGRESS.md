@@ -3323,3 +3323,11 @@ Hoàn tất mã nguồn và tài liệu: 23/10/2026 22:09 +07:00 (Asia/Saigon).
 - Validation: solution Release `dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 -p:UseSharedCompilation=false` đạt 0 warnings/0 errors, 18.12s. Kiểm tra source xác nhận handler vẫn lưu lý do qua Record; không còn mô tả sai “không gửi Email phân công” trong ba tài liệu hiện hành. Không tạo test project, 0 automated tests chạy; FE nghiệm thu giao diện sau deploy.
 - Không Git. Commit gợi ý riêng theo chức năng: `fix(workflow): redact internal assignment reasons from applicant history`; `fix(workflow): keep assignment reasons only in assignment history`; `docs(workflow): clarify assignment privacy and email delivery`.
 
+## FE — ResubmitCount trên danh sách (24/10/2026 01:12 +07:00)
+
+- Hoàn tất: xác nhận ba projection ở ApplicationReviewStore (list/pending), ApplicationStore (citizen) đã map x.ResubmitCount; không sửa lại projection không cần thiết. Chuẩn hóa ApplicationSummaryDto từ int? ResubmitCount=null thành int ResubmitCount=0, giữ vị trí tham số và các field phân công khác.
+- Files sửa: src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WorkflowContracts.cs; docs/api-guide.md; docs/system-constraints.md (WORKFLOW-RESUBMIT-01); docs/CLAUDE_HANDOFF.md; PROGRESS.md.
+- API: GET /api/v1/officer/applications, GET /api/v1/officer/applications/pending, GET /api/v1/applications: response200 items[].resubmitCount là số nguyên0/1/2... từ DB. Không đổi request, quyền, status code, ProblemDetails hay token. Giữ nộp lại vềSUBMITTED, giữ người phụ trách, assign nhận lại sangUNDER_REVIEW. Không trạng thái mới/migration.
+- Validation: solution Release --no-restore -warnaserror -m:1 -p:UseSharedCompilation=false đạt0 warnings/0 errors trong20.66s. Đối chiếu source ba projection và handler; không chạy test project/DB/kiểm thử giao diện (0 automated tests), chưa deploy. Không Git.
+- Commit gợi ý: `fix(workflow): default summary resubmit count to zero`; `docs(workflow): clarify resubmission count contract`.
+
