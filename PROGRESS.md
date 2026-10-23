@@ -2,7 +2,27 @@
 
 
 # WardMate — Nhật ký phát triển
+**Trạng thái TASK-QR-PDF-REDIRECT (QR → Mở Thẳng File PDF — DocumentForm): HOÀN THÀNH** — Thay đổi hành vi mã QR in trên giấy tờ: thay vì trỏ đến trang tra cứu JSON, QR giờ redirect 302 thẳng đến file PDF mới nhất của hồ sơ (SAS URL Azure Blob 15 phút, không cần đăng nhập). Các thay đổi: (1) Thêm mới `GetQrPdfRedirectQuery.cs` (Application/Queries) — tìm GeneratedDocument mới nhất theo ApplicationId, kiểm tra blob tồn tại, sinh SAS URL qua `IBlobStorageClient.GenerateSasUrlAsync()`; (2) Cập nhật `QrLookupController.cs` — thêm endpoint `GET /api/v1/public/applications/{applicationId}/pdf-redirect` (`AllowAnonymous`, trả 302); (3) Cập nhật `ApprovedQrService.cs` — đổi `QrCodeValue` từ `/public/qr-lookup?applicationId=` sang `/public/applications/{id}/pdf-redirect`; (4) Cập nhật `GeneratePdfDocumentCommand.cs` — điều kiện regenerate QR đổi từ `Contains("/public/qr-lookup")` sang `Contains("/pdf-redirect")`; QR cũ sẽ tự động được regenerate lần generate-pdf kế tiếp. Endpoint cũ `qr-lookup` vẫn giữ nguyên (backward-compatible). Solution-wide Release build: **0 errors, 0 warnings**. Xác minh ngày 23/10/2026 lúc 08:09 (Asia/Saigon, UTC+07:00).
+
+**Endpoints mới/thay đổi:**
+- `GET /api/v1/public/applications/{applicationId:guid}/pdf-redirect` → `302` SAS URL | `404` qr.not_found / qr.pdf_not_found / qr.pdf_blob_missing | `400` qr.invalid_application_id
+
+**Paths thay đổi:**
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/GetQrPdfRedirectQuery.cs` (**mới**)
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/Controllers/QrLookupController.cs`
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/QrCode/ApprovedQrService.cs`
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/GeneratePdfDocumentCommand.cs`
+- `docs/api-guide.md`
+
+**Suggested Conventional Commit messages (theo thứ tự):**
+1. `feat(document-form): add GetQrPdfRedirectQuery to redirect QR scan to latest PDF SAS URL`
+2. `feat(document-form): add GET /api/v1/public/applications/{id}/pdf-redirect endpoint`
+3. `feat(document-form): encode /pdf-redirect URL in QR instead of /qr-lookup`
+4. `fix(document-form): regenerate stale QR codes pointing to /qr-lookup on next generate-pdf`
+5. `docs: update api-guide and PROGRESS for QR PDF redirect feature`
+
 **Trạng thái QR-BACKWARD-COMPATIBILITY-FIX: HOÀN THÀNH** — Giải quyết dứt điểm lỗi quét mã QR 401/403 khi quét bằng điện thoại/camera không có token: (1) Cập nhật `ApplicationsController` cho phép truy cập ẩn danh `[AllowAnonymous]` trên `GET /api/v1/applications/{id}`: nếu người gọi không có Bearer token (quét từ camera điện thoại đối với mã QR cũ đã in/tải trước đây), tự động HTTP 302 Redirect sang `/api/v1/public/qr-lookup?applicationId={id}` để xem kết quả hợp lệ công khai mà không bị chặn token. Nếu có Bearer token, vẫn trả về đầy đủ `ApplicationDto` cho chủ hồ sơ hoặc cán bộ. (2) Bổ sung phương thức `Update` trên entity `ApprovedQr` và cập nhật `GeneratePdfDocumentCommand` tự động cập nhật bản ghi QR cũ sang URL tra cứu công khai mới và sinh lại ảnh PNG khi xuất PDF mới. Release build: 0 errors, 0 warnings. Xác minh ngày 20/10/2026 lúc 02:40 (Asia/Saigon, UTC+07:00).
+
 
 **Trạng thái TASK-OFFICER-LIST-QR-LOOKUP (Officer All Applications List, Public QR Lookup & Gotenberg Azure HTTPS Fix): HOÀN THÀNH** — (1) Bổ sung API `GET /api/v1/officer/applications` cho Cán bộ một cửa (`FRONT_DESK_OFFICER`): truy vấn toàn bộ hồ sơ trong phạm vi phường (kể cả đã duyệt / từ chối / cần sửa), loại trừ hồ sơ chính cán bộ nộp, hỗ trợ lọc theo trạng thái đơn lẻ hoặc nhiều trạng thái phân tách bằng dấu phẩy (ví dụ: `status=DOCUMENTS_READY,NEED_REVISION,READY_TO_SUBMIT`), theo `procedureId`, `applicationCode`, khoảng thời gian `submittedFrom`/`submittedTo`, và phân trang an toàn. (2) Bổ sung API `GET /api/v1/public/qr-lookup` và `GET /api/v1/public/qr-lookup/{**token}` trong `DocumentForm`: endpoint công khai (`AllowAnonymous`) phục vụ quét mã QR in trên tờ khai đã duyệt qua điện thoại di động/camera, tự động nhận diện GUID, URL đầy đủ hoặc token, truy vấn `ApprovedQr` + `UserSubmission` + `FormTemplate` để trả về xác thực tính hợp lệ của hồ sơ. (3) Sửa lỗi PDF 503 (`document.pdf_render_failed`): điều tra nguyên nhân do Container App `wardmate-gotenberg` trên Azure Express/Consumption Environment chỉ hỗ trợ HTTPS, trong khi `wardmate-documentform` cấu hình `Gotenberg__Url=http://wardmate-gotenberg:3000` (port 3000 không mở ra ingress proxy); đã cập nhật biến môi trường trên Azure thành `Gotenberg__Url=https://wardmate-gotenberg.blackmeadow-a2f12767.japaneast.azurecontainerapps.io`, đồng thời bổ sung ILogger bắt và ghi chi tiết stack trace khi convert hoặc blob upload thất bại. (4) Cập nhật và đồng bộ YARP Gateway (`appsettings.json` và `appsettings.Production.json`): định tuyến route `GET /api/v1/public/{**catch-all}` về `document-form`, `GET /api/v1/officer/applications` về `application-workflow`. Solution-wide Release build: **0 errors, 0 warnings**. Xác minh ngày 19/10/2026 lúc 23:30 (Asia/Saigon, UTC+07:00).
 

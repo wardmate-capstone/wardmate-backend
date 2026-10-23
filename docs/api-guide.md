@@ -3355,23 +3355,35 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
   - `401 Unauthorized`: Thiếu Bearer Token hoặc token hết hạn.
   - `403 Forbidden`: Thiếu role FD/Manager hoặc permission `workflow.queue.read`; chưa gán phường thì danh sách rỗng.
 
-#### 2. Tra cứu Hồ sơ Công khai bằng Mã QR (Không cần đăng nhập)
+#### 2. Mở Trực Tiếp File PDF khi Quét Mã QR — Endpoint Mới (23/10/2026)
+- **Endpoint**: `GET /api/v1/public/applications/{applicationId}/pdf-redirect`
+- **Mục đích**: Khi người dùng quét mã QR in trên giấy tờ, trình duyệt/camera sẽ redirect thẳng đến file PDF mới nhất của hồ sơ đó. Không cần đăng nhập, không hiển thị JSON — người dùng mở thẳng PDF.
+- **Ai dùng**: Bất kỳ ai quét mã QR (người dân, cơ quan xác minh, cán bộ).
+- **Cách hoạt động**:
+  1. Camera quét QR → URL `https://gateway/api/v1/public/applications/{id}/pdf-redirect`
+  2. Backend tìm file PDF mới nhất của hồ sơ trong bảng `generated_documents`
+  3. Tạo **SAS URL ngắn hạn 15 phút** trỏ đến file trên Azure Blob Storage
+  4. Trả về `302 Found` redirect → trình duyệt tự mở/tải PDF
+- **Kết quả thành công (302 Found)**: Header `Location` chứa SAS URL Azure Blob. Trình duyệt tự redirect, người dùng thấy/tải PDF.
+- **Lỗi thường gặp & Phục hồi**:
+  - `404` (`qr.not_found`): Hồ sơ chưa có mã QR — chưa generate PDF lần nào.
+  - `404` (`qr.pdf_not_found`): Hồ sơ có QR nhưng chưa có file PDF được xuất.
+  - `404` (`qr.pdf_blob_missing`): File PDF không còn trên Azure Blob — liên hệ cơ quan tiếp nhận.
+  - `400` (`qr.invalid_application_id`): ApplicationId là GUID rỗng.
+
+#### 3. Tra cứu Thông Tin Hồ Sơ bằng Mã QR (legacy — trả JSON)
 - **Endpoint**: 
   - `GET /api/v1/public/qr-lookup?token={token}` hoặc `GET /api/v1/public/qr-lookup?applicationId={applicationId}`
   - `GET /api/v1/public/qr-lookup/{token}`
-- **Mục đích**: Cho phép bất kỳ ai (người dân, cơ quan chức năng, cán bộ xác minh) dùng điện thoại thông minh quét mã QR in trên tờ khai hoặc giấy tờ đã phê duyệt để tra cứu tính hợp lệ và thông tin hồ sơ mà không cần đăng nhập.
-- **Ai dùng**: Công chúng, người quét mã QR.
-- **Khi nào và cách gọi**: Gửi `GET` request không cần Header `Authorization`. Tham số `token` có thể là:
-  - Chuỗi URL đầy đủ quét từ mã QR (ví dụ: `https://.../api/v1/public/qr-lookup?applicationId=b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9`).
-  - Mã GUID của ApplicationId hoặc SubmissionId.
-  - Mã token tra cứu trực tiếp.
+- **Mục đích**: Tra cứu thông tin và tính hợp lệ hồ sơ qua QR — trả về JSON thay vì redirect PDF. Dùng khi FE cần hiển thị thông tin chi tiết.
+- **Ai dùng**: Công chúng, người quét mã QR, ứng dụng cần dữ liệu JSON.
 - **Kết quả thành công (200 OK)**:
   ```json
   {
     "applicationId": "b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9",
     "submissionId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-    "qrCodeValue": "https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/public/qr-lookup?applicationId=b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9",
-    "generatedAt": "2026-10-15T15:42:30Z",
+    "qrCodeValue": "https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/public/applications/b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9/pdf-redirect",
+    "generatedAt": "2026-10-23T08:00:00Z",
     "status": "APPROVED",
     "documentName": "Tờ khai đăng ký khai sinh",
     "isValid": true,
@@ -3380,7 +3392,7 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
   ```
 - **Lỗi thường gặp & Phục hồi**:
   - `400 Bad Request` (`qr.token_required`): Chưa truyền token hoặc applicationId.
-  - `404 Not Found` (`qr.not_found`): Mã QR không khớp với bất kỳ hồ sơ nào trong hệ thống hoặc hồ sơ chưa từng được duyệt cấp mã QR.
+  - `404 Not Found` (`qr.not_found`): Mã QR không khớp với bất kỳ hồ sơ nào trong hệ thống.
 
 #### 3. Cơ chế tương thích ngược khi quét QR cũ (`GET /api/v1/applications/{id}`)
 - **Endpoint**: `GET /api/v1/applications/{id}`
@@ -3389,9 +3401,12 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
 - **Khi có Bearer token**: API vẫn hoạt động bình thường, trả về chi tiết `ApplicationDto` cho chủ hồ sơ hoặc cán bộ thụ lý.
 
 ### Cấu hình và trình tự đối soát quy trình QR
-Trình tự: tạo hồ sơ/đơn -> chốt đơn -> COMPLETED checklist -> submit hồ sơ -> cán bộ assign
--> xem/ghi chú -> tạo comment OPEN và request-revision nếu cần -> dân sửa/chốt/resubmit
--> cán bộ assign lại -> confirm-readiness Workflow -> generate-pdf sinh QR vào `approved_qrs` trỏ tới `/api/v1/public/qr-lookup?applicationId={id}` -> dân/cán bộ generate-pdf (tự động đóng dấu QR) -> download PDF hoặc quét QR tra cứu công khai không cần token.
+Trình tự: tạo hồ sơ/đơn → chốt đơn → COMPLETED checklist → submit hồ sơ → cán bộ assign
+→ xem/ghi chú → tạo comment OPEN và request-revision nếu cần → dân sửa/chốt/resubmit
+→ cán bộ assign lại → confirm-readiness Workflow → **generate-pdf** sinh QR vào `approved_qrs` trỏ tới `/api/v1/public/applications/{id}/pdf-redirect`
+→ dân/cán bộ generate-pdf (tự động đóng dấu QR) → download PDF hoặc **quét QR → mở thẳng PDF** (302 redirect, không cần đăng nhập).
+
+> **QR cũ** (sinh trước 23/10/2026) chứa URL `/api/v1/public/qr-lookup?applicationId={id}` vẫn hoạt động và trả JSON hợp lệ. Khi gọi `generate-pdf` lần tiếp theo cho cùng hồ sơ, QR sẽ tự động được regenerate sang URL `/pdf-redirect` mới.
 Kiểm tra âm: cán bộ khác phường/cùng phường chưa phân công, giả OfficerId, xuất trước duyệt,
 sửa sau duyệt, Workflow hoặc Gotenberg mất kết nối. Các trường hợp này không được trả file chính thức mới.
 
