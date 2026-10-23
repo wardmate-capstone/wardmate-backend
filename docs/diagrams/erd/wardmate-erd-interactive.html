@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>WardMate ERD</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: header band → tabs + toolbar → full-width zoomable canvas with a detail panel → relationship register and notes. */
+:root {
+  --bg: #f3f5f4; --surface: #ffffff; --ink: #18201d; --muted: #5a6662; --rule: #d3dad7; --zone-alpha: 7%;
+  --fk: #2c3633; --ref: #8a6d1f; --hi: #c2410c; --pk: #a16207;
+  --iam: #2f5aa8; --cat: #8a5a14; --wf: #1d7a56; --doc: #8b3a62; --ai: #5a47b0; --sys: #a3402c;
+  --on-head: #ffffff; --fut: #6f6590; --fut-ink: #ffffff;
+  --font-ui: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121715; --surface: #1b2220; --ink: #e5ebe8; --muted: #9aa7a2; --rule: #33403c; --zone-alpha: 12%;
+  --fk: #c9d3cf; --ref: #e0b84f; --hi: #fb923c; --pk: #facc15;
+  --iam: #7aa2f0; --cat: #d9a75a; --wf: #4fc496; --doc: #e08ab3; --ai: #a99cf2; --sys: #f08a72;
+  --on-head: #0f1412; --fut: #b3a8d8; --fut-ink: #0f1412; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121715; --surface: #1b2220; --ink: #e5ebe8; --muted: #9aa7a2; --rule: #33403c; --zone-alpha: 12%;
+  --fk: #c9d3cf; --ref: #e0b84f; --hi: #fb923c; --pk: #facc15;
+  --iam: #7aa2f0; --cat: #d9a75a; --wf: #4fc496; --doc: #e08ab3; --ai: #a99cf2; --sys: #f08a72;
+  --on-head: #0f1412; --fut: #b3a8d8; --fut-ink: #0f1412; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.5 }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1680px; margin: 0 auto }
+header.top { padding-block: 22px 14px; display: flex; flex-wrap: wrap; gap: 8px 32px; align-items: end; justify-content: space-between }
+h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance }
+.lede { margin: 2px 0 0; color: var(--muted); max-width: 70ch }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums }
+.stats b { color: var(--ink); font-weight: 600 }
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding-block: 8px; border-top: 1px solid var(--rule) }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap }
+.tab { font: 600 13px var(--font-ui); padding: 7px 14px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); border-radius: 999px; cursor: pointer }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+.tab small { font-weight: 400; opacity: .7; margin-left: 4px }
+.tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-left: auto }
+.tools label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; cursor: pointer; user-select: none }
+.search { font: 13px var(--font-ui); padding: 6px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink); width: 210px; max-width: 100% }
+.zoom { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden }
+.zoom button { font: 600 13px var(--font-ui); border: 0; background: var(--surface); color: var(--ink); padding: 6px 11px; cursor: pointer }
+.zoom button + button { border-left: 1px solid var(--rule) }
+button:focus-visible, .tab:focus-visible, input:focus-visible, svg:focus-visible, tr:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px }
+
+.viewnote { margin: 4px 0 10px; color: var(--muted); font-size: 13px; max-width: 110ch }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px }
+.canvas { position: relative; height: min(76vh, 860px); min-height: 420px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden }
+.canvas svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; font-family: var(--font-ui) }
+.canvas svg.dragging { cursor: grabbing }
+.status { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; text-align: center; padding: 24px }
+.legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; max-width: calc(100% - 20px); padding: 6px 10px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--rule); border-radius: 8px; font-size: 11.5px; color: var(--muted); pointer-events: none }
+.legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block }
+.ln { width: 22px; height: 0; border-top: 2px solid var(--fk); display: inline-block }
+.ln.ref { border-top: 2px dashed var(--ref) }
+.ln.fut { border-top: 2px dotted var(--fut) }
+.tag.fut { color: var(--fut); border-color: var(--fut) }
+
+aside.detail { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; overflow: auto; height: min(76vh, 860px); min-height: 420px; min-width: 0 }
+aside h2 { margin: 0 0 2px; font-size: 16px; font-family: var(--font-mono); font-weight: 600; word-break: break-word }
+aside .svc { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em }
+aside p { margin: 8px 0; color: var(--muted); font-size: 13px }
+aside h3 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted) }
+aside ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px }
+aside li { font-size: 12.5px; font-family: var(--font-mono); line-height: 1.45; word-break: break-word }
+aside li button { all: unset; cursor: pointer; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px }
+aside li button:hover { text-decoration-color: var(--hi) }
+.tag { font: 600 10px var(--font-mono); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--rule); margin-right: 6px; color: var(--muted) }
+.tag.fk { color: var(--fk); border-color: var(--fk) }
+.tag.ref { color: var(--ref); border-color: var(--ref) }
+
+section.reg { padding-block: 26px 10px }
+section.reg h2, section.notes h2 { font-size: 18px; margin: 0 0 4px }
+section.reg p { margin: 0 0 12px; color: var(--muted); font-size: 13px }
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface) }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; min-width: 760px }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; background: color-mix(in srgb, var(--rule) 30%, var(--surface)); position: sticky; top: 0 }
+td.mono { font-family: var(--font-mono); font-size: 12px }
+tbody tr { cursor: pointer }
+tbody tr:hover, tbody tr.on { background: color-mix(in srgb, var(--hi) 9%, transparent) }
+tbody tr:last-child td { border-bottom: 0 }
+section.notes { padding-block: 22px 40px }
+section.notes ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); max-width: 100ch; display: grid; gap: 4px }
+section.notes code { font-family: var(--font-mono); font-size: 12px; color: var(--ink) }
+
+/* SVG */
+.zone rect { stroke-width: 1.2 }
+.zone text.zt { font-weight: 700; font-size: 15px; letter-spacing: .02em }
+.zone text.zs { font-size: 11.5px; fill: var(--muted) }
+.node { cursor: pointer }
+.node .card { fill: var(--surface); stroke: var(--rule); stroke-width: 1 }
+.node .head-t { fill: var(--on-head); font-weight: 600; font-size: 12.5px; font-family: var(--font-mono) }
+.node .head-s { fill: var(--on-head); opacity: .85; font-size: 10px; font-family: var(--font-mono) }
+.node .row-t { fill: var(--ink); font-size: 11.5px; font-family: var(--font-mono) }
+.node .row-y { fill: var(--muted); font-size: 11px; font-family: var(--font-mono) }
+.node .row-n { fill: var(--muted); font-size: 9.5px; font-family: var(--font-mono); font-weight: 600 }
+.node .f-PK { fill: var(--pk); font-size: 9px; font-weight: 700; font-family: var(--font-mono) }
+.node .f-FK { fill: var(--fk); font-size: 9px; font-weight: 700; font-family: var(--font-mono) }
+.node .f-REF { fill: var(--ref); font-size: 9px; font-weight: 700; font-family: var(--font-mono) }
+.node .f-UQ { fill: var(--muted); font-size: 9px; font-weight: 700; font-family: var(--font-mono) }
+.node .stripe { stroke: var(--rule); stroke-width: .6 }
+.node.concept .card { stroke-width: 1.6 }
+.node .c-name { fill: var(--ink); font-weight: 600; font-size: 14px }
+.node .c-sub { fill: var(--muted); font-size: 11px }
+.node.sel .card { stroke: var(--hi); stroke-width: 2.4 }
+.edge path { fill: none; stroke-width: 1.4 }
+.edge.fk path:not(.hit) { stroke: var(--fk) }
+.edge.ref path:not(.hit) { stroke: var(--ref); stroke-dasharray: 6 4 }
+.edge.hi path:not(.hit) { stroke: var(--hi); stroke-width: 2.4 }
+.edge path.hit { stroke: transparent; stroke-width: 12; stroke-dasharray: none }
+.edge text { font-size: 10.5px; fill: var(--muted) }
+.edge.hi text { fill: var(--hi); font-weight: 600 }
+.elabel-bg { fill: var(--surface) }
+.dim { opacity: .14 }
+.hidden-kind { display: none }
+.m-fk { fill: none; stroke: var(--fk) } .m-ref { fill: none; stroke: var(--ref) } .m-hi { fill: none; stroke: var(--hi) } .m-fut { fill: none; stroke: var(--fut) }
+.m-fk-c { fill: var(--surface); stroke: var(--fk) } .m-ref-c { fill: var(--surface); stroke: var(--ref) } .m-hi-c { fill: var(--surface); stroke: var(--hi) } .m-fut-c { fill: var(--surface); stroke: var(--fut) }
+.edge.fut path:not(.hit) { stroke: var(--fut); stroke-dasharray: 2 4; stroke-linecap: round; stroke-width: 1.6 }
+.node.future .card { stroke: var(--fut); stroke-width: 1.4; stroke-dasharray: 6 4; fill: color-mix(in srgb, var(--surface) 82%, var(--bg)) }
+.node.future .head { opacity: .7 }
+.node.future.sel .card { stroke: var(--hi) }
+.node .fut-badge { fill: var(--fut-ink); font: 700 9px var(--font-mono); letter-spacing: .08em }
+.node.concept .fut-badge { fill: var(--fut) }
+
+@media (max-width: 900px) {
+  .stage { grid-template-columns: minmax(0, 1fr) }
+  aside.detail { height: auto; min-height: 0 }
+  .canvas { height: 66vh }
+  .tools { margin-left: 0 }
+}
+@media (prefers-reduced-motion: no-preference) { .node, .edge { transition: opacity .15s } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>WardMate ERD</h1>
+      <p class="lede">Three levels of the data model for the ward one-stop-shop system. Every page shows all 6 services and the links between them.</p>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" aria-label="ERD level">
+      <button class="tab" role="tab" id="tab-conceptual" data-view="conceptual" aria-selected="true">Conceptual <small>concepts</small></button>
+      <button class="tab" role="tab" id="tab-logical" data-view="logical" aria-selected="false">Logical <small>attributes, keys</small></button>
+      <button class="tab" role="tab" id="tab-physical" data-view="physical" aria-selected="false">Physical <small>data types</small></button>
+    </div>
+    <div class="tools">
+      <input class="search" id="search" list="names" placeholder="Find a table or concept…" aria-label="Find a table or concept">
+      <datalist id="names"></datalist>
+      <label><input type="checkbox" id="showA" checked> <span id="showA-l">Within a service</span></label>
+      <label><input type="checkbox" id="showB" checked> <span id="showB-l">Across services</span></label>
+      <label><input type="checkbox" id="showF" checked> <span>FUTURE tables</span></label>
+      <div class="zoom" role="group" aria-label="Zoom">
+        <button id="zout" aria-label="Zoom out">−</button>
+        <button id="zfit">Fit</button>
+        <button id="zin" aria-label="Zoom in">+</button>
+      </div>
+    </div>
+  </div>
+  <p class="viewnote" id="viewnote"></p>
+
+  <div class="stage">
+    <div class="canvas">
+      <svg id="svg" tabindex="0" aria-label="ERD diagram. Drag to pan, scroll to zoom">
+        <defs id="defs"></defs>
+        <g id="vp"></g>
+      </svg>
+      <div class="status" id="status">Laying out the diagram…</div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <aside class="detail" id="detail" aria-live="polite"></aside>
+  </div>
+
+  <section class="reg">
+    <h2 id="reg-title">Relationship register</h2>
+    <p id="reg-note"></p>
+    <div class="tablewrap"><table><thead id="reg-head"></thead><tbody id="reg-body"></tbody></table></div>
+  </section>
+
+  <section class="notes">
+    <h2>How to read these diagrams</h2>
+    <ul>
+      <li>Source: the EF Core model of 7 DbContexts across 6 services, inventoried on <span id="note-date"></span> from <code>docs/diagrams/erd/model-inventory.json</code>. Not yet checked against the live schema on Azure.</li>
+      <li>Solid lines are real SQL foreign keys and only exist inside one database. Dashed lines are REF links between services: each service owns its database, so it stores only the ID, with no FK constraint.</li>
+      <li>Crow's foot notation: two bars mean exactly one, circle + bar means zero or one, circle + crow's foot means zero or many.</li>
+      <li><code>approved_qrs</code> and <code>approved_at</code> are legacy technical names and do not mean an administrative approval. The current flow ends at <code>DOCUMENTS_READY</code> (documents are ready) and <code>OFFICIALLY_RECEIVED</code> (received at the counter).</li>
+      <li>Boxes with a dashed border and a FUTURE label are 8 planned tables that are not implemented yet: <code>knowledge_documents</code>, <code>knowledge_chunks</code>, <code>ai_request_logs</code>, <code>ocr_scan_logs</code>, <code>audit_logs</code>, <code>system_settings</code>, <code>service_health_logs</code>, <code>system_backup_logs</code>. Their columns come from the original 35-table specification (<code>docs/diagrams/erd/archive-unified-20261015.md</code>); types are proposals, and NOT NULL, lengths and indexes are not decided. Relationships F1–F8 are planned. F5 needs a new column <code>ReferencedChunkIds</code> on <code>chat_messages</code>. Untick "FUTURE tables" to see only what is implemented.</li>
+      <li>Hangfire tables, the EF migration history, RabbitMQ and Blob Storage are not included.</li>
+    </ul>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+<script>
+const DATA = {"date":"2026-10-23","tables":[{"id":"IAM_permissions","g":"IAM","ctx":"IamDbContext","schema":"public","name":"permissions","cols":[["id","integer",0,"PK"],["permission_code","character varying(100)",0,"UQ"],["permission_name","character varying(255)",0,""],["module","character varying(50)",0,""]]},{"id":"IAM_rbac_audit_logs","g":"IAM","ctx":"IamDbContext","schema":"public","name":"rbac_audit_logs","cols":[["id","uuid",0,"PK"],["actor_user_id","uuid",0,"REF"],["action","character varying(100)",0,""],["target_user_id","uuid",1,"REF"],["role_id","integer",1,"REF"],["permission_id","integer",1,"REF"],["details","jsonb",0,""],["created_at","timestamp with time zone",0,""]]},{"id":"IAM_roles","g":"IAM","ctx":"IamDbContext","schema":"public","name":"roles","cols":[["id","integer",0,"PK"],["role_name","character varying(50)",0,"UQ"],["description","text",1,""]]},{"id":"IAM_wards","g":"IAM","ctx":"IamDbContext","schema":"public","name":"wards","cols":[["id","uuid",0,"PK"],["code","character varying(50)",0,"UQ"],["name","character varying(255)",0,""]]},{"id":"IAM_role_permissions","g":"IAM","ctx":"IamDbContext","schema":"public","name":"role_permissions","cols":[["role_id","integer",0,"PK FK"],["permission_id","integer",0,"PK FK"]]},{"id":"IAM_users","g":"IAM","ctx":"IamDbContext","schema":"public","name":"users","cols":[["id","uuid",0,"PK"],["security_stamp","uuid",0,""],["verified_phone_number","text",1,""],["username","character varying(100)",0,"UQ"],["email","character varying(255)",0,"UQ"],["password_hash","character varying(255)",0,""],["is_active","boolean",0,""],["assigned_categories","integer[]",0,""],["ward_id","uuid",1,"FK"],["created_at","timestamp with time zone",0,""],["updated_at","timestamp with time zone",0,""]]},{"id":"IAM_refresh_tokens","g":"IAM","ctx":"IamDbContext","schema":"public","name":"refresh_tokens","cols":[["id","uuid",0,"PK"],["user_id","uuid",0,"FK"],["token","character varying(500)",0,"UQ"],["expires_at","timestamp with time zone",0,""],["is_revoked","boolean",0,""],["created_at","timestamp with time zone",0,""]]},{"id":"IAM_user_otps","g":"IAM","ctx":"IamDbContext","schema":"iam","name":"user_otps","cols":[["id","uuid",0,"PK"],["user_id","uuid",0,"FK"],["target_phone_number","character varying(20)",1,""],["otp_hash","character varying(64)",0,""],["channel","character varying(10)",0,""],["purpose","character varying(30)",0,""],["expires_at_utc","timestamp with time zone",0,""],["attempts","integer",0,""],["is_used","boolean",0,""],["created_at_utc","timestamp with time zone",0,""]]},{"id":"IAM_user_profiles","g":"IAM","ctx":"IamDbContext","schema":"public","name":"user_profiles","cols":[["user_id","uuid",0,"PK FK"],["full_name","character varying(255)",0,""],["identity_number","character varying(20)",1,"UQ"],["phone_number","character varying(20)",1,""],["date_of_birth","date",1,""],["gender","character varying(10)",1,""],["permanent_address","text",1,""],["temporary_address","text",1,""],["updated_at","timestamp with time zone",0,""]]},{"id":"IAM_user_roles","g":"IAM","ctx":"IamDbContext","schema":"public","name":"user_roles","cols":[["user_id","uuid",0,"PK FK"],["role_id","integer",0,"PK FK"]]},{"id":"IAM_welcome_emails","g":"IAM","ctx":"IamDbContext","schema":"iam","name":"welcome_emails","cols":[["id","uuid",0,"PK"],["user_id","uuid",0,"FK UQ"],["attempts","integer",0,""],["next_attempt_at_utc","timestamp with time zone",0,""],["sent_at_utc","timestamp with time zone",1,""]]},{"id":"CAT_procedure_categories","g":"CAT","ctx":"ProcedureDbContext","schema":"public","name":"procedure_categories","cols":[["id","integer",0,"PK"],["category_name","character varying(255)",0,""],["description","text",1,""]]},{"id":"CAT_procedure_drafts","g":"CAT","ctx":"ProcedureDbContext","schema":"public","name":"procedure_drafts","cols":[["id","uuid",0,"PK"],["status","character varying(30)",0,""],["blob_name","character varying(255)",0,""],["pdf_file_name","character varying(255)",0,""],["original_pdf_url","character varying(500)",0,""],["payload_json","jsonb",0,""],["warnings_json","jsonb",0,""],["extracted_text","text",0,""],["failure_code","character varying(100)",1,""],["created_by","character varying(255)",0,"REF"],["reviewed_by","character varying(255)",1,"REF"],["published_procedure_id","uuid",1,"REF"],["revision","uuid",0,""],["lease_id","uuid",1,""],["lease_until","timestamp with time zone",1,""],["attempts","integer",0,""],["created_at","timestamp with time zone",0,""],["updated_at","timestamp with time zone",0,""]]},{"id":"CAT_procedures","g":"CAT","ctx":"ProcedureDbContext","schema":"public","name":"procedures","cols":[["id","uuid",0,"PK"],["category_id","integer",0,"FK"],["procedure_code","character varying(50)",0,""],["title","character varying(500)",0,""],["original_pdf_url","character varying(500)",1,""],["pdf_file_name","character varying(255)",1,""],["issuing_authority","character varying(255)",1,""],["executing_agency","text",1,""],["level_of_implementation","character varying(50)",0,""],["target_audience","character varying(255)",0,""],["fee_summary","character varying(255)",0,""],["processing_time_summary","character varying(255)",0,""],["is_active","boolean",0,""],["status_change_reason","text",1,""],["content_payload","jsonb",0,""],["checklist_schema","jsonb",1,""],["form_definitions","jsonb",1,""],["created_at","timestamp with time zone",0,""],["updated_at","timestamp with time zone",0,""]]},{"id":"CAT_procedure_versions","g":"CAT","ctx":"ProcedureDbContext","schema":"public","name":"procedure_versions","cols":[["id","uuid",0,"PK"],["procedure_id","uuid",0,"FK"],["version_number","integer",0,""],["decision_number","character varying(100)",1,""],["original_pdf_url","character varying(500)",1,""],["pdf_file_name","character varying(255)",1,""],["effective_date","date",0,""],["snapshot_data","jsonb",0,""],["created_at","timestamp with time zone",0,""]]},{"id":"WF_applications","g":"WF","ctx":"WorkflowDbContext","schema":"public","name":"applications","cols":[["id","uuid",0,"PK"],["application_code","character varying(50)",0,"UQ"],["user_id","uuid",0,"REF"],["procedure_id","uuid",0,"REF"],["ward_code","character varying(50)",1,"REF"],["procedure_title","character varying(500)",0,""],["case_code","character varying(100)",1,""],["status","character varying(50)",0,""],["form_data","jsonb",0,""],["submitted_at","timestamp with time zone",1,""],["first_submitted_at_utc","timestamp with time zone",1,""],["due_at_utc","timestamp with time zone",1,""],["deadline_status","character varying(20)",0,""],["deadline_policy_code","character varying(100)",1,""],["deadline_policy_version","character varying(100)",1,""],["deadline_calendar_code","character varying(100)",1,""],["deadline_calendar_version","character varying(100)",1,""],["deadline_policy_snapshot","jsonb",1,""],["deadline_paused_at_utc","timestamp with time zone",1,""],["deadline_history","jsonb",0,""],["created_at","timestamp with time zone",0,""],["updated_at","timestamp with time zone",0,""],["assigned_officer_id","uuid",1,"REF"],["resubmit_count","integer",0,""],["notes","text",1,""],["approved_at","timestamp with time zone",1,""],["documents_ready_at","timestamp with time zone",1,""],["receipt_number","character varying(64)",1,"UQ"],["received_at","timestamp with time zone",1,""],["appointment_date","timestamp with time zone",1,""]]},{"id":"WF_workflow_outbox","g":"WF","ctx":"WorkflowDbContext","schema":"public","name":"workflow_outbox","cols":[["id","uuid",0,"PK"],["payload","jsonb",0,""],["created_at","timestamp with time zone",0,""],["next_attempt_at","timestamp with time zone",0,""],["published_at","timestamp with time zone",1,""],["attempts","integer",0,""],["last_error","character varying(100)",1,""]]},{"id":"WF_application_checklists","g":"WF","ctx":"WorkflowDbContext","schema":"public","name":"application_checklists","cols":[["id","uuid",0,"PK"],["sort_order","integer",0,""],["case_code","text",1,""],["submission_type","character varying(30)",1,""],["document_copy_type","character varying(30)",1,""],["quantity","integer",0,""],["condition_note","text",1,""],["form_template_id","uuid",1,"REF"],["application_id","uuid",0,"FK"],["code","character varying(255)",0,""],["title","character varying(255)",0,""],["is_required","boolean",0,""],["status","character varying(30)",0,""],["file_url","character varying(500)",1,""],["note","character varying(4000)",1,""],["created_at","timestamp with time zone",0,""],["updated_at","timestamp with time zone",0,""]]},{"id":"WF_application_status_history","g":"WF","ctx":"WorkflowDbContext","schema":"public","name":"application_status_history","cols":[["id","uuid",0,"PK"],["application_id","uuid",0,"FK"],["from_status","character varying(50)",1,""],["to_status","character varying(50)",0,""],["changed_by","uuid",0,"REF"],["reason","text",1,""],["created_at","timestamp with time zone",0,""]]},{"id":"WF_application_versions","g":"WF","ctx":"WorkflowDbContext","schema":"public","name":"application_versions","cols":[["id","uuid",0,"PK"],["application_id","uuid",0,"FK"],["version_number","integer",0,""],["submitted_by","uuid",0,"REF"],["submitted_at","timestamp with time zone",0,""],["snapshot_data","jsonb",0,""]]},{"id":"WF_application_comments","g":"WF","ctx":"WorkflowDbContext","schema":"public","name":"application_comments","cols":[["id","uuid",0,"PK"],["application_id","uuid",0,"FK"],["application_version_id","uuid",0,"FK"],["officer_id","uuid",0,"REF"],["target_type","character varying(30)",0,""],["target_id","character varying(100)",0,""],["field_label","character varying(255)",0,""],["comment_text","text",0,""],["status","character varying(20)",0,""],["created_at","timestamp with time zone",0,""],["updated_at","timestamp with time zone",0,""]]},{"id":"DOC_application_forms","g":"DOC","ctx":"DocumentDbContext","schema":"document","name":"application_forms","cols":[["id","uuid",0,"PK"],["application_id","uuid",0,"REF"],["form_data","jsonb",0,""],["created_by","character varying(100)",1,""],["updated_by","character varying(100)",1,""],["created_at","timestamptz",0,""],["updated_at","timestamptz",1,""],["is_deleted","boolean",0,""],["deleted_at","timestamptz",1,""]]},{"id":"DOC_approved_qrs","g":"DOC","ctx":"DocumentDbContext","schema":"document","name":"approved_qrs","cols":[["id","uuid",0,"PK"],["application_id","uuid",0,"UQ REF"],["submission_id","uuid",0,"REF"],["qr_code_value","character varying(2048)",0,""],["qr_image_png","bytea",0,""],["generated_at","timestamptz",0,""]]},{"id":"DOC_form_templates","g":"DOC","ctx":"DocumentDbContext","schema":"document","name":"form_templates","cols":[["id","uuid",0,"PK"],["code","character varying(50)",0,"UQ"],["title","character varying(255)",0,""],["file_docx_url","text",1,""],["is_active","boolean",0,""],["created_by","character varying(100)",1,""],["updated_by","character varying(100)",1,""],["created_at","timestamptz",0,""],["updated_at","timestamptz",1,""],["is_deleted","boolean",0,""],["deleted_at","timestamptz",1,""]]},{"id":"DOC_generated_documents","g":"DOC","ctx":"DocumentDbContext","schema":"document","name":"generated_documents","cols":[["id","uuid",0,"PK"],["application_id","uuid",0,"REF"],["submission_id","uuid",1,""],["document_type","character varying(50)",0,""],["pdf_blob_url","text",0,""],["created_by","character varying(100)",1,""],["updated_by","character varying(100)",1,""],["created_at","timestamptz",0,""],["updated_at","timestamptz",1,""],["is_deleted","boolean",0,""],["deleted_at","timestamptz",1,""]]},{"id":"DOC_supporting_documents","g":"DOC","ctx":"DocumentDbContext","schema":"document","name":"supporting_documents","cols":[["id","uuid",0,"PK"],["application_id","uuid",0,"REF"],["submission_type","character varying(30)",1,""],["document_copy_type","character varying(30)",1,""],["quantity","integer",0,""],["checklist_id","uuid",1,"REF"],["file_name","character varying(255)",0,""],["blob_url","text",0,""],["file_size_bytes","bigint",1,""],["content_type","character varying(100)",1,""],["created_by","character varying(100)",1,""],["updated_by","character varying(100)",1,""],["created_at","timestamptz",0,""],["updated_at","timestamptz",1,""],["is_deleted","boolean",0,""],["deleted_at","timestamptz",1,""]]},{"id":"DOC_form_template_versions","g":"DOC","ctx":"DocumentDbContext","schema":"document","name":"form_template_versions","cols":[["id","uuid",0,"PK"],["original_blob_url","character varying(2048)",0,""],["original_sha256","character varying(64)",0,""],["mapping_definition","jsonb",0,""],["template_id","uuid",0,"FK"],["version_number","integer",0,""],["schema_definition","jsonb",0,""],["created_by","text",1,""],["updated_by","text",1,""],["created_at_utc","timestamp with time zone",0,""],["updated_at_utc","timestamp with time zone",1,""],["is_deleted","boolean",0,""],["deleted_at_utc","timestamp with time zone",1,""]]},{"id":"DOC_user_submissions","g":"DOC","ctx":"DocumentDbContext","schema":"document","name":"user_submissions","cols":[["id","uuid",0,"PK"],["template_version_id","uuid",1,"FK"],["form_data","jsonb",1,""],["template_id","uuid",0,"REF"],["application_id","uuid",1,"REF"],["checklist_id","uuid",1,"REF"],["applicant_id","uuid",0,"REF"],["blob_url","character varying(2048)",0,""],["file_name","character varying(512)",0,""],["file_size_bytes","bigint",0,""],["status","character varying(50)",0,""],["officer_comment","character varying(2000)",1,""],["reviewed_by_officer_id","uuid",1,""],["submitted_at","timestamptz",1,""],["reviewed_at","timestamptz",1,""],["created_by","character varying(100)",1,""],["updated_by","character varying(100)",1,""],["created_at","timestamptz",0,""],["updated_at","timestamptz",1,""],["is_deleted","boolean",0,""],["deleted_at","timestamptz",1,""]]},{"id":"AI_chat_sessions","g":"AI","ctx":"ChatDbContext","schema":"public","name":"chat_sessions","cols":[["id","uuid",0,"PK"],["user_id","uuid",0,"REF"],["ward_code","character varying(50)",0,"REF"],["created_at","timestamp with time zone",0,""]]},{"id":"AI_chat_messages","g":"AI","ctx":"ChatDbContext","schema":"public","name":"chat_messages","cols":[["id","uuid",0,"PK"],["session_id","uuid",0,"FK"],["role","character varying(20)",0,""],["content","character varying(20000)",0,""],["created_at","timestamp with time zone",0,""]]},{"id":"SYS_notification_inbox","g":"SYS","ctx":"NotificationDbContext","schema":"public","name":"notification_inbox","cols":[["Id","uuid",0,"PK"],["Payload","jsonb",0,""],["State","character varying(30)",0,""],["Attempts","integer",0,""],["NextAttemptAt","timestamp with time zone",0,""],["CreatedAt","timestamp with time zone",0,""],["ErrorCode","character varying(100)",1,""]]},{"id":"SYS_notifications","g":"SYS","ctx":"NotificationDbContext","schema":"public","name":"notifications","cols":[["id","uuid",0,"PK"],["source_event_id","uuid",1,"REF"],["recipient_ward_code","character varying(50)",1,"REF"],["recipient_user_id","uuid",0,"REF"],["application_id","uuid",1,"REF"],["title","character varying(255)",0,""],["content","text",0,""],["type","character varying(50)",0,""],["channel","character varying(30)",0,""],["is_read","boolean",0,""],["read_at","timestamp with time zone",1,""],["action_url","character varying(500)",1,""],["created_at","timestamp with time zone",0,""]]},{"id":"SYS_notification_deliveries","g":"SYS","ctx":"NotificationDbContext","schema":"public","name":"notification_deliveries","cols":[["Id","uuid",0,"PK"],["NotificationId","uuid",0,"FK"],["Channel","character varying(30)",0,""],["State","character varying(30)",0,""],["Attempts","integer",0,""],["NextAttemptAt","timestamp with time zone",0,""],["ErrorCode","character varying(100)",1,""],["SentAt","timestamp with time zone",1,""]]},{"id":"SYS_application_procedure_metrics","g":"SYS","ctx":"AnalyticsDbContext","schema":"analytics","name":"application_procedure_metrics","cols":[["MetricDate","date",0,"PK"],["ProcedureId","uuid",0,"PK REF"],["WardCode","character varying(50)",0,"PK REF"],["ReceivedCount","integer",0,""],["ReadyCount","integer",0,""],["RevisionRequestedCount","integer",0,""],["ResubmittedCount","integer",0,""],["CancelledCount","integer",0,""],["LegacyApprovedCount","integer",0,""],["LegacyRejectedCount","integer",0,""]]},{"id":"SYS_citizen_feedback","g":"SYS","ctx":"AnalyticsDbContext","schema":"analytics","name":"citizen_feedback","cols":[["Id","uuid",0,"PK"],["ApplicationId","uuid",0,"UQ REF"],["CitizenId","uuid",0,"REF"],["ProcedureId","uuid",0,"REF"],["WardCode","character varying(50)",0,"REF"],["Rating","integer",0,""],["Comment","character varying(2000)",1,""],["CreatedAtUtc","timestamp with time zone",0,""]]},{"id":"SYS_daily_performance_metrics","g":"SYS","ctx":"AnalyticsDbContext","schema":"analytics","name":"daily_performance_metrics","cols":[["MetricDate","date",0,"PK"],["OfficerId","uuid",0,"PK REF"],["ProcedureId","uuid",0,"PK REF"],["WardCode","character varying(50)",0,"PK REF"],["ReadyCount","integer",0,""],["RevisionRequestedCount","integer",0,""],["DurationSampleCount","integer",0,""],["TotalProcessingMinutes","double precision",0,""]]},{"id":"SYS_metric_refreshes","g":"SYS","ctx":"AnalyticsDbContext","schema":"analytics","name":"metric_refreshes","cols":[["MetricDate","date",0,"PK"],["SourceAtUtc","timestamp with time zone",0,""],["RefreshedAtUtc","timestamp with time zone",0,""]]}],"fks":[{"s":"IAM_permissions","t":"IAM_role_permissions","card":"o{","opt":"||","cols":"permission_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"IAM_roles","t":"IAM_role_permissions","card":"o{","opt":"||","cols":"role_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"IAM_wards","t":"IAM_users","card":"o{","opt":"|o","cols":"ward_id","tcols":"id","act":"ON DELETE RESTRICT"},{"s":"IAM_users","t":"IAM_refresh_tokens","card":"o{","opt":"||","cols":"user_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"IAM_users","t":"IAM_user_otps","card":"o{","opt":"||","cols":"user_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"IAM_users","t":"IAM_user_profiles","card":"o|","opt":"||","cols":"user_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"IAM_roles","t":"IAM_user_roles","card":"o{","opt":"||","cols":"role_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"IAM_users","t":"IAM_user_roles","card":"o{","opt":"||","cols":"user_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"IAM_users","t":"IAM_welcome_emails","card":"o|","opt":"||","cols":"user_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"CAT_procedure_categories","t":"CAT_procedures","card":"o{","opt":"||","cols":"category_id","tcols":"id","act":"ON DELETE RESTRICT"},{"s":"CAT_procedures","t":"CAT_procedure_versions","card":"o{","opt":"||","cols":"procedure_id","tcols":"id","act":"ON DELETE RESTRICT"},{"s":"WF_applications","t":"WF_application_checklists","card":"o{","opt":"||","cols":"application_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"WF_applications","t":"WF_application_status_history","card":"o{","opt":"||","cols":"application_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"WF_applications","t":"WF_application_versions","card":"o{","opt":"||","cols":"application_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"WF_application_versions","t":"WF_application_comments","card":"o{","opt":"||","cols":"application_id, application_version_id","tcols":"application_id, id","act":"ON DELETE RESTRICT"},{"s":"WF_applications","t":"WF_application_comments","card":"o{","opt":"||","cols":"application_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"DOC_form_templates","t":"DOC_form_template_versions","card":"o{","opt":"||","cols":"template_id","tcols":"id","act":"ON DELETE RESTRICT"},{"s":"DOC_form_template_versions","t":"DOC_user_submissions","card":"o{","opt":"|o","cols":"template_version_id","tcols":"id","act":"ON DELETE RESTRICT"},{"s":"AI_chat_sessions","t":"AI_chat_messages","card":"o{","opt":"||","cols":"session_id","tcols":"id","act":"ON DELETE CASCADE"},{"s":"SYS_notifications","t":"SYS_notification_deliveries","card":"o{","opt":"||","cols":"NotificationId","tcols":"id","act":"ON DELETE CASCADE"}],"refs":[{"s":"IAM_users","t":"CAT_procedure_drafts","label":"CreatedBy/ReviewedBy","cols":"created_by, reviewed_by","uniq":false},{"s":"CAT_procedures","t":"CAT_procedure_drafts","label":"PublishedProcedureId","cols":"published_procedure_id","uniq":false},{"s":"IAM_users","t":"WF_applications","label":"UserId/AssignedOfficerId","cols":"user_id, assigned_officer_id","uniq":false},{"s":"IAM_wards","t":"WF_applications","label":"WardCode","cols":"ward_code","uniq":false},{"s":"CAT_procedures","t":"WF_applications","label":"ProcedureId","cols":"procedure_id","uniq":false},{"s":"IAM_users","t":"WF_application_comments","label":"OfficerId","cols":"officer_id","uniq":false},{"s":"IAM_users","t":"WF_application_versions","label":"SubmittedBy","cols":"submitted_by","uniq":false},{"s":"IAM_users","t":"WF_application_status_history","label":"ChangedBy","cols":"changed_by","uniq":false},{"s":"WF_applications","t":"WF_workflow_outbox","label":"Payload.ApplicationId","cols":"","uniq":false},{"s":"DOC_form_templates","t":"WF_application_checklists","label":"FormTemplateId","cols":"form_template_id","uniq":false},{"s":"CAT_procedures","t":"DOC_form_templates","label":"FormDefinitions JSON","cols":"","uniq":false},{"s":"IAM_users","t":"DOC_user_submissions","label":"ApplicantId","cols":"applicant_id","uniq":false},{"s":"DOC_form_templates","t":"DOC_user_submissions","label":"TemplateId","cols":"template_id","uniq":false},{"s":"WF_applications","t":"DOC_user_submissions","label":"ApplicationId","cols":"application_id","uniq":false},{"s":"WF_application_checklists","t":"DOC_user_submissions","label":"ChecklistId","cols":"checklist_id","uniq":false},{"s":"WF_applications","t":"DOC_application_forms","label":"ApplicationId","cols":"application_id","uniq":false},{"s":"WF_applications","t":"DOC_supporting_documents","label":"ApplicationId","cols":"application_id","uniq":false},{"s":"WF_application_checklists","t":"DOC_supporting_documents","label":"ChecklistId","cols":"checklist_id","uniq":false},{"s":"WF_applications","t":"DOC_generated_documents","label":"ApplicationId","cols":"application_id","uniq":false},{"s":"WF_applications","t":"DOC_approved_qrs","label":"ApplicationId unique","cols":"application_id","uniq":true},{"s":"DOC_user_submissions","t":"DOC_approved_qrs","label":"SubmissionId","cols":"submission_id","uniq":false},{"s":"IAM_users","t":"AI_chat_sessions","label":"UserId","cols":"user_id","uniq":false},{"s":"IAM_wards","t":"AI_chat_sessions","label":"WardCode","cols":"ward_code","uniq":false},{"s":"IAM_users","t":"SYS_notifications","label":"RecipientUserId","cols":"recipient_user_id","uniq":false},{"s":"IAM_wards","t":"SYS_notifications","label":"RecipientWardCode","cols":"recipient_ward_code","uniq":false},{"s":"WF_applications","t":"SYS_notifications","label":"ApplicationId","cols":"application_id","uniq":false},{"s":"WF_workflow_outbox","t":"SYS_notification_inbox","label":"EventId","cols":"","uniq":false},{"s":"SYS_notification_inbox","t":"SYS_notifications","label":"SourceEventId","cols":"source_event_id","uniq":false},{"s":"WF_applications","t":"SYS_citizen_feedback","label":"ApplicationId unique","cols":"ApplicationId","uniq":true},{"s":"IAM_users","t":"SYS_citizen_feedback","label":"CitizenId","cols":"CitizenId","uniq":false},{"s":"CAT_procedures","t":"SYS_citizen_feedback","label":"ProcedureId","cols":"ProcedureId","uniq":false},{"s":"CAT_procedures","t":"SYS_application_procedure_metrics","label":"ProcedureId","cols":"ProcedureId","uniq":false},{"s":"IAM_users","t":"SYS_daily_performance_metrics","label":"OfficerId","cols":"OfficerId","uniq":false},{"s":"CAT_procedures","t":"SYS_daily_performance_metrics","label":"ProcedureId","cols":"ProcedureId","uniq":false},{"s":"IAM_wards","t":"SYS_application_procedure_metrics","label":"WardCode","cols":"WardCode","uniq":false},{"s":"IAM_wards","t":"SYS_daily_performance_metrics","label":"WardCode","cols":"WardCode","uniq":false},{"s":"IAM_wards","t":"SYS_citizen_feedback","label":"WardCode","cols":"WardCode","uniq":false},{"s":"IAM_users","t":"IAM_rbac_audit_logs","label":"ActorUserId/TargetUserId","cols":"actor_user_id, target_user_id","uniq":false},{"s":"IAM_roles","t":"IAM_rbac_audit_logs","label":"RoleId","cols":"role_id","uniq":false},{"s":"IAM_permissions","t":"IAM_rbac_audit_logs","label":"PermissionId","cols":"permission_id","uniq":false}]};
+
+const SVC = {
+  IAM: { name: 'IAM', note: 'Accounts, roles, wards', v: '--iam' },
+  CAT: { name: 'Procedure Catalog', note: 'Procedure catalog', v: '--cat' },
+  WF:  { name: 'Application Workflow', note: 'Applications and document review', v: '--wf' },
+  DOC: { name: 'Document Form', note: 'Forms, documents, PDF, QR', v: '--doc' },
+  AI:  { name: 'AIOCR', note: 'Chat and OCR', v: '--ai' },
+  SYS: { name: 'Analytics System', note: 'Notifications and statistics', v: '--sys' }
+};
+const ORDER = ['IAM', 'CAT', 'WF', 'DOC', 'AI', 'SYS'];
+
+const CONCEPTS = [
+  { id: 'c_user', g: 'IAM', name: 'User', sub: 'Citizen, officer, administrator', tables: ['IAM_users', 'IAM_user_profiles'] },
+  { id: 'c_role', g: 'IAM', name: 'Role', tables: ['IAM_roles', 'IAM_user_roles'] },
+  { id: 'c_perm', g: 'IAM', name: 'Permission', tables: ['IAM_permissions', 'IAM_role_permissions'] },
+  { id: 'c_ward', g: 'IAM', name: 'Ward', tables: ['IAM_wards'] },
+  { id: 'c_sec', g: 'IAM', name: 'Session and OTP', sub: 'Refresh token, OTP, welcome email', tables: ['IAM_refresh_tokens', 'IAM_user_otps', 'IAM_welcome_emails'] },
+  { id: 'c_audit', g: 'IAM', name: 'RBAC audit log', tables: ['IAM_rbac_audit_logs'] },
+  { id: 'c_cat', g: 'CAT', name: 'Category', tables: ['CAT_procedure_categories'] },
+  { id: 'c_proc', g: 'CAT', name: 'Procedure', tables: ['CAT_procedures'] },
+  { id: 'c_pver', g: 'CAT', name: 'Procedure version', tables: ['CAT_procedure_versions'] },
+  { id: 'c_draft', g: 'CAT', name: 'Procedure draft', sub: 'Extracted from PDF', tables: ['CAT_procedure_drafts'] },
+  { id: 'c_app', g: 'WF', name: 'Application', sub: 'DRAFT → DOCUMENTS_READY → OFFICIALLY_RECEIVED', tables: ['WF_applications'] },
+  { id: 'c_chk', g: 'WF', name: 'Application checklist', sub: 'Snapshot of required documents', tables: ['WF_application_checklists'] },
+  { id: 'c_aver', g: 'WF', name: 'Application version', tables: ['WF_application_versions'] },
+  { id: 'c_cmt', g: 'WF', name: 'Officer comment', tables: ['WF_application_comments'] },
+  { id: 'c_hist', g: 'WF', name: 'Status history', tables: ['WF_application_status_history'] },
+  { id: 'c_evt', g: 'WF', name: 'Application event', sub: 'Outbox to notifications', tables: ['WF_workflow_outbox'] },
+  { id: 'c_tpl', g: 'DOC', name: 'Form template', sub: 'DOCX and its versions', tables: ['DOC_form_templates', 'DOC_form_template_versions'] },
+  { id: 'c_sub', g: 'DOC', name: 'Filled form', tables: ['DOC_user_submissions', 'DOC_application_forms'] },
+  { id: 'c_sup', g: 'DOC', name: 'Supporting document', tables: ['DOC_supporting_documents'] },
+  { id: 'c_pdf', g: 'DOC', name: 'Generated PDF', tables: ['DOC_generated_documents'] },
+  { id: 'c_qr', g: 'DOC', name: 'Application QR code', tables: ['DOC_approved_qrs'] },
+  { id: 'c_chat', g: 'AI', name: 'Chat session', tables: ['AI_chat_sessions'] },
+  { id: 'c_msg', g: 'AI', name: 'Chat message', tables: ['AI_chat_messages'] },
+  { id: 'c_noti', g: 'SYS', name: 'Notification', sub: 'Inbox, notifications, deliveries', tables: ['SYS_notification_inbox', 'SYS_notifications', 'SYS_notification_deliveries'] },
+  { id: 'c_fb', g: 'SYS', name: 'Citizen feedback', tables: ['SYS_citizen_feedback'] },
+  { id: 'c_met', g: 'SYS', name: 'Metrics', sub: 'By day, ward, procedure, officer', tables: ['SYS_application_procedure_metrics', 'SYS_daily_performance_metrics', 'SYS_metric_refreshes'] }
+];
+// [parent, child, verb, cardinality parent — child]
+const CREL = [
+  ['c_user', 'c_role', 'assigned', 'N — N'],
+  ['c_role', 'c_perm', 'contains', 'N — N'],
+  ['c_ward', 'c_user', 'has staff', '0..1 — N'],
+  ['c_user', 'c_sec', 'has', '1 — N'],
+  ['c_user', 'c_audit', 'performs', '1 — N'],
+  ['c_cat', 'c_proc', 'classifies', '1 — N'],
+  ['c_proc', 'c_pver', 'keeps', '1 — N'],
+  ['c_user', 'c_draft', 'drafts, reviews', '1 — N'],
+  ['c_proc', 'c_draft', 'published from', '0..1 — N'],
+  ['c_user', 'c_app', 'submits, handles', '1 — N'],
+  ['c_proc', 'c_app', 'governs', '1 — N'],
+  ['c_ward', 'c_app', 'receives', '1 — N'],
+  ['c_app', 'c_chk', 'has', '1 — N'],
+  ['c_app', 'c_aver', 'has', '1 — N'],
+  ['c_aver', 'c_cmt', 'receives', '1 — N'],
+  ['c_app', 'c_hist', 'logs', '1 — N'],
+  ['c_app', 'c_evt', 'emits', '1 — N'],
+  ['c_proc', 'c_tpl', 'uses', 'N — N'],
+  ['c_tpl', 'c_chk', 'required by', '0..1 — N'],
+  ['c_tpl', 'c_sub', 'filled as', '1 — N'],
+  ['c_app', 'c_sub', 'contains', '1 — N'],
+  ['c_chk', 'c_sub', 'fulfilled by', '0..1 — N'],
+  ['c_app', 'c_sup', 'attaches', '1 — N'],
+  ['c_chk', 'c_sup', 'fulfilled by', '0..1 — N'],
+  ['c_app', 'c_pdf', 'renders', '1 — N'],
+  ['c_app', 'c_qr', 'has', '1 — 0..1'],
+  ['c_user', 'c_chat', 'opens', '1 — N'],
+  ['c_chat', 'c_msg', 'contains', '1 — N'],
+  ['c_evt', 'c_noti', 'creates', '1 — N'],
+  ['c_user', 'c_noti', 'receives', '1 — N'],
+  ['c_app', 'c_fb', 'rated by', '1 — 0..1'],
+  ['c_user', 'c_fb', 'submits', '1 — N'],
+  ['c_proc', 'c_met', 'aggregated into', '1 — N'],
+  ['c_ward', 'c_met', 'aggregated into', '1 — N']
+];
+
+// FUTURE: proposed tables from the original 35-table spec (docs/diagrams/erd/archive-unified-20261015.md). Not implemented.
+// cols: [name, proposed type, nullable per spec (1) or undecided (0), flags]
+const FUTURE = {
+  tables: [
+    { id: 'F_knowledge_documents', g: 'AI', name: 'knowledge_documents', task: 'RAG, TASK-28/29', cols: [['Id', 'uuid', 0, 'PK'], ['ProcedureId', 'uuid', 1, 'REF'], ['Title', 'varchar', 0, ''], ['SourceType', 'varchar', 0, ''], ['RawContent', 'text', 0, ''], ['FileUrl', 'varchar', 0, ''], ['IsActive', 'boolean', 0, ''], ['UploadedBy', 'uuid', 0, 'REF'], ['CreatedAt', 'timestamptz', 0, ''], ['UpdatedAt', 'timestamptz', 0, '']] },
+    { id: 'F_knowledge_chunks', g: 'AI', name: 'knowledge_chunks', task: 'RAG, TASK-28/29', cols: [['Id', 'uuid', 0, 'PK'], ['DocumentId', 'uuid', 0, 'FK'], ['ChunkIndex', 'integer', 0, ''], ['ChunkContent', 'text', 0, ''], ['Embedding', 'vector(768)', 0, ''], ['Metadata', 'jsonb', 0, ''], ['CreatedAt', 'timestamptz', 0, '']] },
+    { id: 'F_ai_request_logs', g: 'AI', name: 'ai_request_logs', task: 'AI call logging', cols: [['Id', 'uuid', 0, 'PK'], ['SessionId', 'uuid', 0, 'FK'], ['ModelName', 'varchar', 0, ''], ['PromptTokens', 'integer', 0, ''], ['ResponseTokens', 'integer', 0, ''], ['LatencyMs', 'integer', 0, ''], ['StatusCode', 'integer', 0, ''], ['ErrorMessage', 'text', 0, ''], ['CreatedAt', 'timestamptz', 0, '']] },
+    { id: 'F_ocr_scan_logs', g: 'AI', name: 'ocr_scan_logs', task: 'TASK-30', cols: [['Id', 'uuid', 0, 'PK'], ['UserId', 'uuid', 1, 'REF'], ['DocumentType', 'varchar', 0, ''], ['ConfidenceScore', 'float8', 0, ''], ['IsSuccess', 'boolean', 0, ''], ['ErrorCode', 'varchar', 0, ''], ['CreatedAt', 'timestamptz', 0, '']] },
+    { id: 'F_audit_logs', g: 'SYS', name: 'audit_logs', task: 'TASK-34', cols: [['Id', 'uuid', 0, 'PK'], ['UserId', 'uuid', 1, 'REF'], ['Action', 'varchar', 0, ''], ['EntityName', 'varchar', 0, ''], ['EntityId', 'varchar', 0, ''], ['Details', 'jsonb', 0, ''], ['IpAddress', 'varchar', 0, ''], ['CreatedAt', 'timestamptz', 0, '']] },
+    { id: 'F_system_settings', g: 'SYS', name: 'system_settings', task: 'TASK-34', cols: [['Id', 'integer', 0, 'PK'], ['SettingKey', 'varchar', 0, 'UQ'], ['SettingValue', 'text', 0, ''], ['Description', 'text', 0, ''], ['UpdatedBy', 'uuid', 0, 'REF'], ['UpdatedAt', 'timestamptz', 0, '']] },
+    { id: 'F_service_health_logs', g: 'SYS', name: 'service_health_logs', task: 'TASK-35', cols: [['Id', 'uuid', 0, 'PK'], ['ServiceName', 'varchar', 0, ''], ['Status', 'varchar', 0, ''], ['LatencyMs', 'integer', 0, ''], ['Message', 'text', 0, ''], ['CheckedAt', 'timestamptz', 0, '']] },
+    { id: 'F_system_backup_logs', g: 'SYS', name: 'system_backup_logs', task: 'TASK-35', cols: [['Id', 'uuid', 0, 'PK'], ['BackupType', 'varchar', 0, ''], ['FileName', 'varchar', 0, ''], ['FileSizeBytes', 'bigint', 0, ''], ['StorageLocation', 'varchar', 0, ''], ['Status', 'varchar', 0, ''], ['ErrorMessage', 'text', 0, ''], ['CreatedAt', 'timestamptz', 0, '']] }
+  ],
+  // [code, parent, child, kind FK|REF, column on child, start, end]
+  rels: [
+    ['F1', 'F_knowledge_documents', 'F_knowledge_chunks', 'FK', 'DocumentId', 'one', 'many'],
+    ['F2', 'AI_chat_sessions', 'F_ai_request_logs', 'FK', 'SessionId', 'one', 'many'],
+    ['F3', 'CAT_procedures', 'F_knowledge_documents', 'REF', 'ProcedureId', 'zeroOne', 'many'],
+    ['F4', 'IAM_users', 'F_knowledge_documents', 'REF', 'UploadedBy', 'one', 'many'],
+    ['F5', 'F_knowledge_chunks', 'AI_chat_messages', 'REF', 'ReferencedChunkIds (planned new column)', 'many', 'many'],
+    ['F6', 'IAM_users', 'F_ocr_scan_logs', 'REF', 'UserId', 'zeroOne', 'many'],
+    ['F7', 'IAM_users', 'F_audit_logs', 'REF', 'UserId', 'zeroOne', 'many'],
+    ['F8', 'IAM_users', 'F_system_settings', 'REF', 'UpdatedBy', 'one', 'many']
+  ],
+  concepts: [
+    { id: 'cf_kdoc', g: 'AI', name: 'Knowledge document', sub: 'Source material for RAG', tables: ['F_knowledge_documents'] },
+    { id: 'cf_kchunk', g: 'AI', name: 'Knowledge chunk', sub: 'Text chunk and 768-d vector', tables: ['F_knowledge_chunks'] },
+    { id: 'cf_ailog', g: 'AI', name: 'AI request log', tables: ['F_ai_request_logs'] },
+    { id: 'cf_ocrlog', g: 'AI', name: 'OCR scan log', tables: ['F_ocr_scan_logs'] },
+    { id: 'cf_audit', g: 'SYS', name: 'Data audit log', tables: ['F_audit_logs'] },
+    { id: 'cf_setting', g: 'SYS', name: 'System setting', tables: ['F_system_settings'] },
+    { id: 'cf_health', g: 'SYS', name: 'Service health log', tables: ['F_service_health_logs'] },
+    { id: 'cf_backup', g: 'SYS', name: 'Backup log', tables: ['F_system_backup_logs'] }
+  ],
+  crel: [
+    ['c_proc', 'cf_kdoc', 'source of', '0..1 — N'],
+    ['c_user', 'cf_kdoc', 'uploads', '1 — N'],
+    ['cf_kdoc', 'cf_kchunk', 'split into', '1 — N'],
+    ['cf_kchunk', 'c_msg', 'cited in', 'N — N'],
+    ['c_chat', 'cf_ailog', 'logs', '1 — N'],
+    ['c_user', 'cf_ocrlog', 'scans', '0..1 — N'],
+    ['c_user', 'cf_audit', 'performs', '0..1 — N'],
+    ['c_user', 'cf_setting', 'updates', '1 — N']
+  ]
+};
+for (const t of FUTURE.tables) { t.future = true; t.ctx = 'not decided'; t.schema = 'FUTURE'; }
+for (const c of FUTURE.concepts) c.future = true;
+const tableById = Object.fromEntries([...DATA.tables, ...FUTURE.tables].map(t => [t.id, t]));
+const conceptById = Object.fromEntries([...CONCEPTS, ...FUTURE.concepts].map(c => [c.id, c]));
+
+const VIEWS = {
+  conceptual: { note: 'Business concepts and their relationships, without attributes. One concept can map to several tables; click a box to see them.', a: 'Within a service', b: 'Across services' },
+  logical: { note: 'All 37 tables with attributes and keys (PK, FK, UQ, REF), without data types. Click a table to see its relationships.', a: 'Foreign keys (FK)', b: 'Cross-service links (REF)' },
+  physical: { note: 'Table names with their PostgreSQL schema, data types, NOT NULL and the ON DELETE behaviour of each foreign key.', a: 'Foreign keys (FK)', b: 'Cross-service links (REF)' }
+};
+
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const shortType = t => t.replace('character varying', 'varchar').replace('timestamp with time zone', 'timestamptz').replace('timestamp without time zone', 'timestamp').replace('double precision', 'float8');
+const svcColor = g => `var(${SVC[g].v})`;
+const pad2 = n => String(n).padStart(2, '0');
+
+// ---------- text measurement ----------
+const mctx = document.createElement('canvas').getContext('2d');
+function tw(text, size, weight = 400, mono = true) {
+  mctx.font = `${weight} ${size}px ${mono ? '"JetBrains Mono", Consolas, monospace' : '"Be Vietnam Pro", "Segoe UI", sans-serif'}`;
+  return mctx.measureText(text).width;
+}
+
+// ---------- model per view ----------
+const HEAD = 34, ROW = 19, PADB = 8;
+function buildModel(view, withFuture) {
+  const nodes = [], edges = [];
+  if (view === 'conceptual') {
+    const concepts = withFuture ? [...CONCEPTS, ...FUTURE.concepts] : CONCEPTS;
+    for (const c of concepts) {
+      const w = Math.max(tw(c.name, 14, 600, false), c.sub ? tw(c.sub, 11, 400, false) : 0, c.future ? tw('FUTURE', 9, 700) + tw(c.name, 14, 600, false) + 8 : 0) + 34;
+      nodes.push({ id: c.id, g: c.g, kind: 'concept', future: !!c.future, w: Math.max(140, Math.ceil(w)), h: c.sub ? 56 : 42, c });
+    }
+    CREL.forEach(([s, t, verb, card], i) => {
+      const [l, r] = card.split(' — ');
+      edges.push({ id: 'e' + i, s, t, kind: conceptById[s].g === conceptById[t].g ? 'a' : 'b', label: verb, card, start: mk(l), end: mk(r) });
+    });
+    if (withFuture) FUTURE.crel.forEach(([s, t, verb, card], i) => {
+      const [l, r] = card.split(' — ');
+      edges.push({ id: 'x' + i, s, t, kind: 'f', label: verb, card, start: mk(l), end: mk(r) });
+    });
+  } else {
+    const phys = view === 'physical';
+    for (const t of withFuture ? [...DATA.tables, ...FUTURE.tables] : DATA.tables) {
+      const title = t.future ? t.name : phys ? `${t.schema}.${t.name}` : t.name;
+      const sub = t.future ? `FUTURE · ${t.task}` : phys ? t.ctx : SVC[t.g].name;
+      let flagW = 0, nameW = 0, typeW = 0;
+      for (const [n, ty, , f] of t.cols) {
+        flagW = Math.max(flagW, f ? f.split(' ').reduce((a, x) => a + tw(x, 9, 700) + 4, 0) : 0);
+        nameW = Math.max(nameW, tw(n, 11.5));
+        if (phys) typeW = Math.max(typeW, tw(shortType(ty), 11));
+      }
+      flagW = Math.max(flagW, 22);
+      const nnW = phys ? 26 : 0;
+      const bodyW = 12 + flagW + 6 + nameW + (phys ? 16 + typeW + 10 + nnW : 0) + 12;
+      const headW = Math.max(tw(title, 12.5, 600) + (t.future ? tw('FUTURE', 9, 700) + 18 : 0), tw(sub, 10)) + 24;
+      const w = Math.ceil(Math.max(bodyW, headW, 150));
+      nodes.push({ id: t.id, g: t.g, kind: 'table', future: !!t.future, w, h: HEAD + t.cols.length * ROW + PADB, t, flagW, nameW, typeW, phys, title, sub });
+    }
+    DATA.fks.forEach((f, i) => edges.push({ id: 'f' + i, s: f.s, t: f.t, kind: 'a', start: f.opt === '|o' ? 'zeroOne' : 'one', end: f.card === 'o|' ? 'zeroOne' : 'many', f }));
+    DATA.refs.forEach((r, i) => edges.push({ id: 'r' + i, s: r.s, t: r.t, kind: 'b', start: 'one', end: r.uniq ? 'zeroOne' : 'many', r }));
+    if (withFuture) FUTURE.rels.forEach(([code, s, t, type, col, start, end], i) => edges.push({ id: 'x' + i, s, t, kind: 'f', start, end, fx: { code, type, col } }));
+  }
+  return { nodes, edges };
+}
+function mk(s) { return s === 'N' ? 'many' : s === '0..1' ? 'zeroOne' : 'one'; }
+
+// ---------- ELK layout ----------
+const cache = {};
+async function layout(view) {
+  const withFuture = $('showF').checked, key = view + (withFuture ? '+f' : '');
+  if (cache[key]) return cache[key];
+  const model = buildModel(view, withFuture);
+  const groups = ORDER.map(g => ({
+    id: 'g_' + g,
+    layoutOptions: { 'elk.padding': '[top=52,left=22,bottom=22,right=22]' },
+    children: model.nodes.filter(n => n.g === g).map(n => ({ id: n.id, width: n.w, height: n.h }))
+  })).filter(g => g.children.length);
+  const conceptual = view === 'conceptual';
+  const graph = {
+    id: 'root',
+    layoutOptions: {
+      'elk.algorithm': 'layered',
+      'elk.direction': conceptual ? 'DOWN' : 'RIGHT',
+      'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
+      'elk.edgeRouting': 'ORTHOGONAL',
+      'elk.json.edgeCoords': 'ROOT',
+      'elk.json.shapeCoords': 'ROOT',
+      'elk.spacing.nodeNode': conceptual ? '34' : '30',
+      'elk.layered.spacing.nodeNodeBetweenLayers': conceptual ? '70' : '64',
+      'elk.spacing.edgeNode': '20',
+      'elk.spacing.edgeEdge': '9',
+      'elk.layered.spacing.edgeNodeBetweenLayers': '20',
+      'elk.layered.spacing.edgeEdgeBetweenLayers': '9',
+      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+      'elk.edgeLabels.placement': 'CENTER',
+      'elk.padding': '[top=30,left=30,bottom=30,right=30]'
+    },
+    children: groups,
+    edges: model.edges.map(e => {
+      const o = { id: e.id, sources: [e.s], targets: [e.t] };
+      if (conceptual) o.labels = [{ id: e.id + 'l', text: e.label, width: Math.ceil(tw(e.label, 10.5, 400, false)) + 10, height: 16 }];
+      return o;
+    })
+  };
+  const res = await new ELK().layout(graph);
+  cache[key] = { model, res };
+  return cache[key];
+}
+
+// ---------- markers ----------
+function defineMarkers() {
+  const defs = $('defs');
+  for (const v of ['fk', 'ref', 'fut', 'hi']) {
+    const mkM = (id, draw) => { const m = el('marker', { id: `${id}-${v}`, viewBox: '-20 -9 22 18', refX: 0, refY: 0, markerWidth: 22, markerHeight: 18, markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' }, defs); draw(m); };
+    const line = (m, d) => el('path', { d, class: `m-${v}`, 'stroke-width': 1.4 }, m);
+    const circ = (m, cx) => el('circle', { cx, cy: 0, r: 3.4, class: `m-${v}-c`, 'stroke-width': 1.4 }, m);
+    mkM('one', m => line(m, 'M-7,-6 L-7,6 M-12,-6 L-12,6'));
+    mkM('zeroOne', m => { line(m, 'M-7,-6 L-7,6'); circ(m, -14); });
+    mkM('many', m => { line(m, 'M-11,0 L0,-6 M-11,0 L0,0 M-11,0 L0,6'); circ(m, -15); });
+  }
+}
+
+// ---------- render ----------
+let current = null, viewName = 'conceptual', selected = null, selEdge = null;
+const vp = $('vp'), svg = $('svg');
+function roundedPath(pts, r = 8) {
+  let d = `M${pts[0].x},${pts[0].y}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
+    const d1 = Math.hypot(p1.x - p0.x, p1.y - p0.y), d2 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const rr = Math.min(r, d1 / 2, d2 / 2);
+    if (rr < 0.5) { d += ` L${p1.x},${p1.y}`; continue; }
+    const a = { x: p1.x - (p1.x - p0.x) / d1 * rr, y: p1.y - (p1.y - p0.y) / d1 * rr };
+    const b = { x: p1.x + (p2.x - p1.x) / d2 * rr, y: p1.y + (p2.y - p1.y) / d2 * rr };
+    d += ` L${a.x},${a.y} Q${p1.x},${p1.y} ${b.x},${b.y}`;
+  }
+  const last = pts[pts.length - 1];
+  return d + ` L${last.x},${last.y}`;
+}
+function txt(parent, x, y, s, cls, anchor) { const t = el('text', { x, y, class: cls }, parent); if (anchor) t.setAttribute('text-anchor', anchor); t.textContent = s; return t; }
+
+function render({ model, res }) {
+  vp.textContent = '';
+  const nodeMap = Object.fromEntries(model.nodes.map(n => [n.id, n]));
+  const zones = el('g', {}, vp), edgesG = el('g', {}, vp), nodesG = el('g', {}, vp);
+  const pos = {};
+  for (const g of res.children) {
+    const key = g.id.slice(2), z = el('g', { class: 'zone' }, zones);
+    el('rect', { x: g.x, y: g.y, width: g.width, height: g.height, rx: 14, style: `fill: color-mix(in srgb, ${svcColor(key)} var(--zone-alpha), transparent); stroke: color-mix(in srgb, ${svcColor(key)} 45%, transparent)` }, z);
+    txt(z, g.x + 22, g.y + 26, SVC[key].name, 'zt').setAttribute('style', `fill: ${svcColor(key)}`);
+    const fut = g.children.filter(c => nodeMap[c.id].future).length, count = g.children.length - fut;
+    txt(z, g.x + 22, g.y + 42, `${SVC[key].note} · ${count} ${viewName === 'conceptual' ? 'concepts' : 'tables'}${fut ? ` + ${fut} FUTURE` : ''}`, 'zs');
+    for (const c of g.children) pos[c.id] = { x: g.x + c.x, y: g.y + c.y, g };
+  }
+  // ELK reports child shapes relative to their group, and edges relative to the lowest common container.
+  const groupOf = id => pos[id] && pos[id].g;
+  // edges
+  const edgeEls = {};
+  for (const e of res.edges) {
+    const me = model.edges.find(x => x.id === e.id);
+    if (!e.sections || !e.sections.length) continue;
+    const s = e.sections[0];
+    const gs = groupOf(me.s), local = gs && gs === groupOf(me.t);
+    const ox = local ? gs.x : 0, oy = local ? gs.y : 0;
+    const pts = [s.startPoint, ...(s.bendPoints || []), s.endPoint].map(p => ({ x: p.x + ox, y: p.y + oy }));
+    const cls = me.kind === 'a' ? 'fk' : me.kind === 'b' ? 'ref' : 'fut';
+    const g = el('g', { class: `edge ${cls} k-${me.kind}`, 'data-edge': me.id }, edgesG);
+    const d = roundedPath(pts);
+    el('path', { d, class: 'hit' }, g);
+    const p = el('path', { d }, g);
+    g._p = p; g._cls = cls; g._m = me;
+    setMarkers(g, cls);
+    if (e.labels && e.labels[0]) {
+      const L = e.labels[0];
+      el('rect', { x: L.x + ox, y: L.y + oy, width: L.width, height: L.height, rx: 4, class: 'elabel-bg' }, g);
+      txt(g, L.x + ox + L.width / 2, L.y + oy + 12, me.label, '', 'middle');
+    }
+    const t = el('title', {}, g); t.textContent = edgeTitle(me);
+    edgeEls[me.id] = g;
+  }
+  // nodes
+  const nodeEls = {};
+  for (const n of model.nodes) {
+    const p = pos[n.id]; if (!p) continue;
+    const g = el('g', { class: `node ${n.kind}${n.future ? ' future' : ''}`, 'data-node': n.id, transform: `translate(${p.x},${p.y})` }, nodesG);
+    if (n.kind === 'concept') {
+      el('rect', { width: n.w, height: n.h, rx: 10, class: 'card', style: n.future ? '' : `stroke: ${svcColor(n.g)}` }, g);
+      el('rect', { x: 0, y: 8, width: 4, height: n.h - 16, rx: 2, style: `fill: ${svcColor(n.g)}` }, g);
+      const nm = txt(g, 17, n.c.sub ? 23 : 26, n.c.name, 'c-name');
+      if (n.future) txt(g, 17 + tw(n.c.name, 14, 600, false) + 8, n.c.sub ? 22 : 25, 'FUTURE', 'fut-badge');
+      if (n.c.sub) txt(g, 17, 42, n.c.sub, 'c-sub');
+    } else {
+      el('rect', { width: n.w, height: n.h, rx: 7, class: 'card' }, g);
+      el('path', { d: `M0,7 a7,7 0 0 1 7,-7 h${n.w - 14} a7,7 0 0 1 7,7 v${HEAD - 7} h-${n.w} z`, class: 'head', style: `fill: ${svcColor(n.g)}` }, g);
+      txt(g, 12, 15, n.title, 'head-t');
+      if (n.future) txt(g, 12 + tw(n.title, 12.5, 600) + 8, 15, 'FUTURE', 'fut-badge');
+      txt(g, 12, 28, n.sub, 'head-s');
+      n.t.cols.forEach(([name, type, nullable, flags], i) => {
+        const y = HEAD + i * ROW + 13;
+        if (i) el('line', { x1: 8, x2: n.w - 8, y1: HEAD + i * ROW, y2: HEAD + i * ROW, class: 'stripe' }, g);
+        let fx = 12;
+        if (flags) for (const f of flags.split(' ')) { txt(g, fx, y, f, 'f-' + f); fx += tw(f, 9, 700) + 4; }
+        const nx = 12 + n.flagW + 6;
+        txt(g, nx, y, name, 'row-t');
+        if (n.phys) {
+          txt(g, nx + n.nameW + 16, y, shortType(type), 'row-y');
+          txt(g, n.w - 12, y, nullable ? 'NULL' : n.future ? '' : 'NN', 'row-n', 'end');
+        }
+      });
+    }
+    const tt = el('title', {}, g); tt.textContent = n.kind === 'concept' ? n.c.name : n.title;
+    nodeEls[n.id] = g;
+  }
+  current = { model, res, nodeEls, edgeEls, nodeMap, W: res.width, H: res.height };
+  applyKindFilter();
+}
+function setMarkers(g, v) {
+  const me = g._m;
+  g._p.setAttribute('marker-start', `url(#${me.start}-${v})`);
+  g._p.setAttribute('marker-end', `url(#${me.end}-${v})`);
+}
+function nodeLabel(id) {
+  if (viewName === 'conceptual') return conceptById[id].name;
+  const t = tableById[id]; return t.future ? `${t.name} (FUTURE)` : viewName === 'physical' ? `${t.schema}.${t.name}` : t.name;
+}
+function edgeTitle(me) {
+  if (me.label) return `${me.kind === 'f' ? 'FUTURE: ' : ''}${nodeLabel(me.s)} ${me.label} ${nodeLabel(me.t)} (${me.card})`;
+  if (me.fx) return `${me.fx.code} planned ${me.fx.type}: ${tableById[me.t].name}.${me.fx.col} → ${tableById[me.s].name}`;
+  if (me.f) return `FK ${tableById[me.t].name}.${me.f.cols} → ${tableById[me.s].name}.${me.f.tcols} (${me.f.act})`;
+  return `REF ${tableById[me.t].name}.${me.r.cols || me.r.label} → ${tableById[me.s].name} (no database FK)`;
+}
+
+// ---------- selection ----------
+function select(id, edgeId) {
+  selected = id || null; selEdge = edgeId || null;
+  if (!current) return;
+  const { nodeEls, edgeEls, model } = current;
+  const related = new Set(), hiEdges = new Set();
+  if (selEdge) { const e = model.edges.find(x => x.id === selEdge); hiEdges.add(e.id); related.add(e.s); related.add(e.t); }
+  else if (selected) { related.add(selected); for (const e of model.edges) if ((e.s === selected || e.t === selected) && kindVisible(e.kind)) { hiEdges.add(e.id); related.add(e.s); related.add(e.t); } }
+  const any = related.size > 0;
+  for (const [id2, g] of Object.entries(nodeEls)) { g.classList.toggle('dim', any && !related.has(id2)); g.classList.toggle('sel', id2 === selected); }
+  for (const [id2, g] of Object.entries(edgeEls)) {
+    const hi = hiEdges.has(id2);
+    g.classList.toggle('dim', any && !hi); g.classList.toggle('hi', hi);
+    setMarkers(g, hi ? 'hi' : g._cls);
+    if (hi) g.parentNode.appendChild(g);
+  }
+  document.querySelectorAll('#reg-body tr').forEach(tr => tr.classList.toggle('on', tr.dataset.edge === selEdge || (!selEdge && selected && (tr.dataset.s === selected || tr.dataset.t === selected))));
+  renderDetail();
+}
+function kindVisible(k) { return k === 'a' ? $('showA').checked : k === 'b' ? $('showB').checked : true; }
+function applyKindFilter() {
+  if (!current) return;
+  for (const g of Object.values(current.edgeEls)) g.classList.toggle('hidden-kind', !kindVisible(g._m.kind));
+  select(selected, selEdge);
+}
+
+function renderDetail() {
+  const d = $('detail');
+  if (!current) { d.innerHTML = ''; return; }
+  const { model } = current;
+  if (!selected && !selEdge) {
+    const nA = model.edges.filter(e => e.kind === 'a').length, nB = model.edges.filter(e => e.kind === 'b').length, nF = model.edges.length - nA - nB;
+    const nFut = model.nodes.filter(n => n.future).length;
+    d.innerHTML = `<p class="svc" style="color:var(--muted)">Nothing selected</p><h2 style="font-family:var(--font-ui)">${viewName === 'conceptual' ? 'Click a concept' : 'Click a table'}</h2>
+      <p>Its relationships are highlighted and everything else fades. Drag to pan; scroll or pinch to zoom.</p>
+      <h3>This page</h3><ul>
+      <li>${model.nodes.length - nFut} ${viewName === 'conceptual' ? 'concepts' : 'tables'} implemented${nFut ? ` + ${nFut} FUTURE` : ''}</li>
+      <li>${nA} ${viewName === 'conceptual' ? 'relationships within a service' : 'foreign keys (FK)'}</li>
+      <li>${nB} ${viewName === 'conceptual' ? 'relationships across services' : 'cross-service REF links'}</li>
+      ${nF ? `<li>${nF} planned FUTURE relationships</li>` : ''}</ul>`;
+    return;
+  }
+  if (selEdge) {
+    const e = model.edges.find(x => x.id === selEdge);
+    d.innerHTML = `<p class="svc" style="color:var(--hi)">${e.kind === 'f' ? 'FUTURE — planned' : e.kind === 'a' ? (viewName === 'conceptual' ? 'Within a service' : 'Foreign key') : (viewName === 'conceptual' ? 'Across services' : 'Cross-service REF')}</p>
+      <h2>${esc(edgeTitle(e))}</h2>
+      <p>${e.kind === 'f' ? 'Proposed in the original specification. Not in the source code or any database yet.' : e.kind === 'b' && viewName !== 'conceptual' ? 'The two tables live in different databases. The child service stores only the ID; consistency is checked in code through internal APIs, not by an SQL constraint.' : ''}</p>
+      <ul><li><button data-go="${e.s}">${esc(nodeLabel(e.s))}</button></li><li><button data-go="${e.t}">${esc(nodeLabel(e.t))}</button></li></ul>`;
+    bindGo(d); return;
+  }
+  const n = current.nodeMap[selected];
+  const rels = model.edges.filter(e => e.s === selected || e.t === selected);
+  const relLi = rels.map(e => {
+    const other = e.s === selected ? e.t : e.s;
+    const tag = e.kind === 'f' ? '<span class="tag fut">FUTURE</span>' : e.kind === 'a' ? (viewName === 'conceptual' ? '<span class="tag fk">WITHIN</span>' : '<span class="tag fk">FK</span>') : (viewName === 'conceptual' ? '<span class="tag ref">ACROSS</span>' : '<span class="tag ref">REF</span>');
+    let how = '';
+    if (e.label) how = `${e.s === selected ? e.label + ' →' : '← ' + e.label} · ${e.card}`;
+    else if (e.fx) how = `${e.fx.code} planned ${e.fx.type} · ` + (e.t === selected ? `${e.fx.col} → ${tableById[e.s].name}` : `← ${tableById[e.t].name}.${e.fx.col}`);
+    else if (e.f) how = e.t === selected ? `${e.f.cols} → ${tableById[e.s].name}.${e.f.tcols}` : `← ${tableById[e.t].name}.${e.f.cols}`;
+    else how = e.t === selected ? `${e.r.cols || e.r.label} → ${tableById[e.s].name}` : `← ${tableById[e.t].name}.${e.r.cols || e.r.label}`;
+    return `<li>${tag}<button data-go="${other}">${esc(nodeLabel(other))}</button><br><span style="color:var(--muted)">${esc(how)}</span></li>`;
+  }).join('') || '<li>No relationships.</li>';
+  const futNote = '<p><span class="tag fut">FUTURE</span>Proposed in the original 35-table specification. No entity, migration or real table exists yet. Types are proposals; NOT NULL, lengths and indexes are not decided.</p>';
+  if (n.kind === 'concept') {
+    d.innerHTML = `<p class="svc" style="color:${svcColor(n.g)}">${SVC[n.g].name}</p><h2 style="font-family:var(--font-ui)">${esc(n.c.name)}</h2>
+      ${n.c.sub ? `<p>${esc(n.c.sub)}</p>` : ''}${n.future ? futNote : ''}<h3>Tables</h3><ul>${n.c.tables.map(t => `<li>${tableById[t].future ? tableById[t].name + ' (FUTURE)' : tableById[t].schema + '.' + tableById[t].name} · ${tableById[t].cols.length} columns</li>`).join('')}</ul>
+      <h3>Relationships (${rels.length})</h3><ul>${relLi}</ul>`;
+  } else {
+    const t = n.t, pk = t.cols.filter(c => c[3].includes('PK')).map(c => c[0]).join(', ');
+    d.innerHTML = `<p class="svc" style="color:${svcColor(n.g)}">${SVC[n.g].name} · ${t.future ? t.task : t.ctx}</p><h2>${t.future ? t.name : t.schema + '.' + t.name}</h2>
+      ${t.future ? futNote : ''}<p>${t.cols.length} columns · PK (${esc(pk)})</p><h3>Relationships (${rels.length})</h3><ul>${relLi}</ul>`;
+  }
+  bindGo(d);
+}
+function bindGo(root) { root.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { select(b.dataset.go); centerOn(b.dataset.go); })); }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// ---------- register table ----------
+function renderRegister() {
+  const { model } = current, concept = viewName === 'conceptual';
+  $('reg-title').textContent = concept ? 'Business relationship register' : 'Table relationship register';
+  $('reg-note').textContent = concept ? 'Click a row to highlight the relationship on the diagram.' : 'FK is a real SQL constraint inside one database. REF is a column holding an ID from another service. Click a row to highlight it on the diagram.';
+  $('reg-head').innerHTML = concept
+    ? '<tr><th>Code</th><th>Type</th><th>Parent concept</th><th>Relationship</th><th>Child concept</th><th>Cardinality</th></tr>'
+    : `<tr><th>Code</th><th>Type</th><th>Parent table</th><th>Child table</th><th>Column on child</th><th>${viewName === 'physical' ? 'Constraint' : 'Cardinality'}</th></tr>`;
+  const card = e => ({ one: '1', zeroOne: '0..1', many: '0..N' })[e.start] + ' — ' + ({ one: '1', zeroOne: '0..1', many: '0..N' })[e.end];
+  $('reg-note').textContent += $('showF').checked ? ' FUTURE rows (F1…) are proposed relationships that are not implemented.' : '';
+  let n = 0, nf = 0;
+  $('reg-body').innerHTML = model.edges.map(e => {
+    const fut = e.kind === 'f';
+    const code = fut ? (e.fx ? e.fx.code : 'F' + (++nf)) : 'R' + pad2(++n);
+    const kind = fut ? (e.fx ? `FUTURE ${e.fx.type}` : 'FUTURE') : e.kind === 'a' ? (concept ? 'Within' : 'FK') : (concept ? 'Across' : 'REF');
+    const col = e.f ? e.f.cols + ' → ' + e.f.tcols : e.fx ? e.fx.col : (e.r.cols || e.r.label);
+    const last = viewName === 'physical' ? (e.f ? e.f.act : fut ? 'planned, not implemented' : 'no database FK') : card(e);
+    const row = concept
+      ? `<td>${esc(nodeLabel(e.s))}</td><td>${esc(e.label)}</td><td>${esc(nodeLabel(e.t))}</td><td class="mono">${e.card}</td>`
+      : `<td class="mono">${esc(nodeLabel(e.s))}</td><td class="mono">${esc(nodeLabel(e.t))}</td><td class="mono">${esc(col)}</td><td class="mono">${esc(last)}</td>`;
+    return `<tr tabindex="0" data-edge="${e.id}" data-s="${e.s}" data-t="${e.t}"><td class="mono">${code}</td><td>${kind}</td>${row}</tr>`;
+  }).join('');
+  $('reg-body').querySelectorAll('tr').forEach(tr => {
+    const go = () => { select(null, tr.dataset.edge); centerOn(tr.dataset.s, tr.dataset.t); document.querySelector('.canvas').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
+    tr.addEventListener('click', go); tr.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); go(); } });
+  });
+}
+
+// ---------- pan & zoom ----------
+let T = { k: 1, x: 0, y: 0 };
+const applyT = () => vp.setAttribute('transform', `translate(${T.x},${T.y}) scale(${T.k})`);
+function fit() {
+  if (!current) return;
+  const r = svg.getBoundingClientRect();
+  const k = Math.min(r.width / current.W, r.height / current.H) * 0.97;
+  T = { k, x: (r.width - current.W * k) / 2, y: (r.height - current.H * k) / 2 }; applyT();
+}
+function zoomAt(f, cx, cy) {
+  const k = Math.min(4, Math.max(0.05, T.k * f)); f = k / T.k;
+  T.x = cx - (cx - T.x) * f; T.y = cy - (cy - T.y) * f; T.k = k; applyT();
+}
+function centerOn(a, b) {
+  if (!current) return;
+  const boxes = [a, b].filter(Boolean).map(id => { const g = current.nodeEls[id]; if (!g) return null; const n = current.nodeMap[id]; const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute('transform')); return { x: +m[1], y: +m[2], w: n.w, h: n.h }; }).filter(Boolean);
+  if (!boxes.length) return;
+  const x0 = Math.min(...boxes.map(b => b.x)), y0 = Math.min(...boxes.map(b => b.y)), x1 = Math.max(...boxes.map(b => b.x + b.w)), y1 = Math.max(...boxes.map(b => b.y + b.h));
+  const r = svg.getBoundingClientRect();
+  const k = Math.min(1.1, Math.max(0.3, Math.min(r.width / (x1 - x0 + 160), r.height / (y1 - y0 + 160))));
+  T = { k, x: r.width / 2 - (x0 + x1) / 2 * k, y: r.height / 2 - (y0 + y1) / 2 * k }; applyT();
+}
+const pointers = new Map(); let drag = null, pinch = null;
+svg.addEventListener('wheel', e => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+svg.addEventListener('pointerdown', e => {
+  svg.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) drag = { x: e.clientX, y: e.clientY, tx: T.x, ty: T.y, moved: false, target: e.target };
+  if (pointers.size === 2) { const [p, q] = [...pointers.values()]; pinch = { d: Math.hypot(p.x - q.x, p.y - q.y), k: T.k }; drag = null; }
+});
+svg.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && pointers.size === 2) {
+    const [p, q] = [...pointers.values()], r = svg.getBoundingClientRect();
+    zoomAt(pinch.k * Math.hypot(p.x - q.x, p.y - q.y) / pinch.d / T.k, (p.x + q.x) / 2 - r.left, (p.y + q.y) / 2 - r.top);
+  } else if (drag) {
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (Math.hypot(dx, dy) > 4) { drag.moved = true; svg.classList.add('dragging'); }
+    if (drag.moved) { T.x = drag.tx + dx; T.y = drag.ty + dy; applyT(); }
+  }
+});
+const endPointer = e => {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (drag && !drag.moved && e.type === 'pointerup') {
+    const n = drag.target.closest && drag.target.closest('[data-node]'), ed = drag.target.closest && drag.target.closest('[data-edge]');
+    if (n) select(n.dataset.node === selected ? null : n.dataset.node);
+    else if (ed) select(null, ed.dataset.edge);
+    else select(null);
+  }
+  if (!pointers.size) { drag = null; svg.classList.remove('dragging'); }
+};
+svg.addEventListener('pointerup', endPointer); svg.addEventListener('pointercancel', endPointer);
+svg.addEventListener('keydown', e => {
+  const r = svg.getBoundingClientRect(), step = 60;
+  if (e.key === '+' || e.key === '=') zoomAt(1.2, r.width / 2, r.height / 2);
+  else if (e.key === '-') zoomAt(1 / 1.2, r.width / 2, r.height / 2);
+  else if (e.key === '0') fit();
+  else if (e.key === 'Escape') select(null);
+  else if (e.key.startsWith('Arrow')) { T.x += e.key === 'ArrowLeft' ? step : e.key === 'ArrowRight' ? -step : 0; T.y += e.key === 'ArrowUp' ? step : e.key === 'ArrowDown' ? -step : 0; applyT(); }
+  else return;
+  e.preventDefault();
+});
+$('zin').onclick = () => { const r = svg.getBoundingClientRect(); zoomAt(1.25, r.width / 2, r.height / 2); };
+$('zout').onclick = () => { const r = svg.getBoundingClientRect(); zoomAt(0.8, r.width / 2, r.height / 2); };
+$('zfit').onclick = fit;
+$('showA').onchange = $('showB').onchange = applyKindFilter;
+$('showF').onchange = () => show(viewName);
+$('search').addEventListener('change', () => {
+  const q = $('search').value.trim().toLowerCase(); if (!q || !current) return;
+  const hit = current.model.nodes.find(n => (n.kind === 'concept' ? n.c.name : n.title).toLowerCase() === q) || current.model.nodes.find(n => (n.kind === 'concept' ? n.c.name : n.title).toLowerCase().includes(q));
+  if (hit) { select(hit.id); centerOn(hit.id); }
+});
+
+// ---------- view switching ----------
+async function show(view) {
+  viewName = view; selected = null; selEdge = null;
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === view)));
+  $('viewnote').textContent = VIEWS[view].note;
+  $('showA-l').textContent = VIEWS[view].a; $('showB-l').textContent = VIEWS[view].b;
+  $('legend').innerHTML = ORDER.map(g => `<span><i class="sw" style="background:${svcColor(g)}"></i>${SVC[g].name}</span>`).join('') +
+    `<span><i class="ln"></i>${view === 'conceptual' ? 'within a service' : 'FK'}</span><span><i class="ln ref"></i>${view === 'conceptual' ? 'across services' : 'REF'}</span>` +
+    ($('showF').checked ? `<span><i class="ln fut"></i>FUTURE (planned)</span>` : '');
+  const fut = $('showF').checked;
+  $('names').innerHTML = (view === 'conceptual' ? (fut ? [...CONCEPTS, ...FUTURE.concepts] : CONCEPTS).map(c => c.name) : (fut ? [...DATA.tables, ...FUTURE.tables] : DATA.tables).map(t => t.future || view !== 'physical' ? t.name : `${t.schema}.${t.name}`)).map(n => `<option value="${esc(n)}">`).join('');
+  try { history.replaceState(null, '', '#' + view); } catch (_) {}
+  if (typeof ELK === 'undefined') { $('status').textContent = 'The layout library (elkjs) did not load. Reload the page; the relationship register below still works.'; current = { model: buildModel(view, $('showF').checked) }; renderRegisterOnly(); return; }
+  $('status').hidden = false; $('status').textContent = 'Laying out the diagram…';
+  try {
+    const out = await layout(view);
+    if (viewName !== view) return;
+    render(out); renderRegister(); fit(); renderDetail();
+    $('status').hidden = true;
+  } catch (err) { $('status').textContent = 'Could not lay out the diagram: ' + err.message; }
+}
+function renderRegisterOnly() { current.edgeEls = {}; current.nodeEls = {}; current.nodeMap = Object.fromEntries(current.model.nodes.map(n => [n.id, n])); renderRegister(); }
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
+window.addEventListener('resize', () => { if (!selected && !selEdge) fit(); });
+
+// ---------- boot ----------
+$('stats').innerHTML = `<span><b>6</b> service</span><span><b>${DATA.tables.length}</b> tables</span><span><b>${DATA.tables.reduce((a, t) => a + t.cols.length, 0)}</b> columns</span><span><b>${DATA.fks.length}</b> FK</span><span><b>${DATA.refs.length}</b> REF</span><span><b>+${FUTURE.tables.length}</b> FUTURE</span><span>model ${DATA.date}</span>`;
+$('note-date').textContent = DATA.date;
+defineMarkers();
+const start = () => { const h = (location.hash || '').slice(1); show(VIEWS[h] ? h : 'conceptual'); };
+const fontsReady = document.fonts && document.fonts.load ? Promise.race([Promise.all([document.fonts.load('600 14px "Be Vietnam Pro"'), document.fonts.load('400 12px "JetBrains Mono"'), document.fonts.load('700 9px "JetBrains Mono"')]), new Promise(r => setTimeout(r, 1500))]) : Promise.resolve();
+fontsReady.then(start, start);
+</script>
+
+</body>
+</html>
