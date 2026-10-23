@@ -9,4 +9,11 @@ public interface IPdfRenderEngine
         Stream docxStream,
         string fileName = "document.docx",
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gộp nhiều file PDF thành một file PDF duy nhất theo thứ tự danh sách truyền vào.
+    /// </summary>
+    Task<Stream> MergePdfsAsync(
+        IReadOnlyList<(Stream Stream, string FileName)> pdfStreams,
+        CancellationToken cancellationToken = default);
 }
