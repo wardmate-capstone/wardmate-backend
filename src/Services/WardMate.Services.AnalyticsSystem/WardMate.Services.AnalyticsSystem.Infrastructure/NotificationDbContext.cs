@@ -20,6 +20,10 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
         delivery.ToTable("notification_deliveries"); delivery.HasKey(x => x.Id);
         delivery.Property(x => x.Channel).HasMaxLength(30); delivery.Property(x => x.State).HasMaxLength(30);
         delivery.Property(x => x.ErrorCode).HasMaxLength(100);
+        delivery.Property(x => x.ExternalMessageId).HasColumnName("external_message_id").HasMaxLength(100);
+        delivery.Property(x => x.Provider).HasColumnName("provider").HasMaxLength(30);
+        delivery.Property(x => x.IsSandbox).HasColumnName("is_sandbox");
+        delivery.HasIndex(x => new { x.Provider, x.ExternalMessageId });
         delivery.HasIndex(x => new { x.NotificationId, x.Channel }).IsUnique();
         delivery.HasIndex(x => new { x.State, x.NextAttemptAt });
         delivery.HasOne<Notification>().WithMany().HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);

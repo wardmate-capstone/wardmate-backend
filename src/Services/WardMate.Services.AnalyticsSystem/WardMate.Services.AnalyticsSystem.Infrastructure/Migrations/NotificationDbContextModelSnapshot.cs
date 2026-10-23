@@ -132,11 +132,25 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("ExternalMessageId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_message_id");
+
+                    b.Property<bool?>("IsSandbox")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_sandbox");
+
                     b.Property<DateTime>("NextAttemptAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("NotificationId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("provider");
 
                     b.Property<DateTime?>("SentAt")
                         .HasColumnType("timestamp with time zone");
@@ -150,6 +164,8 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
 
                     b.HasIndex("NotificationId", "Channel")
                         .IsUnique();
+
+                    b.HasIndex("Provider", "ExternalMessageId");
 
                     b.HasIndex("State", "NextAttemptAt");
 

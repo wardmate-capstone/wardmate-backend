@@ -16,6 +16,9 @@ public sealed class NotificationInbox
 
 public sealed class NotificationDelivery
 {
+    public string? ExternalMessageId { get; set; }
+    public string? Provider { get; set; }
+    public bool? IsSandbox { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid NotificationId { get; set; }
     public string Channel { get; set; } = "IN_APP";

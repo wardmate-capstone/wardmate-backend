@@ -13,12 +13,6 @@ public interface ISmsSender
 }
 public sealed record SmsDeliveryResult(bool Success, string Status, string? ProviderMessageId, string? ErrorCode);
 
-// No provider call until a Brandname contract is configured. deliveryId is the future idempotency key.
-public sealed class UnconfiguredSmsSender : ISmsSender
-{
-    public Task<SmsDeliveryResult> Send(Notification notification, string phoneNumber, Guid deliveryId, CancellationToken ct) =>
-        Task.FromResult(new SmsDeliveryResult(false, "Blocked", null, "sms.provider_not_configured"));
-}
 public sealed class NotificationSendException(string code, Exception? inner = null) : Exception(code, inner)
 {
     public string Code { get; } = code;
@@ -29,11 +23,16 @@ public sealed class ExternalNotificationSender(IConfiguration configuration, ISm
     {
         if (delivery.Channel == "SMS")
         {
-            if (!configuration.GetValue<bool>("Sms:Enabled") || string.IsNullOrWhiteSpace(contact.PhoneNumber)) return "Blocked";
+            delivery.Provider = "eSMS";
+            delivery.IsSandbox = (configuration["Sms:Sandbox"] ?? "1") != "0";
+            if (!configuration.GetValue<bool>("Sms:Enabled") || string.IsNullOrWhiteSpace(contact.PhoneNumber))
+            { delivery.ErrorCode = "sms.disabled_or_phone_missing"; return "Blocked"; }
             var result = await sms.Send(notification, contact.PhoneNumber, delivery.Id, ct);
-            if (result.Success && result.Status == "Sent") return "Sent";
-            if (!result.Success && result.Status == "Blocked") return "Blocked";
-            throw new NotificationSendException("notification.sms_failed");
+            delivery.ExternalMessageId = result.ProviderMessageId;
+            delivery.ErrorCode = result.ErrorCode;
+            if (result.Success && result.Status is "Sent" or "Sandbox") return result.Status;
+            if (!result.Success && result.Status is "Blocked" or "Unknown") return result.Status;
+            throw new NotificationSendException(result.ErrorCode ?? "notification.sms_failed");
         }
         if (!configuration.GetValue<bool>("Email:Enabled")) return "Blocked";
         var host = configuration["Email:Host"]; var from = configuration["Email:From"];

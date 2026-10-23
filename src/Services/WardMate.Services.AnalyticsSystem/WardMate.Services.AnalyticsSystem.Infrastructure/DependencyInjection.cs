@@ -21,7 +21,10 @@ public static class DependencyInjection
         services.AddHostedService<NotificationRealtimeListener>();
         services.AddSingleton<NotificationConnectionGuard>();
         services.AddHostedService(sp => sp.GetRequiredService<NotificationConnectionGuard>());
-        services.AddSingleton<ISmsSender, UnconfiguredSmsSender>();
+        services.AddHttpClient<ISmsSender, EsmsNotificationSender>(http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(10); http.MaxResponseContentBufferSize = 64 * 1024;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<ExternalNotificationSender>();
         services.AddHttpClient<NotificationEmailSource>(http =>
         {
