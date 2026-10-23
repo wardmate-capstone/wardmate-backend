@@ -3085,3 +3085,31 @@ API/DTOkhôngđổi: /hubs/notifications JWT; GetNotifications(page,pageSize),Ge
 Validation: dotnet build WardMate.sln -c Release -warnaserror -m:1 PASS0warnings/0errors lầnđầu00:00:55.20; lầncuối sauconfiglistener00:00:32.69. Khôngtạotestproject,khôngintegrationtestDB/Rabbit/SignalR,khôngtestUI; khôngGit,Docker,Azure,Email/SMSthật. Sourceaudit/build hoànthành; nghiệmthu runtime/đa replica/mấtkếtnối cònFE/triểnkhai. Chưaalert tựđộng/adminreplayAPI; operatorrunbookđãcó.
 
 Gợi ýcommit riêngfilemới: feat(notifications): add cross-replica realtime listener. Functionalupdates: fix(notifications): broadcast delivery and read signals across replicas. Docs: docs(notifications): document pipeline audit and recovery runbook. Không thựcthiGit.
+
+
+## ERD-REFRESH — 2026-10-23 09:34:46 UTC+07:00
+
+Cập nhật Conceptual/Logical/Physical theo7EFcontext của6service. Export dotnet ef dbcontext script --configuration Release --no-build từInfrastructure design-time factories thành công cả7, không kết nối DB. Kiểm kê37bảng,343cột,20FKvậtlý,40nhómREFlogic. So với tài liệu cũ28bảng hiệncó:2IAM(OTP/welcome),2chat,4analytics,1QR làm tăng9 bảng trong danh mục đãtriểnkhai; không nói cả9mới tạo hômnay. Tươnglai8bảng táchriêng. TASK25/27 gầnnhất khôngthêmbảng. Security/deadline/receipt làbổsungcột/JSON chứkhôngsinh bảnggiả. approved_qrs thuộcDocumentForm; tênlegacy khôngđồngnghĩa phêduyệt hànhchính.
+
+Files sửa: docs/system-diagrams.md (mụcERD cậpnhật, giữActivity/State/Structure cũ cóghi phạmvi), docs/system-unified-erd.md (Logical mới). Files mới: docs/system-erd-conceptual.md; docs/system-erd-physical.md; docs/diagrams/erd/README.md,generate-erd.cjs,generate-drawio.cjs,model-inventory.json,wardmate-erd.drawio,conceptual.mmd,logical.mmd,future.mmd; physical-<Context>.mmd và schema/<Context>.sql cho7context; archive-unified-20261015.md,archive-system-diagrams-20261015.md lưu bảncũ. PROGRESS.md cậpnhật.
+
+Validation: 7/7 EFexports exit0; generator kiểm traFKtarget/REFtarget,37tableunique; drawio9pages XMLparse thànhcông. Chưa renderMermaid/drawio bằngrenderer đồhọa, không claim visualQA. Khôngbuild lại solution vì chỉtài liệu, khôngtestproject/UI/DB/Azure/Git. BuildRelease gầnnhất TASK25/27 đãpass0warnings/0errors, khôngđánhđồngvớikiểmtraERD. SQLschema khôngphảimigration nângcấp, chỉđối chiếu model; cloudschema chưađượcxácminh. Khôngđổi API/body/status/DTO/token/constraintsruntime.
+
+Commit gợi ý Antigravity: docs(erd): refresh conceptual logical and physical models; docs(erd): add editable drawio diagrams and model inventory. Mỗi filemới commitriêng theoAGENTS.md; khôngthựcthiGit.
+
+## ERD-UNIFIED-THREE-PAGES — 2026-10-23 10:03 UTC+07:00
+
+- Yêu cầu: đúng 3 trang Conceptual / Logical / Physical; mỗi trang nối toàn bộ 6 service, không tách Physical theo DbContext.
+- Đã thay bố cục ô dẹt bằng tiêu đề màu theo service và thuộc tính trong ô; đặt waypoint để đường nối không xuyên bảng khác. Mã Rxx dẫn tới danh mục quan hệ ở cuối mỗi hình, tránh nhãn dài che cột. FK thật và REF logic được phân biệt; 8 bảng FUTURE chỉ là đề xuất, không bịa cột vật lý.
+- File sửa: docs/diagrams/erd/generate-drawio.cjs, docs/diagrams/erd/wardmate-erd.drawio, docs/diagrams/erd/README.md, docs/system-erd-conceptual.md, docs/system-unified-erd.md, docs/system-erd-physical.md, docs/system-diagrams.md, PROGRESS.md.
+- File mới: docs/diagrams/erd/conceptual.svg, logical.svg, physical.svg và conceptual-preview.png, logical-preview.png, physical-preview.png trong cùng thư mục. SVG là bản vector phóng to; PNG chỉ để xem tổng quan.
+- Kiểm tra: generator chạy thành công; XML đúng 3 trang. Conceptual 33 khái niệm gồm tương lai / 32 quan hệ; Logical và Physical mỗi trang 37 bảng hiện có + 8 dự kiến / 66 quan hệ (20 FK + 40 REF hiện có + 6 đề xuất). Kiểm tra hình học không có đoạn nối đi xuyên bảng không liên quan. Đã render cả 3 SVG bằng Sharp và xem ảnh PNG; tăng khoảng cách header để tránh đường nối đè chú giải. Chưa mở trực tiếp file trong diagrams.net để kiểm tra renderer của draw.io.
+- Build/test: không chạy lại Release vì chỉ thay tài liệu và generator sơ đồ, không đổi C# hoặc cấu hình runtime; không tạo test project, không tuyên bố test backend mới. Không chạy Git, không migrate, không deploy.
+- API/DTO/ProblemDetails/token: không thay đổi endpoint, request, response, quyền hay hợp đồng FE.
+- Gợi ý commit cho Antigravity: docs(erd): unify conceptual logical and physical diagrams across six services. Theo quy tắc dự án, mỗi file mới cần commit riêng; chia cập nhật tài liệu hiện có theo chức năng, không thực thi Git ở lượt này.
+
+## ERD-DRAWING-GUIDE — 2026-10-23 (UTC+07:00)
+- Tạo docs/erd-drawing-guide.txt theo yêu cầu mô tả bằng chữ để người dùng tự vẽ 3 trang ERD toàn hệ thống.
+- Nội dung: bố trí bảng, phân biệt Conceptual/Logical/Physical, 37 bảng và thuộc tính theo model-inventory.json, 20 FK kèm cột nối/cardinality, 40 nhóm REF logic, 8 bảng tương lai đánh dấu chưa triển khai.
+- Kiểm tra: script tạo tài liệu thành công, số lượng khớp inventory; không truy vấn DB Azure. Chỉ thay tài liệu; không build/test backend, không đổi API/DTO/ProblemDetails/token, không Git.
+- Commit đề xuất: docs(erd): add plain text manual drawing guide. File mới cần commit riêng theo quy tắc dự án.
