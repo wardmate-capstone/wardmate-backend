@@ -3624,7 +3624,10 @@ Sai IDs/body400; thiếu token401; bị DocumentForm từ chối403/404; file kh
 
 - Assistant__Enabled=true để bật các lời gọi Gemini mới; mặc địnhfalse. Không ảnh hưởng Extraction__Enabled/UseAI của thủ tục.
 - Gemini__Key tham chiếu secret; Gemini__Model dùng model của dự án đã chọn. Không đổi billing hoặc tự chọn model khác. Các request gửi dữ liệu tài liệu tới Google Gemini; kiểm thử bằng tài liệu mẫu không chứa dữ liệu thật trước.
-- Jwt__Key/Jwt__Issuer/Jwt__Audience phải khớp IAM. Thiếu/sai khóa thì public AI endpoints không xác thực được. Luồng procedure-extractions nội bộ vẫn dùng X-Service-Key riêng.
+- Jwt__Key/Jwt__Issuer/Jwt__Audience phải khớp IAM. Luồng procedure-extractions nội bộ vẫn dùng X-Service-Key riêng.
+  - Cập nhật 23/10/2026 (AIOCR-JWT-01): thiếu Jwt__Key hoặc khóa dưới 32 byte thì AIOCR dừng ngay khi khởi động với lỗi "Cần khóa Jwt:Key ít nhất 32 byte, giống IAM." — toàn bộ service (kể cả procedure-extractions) không chạy cho tới khi cấu hình đúng. Trước đây service vẫn chạy nhưng mọi request Bearer bị 401 `WWW-Authenticate: Bearer error="invalid_token"`.
+  - Khi không đặt Jwt__Issuer/Jwt__Audience, AIOCR mặc định `wardmate`/`wardmate-client`, giống IAM và các service khác (trước đây mặc định sai `WardMate.IAM`/`WardMate.Client`). Nếu IAM trên môi trường của bạn cấp token với giá trị khác, phải đặt hai biến này cho AIOCR bằng đúng giá trị của IAM.
+  - Cách khắc phục 401 `invalid_token` trên AIOCR: so sánh Jwt__Key/Jwt__Issuer/Jwt__Audience của container AIOCR với IAM (cùng secret khóa). Sau khi token hợp lệ, nếu nhận 503 `auth.session_unavailable` thì kiểm tra Iam__BaseUrl của AIOCR trỏ tới IAM thật, không phải localhost.
 - ConnectionStrings__AiOcrDatabase: PostgreSQL riêng AIOCR; không dùng database/schema của service khác. Cần migration 20261021080951_ChatSessions trước dùng chat.
 - Database__AutoMigrate mặc địnhfalse; chỉ bậttrue nếu muốn service tự apply migration lúc startup và đã cấu hình đúng database. Khi thiếu connection và bật migration, startup dừng.
 - Services__DocumentForm__BaseUrl: URL cố định DocumentForm; dùng HTTPS trên Azure. Không có URL tùy ý trong request.
