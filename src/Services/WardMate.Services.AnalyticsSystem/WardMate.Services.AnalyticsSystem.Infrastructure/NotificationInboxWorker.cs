@@ -11,11 +11,34 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure;
 
 public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfiguration configuration, ILogger<NotificationInboxWorker> logger) : BackgroundService
 {
+    // Assignment events replace the status event of the same change, so each action decides its own audience:
+    // CLAIM -> applicant; ASSIGN -> applicant + new officer; TRANSFER -> new + previous officer; RELEASE -> ward pool.
+    public static bool AssignmentRecipient(WorkflowEvent e, RecipientContact r)
+    {
+        if (r.UserId == e.ApplicantId) return e.AssignmentAction is "CLAIM" or "ASSIGN";
+        if (!r.IsOfficer || r.WardCode != e.WardCode) return false;
+        return e.AssignmentAction switch
+        {
+            "ASSIGN" => r.UserId == e.AssignedOfficerId,
+            "TRANSFER" => r.UserId == e.AssignedOfficerId || r.UserId == e.PreviousOfficerId,
+            "RELEASE" => r.UserId != e.PreviousOfficerId,
+            _ => false
+        };
+    }
+    private static Guid[] AssignmentLookup(WorkflowEvent e) => e.AssignmentAction switch
+    {
+        "CLAIM" => [e.ApplicantId],
+        "ASSIGN" => [e.ApplicantId, e.AssignedOfficerId!.Value],
+        "TRANSFER" => [e.AssignedOfficerId!.Value, e.PreviousOfficerId!.Value],
+        _ => []
+    };
     public static Notification Create(WorkflowEvent e, Guid recipient, bool officer) => new()
     {
         Id = Guid.NewGuid(), SourceEventId = e.EventId, RecipientUserId = recipient, ApplicationId = e.ApplicationId,
         RecipientWardCode = officer ? e.WardCode : null,
-        Title = officer ? e.Status == "UNDER_REVIEW" ? "Hồ sơ được phân công" : "Có hồ sơ cần tiếp nhận" : e.Kind == "COMMENT" ? "Hồ sơ có nhận xét mới" : e.Status switch
+        Title = e.Kind == "APPLICATION_ASSIGNED" && officer
+            ? recipient == e.AssignedOfficerId ? "Hồ sơ được giao cho bạn" : e.AssignmentAction == "RELEASE" ? "Có hồ sơ cần tiếp nhận" : "Hồ sơ đã chuyển cho cán bộ khác"
+            : officer ? e.Status == "UNDER_REVIEW" ? "Hồ sơ được phân công" : "Có hồ sơ cần tiếp nhận" : e.Kind == "COMMENT" ? "Hồ sơ có nhận xét mới" : e.Status switch
         {
             "SUBMITTED" => "Hồ sơ đã được nộp", "UNDER_REVIEW" => "Giấy tờ đang được kiểm tra", "NEED_REVISION" => "Hồ sơ yêu cầu bổ sung",
             "OFFICIALLY_RECEIVED" => "Hồ sơ đã được tiếp nhận tại quầy",
@@ -24,7 +47,8 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
             "APPROVED" or "REJECTED" => "Cập nhật hồ sơ từ luồng cũ", _ => "Trạng thái hồ sơ đã thay đổi"
         },
         Content = $"Hồ sơ {e.ApplicationCode} có cập nhật. Vui lòng mở hồ sơ để xem chi tiết.",
-        Type = officer && e.Status == "UNDER_REVIEW" ? "ASSIGNED_OFFICER" : e.Kind == "COMMENT" ? "INLINE_COMMENT_ADDED" : "APPLICATION_STATUS_CHANGED",
+        Type = e.Kind == "APPLICATION_ASSIGNED" && officer ? e.AssignmentAction == "RELEASE" ? "APPLICATION_STATUS_CHANGED" : "ASSIGNED_OFFICER"
+            : officer && e.Status == "UNDER_REVIEW" ? "ASSIGNED_OFFICER" : e.Kind == "COMMENT" ? "INLINE_COMMENT_ADDED" : "APPLICATION_STATUS_CHANGED",
         ActionUrl = officer ? $"/officer/applications/{e.ApplicationId}/review" : $"/applications/{e.ApplicationId}/edit",
         CreatedAt = e.OccurredAt
     };
@@ -41,10 +65,14 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
         {
             var e = JsonSerializer.Deserialize<WorkflowEvent>(row.Payload)!;
             if (!WorkflowNotificationConsumer.Valid(e)) throw new InvalidOperationException("Sự kiện không hợp lệ.");
+            var assignment = e.Kind == "APPLICATION_ASSIGNED";
             var contacts = await scope.ServiceProvider.GetRequiredService<IRecipientContacts>().Find(
-                e.AssignedOfficerId is { } assigned ? [e.ApplicantId, assigned] : [e.ApplicantId],
-                e.Kind == "STATUS" && e.Status == "SUBMITTED" && e.AssignedOfficerId is null ? e.WardCode : null, ct);
-            foreach (var recipient in contacts.Where(r => r.UserId == e.ApplicantId || r.IsOfficer && r.WardCode == e.WardCode &&
+                assignment ? AssignmentLookup(e)
+                    : e.AssignedOfficerId is { } assigned ? [e.ApplicantId, assigned] : [e.ApplicantId],
+                assignment ? e.AssignmentAction == "RELEASE" ? e.WardCode : null
+                    : e.Kind == "STATUS" && e.Status == "SUBMITTED" && e.AssignedOfficerId is null ? e.WardCode : null, ct);
+            foreach (var recipient in contacts.DistinctBy(r => r.UserId).Where(r => assignment ? AssignmentRecipient(e, r)
+                : r.UserId == e.ApplicantId || r.IsOfficer && r.WardCode == e.WardCode &&
                 e.Kind == "STATUS" && e.Status is "SUBMITTED" or "UNDER_REVIEW" && (e.AssignedOfficerId == null || r.UserId == e.AssignedOfficerId)))
             {
                 var notification = Create(e, recipient.UserId, recipient.UserId != e.ApplicantId);

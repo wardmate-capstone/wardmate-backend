@@ -37,7 +37,9 @@ public sealed class EsmsNotificationSender(HttpClient http, IConfiguration confi
         if (e is null || e.EventId != eventId || e.ApplicationId != applicationId || !WorkflowNotificationConsumer.Valid(e))
             return Stop("sms.event_invalid");
         // Do not use free-text comments, citizen names or identity numbers in SMS.
-        var key = notification.RecipientUserId == e.ApplicantId
+        var key = e.Kind == "APPLICATION_ASSIGNED" && notification.RecipientUserId != e.ApplicantId
+            ? notification.RecipientUserId == e.AssignedOfficerId ? "OFFICER_ASSIGNED" : e.AssignmentAction == "RELEASE" ? "OFFICER_SUBMITTED" : "OFFICER_UNASSIGNED"
+            : notification.RecipientUserId == e.ApplicantId
             ? e.Kind == "COMMENT" ? "INLINE_COMMENT_ADDED" : e.Status
             : notification.RecipientWardCode == e.WardCode ? "OFFICER_" + e.Status : "";
         if (string.IsNullOrEmpty(key)) return Stop("sms.recipient_mismatch");
