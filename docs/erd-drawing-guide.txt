@@ -690,8 +690,132 @@ Không biến các quan hệ này thành FK SQL. Một nhóm có thể gồm nhi
 8. PHẦN TƯƠNG LAI — CHƯA TRIỂN KHAI
 
 8 bảng dự kiến: knowledge_documents, knowledge_chunks, ai_request_logs, ocr_scan_logs, audit_logs, system_settings, service_health_logs, system_backup_logs.
-Đặt các ô nét đứt có nhãn FUTURE ở mép trang; không tự điền kiểu dữ liệu/PK/FK khi chưa chốt thiết kế. Không tính chúng vào 37 bảng hiện có.
-Các quan hệ dự kiến: knowledge_documents chứa knowledge_chunks; chat_sessions liên quan ai_request_logs; chat_messages dùng knowledge_chunks; users là người thực hiện trong ocr_scan_logs, audit_logs, system_settings. Đây là đề xuất, chưa phải FK/REF đã triển khai.
+Không tính chúng vào 37 bảng hiện có. Vẽ ô viền nét đứt, tiêu đề có nhãn FUTURE, đặt trong vùng service dự kiến (AIOCR hoặc Analytics System).
+
+Nguồn cột: đặc tả backend gốc 35 bảng, chép lại trong docs/diagrams/erd/archive-unified-20261015.md (khối AI_FUTURE_* và SYS_FUTURE_*).
+Đối chiếu 23/10/2026: chưa có entity, migration hay bảng nào trong source cho 8 bảng này. 6 bảng khác của đặc tả gốc đã được làm (chat_sessions, chat_messages, approved_qrs, citizen_feedback, daily_performance_metrics, application_procedure_metrics), xem mục 5.
+Tên cột giữ theo đặc tả (PascalCase). Kiểu dưới đây là kiểu đề xuất: độ dài varchar, schema, NOT NULL, index và UNIQUE chưa chốt, trừ chỗ ghi rõ. Khi triển khai thật, migration EF mới là căn cứ.
+
+8.1. Cột đề xuất
+
+FUTURE: knowledge_documents  (AIOCR — kho tri thức cho RAG, TASK-28/29)
+PK: (Id)
+  Id | uuid
+  ProcedureId | uuid NULL — REF thủ tục (procedures.id), có thể rỗng
+  Title | varchar
+  SourceType | varchar — MANUAL_TEXT, PDF_FILE, FAQ
+  RawContent | text
+  FileUrl | varchar
+  IsActive | boolean
+  UploadedBy | uuid — REF users.id
+  CreatedAt | timestamptz
+  UpdatedAt | timestamptz
+
+FUTURE: knowledge_chunks  (AIOCR — đoạn văn bản đã cắt và vector hóa)
+PK: (Id)
+  Id | uuid
+  DocumentId | uuid — FK dự kiến tới knowledge_documents.id
+  ChunkIndex | integer
+  ChunkContent | text
+  Embedding | vector(768) — pgvector, 768 chiều theo đặc tả gốc
+  Metadata | jsonb
+  CreatedAt | timestamptz
+
+FUTURE: ai_request_logs  (AIOCR — nhật ký mỗi lần gọi mô hình AI)
+PK: (Id)
+  Id | uuid
+  SessionId | uuid — FK dự kiến tới chat_sessions.id (bảng chat_sessions đã có)
+  ModelName | varchar
+  PromptTokens | integer
+  ResponseTokens | integer
+  LatencyMs | integer
+  StatusCode | integer
+  ErrorMessage | text
+  CreatedAt | timestamptz
+
+FUTURE: ocr_scan_logs  (AIOCR — nhật ký quét CCCD/giấy tờ, TASK-30)
+PK: (Id)
+  Id | uuid
+  UserId | uuid NULL — REF users.id, có thể rỗng
+  DocumentType | varchar
+  ConfidenceScore | double precision
+  IsSuccess | boolean
+  ErrorCode | varchar
+  CreatedAt | timestamptz
+
+FUTURE: audit_logs  (Analytics System — nhật ký thay đổi dữ liệu toàn hệ thống, TASK-34)
+PK: (Id)
+  Id | uuid
+  UserId | uuid NULL — REF users.id, có thể rỗng (tác vụ hệ thống)
+  Action | varchar
+  EntityName | varchar
+  EntityId | varchar
+  Details | jsonb
+  IpAddress | varchar
+  CreatedAt | timestamptz
+Khác với public.rbac_audit_logs của IAM (chỉ ghi thay đổi phân quyền, đã có).
+
+FUTURE: system_settings  (Analytics System — cấu hình hệ thống, TASK-34)
+PK: (Id)
+UNIQUE: (SettingKey)
+  Id | integer
+  SettingKey | varchar
+  SettingValue | text
+  Description | text
+  UpdatedBy | uuid — REF users.id
+  UpdatedAt | timestamptz
+
+FUTURE: service_health_logs  (Analytics System — lịch sử kiểm tra sức khỏe service, TASK-35)
+PK: (Id)
+  Id | uuid
+  ServiceName | varchar
+  Status | varchar
+  LatencyMs | integer
+  Message | text
+  CheckedAt | timestamptz
+
+FUTURE: system_backup_logs  (Analytics System — nhật ký sao lưu, TASK-35)
+PK: (Id)
+  Id | uuid
+  BackupType | varchar
+  FileName | varchar
+  FileSizeBytes | bigint
+  StorageLocation | varchar
+  Status | varchar
+  ErrorMessage | text
+  CreatedAt | timestamptz
+
+8.2. Quan hệ dự kiến (vẽ nét đứt, ghi FUTURE)
+
+F1. knowledge_documents (Id) -> knowledge_chunks (DocumentId)
+    FK dự kiến, cùng database AIOCR. Phía cha: 1; phía con: 0..N.
+F2. chat_sessions (id) -> ai_request_logs (SessionId)
+    FK dự kiến, cùng database AIOCR. Phía cha: 1; phía con: 0..N.
+F3. procedures (id) -> knowledge_documents (ProcedureId)
+    REF dự kiến giữa Procedure Catalog và AIOCR. Phía cha: 0..1; phía con: 0..N.
+F4. users (id) -> knowledge_documents (UploadedBy)
+    REF dự kiến giữa IAM và AIOCR. Phía cha: 1; phía con: 0..N.
+F5. knowledge_chunks (Id) <-> chat_messages (ReferencedChunkIds)
+    REF dự kiến nhiều–nhiều. ReferencedChunkIds là CỘT MỚI dự kiến thêm vào public.chat_messages (mảng uuid), hiện chưa có trong bảng.
+F6. users (id) -> ocr_scan_logs (UserId)
+    REF dự kiến giữa IAM và AIOCR. Phía cha: 0..1; phía con: 0..N.
+F7. users (id) -> audit_logs (UserId)
+    REF dự kiến giữa IAM và Analytics System. Phía cha: 0..1; phía con: 0..N.
+F8. users (id) -> system_settings (UpdatedBy)
+    REF dự kiến giữa IAM và Analytics System. Phía cha: 1; phía con: 0..N.
+service_health_logs và system_backup_logs đứng độc lập, không nối bảng nào.
+
+8.3. Conceptual (FUTURE)
+PROCEDURE — is source of — KNOWLEDGE_DOCUMENT (|o--o{)
+USER — uploads — KNOWLEDGE_DOCUMENT (||--o{)
+KNOWLEDGE_DOCUMENT — splits into — KNOWLEDGE_CHUNK (||--o{)
+CHAT_MESSAGE — cites — KNOWLEDGE_CHUNK (}o--o{)
+CHAT_SESSION — logs — AI_REQUEST_LOG (||--o{)
+USER — scans — OCR_SCAN_LOG (|o--o{)
+USER — performs — AUDIT_LOG (|o--o{)
+USER — updates — SYSTEM_SETTING (||--o{)
+SERVICE_HEALTH_LOG, SYSTEM_BACKUP_LOG: khái niệm vận hành độc lập.
+Đây là đề xuất thiết kế, chưa phải FK/REF đã triển khai.
 
 9. LƯU Ý KHI ĐỐI CHIẾU
 
