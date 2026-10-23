@@ -22,6 +22,8 @@ public interface IStaffAdministration
     Task<Result<WardDto[]>> ListWards(Guid actorId, CancellationToken ct);
     Task<Result<WardDto>> CreateWard(Guid actorId, string code, string name, CancellationToken ct);
     Task<Result<bool>> AssignWard(Guid actorId, Guid userId, Guid? wardId, CancellationToken ct);
+    Task<Result<ManagedUserDto>> CreateManager(Guid actorId, CreateManagerInput input, CancellationToken ct);
+    Task<Result<ManagedUserDto>> CreateProcedureManager(Guid actorId, CreateProcedureManagerInput input, CancellationToken ct);
     Task<Result<ManagedUserDto>> CreateFrontDesk(Guid actorId, CreateFrontDeskInput input, CancellationToken ct);
 }
 

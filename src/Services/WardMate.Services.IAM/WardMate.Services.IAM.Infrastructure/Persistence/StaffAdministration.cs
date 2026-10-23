@@ -66,6 +66,47 @@ public sealed class StaffAdministration(IamDbContext db, ManagementScope scope, 
         return Result<bool>.Success(true);
     }, ct);
 
+    public Task<Result<ManagedUserDto>> CreateManager(Guid actorId, CreateManagerInput input, CancellationToken ct) =>
+        CreateAdministratorStaff(actorId, input.Username, input.Email, input.Password, input.FullName, input.WardId,
+            RoleNames.Manager, "account.manager_created", ct);
+
+    public Task<Result<ManagedUserDto>> CreateProcedureManager(Guid actorId, CreateProcedureManagerInput input, CancellationToken ct) =>
+        CreateAdministratorStaff(actorId, input.Username, input.Email, input.Password, input.FullName, input.WardId,
+            RoleNames.ProcedureManager, "account.procedure_manager_created", ct);
+
+    private async Task<Result<ManagedUserDto>> CreateAdministratorStaff(Guid actorId, string rawUsername, string rawEmail,
+        string password, string fullName, Guid? wardId, string roleName, string action, CancellationToken ct)
+    {
+        var result = await rbac.Exclusive(async () =>
+        {
+            // Recheck authorization under the same lock as role/account mutations.
+            if (!await rbac.IsAdministrator(actorId, ct) || !await rbac.HasPermission(actorId, "iam.accounts.manage", ct))
+                return Result<ManagedUserDto>.Failure(RbacErrors.Forbidden);
+            if (roleName == RoleNames.Manager && wardId is null)
+                return Result<ManagedUserDto>.Failure(new("iam.ward_required", "Cần chọn phường công tác cho lãnh đạo.", ErrorKind.BadRequest));
+            var ward = wardId.HasValue ? await db.Wards.AsNoTracking().SingleOrDefaultAsync(w => w.Id == wardId, ct) : null;
+            if (wardId.HasValue && ward is null)
+                return Result<ManagedUserDto>.Failure(new("iam.ward_not_found", "Không tìm thấy phường công tác hợp lệ.", ErrorKind.NotFound));
+            var username = rawUsername.Trim().ToLowerInvariant();
+            var email = rawEmail.Trim().ToLowerInvariant();
+            if (await db.Users.AnyAsync(u => u.Username == username || u.Email == email, ct))
+                return Result<ManagedUserDto>.Failure(AuthErrors.DuplicateAccount);
+            var role = await db.Roles.SingleOrDefaultAsync(r => r.RoleName == roleName, ct);
+            if (role is null) return Result<ManagedUserDto>.Failure(RbacErrors.RoleNotFound);
+            var now = clock.GetUtcNow().UtcDateTime;
+            var user = new User { Username = username, Email = email, PasswordHash = passwords.Hash(password),
+                WardId = wardId, CreatedAt = now, UpdatedAt = now };
+            user.Profile = new UserProfile { UserId = user.Id, FullName = fullName.Trim(), UpdatedAt = now };
+            user.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
+            db.Users.Add(user);
+            rbac.Audit(actorId, action, user.Id, role.Id, null, JsonSerializer.Serialize(new { wardId }));
+            return Result<ManagedUserDto>.Success(new(user.Id, user.Username, user.Email, user.IsActive, wardId, ward?.Name,
+                UserProfileDto.From(user.Profile), [new(role.Id, roleName)]));
+        }, ct);
+        // Registration does not share the RBAC advisory lock. Unique indexes remain the race guard.
+        return result.Error == RbacErrors.Duplicate ? Result<ManagedUserDto>.Failure(AuthErrors.DuplicateAccount) : result;
+    }
+
     public Task<Result<ManagedUserDto>> CreateFrontDesk(Guid actorId, CreateFrontDeskInput input, CancellationToken ct) => rbac.Exclusive(async () =>
     {
         if (!await scope.CanManage(actorId, ct)) return Result<ManagedUserDto>.Failure(RbacErrors.Forbidden);

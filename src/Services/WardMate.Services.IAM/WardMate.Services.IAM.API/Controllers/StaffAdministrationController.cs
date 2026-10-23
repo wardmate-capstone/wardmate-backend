@@ -21,6 +21,22 @@ public sealed class StaffAdministrationController(ISender sender) : ControllerBa
         return result.IsSuccess ? Created($"/api/v1/accounts/{result.Value!.Id}", result.Value) : result.ToProblem(HttpContext);
     }
 
+    [HttpPost("manager"), Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.accounts.manage")]
+    [ProducesResponseType<ManagedUserDto>(201)]
+    public async Task<IActionResult> CreateManager(CreateManagerInput input, CancellationToken ct)
+    {
+        var result = await sender.Send(new CreateManagerCommand(ActorId, input), ct);
+        return result.IsSuccess ? Created($"/api/v1/accounts/{result.Value!.Id}", result.Value) : result.ToProblem(HttpContext);
+    }
+
+    [HttpPost("procedure-manager"), Authorize(Policy = RbacAdministratorRequirement.Policy), Authorize(Policy = "iam.accounts.manage")]
+    [ProducesResponseType<ManagedUserDto>(201)]
+    public async Task<IActionResult> CreateProcedureManager(CreateProcedureManagerInput input, CancellationToken ct)
+    {
+        var result = await sender.Send(new CreateProcedureManagerCommand(ActorId, input), ct);
+        return result.IsSuccess ? Created($"/api/v1/accounts/{result.Value!.Id}", result.Value) : result.ToProblem(HttpContext);
+    }
+
     [HttpGet("wards"), Authorize(Policy = "iam.wards.read")]
     [ProducesResponseType<WardDto[]>(200)]
     public async Task<IActionResult> Wards(CancellationToken ct)
