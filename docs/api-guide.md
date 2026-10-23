@@ -3361,9 +3361,11 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
 - **Ai dùng**: Bất kỳ ai quét mã QR (người dân, cơ quan xác minh, cán bộ).
 - **Cách hoạt động**:
   1. Camera quét QR → URL `https://gateway/api/v1/public/applications/{id}/pdf-redirect`
-  2. Backend tìm file PDF mới nhất của hồ sơ trong bảng `generated_documents`
-  3. Tạo **SAS URL ngắn hạn 15 phút** trỏ đến file trên Azure Blob Storage
-  4. Trả về `302 Found` redirect → trình duyệt tự mở/tải PDF
+  2. Backend kiểm tra toàn bộ các file PDF đã kết xuất của hồ sơ:
+     - **Nếu hồ sơ có 1 đơn:** Trả về SAS URL của file PDF đó.
+     - **Nếu hồ sơ có từ 2 đơn trở lên:** Backend tự động gọi Gotenberg Engine (`/forms/pdfengines/merge`) để ghép nối tiếp tất cả các đơn thành **1 file PDF duy nhất trọn bộ** (loại `COMBINED_APPLICATION`, lưu vào Azure Blob và tái sử dụng cho các lần quét sau).
+  3. Tạo **SAS URL ngắn hạn 15 phút** trỏ đến file PDF (hoặc bản gộp) trên Azure Blob Storage.
+  4. Trả về `302 Found` redirect → trình duyệt/camera tự động mở toàn bộ file PDF.
 - **Kết quả thành công (302 Found)**: Header `Location` chứa SAS URL Azure Blob. Trình duyệt tự redirect, người dùng thấy/tải PDF.
 - **Lỗi thường gặp & Phục hồi**:
   - `404` (`qr.not_found`): Hồ sơ chưa có mã QR — chưa generate PDF lần nào.
@@ -3861,3 +3863,7 @@ SELECT "Id", "Attempts", "ErrorCode" FROM notification_inbox WHERE "State"='Dead
 SELECT "Id", "NotificationId", "Channel", "ErrorCode" FROM notification_deliveries WHERE "State" IN ('Dead','Blocked') LIMIT 50;
 ```
 Sau khi sửa nguyên nhân, operator có thể replay đúng một InboxDead hoặc DeliveryDead/Blocked: cập nhật State=Pending,Attempts=0,NextAttemptAt=now(),ErrorCode=NULL theo Id và điều kiệnstate. Không xóa notification/inbox, không đổi EventId, không replay Sent tựđộng (Email cóthểgửitrùng). Dead queue Rabbit phải kiểmtra/sửa producer và replay cóchọnlọc giữ EventId, không đẩy lại toàn bộ vôhạn. Hiện chưa có API quản trịreplay; thao tácDB/broker dooperator cóquyền. Email/SMS làTASK26; SMSAnalytics vẫnstub, khácSMSOTP IAM.
+
+### Chẩn đoán lỗi xác minh phiên IAM — cập nhật 23/10/2026
+Áp dụng cho API được bảo vệ bởi AccountSessionMiddleware, gồm DocumentForm. Response 401 auth.session_revoked hoặc 503 auth.session_unavailable bổ sung traceId để đối chiếu log; không thay đổi request hoặc quyền truy cập. FE gặp 503 giữ phiên và thông báo thử lại, gửi traceId cho vận hành.
+Log "IAM session check failed" phân biệt invalid_base_url, upstream_response (kèm HTTP status), transport_* (loại lỗi mạng .NET), timeout và invalid_authorization_header. Chỉ log authority IAM và traceId; không log token, body, query hoặc exception message. Nếu target là localhost trên Azure, kiểm tra cấu hình runtime Iam__BaseUrl; nếu upstream 5xx, kiểm tra IAM cùng thời điểm. Không suy ra lỗi role hoặc applicationId từ 503.

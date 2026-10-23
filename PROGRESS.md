@@ -2,6 +2,23 @@
 
 
 # WardMate — Nhật ký phát triển
+**Trạng thái TASK-QR-PDF-MERGE (Tự Động Gộp Nhiều Đơn Thành 1 PDF Trọn Bộ khi Quét QR): HOÀN THÀNH** — Bổ sung cơ chế tự động gộp (merge) nhiều đơn/giấy tờ trong cùng một hồ sơ thành một file PDF duy nhất khi quét mã QR: (1) Mở rộng interface `IPdfRenderEngine` bổ sung phương thức `MergePdfsAsync`; (2) Triển khai `GotenbergPdfRenderEngine.MergePdfsAsync` gọi endpoint Gotenberg `/forms/pdfengines/merge` (sắp xếp thứ tự file theo mẫu số/thời gian nộp `001_...`, `002_...` để đảm bảo thứ tự đơn chuẩn xác); (3) Nâng cấp `GetQrPdfRedirectQueryHandler`: khi quét mã QR của hồ sơ có từ 2 đơn trở lên, hệ thống tự động tải các file PDF đơn lẻ từ Azure Blob, gộp thành 1 file PDF trọn bộ loại `COMBINED_APPLICATION`, lưu trữ an toàn trên Azure Blob Storage và trả về SAS URL chuyển hướng đến toàn bộ hồ sơ; nếu hồ sơ chỉ có 1 đơn, vẫn mở trực tiếp file đó với hiệu năng tối ưu (<100ms); (4) Tự động tái sử dụng file gộp và chỉ gộp lại khi có đơn mới được bổ sung/duyệt. Solution-wide Release build: **0 errors, 0 warnings**. Xác minh ngày 23/10/2026 lúc 10:50 (Asia/Saigon, UTC+07:00).
+
+**Endpoints mới/thay đổi:**
+- `GET /api/v1/public/applications/{applicationId:guid}/pdf-redirect` → `302` SAS URL trỏ tới file PDF đơn (nếu 1 đơn) hoặc file PDF gộp trọn bộ `COMBINED_APPLICATION` (nếu 2+ đơn).
+
+**Paths thay đổi:**
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Interfaces/IPdfRenderEngine.cs`
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/Pdf/GotenbergPdfRenderEngine.cs`
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/GetQrPdfRedirectQuery.cs`
+- `docs/api-guide.md`
+- `PROGRESS.md`
+
+**Suggested Conventional Commit messages (theo thứ tự):**
+1. `feat(document-form): add MergePdfsAsync to IPdfRenderEngine and implement Gotenberg merge`
+2. `feat(document-form): automatically merge multi-submission PDFs into single combined PDF on QR scan`
+3. `docs: update api-guide and PROGRESS for multi-submission PDF merge feature`
+
 **Trạng thái TASK-QR-PDF-REDIRECT (QR → Mở Thẳng File PDF — DocumentForm — DEPLOY AZURE): HOÀN THÀNH** — Thay đổi hành vi mã QR in trên giấy tờ: thay vì trỏ đến trang tra cứu JSON, QR giờ redirect 302 thẳng đến file PDF mới nhất của hồ sơ (SAS URL Azure Blob 15 phút, không cần đăng nhập). Các thay đổi: (1) Thêm mới `GetQrPdfRedirectQuery.cs` (Application/Queries) — tìm GeneratedDocument mới nhất theo ApplicationId, kiểm tra blob tồn tại, sinh SAS URL qua `IBlobStorageClient.GenerateSasUrlAsync()`; (2) Cập nhật `QrLookupController.cs` — thêm endpoint `GET /api/v1/public/applications/{applicationId}/pdf-redirect` (`AllowAnonymous`, trả 302); (3) Cập nhật `ApprovedQrService.cs` — đổi `QrCodeValue` từ `/public/qr-lookup?applicationId=` sang `/public/applications/{id}/pdf-redirect`; (4) Cập nhật `GeneratePdfDocumentCommand.cs` — điều kiện regenerate QR đổi từ `Contains("/public/qr-lookup")` sang `Contains("/pdf-redirect")`; QR cũ sẽ tự động được regenerate lần generate-pdf kế tiếp. Endpoint cũ `qr-lookup` vẫn giữ nguyên (backward-compatible). Solution-wide Release build: **0 errors, 0 warnings**. Đã push lên nhánh `kha`. Docker image `acrwardmate2026.azurecr.io/wardmate-documentform:qr-pdf-redirect-20261023-01` (digest `sha256:7c40b0fcad6f7cd59ea4939bbfee9b0dd93272b4d462abd90514b475bfe10573`) build thành công, push lên ACR, cập nhật Container App `wardmate-documentform` trên Azure (`rg-wardmate-prod`) provisioningState=Succeeded (Running). Kiểm tra trực tiếp qua Gateway: route `GET /api/v1/public/applications/{id}/pdf-redirect` phản hồi 404 ProblemDetails công khai không cần Bearer token. Xác minh ngày 23/10/2026 lúc 08:45 (Asia/Saigon, UTC+07:00).
 
 **Endpoints mới/thay đổi:**
@@ -3086,7 +3103,6 @@ Validation: dotnet build WardMate.sln -c Release -warnaserror -m:1 PASS0warnings
 
 Gợi ýcommit riêngfilemới: feat(notifications): add cross-replica realtime listener. Functionalupdates: fix(notifications): broadcast delivery and read signals across replicas. Docs: docs(notifications): document pipeline audit and recovery runbook. Không thựcthiGit.
 
-
 ## ERD-REFRESH — 2026-10-23 09:34:46 UTC+07:00
 
 Cập nhật Conceptual/Logical/Physical theo7EFcontext của6service. Export dotnet ef dbcontext script --configuration Release --no-build từInfrastructure design-time factories thành công cả7, không kết nối DB. Kiểm kê37bảng,343cột,20FKvậtlý,40nhómREFlogic. So với tài liệu cũ28bảng hiệncó:2IAM(OTP/welcome),2chat,4analytics,1QR làm tăng9 bảng trong danh mục đãtriểnkhai; không nói cả9mới tạo hômnay. Tươnglai8bảng táchriêng. TASK25/27 gầnnhất khôngthêmbảng. Security/deadline/receipt làbổsungcột/JSON chứkhôngsinh bảnggiả. approved_qrs thuộcDocumentForm; tênlegacy khôngđồngnghĩa phêduyệt hànhchính.
@@ -3113,3 +3129,31 @@ Commit gợi ý Antigravity: docs(erd): refresh conceptual logical and physical 
 - Nội dung: bố trí bảng, phân biệt Conceptual/Logical/Physical, 37 bảng và thuộc tính theo model-inventory.json, 20 FK kèm cột nối/cardinality, 40 nhóm REF logic, 8 bảng tương lai đánh dấu chưa triển khai.
 - Kiểm tra: script tạo tài liệu thành công, số lượng khớp inventory; không truy vấn DB Azure. Chỉ thay tài liệu; không build/test backend, không đổi API/DTO/ProblemDetails/token, không Git.
 - Commit đề xuất: docs(erd): add plain text manual drawing guide. File mới cần commit riêng theo quy tắc dự án.
+
+## DocumentForm IAM session 503 investigation — 2026-10-23 (Asia/Saigon)
+- Read-only Azure investigation of GET /api/v1/officer/submissions/by-application/{applicationId}, response 503 auth.session_unavailable. No source/API/config mutation or Git operation.
+- Azure resource template sets Iam__BaseUrl to the correct IAM HTTPS hostname. Running image qr-pdf-redirect-20261023-01; console replica wardmate-documentform--latest-dd47eff9-d395-4562-8f85-88650233892d.
+- Console checks: IAM access-context without token returns 401 (network reachable); printenv Iam__BaseUrl returns no value; /app/appsettings.json contains Iam.BaseUrl=http://localhost:5001/; localhost:5001 connection refused.
+- Leading diagnosis: runtime has not received IAM environment override and falls back to localhost. Process-level environment could not be verified: /proc/5/environ permission denied. Console shell environment alone is not definitive proof of application process environment.
+- Shared AccountSessionMiddleware suppresses transport exceptions, producing 503 without upstream diagnostics; therefore original logs cannot establish precise exception. User IAM authenticated access-context returned 200; citizen role is separate from session connectivity and should not explain this 503.
+- Checks: 3 runtime diagnostics (external IAM reachable, shell override absent, localhost refused); no build/tests required for read-only diagnosis. No claim of resolution or Azure deployment. Recommended next step: reload DocumentForm configuration/restart then verify authenticated request; if unresolved add safe diagnostic logging without tokens.
+
+## IAM session diagnostics repair — 2026-10-23 (Asia/Saigon)
+- Request: repair DocumentForm auth.session_unavailable investigation. Changed shared AccountSessionMiddleware.cs to record safe structured reason/authority/upstream status/traceId, distinguish timeout/transport/config/header failures, reject BaseUrl credentials/query/fragment, add response traceId.
+- Paths: src/BuildingBlocks/WardMate.SharedKernel/Web/AccountSessionMiddleware.cs; docs/api-guide.md; docs/system-constraints.md; PROGRESS.md.
+- Protected endpoints retain IAM check, timeout 5s, no redirects/cache. 401 auth.session_revoked for IAM 401/403; 503 auth.session_unavailable otherwise. Request bodies unchanged; FE keeps session on503 and reports traceId. Token/header/body/exception messages never logged.
+- Verification: solution Release build succeeded 0 warnings/0 errors (logs/session-diagnostics-build.log). Initial sandbox build failed without compiler diagnostics; rerun with approved SDK access succeeded. No automated tests executed or test projects created.
+- Incomplete: root cause of Azure runtime503 not yet proven. This patch fixes diagnostic blindness, not a verified connectivity repair. No Docker release/Azure update/Git command performed. Shared middleware affects five services when rebuilt; current deployed containers unchanged.
+- Suggested Conventional Commit for Antigravity: fix(auth): expose safe IAM session failure diagnostics.
+
+## DocumentForm diagnostic Docker preparation — 2026-10-23 (Asia/Saigon)
+- User agreed to continue after diagnostic patch. Built wardmate-documentform:iam-diagnostics-20261023 successfully from current DocumentForm Dockerfile; log logs/documentform-iam-docker-build.log. Prior solution Release build 0 warnings/0 errors.
+- No Git commands, registry push, Azure update or database mutation. Docker build is not runtime acceptance. New image still needs user Docker acceptance per AGENTS deployment gate; earlier task31-33 acceptance does not cover this patch. Original deployed503 remains unresolved pending diagnostics deployment and authenticated reproduction.
+- Paths changed this session: PROGRESS.md only; build log ignored. Suggested handoff commit remains fix(auth): expose safe IAM session failure diagnostics.
+
+## DocumentForm IAM diagnostics deployed — 2026-10-23 (Asia/Saigon)
+- User explicitly requested assistant Docker testing and Azure rollout. No Git operations. Docker smoke PASS 10/10 using simulated IAM and isolated container: IAM200 pass,401/403 revoke,500/302 failclosed503, timeout503, response traceId, anonymous protected401, Swagger200, token/key absent from logs, classified diagnostic logs. No production DB/token used; temporary container removed. Script logs/verify-session-docker.py (ignored).
+- Pushed/deployed acrwardmate2026.azurecr.io/wardmate-documentform:iam-diagnostics-20261023, digest sha256:f4e20c0f71dad872d6e6d2ee6bcf3d46577f383409d0c158470d5f8200ce9ce6. Previous image qr-pdf-redirect-20261023-01 retained for rollback. Reapplied correct Iam__BaseUrl HTTPS endpoint. Azure Succeeded.
+- Runtime verification: replica wardmate-documentform--latest-54d30471-dacf-4ede-9255-79c15505a032; SharedKernel DLL SHA256 1f04a52ed7b3b8086d9f42ccb4cbba4ef99070050f0ae1458f90ad47b5eb4031 matches tested image. Console now exposes correct Iam__BaseUrl; IAM access-context reachable401 without token.
+- Gateway checks: GET /api/document-form/health200; GET /api/document-form/swagger/index.html200; GET /api/v1/officer/submissions/by-application/{applicationId} without token401 auth.unauthorized. Authenticated reproduction with user's token still pending; do not claim original503 conclusively fixed.
+- No endpoint/body/role changes beyond previous traceId/config validation notes. Existing solution Release0errors0warnings. Changed this session PROGRESS.md only, ignored smoke/build logs. Suggested Conventional Commit for Antigravity: fix(auth): expose safe IAM session failure diagnostics.
