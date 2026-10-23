@@ -3725,7 +3725,7 @@ Email:FrontendBaseUrl (Compose: NOTIFICATION_FRONTEND_URL) mặc định https:/
 
 SMTP bật TLS, timeout thực tế bằng cancellation15giây (thêm SmtpClient.Timeout=15000). Lỗi SMTP/timeout ghi mã notification.smtp_failed / notification.smtp_timeout, retry hiện có tối đa10lần rồi Dead; worker tiếp tục. Sent chỉ nghĩa SMTP chấp nhận, không bảo đảm vào inbox. Gmail không có idempotency: nếu đã nhận thư nhưng kết nối/commit DB lỗi, retry có thể gửi trùng. X-WardMate-Delivery-Id giúp đối soát, không tự chống trùng ở Gmail. Thiếu cấu hình/contact trả Blocked; hàng Blocked không tự chạy lại khi đổi cấu hình. Chưa có API requeue hoặc webhook bounce.
 
-SMS vẫn tắt. ISmsSender trả SmsDeliveryResult(Success,Status,ProviderMessageId,ErrorCode); adapter chưa có nhà cung cấp trả false/Blocked/null/sms.provider_not_configured, không gọi mạng. Chưa lưu ProviderMessageId vào DB hoặc nhận webhook trạng thái. Khi chọn Brandname sẽ bổ sung adapter, quy tắc retry và lưu mã nhà cung cấp; không báo đã hoàn tất gửi SMS thật.
+Ghi nhận lịch sử 22/10/2026 (đã được thay thế bởi tích hợp eSMS 23/10/2026 ở cuối tài liệu): SMS vẫn tắt. ISmsSender trả SmsDeliveryResult(Success,Status,ProviderMessageId,ErrorCode); adapter chưa có nhà cung cấp trả false/Blocked/null/sms.provider_not_configured, không gọi mạng. Chưa lưu ProviderMessageId vào DB hoặc nhận webhook trạng thái. Khi chọn Brandname sẽ bổ sung adapter, quy tắc retry và lưu mã nhà cung cấp; không báo đã hoàn tất gửi SMS thật.
 
 Deploy code liên quan IAM và Workflow trước Analytics để có fullName và email-context; giữ hai service key đúng. Không migration mới. Không thay Gemini/billing.
 
@@ -3865,7 +3865,7 @@ SELECT "Channel", "State", count(*) FROM notification_deliveries GROUP BY "Chann
 SELECT "Id", "Attempts", "ErrorCode" FROM notification_inbox WHERE "State"='Dead' LIMIT 50;
 SELECT "Id", "NotificationId", "Channel", "ErrorCode" FROM notification_deliveries WHERE "State" IN ('Dead','Blocked') LIMIT 50;
 ```
-Sau khi sửa nguyên nhân, operator có thể replay đúng một InboxDead hoặc DeliveryDead/Blocked: cập nhật State=Pending,Attempts=0,NextAttemptAt=now(),ErrorCode=NULL theo Id và điều kiệnstate. Không xóa notification/inbox, không đổi EventId, không replay Sent tựđộng (Email cóthểgửitrùng). Dead queue Rabbit phải kiểmtra/sửa producer và replay cóchọnlọc giữ EventId, không đẩy lại toàn bộ vôhạn. Hiện chưa có API quản trịreplay; thao tácDB/broker dooperator cóquyền. Email/SMS làTASK26; SMSAnalytics vẫnstub, khácSMSOTP IAM.
+Sau khi sửa nguyên nhân, operator có thể replay đúng một InboxDead hoặc DeliveryDead/Blocked: cập nhật State=Pending,Attempts=0,NextAttemptAt=now(),ErrorCode=NULL theo Id và điều kiệnstate. Không xóa notification/inbox, không đổi EventId, không replay Sent tựđộng (Email cóthểgửitrùng). Dead queue Rabbit phải kiểmtra/sửa producer và replay cóchọnlọc giữ EventId, không đẩy lại toàn bộ vôhạn. Hiện chưa có API quản trịreplay; thao tácDB/broker dooperator cóquyền. Email/SMS làTASK26; SMS Analytics đã tích hợp eSMS ngày 23/10/2026; xem runbook notification-sms-operations.md, khác SMS OTP IAM.
 
 ### Chẩn đoán lỗi xác minh phiên IAM — cập nhật 23/10/2026
 Áp dụng cho API được bảo vệ bởi AccountSessionMiddleware, gồm DocumentForm. Response 401 auth.session_revoked hoặc 503 auth.session_unavailable bổ sung traceId để đối chiếu log; không thay đổi request hoặc quyền truy cập. FE gặp 503 giữ phiên và thông báo thử lại, gửi traceId cho vận hành.
@@ -3925,3 +3925,11 @@ Tạo người quản lý danh mục thủ tục. Body cùng các trường như
 - API này không gửi email welcome/OTP, không tạo token đăng nhập, không thêm cơ chế buộc đổi mật khẩu lần đầu. Người dùng đăng nhập bằng luồng IAM hiện có.
 - Giữ nguyên API RBAC nâng cao và quyền tạo front-desk của IT_ADMIN/Manager hiện tại. “Một role” chỉ bảo đảm tại thời điểm tạo qua hai API này, không cấm quản trị RBAC gán thêm role sau đó.
 - Không cần migration/cấu hình mới. Cần deploy IAM mới để Swagger/routes xuất hiện; build local không chứng minh đã deploy.
+## TASK-26 — SMS thông báo hồ sơ qua eSMS (23/10/2026)
+
+Đã thay stub SMS Analytics bằng adapter eSMS; phần SMS OTP IAM không thay đổi. Workflow phát sự kiện qua TASK-27, inbox tạo delivery SMS khi `Sms:Enabled=true`, worker lấy liên hệ hiện tại từ IAM và gửi nền. FE không gọi API gửi SMS trực tiếp; routes, body, response HTTP, DTO và token của API hồ sơ/thông báo giữ nguyên. Việc gửi thất bại không đổi kết quả tạo/nộp hồ sơ. Không dùng trạng thái hồ sơ hoặc HTTP 200 để kết luận SMS đã đến điện thoại.
+
+Hướng dẫn cấu hình, migration, truy vấn đối soát và phục hồi: [SMS operations](notification-sms-operations.md). Mẫu cấu hình mặc định tắt, Sandbox=1, secret và template để trống. Mẫu CSKH cần được nhà mạng duyệt; không tái sử dụng mẫu OTP. Missing template/phone/config trả trạng thái delivery Blocked, không phải ProblemDetails của API hồ sơ. Timeout/kết quả không rõ là Unknown; crash có thể giữ Dispatching; operator phải đối soát trước khi gửi lại. Không áp dụng hướng dẫn replay tổng quát cho Unknown/Dispatching.
+
+Migration `20261023150528_EsmsNotificationDelivery` thêm `external_message_id`, `provider`, `is_sandbox` vào `notification_deliveries`. SQL idempotent: [notification-esms-delivery.sql](sql/notification-esms-delivery.sql), dành cho database Analytics có baseline ReliableNotificationDelivery. Không có endpoint webhook xác nhận SMS đến điện thoại trong phạm vi hiện tại. Không gọi SMS thật hoặc sandbox trong lượt phát triển này.
+

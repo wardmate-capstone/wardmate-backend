@@ -3248,3 +3248,45 @@ Commit gợi ý Antigravity: docs(erd): refresh conceptual logical and physical 
 - Validation: dotnet build WardMate.sln -c Release -warnaserror -m:1 PASS 0 warnings/0 errors,00:05:53.88. Source review transaction/authorization/unique/DI validator isolation. 0 automated tests, không tạo testproject; không kiểm tra runtime HTTP/DB race/FE. Không migration hoặc config mới; không Git, Docker/Azure/deploy, không gửiEmail/SMS.
 - Bàn giao: deploy IAM mới theo quy trình của chủ dự án; FE dùng2routes và reload danh sách, không hard-code roleId, xử lý nullablefieldomitted. FE nghiệm thu ITAdmin thành công,Manager/FD/Citizen403, thiếu/saiward,duplicate,password yếu,role/audit sau tạo. Đây chưa phải nghiệm thu cloud.
 - Commit đề xuất Antigravity: feat(iam): add staff provisioning commands and validators (file mới riêng); feat(iam): provision manager accounts with audit and authorization; docs(iam): document staff provisioning and Claude handoff. Không có commit nào được thực thi.
+
+## TASK-25..30-SCOPE-AUDIT — 2026-10-23 (Asia/Saigon, UTC+07:00)
+- Chỉ rà soát theo bảng task người dùng gửi, không triển khai thêm. Đối chiếu NotificationHub/PipelineModels/DeliveryWorker/Consumer/DI, WorkflowOutbox, AssistantController/GeminiAssistant và danh mục source/migration.
+- TASK25: phần BE entity/SignalR/user-ward scope/list/unread/read có; không xác nhận chuông FE/runtime cloud trong lượt này.
+- TASK26: SMTP Email có; Analytics ISmsSender vẫn đăng ký UnconfiguredSmsSender. Delivery có State/Attempts/ErrorCode/SentAt nhưng chưa persist external/provider message ID; SmsDeliveryResult.ProviderMessageId chỉ là contract. SMS OTP IAM không hoàn tất SMS thông báo Workflow.
+- TASK27: outbox/Rabbit/consumer/inbox/delivery/retry có; SMS thật phụ thuộc TASK26 còn thiếu. Không nghiệm thu cloud/multi-replica mới.
+- TASK28: chưa tìm thấy knowledge_documents/knowledge_chunks/chunking/vector trong source/migration rà soát.
+- TASK29: có chat_sessions/messages và Gemini chat; chưa retrieval cosine/vector/RAG/citations/ai_request_logs. Không gọi chat thuần là RAG hoàn chỉnh.
+- TASK30: có OCR front bắt buộc/back tùy chọn và DTO CCCD để FE điền form; chưa có ocr_scan_logs, không tự ghi dữ liệu vào hồ sơ/profile và không kiểm tra FE auto-fill/provider accuracy ở lượt này.
+- Chỉ sửa PROGRESS.md; không đổi code/API/DTO/config/migration. Không build/test/Git/deploy/SMS/Email trong lượt đọc source. Commit gợi ý: docs(progress): audit TASK-25 through TASK-30 against assigned scope.
+
+## ERD-INTERACTIVE — 2026-10-23 16:01 +0700 (Asia/Saigon)
+- Yêu cầu: vẽ ERD 3 mức Conceptual / Logical / Physical, mỗi mức đủ 6 service và nối liên service trong một hình.
+- Đã làm: trang HTML tương tác 3 tab, bố trí tự động bằng elkjs 0.9.3 (CDN jsDelivr), nhóm theo service, đường nối gấp khúc không đi xuyên bảng; FK nét liền, REF giữa service nét đứt; ký hiệu chân chim; bấm bảng/khái niệm để tô sáng quan hệ; tìm bảng; bật/tắt FK/REF; danh mục quan hệ R01… dưới sơ đồ. Conceptual 26 khái niệm/34 quan hệ (gộp bảng kỹ thuật vào khái niệm nghiệp vụ); Logical 37 bảng với PK/FK/UQ/REF; Physical thêm schema, kiểu PostgreSQL, NN/NULL, ON DELETE. Không vẽ 8 bảng FUTURE (liệt kê trong ghi chú).
+- Nguồn dữ liệu: docs/diagrams/erd/model-inventory.json (23/10/2026); đối chiếu không có migration mới hơn file này. Chưa đối chiếu schema Azure.
+- File mới: docs/diagrams/erd/wardmate-erd-interactive.html (mở bằng trình duyệt, cần Internet để tải elkjs và font). Bản xuất bản riêng tư: https://claude.ai/artifact/RCsT1M3obpS8Kk6hxjZZ7P. Không sửa drawio/svg cũ.
+- Kiểm tra: dựng cả 3 tab trên trình duyệt local, xuất ảnh PNG Conceptual (1734×2055), Logical (3555×2534), một phần Physical (5123×2534) và xem lại: bảng không chồng nhau, tọa độ đúng nhóm. Chỉ tài liệu; không build backend, không Git.
+- Commit gợi ý: docs(erd): add interactive conceptual logical physical diagram.
+
+## ERD-FUTURE-EN-DRAWIO — 2026-10-23 16:13 +0700 (Asia/Saigon)
+- Yêu cầu: bổ sung cột đề xuất và quan hệ dự kiến của 8 bảng FUTURE vào hướng dẫn và trang ERD; chuyển trang ERD sang tiếng Anh; xuất file draw.io.
+- docs/erd-drawing-guide.txt (sửa, mục 8): nguồn đặc tả gốc 35 bảng (archive-unified-20261015.md); xác nhận 6/14 bảng tương lai cũ đã triển khai, 8 còn lại chưa có entity/migration; 8.1 cột đề xuất cho 8 bảng (kiểu đề xuất, NOT NULL/độ dài/index chưa chốt); 8.2 quan hệ F1–F8 (2 FK dự kiến trong AIOCR, 6 REF dự kiến; F5 cần cột mới chat_messages.ReferencedChunkIds); 8.3 quan hệ Conceptual FUTURE. File hướng dẫn giữ tiếng Việt.
+- docs/diagrams/erd/wardmate-erd-interactive.html (sửa): giao diện và nhãn sơ đồ tiếng Anh; thêm 8 bảng/khái niệm FUTURE (viền nét đứt, nhãn FUTURE, đường chấm), nút bật/tắt "FUTURE tables", dòng F1–F8 trong danh mục quan hệ. Artifact cập nhật cùng URL (Version 2).
+- docs/diagrams/erd/wardmate-erd-en.drawio (mới): 3 trang Conceptual/Logical/Physical tiếng Anh, sinh từ cùng bố cục ELK; vùng service là container, bảng là swimlane có từng dòng cột, đường nối gắn source/target kèm waypoint và ký hiệu ER (ERmandOne/ERzeroToOne/ERzeroToMany); FK nét liền, REF nét đứt, FUTURE chấm. Không thay file wardmate-erd.drawio cũ.
+- Kiểm tra: dựng lại 3 tab trên trình duyệt local, xem ảnh Conceptual tiếng Anh; parse XML draw.io: 0 lỗi, 3 trang, Conceptual 41 đỉnh/42 cạnh, Logical và Physical mỗi trang 456 đỉnh/68 cạnh, 0 ID trùng, 0 cạnh trỏ sai. Chưa mở file trong ứng dụng draw.io. Chỉ tài liệu; không build backend, không Git.
+- Commit gợi ý: docs(erd): add planned FUTURE table columns and relations to drawing guide; docs(erd): translate interactive ERD to English and show FUTURE tables; docs(erd): add English draw.io export of three-level ERD.
+## TASK-26 — eSMS thông báo hồ sơ nối TASK-27
+
+Kiểm tra Compose: `docker compose ... config --quiet` đạt với `.env.example` và các biến bắt buộc được gán giá trị giả chỉ trong process kiểm tra; không đọc secrets, không khởi động container. Lượt đầu dùng riêng `.env.example` báo thiếu WORKFLOW_DB_PASSWORD như thiết kế required-variable.
+
+Hoàn tất mã nguồn và tài liệu: 23/10/2026 22:09 +07:00 (Asia/Saigon).
+
+- Thay SMS stub bằng EsmsNotificationSender, lấy trạng thái/mã hồ sơ từ inbox TASK-27, gửi template CSKH cấu hình theo người nhận/status. Tách cấu hình khỏi IAM OTP, mặc định tắt/Sandbox1, không điền secrets vào source.
+- Lưu SMSID, provider, is_sandbox; migration `20261023150528_EsmsNotificationDelivery` và SQL idempotent `docs/sql/notification-esms-delivery.sql`. Chưa áp dụng DB local/cloud. SQL dùng lịch sử migration PascalCase của Analytics, không dùng lịch sử snake_case IAM.
+- Worker commit Dispatching trước gửi SMS; lỗi không rõ chuyển Unknown hoặc giữ Dispatching khi crash/cancel để đối soát, không tự gửi trùng. Sent là accepted, không phải handset-delivered; Sandbox riêng, không có SentAt. Email/IN_APP giữ cơ chế hiện hữu.
+- Files sửa trong `src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/`: DependencyInjection.cs, ExternalNotificationSender.cs, NotificationDeliveryWorker.cs, NotificationPipelineModels.cs, NotificationDbContext.cs, Migrations/NotificationDbContextModelSnapshot.cs. Files mới: EsmsNotificationSender.cs, Migrations/20261023150528_EsmsNotificationDelivery.cs, Migrations/20261023150528_EsmsNotificationDelivery.Designer.cs.
+- Files sửa khác: Analytics API/appsettings.json, docker/docker-compose.yml, docker/.env.example, docs/api-guide.md, docs/system-constraints.md, PROGRESS.md. Files mới khác: docs/notification-sms-operations.md, docs/sql/notification-esms-delivery.sql.
+- API FE: không thêm/đổi method, route, request body, status HTTP, DTO, ProblemDetails, JWT. Delivery errors là dữ liệu vận hành, không thay phản hồi nộp hồ sơ. Pipeline mới chỉ tạo SMS cho sự kiện xử lý khi Sms:Enabled=true; không tự backfill.
+- Validation: `dotnet build WardMate.sln -c Release -warnaserror -m:1` thành công, 0 errors/0 warnings, 00:01:17.89. EF `has-pending-model-changes --configuration Release --no-build`: không có thay đổi chưa migration. EF xuất SQL idempotent thành công. Không có test project; 0 automated tests chạy, không tuyên bố nghiệm thu gửi tin.
+- Không chạy Git, Docker build/up, không gọi eSMS thật hoặc sandbox, không sửa docker/.env. Chưa deploy/chưa xác minh SMS đến điện thoại; cần mẫu CSKH/Brandname được duyệt và cấu hình môi trường. Chưa triển khai DLR webhook, quota chi phí toàn cục, admin replay API; các hạn chế được ghi trong runbook.
+- Gợi ý commit cho Antigravity: `feat(notifications): add eSMS dossier delivery adapter`, `feat(notifications): persist provider delivery metadata`, `fix(notifications): prevent automatic resend after ambiguous SMS dispatch`, `chore(config): configure isolated notification SMS settings`, `docs(notifications): document eSMS deployment and reconciliation`. Mỗi file mới một commit riêng theo AGENTS; không gộp các file mới vào một commit.
+
