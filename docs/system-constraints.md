@@ -787,3 +787,7 @@ Analytics trên môi trường Azure hiện tại phải cấu hình Iam__BaseUr
   5. Cập nhật cache: Bản gộp `COMBINED_APPLICATION` được tái sử dụng nếu thời gian tạo lớn hơn hoặc bằng thời gian của tất cả các đơn thành phần; nếu có bất kỳ đơn nào được tạo lại mới hơn, hệ thống sẽ tự động gộp lại bản mới.
 - **Nguồn:** `GetQrPdfRedirectQuery.cs`, `GeneratePdfDocumentCommand.cs`, `GotenbergPdfRenderEngine.cs`.
 
+
+### Analytics deployment prerequisites — cập nhật 23/10/2026
+Migration 20261021031538_AnalyticsMetricsAndCitizenFeedback phải được áp dụng vào AnalyticsDatabase hoặc NotificationsDatabase fallback trước khi phục vụ API metrics/feedback. Thiếu schema analytics gây lỗi truy vấn500 dù health200. Đã áp dụng migration trên Azure, giữ AutoMigrate=false; không chạy migration Notification cùng lúc. JobsEnabled=true cần key Workflow đúng, quyền tạo schema analytics_jobs, worker chạy và kết nối DB; đã xác minh heartbeat và recurring analytics-daily 01:15 Asia/Ho_Chi_Minh. Bật job không có nghĩa historical metrics đã được tổng hợp; dùng rebuild hoặc chờ lịch, FE dựa coverage.
+Nguồn: AnalyticsRegistration.cs, AnalyticsDbContext.cs, AnalyticsAggregationJob.cs và migration AnalyticsMetricsAndCitizenFeedback. Lịch sử23/10/2026: xác minh triển khai schema/worker; chưa nghiệm thu authenticatedAPI.

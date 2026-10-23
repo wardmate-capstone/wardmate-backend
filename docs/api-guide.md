@@ -3883,3 +3883,6 @@ Log "IAM session check failed" phân biệt invalid_base_url, upstream_response 
     - `404 qr.pdf_not_found`: Hồ sơ chưa có file PDF nào được tạo.
     - `404 qr.pdf_blob_missing`: File PDF không tìm thấy trên hệ thống Azure Blob Storage.
 
+
+### Analytics Azure migration và worker — 23/10/2026
+Đã áp dụng migration AnalyticsMetricsAndCitizenFeedback vào database cấu hình của Analytics (fallback NotificationsDatabase), tạo schema analytics riêng. Không dùng Database__AutoMigrate để chạy migration các context không liên quan. Analytics__JobsEnabled=true, LookbackDays=7, Cron=15 1 * * *, timezone Asia/Ho_Chi_Minh; worker đã có heartbeat. Dữ liệu metrics chưa có trước lượt tổng hợp đầu tiên: FE hiển thị coverage/missingDates; IT_ADMIN có thể gọi POST /api/v1/analytics/jobs/rebuild với {"from":"2026-10-17","to":"2026-10-23"}, sau đó GET /api/v1/analytics/jobs/{jobId}. Không coi bảng rỗng là đầy đủ dữ liệu. Chưa kiểm tra lại endpoint với JWT người dùng thật sau sửa.
