@@ -141,24 +141,18 @@ public sealed class GeneratePdfDocumentCommandHandler
             }
 
 
-            Stream docxForRender = _qrStamper.StampQr(cleanDocxStream, approvedQr.QrImagePng);
-
-            // 5. Chuyển đổi DOCX sang PDF bằng Render Engine
+            // 5. Chuyển đổi DOCX sạch (không dán mã QR vào nội dung văn bản) sang PDF bằng Render Engine
             Stream pdfStream;
             try
             {
-                pdfStream = await _pdfRenderEngine.RenderDocxToPdfAsync(docxForRender, fileName, cancellationToken);
+                pdfStream = await _pdfRenderEngine.RenderDocxToPdfAsync(cleanDocxStream, fileName, cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Gotenberg PDF conversion failed for ApplicationId: {ApplicationId}, SubmissionId: {SubmissionId}, File: {FileName}. Error: {Message}",
                     request.ApplicationId, request.SubmissionId, fileName, ex.Message);
-                if (approvedQr is not null && !ReferenceEquals(docxForRender, cleanDocxStream))
-                    await docxForRender.DisposeAsync();
                 return DocumentFormErrors.PdfRenderFailed("Dịch vụ chuyển đổi chưa sẵn sàng. Vui lòng thử lại.");
             }
-            if (approvedQr is not null && !ReferenceEquals(docxForRender, cleanDocxStream))
-                await docxForRender.DisposeAsync();
 
             using var renderedPdf = pdfStream;
 
