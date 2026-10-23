@@ -37,7 +37,7 @@ public sealed class RabbitTransport(RabbitOptions options)
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromSeconds(10));
         await channel.BasicPublishAsync(Exchange, "workflow.changed", true,
-            new BasicProperties { Persistent = true, ContentType = "application/json", MessageId = message.EventId.ToString(), Type = "workflow.v1" },
+            new BasicProperties { Persistent = true, ContentType = "application/json", MessageId = message.EventId.ToString(), Type = $"workflow.v{message.Version}" },
             JsonSerializer.SerializeToUtf8Bytes(message), deadline.Token);
     }
 }
