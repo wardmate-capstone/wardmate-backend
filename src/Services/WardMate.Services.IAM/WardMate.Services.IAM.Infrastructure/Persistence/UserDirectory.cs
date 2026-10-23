@@ -46,11 +46,19 @@ public sealed class UserDirectory(IamDbContext db, ManagementScope scope, IRbacS
     }, ct);
     public async Task<AccessContextDto?> Access(Guid userId, CancellationToken ct)
     {
-        var user = await db.Users.AsNoTracking().Include(x => x.Ward).Include(x => x.UserRoles)
+        var user = await db.Users.AsNoTracking().Include(x => x.Profile).Include(x => x.Ward).Include(x => x.UserRoles)
             .ThenInclude(x => x.Role).ThenInclude(x => x.RolePermissions).ThenInclude(x => x.Permission)
             .SingleOrDefaultAsync(x => x.Id == userId && x.IsActive, ct);
         return user is null ? null : new(user.Id, user.Ward?.Code, user.UserRoles.Select(x => x.Role.RoleName).Distinct().ToArray(),
-            user.UserRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.PermissionCode).Distinct().ToArray());
+            user.UserRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.PermissionCode).Distinct().ToArray(), user.AssignedCategories, user.Profile?.FullName);
+    }
+    public async Task<AssignmentOfficerDto?> AssignmentOfficer(Guid actor, Guid id, CancellationToken ct)
+    {
+        var access = await Access(actor, ct);
+        if (access is null || !access.Roles.Contains(RoleNames.Manager) || !access.Permissions.Contains("workflow.assign.manage") || string.IsNullOrWhiteSpace(access.WardCode)) return null;
+        return await db.Users.AsNoTracking().Where(x => x.Id == id && x.IsActive && x.Ward != null && x.Ward.Code == access.WardCode
+            && x.UserRoles.Any(r => r.Role.RoleName == RoleNames.FrontDeskOfficer) && !x.UserRoles.Any(r => r.Role.RoleName == RoleNames.Manager))
+            .Select(x => new AssignmentOfficerDto(x.Id, x.Profile == null ? null : x.Profile.FullName, x.Ward == null ? null : x.Ward.Code)).SingleOrDefaultAsync(ct);
     }
     public Task<WardDto[]> Wards(CancellationToken ct) => db.Wards.AsNoTracking().OrderBy(x => x.Code).Select(x => new WardDto(x.Id, x.Code, x.Name)).ToArrayAsync(ct);
 }

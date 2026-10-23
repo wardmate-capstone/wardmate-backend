@@ -10,6 +10,14 @@ namespace WardMate.Services.IAM.API.Controllers;
 [ApiController, Authorize]
 public sealed class UserDirectoryController(ISender sender, IUserDirectory directory) : ControllerBase
 {
+    [HttpGet("/api/v1/manager/officers/{userId:guid}/assignment-context")]
+    public async Task<IActionResult> AssignmentContext(Guid userId, CancellationToken ct)
+    {
+        var actor = await directory.Access(Actor, ct);
+        if (actor is null || !actor.Roles.Contains("MANAGER") || !actor.Permissions.Contains("workflow.assign.manage")) return Forbid();
+        var target = await directory.AssignmentOfficer(Actor, userId, ct);
+        return target is null ? NotFound() : Ok(target);
+    }
     private Guid Actor => Guid.Parse(User.FindFirstValue("sub")!);
     [HttpGet("/api/v1/manager/officers"), Authorize(Policy = "iam.accounts.read")]
     [ProducesResponseType<DirectoryPage>(200)]

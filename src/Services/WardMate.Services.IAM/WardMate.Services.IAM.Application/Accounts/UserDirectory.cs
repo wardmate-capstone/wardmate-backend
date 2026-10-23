@@ -10,13 +10,13 @@ public sealed record DirectoryUser(Guid Id, string Username, string Email, strin
 public sealed record DirectoryPage(DirectoryUser[] Items, int Page, int PageSize, int Total);
 public sealed record DirectoryQuery(Guid ActorId, bool Admin, DirectoryFilter Filter) : IRequest<Result<DirectoryPage>>;
 public sealed record AssignCategoriesCommand(Guid ActorId, Guid UserId, int[] Categories) : IRequest<Result<bool>>;
-public sealed record AccessContextDto(Guid UserId, string? WardCode, string[] Roles, string[] Permissions);
-public interface IUserDirectory
+public sealed record AccessContextDto(Guid UserId, string? WardCode, string[] Roles, string[] Permissions, int[] AssignedCategories, string? FullName);
+public sealed record AssignmentOfficerDto(Guid Id, string? FullName, string? WardCode); public interface IUserDirectory
 {
     Task<Result<DirectoryPage>> List(DirectoryQuery query, CancellationToken ct);
     Task<Result<bool>> Assign(AssignCategoriesCommand command, CancellationToken ct);
     Task<AccessContextDto?> Access(Guid userId, CancellationToken ct);
-    Task<WardDto[]> Wards(CancellationToken ct);
+    Task<AssignmentOfficerDto?> AssignmentOfficer(Guid actor, Guid id, CancellationToken ct); Task<WardDto[]> Wards(CancellationToken ct);
 }
 public sealed class DirectoryHandlers(IUserDirectory store) : IRequestHandler<DirectoryQuery, Result<DirectoryPage>>, IRequestHandler<AssignCategoriesCommand, Result<bool>>
 {
