@@ -3406,7 +3406,7 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
 Trình tự: tạo hồ sơ/đơn → chốt đơn → COMPLETED checklist → submit hồ sơ → cán bộ assign
 → xem/ghi chú → tạo comment OPEN và request-revision nếu cần → dân sửa/chốt/resubmit
 → cán bộ assign lại → confirm-readiness Workflow → **generate-pdf** sinh QR vào `approved_qrs` trỏ tới `/api/v1/public/applications/{id}/pdf-redirect`
-→ dân/cán bộ generate-pdf (tự động đóng dấu QR) → download PDF hoặc **quét QR → mở thẳng PDF** (302 redirect, không cần đăng nhập).
+→ dân/cán bộ generate-pdf (kết xuất bản PDF sạch, không dán mã QR lên mặt giấy tờ; mã QR được lưu DB phục vụ tra cứu số) → download PDF hoặc **quét QR → mở thẳng PDF** (302 redirect, không cần đăng nhập).
 
 > **QR cũ** (sinh trước 23/10/2026) chứa URL `/api/v1/public/qr-lookup?applicationId={id}` vẫn hoạt động và trả JSON hợp lệ. Khi gọi `generate-pdf` lần tiếp theo cho cùng hồ sơ, QR sẽ tự động được regenerate sang URL `/pdf-redirect` mới.
 Kiểm tra âm: cán bộ khác phường/cùng phường chưa phân công, giả OfficerId, xuất trước duyệt,

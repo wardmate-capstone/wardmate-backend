@@ -2,6 +2,17 @@
 
 
 # WardMate — Nhật ký phát triển
+**Trạng thái TASK-REMOVE-QR-STAMP-FROM-DOCX (Bỏ Đóng Dấu Mã QR Vào Nội Dung Tờ Đơn): HOÀN THÀNH** — Theo yêu cầu người dùng, loại bỏ việc chèn/đóng dấu (stamp) hình ảnh mã QR vào góc cuối của tài liệu DOCX/PDF khi người dân hoặc cán bộ xuất giấy tờ: (1) Cập nhật `GeneratePdfDocumentCommand`: truyền trực tiếp `cleanDocxStream` vào Gotenberg Render Engine mà không qua `_qrStamper.StampQr`, đảm bảo văn bản in/kết xuất hoàn toàn sạch, đúng chuẩn mẫu đơn gốc của cơ quan nhà nước; (2) Bản ghi mã QR trong bảng `document.approved_qrs` vẫn được sinh và lưu trữ đầy đủ trong cơ sở dữ liệu để phục vụ việc tra cứu số, chia sẻ link hoặc hiển thị trên giao diện người dùng; (3) Toàn bộ luồng quét mã QR redirect đến file PDF vẫn hoạt động chuẩn xác. Solution-wide Release build: **0 errors, 0 warnings**. Xác minh ngày 23/10/2026 lúc 11:05 (Asia/Saigon, UTC+07:00).
+
+**Paths thay đổi:**
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/GeneratePdfDocumentCommand.cs`
+- `docs/api-guide.md`
+- `PROGRESS.md`
+
+**Suggested Conventional Commit messages (theo thứ tự):**
+1. `fix(document-form): remove QR code stamping from generated PDF documents`
+2. `docs: update api-guide and PROGRESS for removing QR stamp from form documents`
+
 **Trạng thái TASK-QR-PDF-MERGE (Tự Động Gộp Nhiều Đơn Thành 1 PDF Trọn Bộ khi Quét QR): HOÀN THÀNH** — Bổ sung cơ chế tự động gộp (merge) nhiều đơn/giấy tờ trong cùng một hồ sơ thành một file PDF duy nhất khi quét mã QR: (1) Mở rộng interface `IPdfRenderEngine` bổ sung phương thức `MergePdfsAsync`; (2) Triển khai `GotenbergPdfRenderEngine.MergePdfsAsync` gọi endpoint Gotenberg `/forms/pdfengines/merge` (sắp xếp thứ tự file theo mẫu số/thời gian nộp `001_...`, `002_...` để đảm bảo thứ tự đơn chuẩn xác); (3) Nâng cấp `GetQrPdfRedirectQueryHandler`: khi quét mã QR của hồ sơ có từ 2 đơn trở lên, hệ thống tự động tải các file PDF đơn lẻ từ Azure Blob, gộp thành 1 file PDF trọn bộ loại `COMBINED_APPLICATION`, lưu trữ an toàn trên Azure Blob Storage và trả về SAS URL chuyển hướng đến toàn bộ hồ sơ; nếu hồ sơ chỉ có 1 đơn, vẫn mở trực tiếp file đó với hiệu năng tối ưu (<100ms); (4) Tự động tái sử dụng file gộp và chỉ gộp lại khi có đơn mới được bổ sung/duyệt. Solution-wide Release build: **0 errors, 0 warnings**. Xác minh ngày 23/10/2026 lúc 10:50 (Asia/Saigon, UTC+07:00).
 
 **Endpoints mới/thay đổi:**
