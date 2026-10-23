@@ -21,15 +21,16 @@ public static class AssistantRegistration
         var services = builder.Services; var config = builder.Configuration;
         services.AddExceptionHandler<AssistantExceptionHandler>();
         services.AddWardMateBrowserCors(config, builder.Environment);
+        var key = config["Jwt:Key"] ?? "";
+        if (Encoding.UTF8.GetByteCount(key) < 32) throw new InvalidOperationException("Cần khóa Jwt:Key ít nhất 32 byte, giống IAM.");
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
         {
             options.MapInboundClaims = false;
-            var key = config["Jwt:Key"] ?? "";
             options.TokenValidationParameters = new()
             {
-                ValidateIssuerSigningKey = true, IssuerSigningKey = key.Length >= 32 ? new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)) : null,
-                ValidateIssuer = true, ValidIssuer = config["Jwt:Issuer"] ?? "WardMate.IAM",
-                ValidateAudience = true, ValidAudience = config["Jwt:Audience"] ?? "WardMate.Client",
+                ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                ValidateIssuer = true, ValidIssuer = config["Jwt:Issuer"] ?? "wardmate",
+                ValidateAudience = true, ValidAudience = config["Jwt:Audience"] ?? "wardmate-client",
                 ValidateLifetime = true, RequireSignedTokens = true, RequireExpirationTime = true,
                 ValidAlgorithms = [SecurityAlgorithms.HmacSha256], ClockSkew = TimeSpan.Zero, NameClaimType = "sub", RoleClaimType = "role"
             };
