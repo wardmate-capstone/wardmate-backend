@@ -24,6 +24,53 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
             modelBuilder.HasSequence("application_code_sequence");
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationAssignmentHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("action");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_id");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("FromOfficerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("from_officer_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid?>("ToOfficerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("to_officer_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_application_assignment_history");
+
+                    b.HasIndex("ApplicationId", "CreatedAt")
+                        .HasDatabaseName("ix_application_assignment_history_application_id_created_at");
+
+                    b.ToTable("application_assignment_history", (string)null);
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationChecklist", b =>
                 {
                     b.Property<Guid>("Id")
@@ -215,14 +262,38 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("approved_at");
 
+                    b.Property<DateTime?>("AssignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assigned_at");
+
                     b.Property<Guid?>("AssignedOfficerId")
                         .HasColumnType("uuid")
                         .HasColumnName("assigned_officer_id");
+
+                    b.Property<string>("AssignedOfficerName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("assigned_officer_name");
+
+                    b.Property<long>("AssignmentVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("assignment_version");
 
                     b.Property<string>("CaseCode")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("case_code");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("category_id");
+
+                    b.Property<string>("CategoryName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("category_name");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -361,6 +432,9 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.HasIndex("Status", "SubmittedAt", "Id")
                         .HasDatabaseName("ix_applications_status_submitted_at_id");
+
+                    b.HasIndex("WardCode", "CategoryId", "Status")
+                        .HasDatabaseName("ix_applications_ward_code_category_id_status");
 
                     b.HasIndex("WardCode", "DeadlineStatus", "DueAtUtc")
                         .HasDatabaseName("ix_applications_ward_code_deadline_status_due_at_utc");
@@ -507,6 +581,16 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                     b.ToTable("workflow_outbox", (string)null);
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationAssignmentHistory", b =>
+                {
+                    b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", null)
+                        .WithMany("AssignmentHistory")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_application_assignment_history_applications_application_id");
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationChecklist", b =>
                 {
                     b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", null)
@@ -557,6 +641,8 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", b =>
                 {
+                    b.Navigation("AssignmentHistory");
+
                     b.Navigation("Checklists");
 
                     b.Navigation("Comments");

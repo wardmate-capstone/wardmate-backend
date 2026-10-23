@@ -26,6 +26,12 @@ public sealed class ApplicationRecord
     public Guid ProcedureId { get; set; }
     public string? WardCode { get; set; }
     public string ProcedureTitle { get; set; } = string.Empty;
+    public int? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
+    public string? AssignedOfficerName { get; set; }
+    public DateTime? AssignedAt { get; set; }
+    public long AssignmentVersion { get; set; }
+    public List<ApplicationAssignmentHistory> AssignmentHistory { get; set; } = [];
     public string? CaseCode { get; set; }
     public string Status { get; set; } = ApplicationStates.Draft;
     public string FormData { get; set; } = "{}";

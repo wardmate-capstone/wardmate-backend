@@ -32,7 +32,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         if (a.Status != ApplicationStates.Submitted || (a.AssignedOfficerId is not null && a.AssignedOfficerId != r.Actor.Id))
             return Fail(409, "invalid_status", "Hồ sơ không còn chờ tiếp nhận hoặc đã có cán bộ khác thụ lý.");
         if (a.Versions.Count == 0) return Fail(409, "snapshot_missing", "Hồ sơ cũ chưa có snapshot nộp; cần kiểm tra dữ liệu trước khi thụ lý.");
-        a.AssignedOfficerId = r.Actor.Id;
+        AssignmentHandlers.Record(a, "CLAIM", r.Actor.Id, r.Actor.Id, r.Actor.FullName, null, Now);
         Transition(a, ApplicationStates.UnderReview, r.Actor.Id, Now);
         return Ok(a);
     }, ct);
@@ -95,7 +95,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         foreach (var comment in a.Comments.Where(x => x.Status == "OPEN" && x.ApplicationVersionId == version.Id))
         { comment.Status = "RESOLVED"; comment.UpdatedAt = now; }
         Transition(a, ApplicationStates.Submitted, r.UserId, now, "Công dân nộp lại hồ sơ đã chỉnh sửa.");
-        return Ok(a);
+        return WorkflowResult<ReviewResultDto>.Ok(new(ApplicationDto.ForApplicant(a), a.AssignedOfficerId, a.ResubmitCount, a.Versions.Max(x => x.VersionNumber)));
     }, ct);
 
     public Task<ApplicationPage> Handle(GetOfficerPendingApplicationsPagedQuery r, CancellationToken ct) => store.Pending(r.Actor, r.Input, ct);

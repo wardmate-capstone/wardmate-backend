@@ -13,7 +13,7 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         await db.SaveChangesAsync(ct);
     }
     public Task<ApplicationRecord?> Get(Guid userId, Guid applicationId, CancellationToken ct) =>
-        db.Applications.AsNoTracking().Include(x => x.Checklists).Include(x => x.History)
+        db.Applications.AsNoTracking().Include(x => x.AssignmentHistory).Include(x => x.Checklists).Include(x => x.History).AsSplitQuery()
             .SingleOrDefaultAsync(x => x.Id == applicationId && x.UserId == userId, ct);
 
     public async Task<ApplicationPage> List(Guid userId, int page, int pageSize, CancellationToken ct)
@@ -23,7 +23,7 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         var items = await source.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
             .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId,
-                x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc)).ToArrayAsync(ct);
+                x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc, x.CategoryId, x.CategoryName, x.AssignedOfficerName, x.AssignedAt, x.ResubmitCount, x.AssignmentVersion)).ToArrayAsync(ct);
         return new(items, page, pageSize, count);
     }
     public async Task<WorkflowResult<ApplicationDto>> WithLock(Guid userId, Guid applicationId,
@@ -36,7 +36,7 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         if (application is null) return WorkflowResult<ApplicationDto>.Fail(404, "application.not_found", "Không tìm thấy hồ sơ của bạn.");
         await db.Entry(application).Collection(x => x.Checklists).LoadAsync(ct);
         await db.Entry(application).Collection(x => x.History).LoadAsync(ct);
-        var existingHistoryIds = application.History.Select(x => x.Id).ToHashSet();
+        await db.Entry(application).Collection(x => x.AssignmentHistory).LoadAsync(ct); var existingHistoryIds = application.History.Select(x => x.Id).ToHashSet();
         var result = await operation(application);
         if (result.Error is not null) return result;
         // New history has an application-generated Guid, so explicitly mark it as an INSERT.

@@ -12,7 +12,7 @@ namespace WardMate.Services.ApplicationWorkflow.API.Controllers;
  ProducesResponseType<ProblemDetails>(403), ProducesResponseType<ProblemDetails>(404), ProducesResponseType<ProblemDetails>(409)]
 public abstract class ReviewControllerBase : ControllerBase
 {
-    protected ReviewActor Actor => new(Guid.Parse(User.FindFirstValue("sub")!), User.IsInRole("FRONT_DESK_OFFICER"), User.FindFirstValue("ward_code"), User.IsInRole("MANAGER"));
+    protected ReviewActor Actor => new(Guid.Parse(User.FindFirstValue("sub")!), User.IsInRole("FRONT_DESK_OFFICER"), User.FindFirstValue("ward_code"), User.IsInRole("MANAGER"), User.FindAll("assigned_categories").Select(x => int.Parse(x.Value, System.Globalization.CultureInfo.InvariantCulture)).ToArray(), User.FindFirstValue("officer_name"));
     protected IActionResult Respond<T>(WorkflowResult<T> result)
     {
         if (result.Error is null) return Ok(result.Value);
@@ -39,8 +39,12 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
     }
     [HttpGet("pending"), ProducesResponseType<ApplicationPage>(200)]
     [Authorize(Policy = "workflow.queue.read")]
-    public async Task<IActionResult> Pending([FromQuery] OfficerPendingInput input, CancellationToken ct) =>
-        Ok(await sender.Send(new GetOfficerPendingApplicationsPagedQuery(Actor, input), ct));
+    public async Task<IActionResult> Pending([FromQuery] OfficerPendingInput input, CancellationToken ct)
+    {
+        if (!AssignmentFilters.Valid(input.CategoryIds, input.Scope, input.Assignee, input.Sort, Actor.IsManager))
+            return Respond(WorkflowResult<ApplicationPage>.Fail(400, "workflow.validation", "Bộ lọc không hợp lệ."));
+        return Ok(await sender.Send(new GetOfficerPendingApplicationsPagedQuery(Actor, input), ct));
+    }
 
     /// <summary>
     /// Danh sách tổng hợp toàn bộ hồ sơ của phường (kể cả đã duyệt / từ chối / cần sửa).
@@ -48,8 +52,12 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
     /// </summary>
     [HttpGet, ProducesResponseType<ApplicationPage>(200)]
     [Authorize(Policy = "workflow.queue.read")]
-    public async Task<IActionResult> List([FromQuery] OfficerListInput input, CancellationToken ct) =>
-        Ok(await sender.Send(new GetOfficerApplicationsPagedQuery(Actor, input), ct));
+    public async Task<IActionResult> List([FromQuery] OfficerListInput input, CancellationToken ct)
+    {
+        if (!AssignmentFilters.Valid(input.CategoryIds, input.Scope, input.Assignee, input.Sort, Actor.IsManager))
+            return Respond(WorkflowResult<ApplicationPage>.Fail(400, "workflow.validation", "Bộ lọc lĩnh vực, phạm vi, cán bộ hoặc sắp xếp không hợp lệ."));
+        return Ok(await sender.Send(new GetOfficerApplicationsPagedQuery(Actor, input), ct));
+    }
 
     [HttpPost("{id:guid}/officially-received"), Authorize(Policy = "workflow.receipt.confirm"), RequestSizeLimit(16384)]
     [ProducesResponseType<OfficialReceiptDto>(200)]
@@ -60,6 +68,10 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
         var a = result.Value!.Application;
         return Ok(new OfficialReceiptDto(a.Id, a.Status, a.ReceiptNumber, a.ReceivedAt, a.AppointmentDate));
     }
+
+    [HttpPost("{id:guid}/release"), Authorize(Policy = "workflow.assign"), RequestSizeLimit(4096)]
+    public async Task<IActionResult> Release(Guid id, ReleaseApplicationInput input, CancellationToken ct) =>
+        Respond(await sender.Send(new ReleaseApplicationCommand(Actor, id, input), ct));
 
     [HttpPost("{id:guid}/assign"), ProducesResponseType<ReviewResultDto>(200)]
     [Authorize(Policy = "workflow.assign")]

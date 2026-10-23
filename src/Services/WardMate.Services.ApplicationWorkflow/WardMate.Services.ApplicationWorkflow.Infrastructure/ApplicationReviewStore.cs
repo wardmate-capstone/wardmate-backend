@@ -7,7 +7,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationReviewStore
 {
     public Task<ApplicationRecord?> Read(ReviewActor actor, Guid id, CancellationToken ct) => db.Applications.AsNoTracking()
-        .Include(x => x.Versions).Include(x => x.Comments).Include(x => x.Checklists).Include(x => x.History).AsSplitQuery()
+        .Include(x => x.AssignmentHistory).Include(x => x.Versions).Include(x => x.Comments).Include(x => x.Checklists).Include(x => x.History).AsSplitQuery()
         .SingleOrDefaultAsync(x => x.Id == id && (x.UserId == actor.Id || actor.CanReadWard && actor.WardCode != null && actor.WardCode != "" && x.WardCode == actor.WardCode && x.UserId != actor.Id), ct);
 
     public async Task<ApplicationPage> Pending(ReviewActor actor, OfficerPendingInput input, CancellationToken ct)
@@ -20,9 +20,27 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
         if (input.ProcedureId is not null) q = q.Where(x => x.ProcedureId == input.ProcedureId);
         if (input.SubmittedFrom is not null) q = q.Where(x => x.SubmittedAt >= input.SubmittedFrom.Value.UtcDateTime);
         if (input.SubmittedTo is not null) q = q.Where(x => x.SubmittedAt <= input.SubmittedTo.Value.UtcDateTime);
+        var categories = actor.AssignedCategories ?? [];
+        if (!string.IsNullOrWhiteSpace(input.CategoryIds))
+        {
+            var requested = input.CategoryIds.Split(',').Select(int.Parse).ToArray();
+            q = q.Where(x => x.CategoryId != null && requested.Contains(x.CategoryId.Value));
+        }
+        if (input.Scope == "my-categories" && !actor.IsManager && categories.Length > 0)
+            q = q.Where(x => x.CategoryId != null && categories.Contains(x.CategoryId.Value));
+        if (input.Assignee == "me") q = q.Where(x => x.AssignedOfficerId == actor.Id);
+        else if (input.Assignee == "unassigned") q = q.Where(x => x.AssignedOfficerId == null);
+        else if (Guid.TryParse(input.Assignee, out var target)) q = q.Where(x => x.AssignedOfficerId == target);
+        if (input.Overdue == true)
+        {
+            var now = DateTime.UtcNow;
+            // Same rule as Analytics openOverdue: a pause started after the due time stays overdue.
+            q = q.Where(x => x.DeadlineStatus == "KNOWN" && x.DueAtUtc != null && x.DueAtUtc < (x.DeadlinePausedAtUtc ?? now)
+                && x.DocumentsReadyAt == null && (x.Status == "SUBMITTED" || x.Status == "UNDER_REVIEW" || x.Status == "NEED_REVISION"));
+        }
         var total = await q.CountAsync(ct);
-        var items = await q.OrderBy(x => x.SubmittedAt).ThenBy(x => x.Id).Skip((input.Page - 1) * input.PageSize).Take(input.PageSize)
-            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc)).ToArrayAsync(ct);
+        var items = await Order(q, actor, input.Sort, true).Skip((input.Page - 1) * input.PageSize).Take(input.PageSize)
+            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc, x.CategoryId, x.CategoryName, x.AssignedOfficerName, x.AssignedAt, x.ResubmitCount, x.AssignmentVersion)).ToArrayAsync(ct);
         return new(items, input.Page, input.PageSize, total);
     }
 
@@ -55,17 +73,43 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
             q = q.Where(x => x.SubmittedAt >= input.SubmittedFrom.Value.UtcDateTime);
         if (input.SubmittedTo is not null)
             q = q.Where(x => x.SubmittedAt <= input.SubmittedTo.Value.UtcDateTime);
+        var categories = actor.AssignedCategories ?? [];
+        if (!string.IsNullOrWhiteSpace(input.CategoryIds))
+        {
+            var requested = input.CategoryIds.Split(',').Select(int.Parse).ToArray();
+            q = q.Where(x => x.CategoryId != null && requested.Contains(x.CategoryId.Value));
+        }
+        if (input.Scope == "my-categories" && !actor.IsManager && categories.Length > 0)
+            q = q.Where(x => x.CategoryId != null && categories.Contains(x.CategoryId.Value));
+        if (input.Assignee == "me") q = q.Where(x => x.AssignedOfficerId == actor.Id);
+        else if (input.Assignee == "unassigned") q = q.Where(x => x.AssignedOfficerId == null);
+        else if (Guid.TryParse(input.Assignee, out var target)) q = q.Where(x => x.AssignedOfficerId == target);
+        if (input.Overdue == true)
+        {
+            var now = DateTime.UtcNow;
+            // Same rule as Analytics openOverdue: a pause started after the due time stays overdue.
+            q = q.Where(x => x.DeadlineStatus == "KNOWN" && x.DueAtUtc != null && x.DueAtUtc < (x.DeadlinePausedAtUtc ?? now)
+                && x.DocumentsReadyAt == null && (x.Status == "SUBMITTED" || x.Status == "UNDER_REVIEW" || x.Status == "NEED_REVISION"));
+        }
         var total = await q.CountAsync(ct);
         var page = Math.Max(1, input.Page);
         var pageSize = Math.Clamp(input.PageSize, 1, 100);
-        var items = await q
-            .OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id)
+        var items = await Order(q, actor, input.Sort, false)
             .Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc))
+            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc, x.CategoryId, x.CategoryName, x.AssignedOfficerName, x.AssignedAt, x.ResubmitCount, x.AssignmentVersion))
             .ToArrayAsync(ct);
         return new(items, page, pageSize, total);
     }
 
+    private static IOrderedQueryable<ApplicationRecord> Order(IQueryable<ApplicationRecord> q, ReviewActor actor, string? sort, bool pending)
+    {
+        if (sort == "submittedAt") return q.OrderBy(x => x.SubmittedAt == null).ThenBy(x => x.SubmittedAt).ThenBy(x => x.Id);
+        if (sort == "-submittedAt") return q.OrderBy(x => x.SubmittedAt == null).ThenByDescending(x => x.SubmittedAt).ThenBy(x => x.Id);
+        if (sort == "dueAt") return q.OrderBy(x => x.DueAtUtc == null).ThenBy(x => x.DueAtUtc).ThenBy(x => x.Id);
+        var categories = actor.AssignedCategories ?? [];
+        var ordered = q.OrderByDescending(x => !actor.IsManager && categories.Length > 0 && x.CategoryId != null && categories.Contains(x.CategoryId.Value));
+        return pending ? ordered.ThenBy(x => x.SubmittedAt).ThenBy(x => x.Id) : ordered.ThenByDescending(x => x.UpdatedAt).ThenBy(x => x.Id);
+    }
     public async Task<WorkflowResult<ReviewResultDto>> Mutate(Guid id, Func<ApplicationRecord, WorkflowResult<ReviewResultDto>> action, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -75,12 +119,12 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
         await db.Entry(a).Collection(x => x.History).LoadAsync(ct);
         await db.Entry(a).Collection(x => x.Versions).LoadAsync(ct);
         await db.Entry(a).Collection(x => x.Comments).LoadAsync(ct);
-        var histories = a.History.Select(x => x.Id).ToHashSet();
+        await db.Entry(a).Collection(x => x.AssignmentHistory).LoadAsync(ct); var assignments = a.AssignmentHistory.Select(x => x.Id).ToHashSet(); var histories = a.History.Select(x => x.Id).ToHashSet();
         var versions = a.Versions.Select(x => x.Id).ToHashSet();
         var comments = a.Comments.Select(x => x.Id).ToHashSet();
         var result = action(a);
         if (result.Error is not null) return result;
-        db.StatusHistory.AddRange(a.History.Where(x => !histories.Contains(x.Id)));
+        db.Set<ApplicationAssignmentHistory>().AddRange(a.AssignmentHistory.Where(x => !assignments.Contains(x.Id))); db.StatusHistory.AddRange(a.History.Where(x => !histories.Contains(x.Id)));
         db.Versions.AddRange(a.Versions.Where(x => !versions.Contains(x.Id)));
         db.Comments.AddRange(a.Comments.Where(x => !comments.Contains(x.Id)));
         await db.SaveChangesAsync(ct);

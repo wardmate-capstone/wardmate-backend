@@ -43,7 +43,7 @@ public sealed class CancelApplicationHandler(IApplicationStore store, TimeProvid
         a.History.Add(new() { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.Cancelled, ChangedBy = r.UserId, Reason = "Công dân hủy hồ sơ tiền kiểm.", CreatedAt = now });
         ReviewDeadline.CancelPause(a, now, r.UserId);
         a.Status = ApplicationStates.Cancelled; a.UpdatedAt = now;
-        return Task.FromResult(WorkflowResult<ApplicationDto>.Ok(ApplicationDto.From(a)));
+        return Task.FromResult(WorkflowResult<ApplicationDto>.Ok(ApplicationDto.ForApplicant(a)));
     }, ct);
 }
 

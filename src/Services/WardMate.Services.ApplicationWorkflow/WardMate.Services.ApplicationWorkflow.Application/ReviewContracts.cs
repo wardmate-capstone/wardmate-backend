@@ -5,7 +5,7 @@ using WardMate.Services.ApplicationWorkflow.Domain;
 
 namespace WardMate.Services.ApplicationWorkflow.Application;
 
-public sealed record ReviewActor(Guid Id, bool IsOfficer, string? WardCode = null, bool IsManager = false)
+public sealed record ReviewActor(Guid Id, bool IsOfficer, string? WardCode = null, bool IsManager = false, int[]? AssignedCategories = null, string? FullName = null)
 {
     public bool CanReadWard => IsOfficer || IsManager;
     public bool CanMutate => IsOfficer && !IsManager;
@@ -21,7 +21,7 @@ public sealed record CommentDto(Guid Id, Guid ApplicationVersionId, int VersionN
 public sealed record FieldDiffDto(string FieldKey, string FieldLabel, JsonNode? OldValue, JsonNode? NewValue,
     bool HasChanged, CommentDto[] AssociatedComments, bool OldExists, bool NewExists);
 public sealed record OfficerPendingInput(string? Status = null, Guid? ProcedureId = null,
-    DateTimeOffset? SubmittedFrom = null, DateTimeOffset? SubmittedTo = null, int Page = 1, int PageSize = 20);
+    DateTimeOffset? SubmittedFrom = null, DateTimeOffset? SubmittedTo = null, int Page = 1, int PageSize = 20, string? CategoryIds = null, string? Scope = null, string? Assignee = null, bool? Overdue = null, string? Sort = null);
 
 // Dùng cho GET /api/v1/officer/applications — trả toàn bộ hồ sơ phường (kể cả đã duyệt/từ chối)
 public sealed record OfficerListInput(
@@ -31,7 +31,7 @@ public sealed record OfficerListInput(
     DateTimeOffset? SubmittedFrom = null,
     DateTimeOffset? SubmittedTo = null,
     int Page = 1,
-    int PageSize = 20);
+    int PageSize = 20, string? CategoryIds = null, string? Scope = null, string? Assignee = null, bool? Overdue = null, string? Sort = null);
 
 public sealed record AssignOfficerCommand(ReviewActor Actor, Guid Id) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record AddApplicationCommentCommand(ReviewActor Actor, Guid Id, AddCommentInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;

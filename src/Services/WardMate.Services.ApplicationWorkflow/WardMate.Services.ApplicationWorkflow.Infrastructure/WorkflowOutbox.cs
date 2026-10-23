@@ -25,16 +25,20 @@ public static class WorkflowOutboxCapture
     {
         db.ChangeTracker.DetectChanges();
         var applications = db.ChangeTracker.Entries<ApplicationRecord>().ToDictionary(e => e.Entity.Id, e => e.Entity);
+        var assignments = db.ChangeTracker.Entries<ApplicationAssignmentHistory>().Where(x => x.State == EntityState.Added).Select(x => x.Entity).ToArray();
+        foreach (var assignment in assignments)
+            if (applications.TryGetValue(assignment.ApplicationId, out var assignedApplication))
+                Add(db, assignedApplication, assignment.Id, "APPLICATION_ASSIGNED", assignedApplication.Status, assignment.CreatedAt, assignment.FromOfficerId, assignment.Action);
         foreach (var h in db.ChangeTracker.Entries<ApplicationStatusHistory>().Where(e => e.State == EntityState.Added).Select(e => e.Entity).ToArray())
-            if (h.ToStatus != ApplicationStates.Draft && applications.TryGetValue(h.ApplicationId, out var a))
+            if (!assignments.Any(x => x.ApplicationId == h.ApplicationId) && h.ToStatus != ApplicationStates.Draft && applications.TryGetValue(h.ApplicationId, out var a))
                 Add(db, a, h.Id, "STATUS", h.ToStatus, h.CreatedAt);
         foreach (var c in db.ChangeTracker.Entries<ApplicationComment>().Where(e => e.State == EntityState.Added).Select(e => e.Entity).ToArray())
             if (applications.TryGetValue(c.ApplicationId, out var a)) Add(db, a, c.Id, "COMMENT", a.Status, c.CreatedAt);
     }
-    private static void Add(WorkflowDbContext db, ApplicationRecord a, Guid id, string kind, string status, DateTime now)
+    private static void Add(WorkflowDbContext db, ApplicationRecord a, Guid id, string kind, string status, DateTime now, Guid? previousOfficerId = null, string? assignmentAction = null)
     {
         if (string.IsNullOrWhiteSpace(a.WardCode) || db.Outbox.Local.Any(x => x.Id == id)) return;
-        var message = new WorkflowEvent(id, 1, a.Id, a.UserId, a.AssignedOfficerId, a.WardCode, string.IsNullOrWhiteSpace(a.ApplicationCode) ? a.Id.ToString("N") : a.ApplicationCode, kind, status, now);
+        var message = new WorkflowEvent(id, assignmentAction is null ? 1 : 2, a.Id, a.UserId, a.AssignedOfficerId, a.WardCode, string.IsNullOrWhiteSpace(a.ApplicationCode) ? a.Id.ToString("N") : a.ApplicationCode, kind, status, now, previousOfficerId, assignmentAction);
         db.Outbox.Add(new() { Id = id, Payload = JsonSerializer.Serialize(message), CreatedAt = now, NextAttemptAt = now });
     }
 }

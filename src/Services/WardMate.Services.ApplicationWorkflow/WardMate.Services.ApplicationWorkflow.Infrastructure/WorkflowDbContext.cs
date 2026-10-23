@@ -25,7 +25,18 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         o.Property(x => x.Payload).HasColumnType("jsonb"); o.Property(x => x.LastError).HasMaxLength(100);
         o.HasIndex(x => new { x.PublishedAt, x.NextAttemptAt });
         b.HasSequence<long>("application_code_sequence");
+        var assignment = b.Entity<ApplicationAssignmentHistory>();
+        assignment.ToTable("application_assignment_history");
+        assignment.HasKey(x => x.Id);
+        assignment.Property(x => x.Action).HasMaxLength(20);
+        assignment.Property(x => x.Reason).HasMaxLength(500);
+        assignment.HasIndex(x => new { x.ApplicationId, x.CreatedAt });
         var a = b.Entity<ApplicationRecord>();
+        a.Property(x => x.CategoryName).HasMaxLength(255);
+        a.Property(x => x.AssignedOfficerName).HasMaxLength(255);
+        a.Property(x => x.AssignmentVersion).HasDefaultValue(0L);
+        a.HasIndex(x => new { x.WardCode, x.CategoryId, x.Status });
+        a.HasMany(x => x.AssignmentHistory).WithOne().HasForeignKey(x => x.ApplicationId).OnDelete(DeleteBehavior.Cascade);
         a.ToTable("applications", t => t.HasCheckConstraint("ck_applications_status", "status IN ('DRAFT','SUBMITTED','UNDER_REVIEW','NEED_REVISION','DOCUMENTS_READY','OFFICIALLY_RECEIVED','APPROVED','CANCELLED','REJECTED')"));
         a.HasKey(x => x.Id);
         a.Property(x => x.DeadlineStatus).HasMaxLength(20).HasDefaultValue("UNKNOWN");

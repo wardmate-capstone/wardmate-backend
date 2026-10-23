@@ -21,7 +21,9 @@ public sealed class WorkflowAccessMiddleware(RequestDelegate next)
                 if (access.Roles is null || access.Permissions is null)
                 { await Error(context, 503, "application.iam_unavailable", "Ngữ cảnh quyền IAM không hợp lệ."); return; }
                 var identity = (ClaimsIdentity)context.User.Identity;
-                foreach (var claim in identity.Claims.Where(c => c.Type is "permissions" or "ward_code" or "role").ToArray()) identity.RemoveClaim(claim);
+                foreach (var claim in identity.Claims.Where(c => c.Type is "permissions" or "ward_code" or "role" or "assigned_categories" or "officer_name").ToArray()) identity.RemoveClaim(claim);
+                identity.AddClaims((access.AssignedCategories ?? []).Select(x => new Claim("assigned_categories", x.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+                if (access.FullName is not null) identity.AddClaim(new Claim("officer_name", access.FullName));
                 identity.AddClaims(access.Permissions.Select(p => new Claim("permissions", p)));
                 identity.AddClaims(access.Roles.Select(r => new Claim("role", r)));
                 if (!string.IsNullOrWhiteSpace(access.WardCode)) identity.AddClaim(new Claim("ward_code", access.WardCode));

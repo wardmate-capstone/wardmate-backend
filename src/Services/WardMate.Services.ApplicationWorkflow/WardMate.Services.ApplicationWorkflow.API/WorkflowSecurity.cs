@@ -54,7 +54,7 @@ public static class WorkflowSecurity
         WardMate.SharedKernel.Web.FeaturePermissions.AddClaimPermissions(services, WardMate.SharedKernel.Web.FeaturePermissions.Workflow);
         services.AddAuthorization(options =>
         {
-            options.AddPolicy("workflow.queue.read", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.queue.read")
+            options.AddPolicy("workflow.assign.manage", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.assign.manage").RequireRole("MANAGER")); options.AddPolicy("workflow.queue.read", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.queue.read")
                 .RequireRole("FRONT_DESK_OFFICER", "MANAGER"));
             foreach (var permission in new[] { "workflow.receipt.confirm", "workflow.assign", "workflow.comments.write", "workflow.revision.request", "workflow.readiness.confirm" })
                 options.AddPolicy(permission, p => p.RequireAuthenticatedUser().RequireClaim("permissions", permission)

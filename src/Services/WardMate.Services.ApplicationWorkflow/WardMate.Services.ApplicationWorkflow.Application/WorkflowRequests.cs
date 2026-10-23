@@ -46,7 +46,7 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
             return WorkflowResult<ApplicationDto>.Fail(502, "application.invalid_schema", "Mã checklist của thủ tục bị trùng.");
         var now = clock.GetUtcNow().UtcDateTime;
         var application = new ApplicationRecord { WardCode = ward, ApplicationCode = await store.NextCode(now, ct), UserId = r.UserId, ProcedureId = procedure.Id,
-            ProcedureTitle = procedure.Title, CaseCode = caseCode, FormData = r.Input.FormData.GetRawText(), CreatedAt = now, UpdatedAt = now };
+            ProcedureTitle = procedure.Title, CategoryId = procedure.CategoryId, CategoryName = procedure.CategoryName, CaseCode = caseCode, FormData = r.Input.FormData.GetRawText(), CreatedAt = now, UpdatedAt = now };
         application.Checklists.AddRange(selected.Select((x, index) => new ApplicationChecklist { ApplicationId = application.Id,
             Code = x.ChecklistId, Title = x.ItemName, IsRequired = x.IsMandatory!.Value, CreatedAt = now, UpdatedAt = now,
             SortOrder = index, CaseCode = x.CaseCode, SubmissionType = x.SubmissionType,
@@ -77,13 +77,13 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
         application.History.Add(new() { ApplicationId = application.Id, ToStatus = ApplicationStates.Draft,
             ChangedBy = r.UserId, CreatedAt = now });
         await store.Add(application, ct);
-        return WorkflowResult<ApplicationDto>.Ok(ApplicationDto.From(application));
+        return WorkflowResult<ApplicationDto>.Ok(ApplicationDto.ForApplicant(application));
     }
 
     public async Task<WorkflowResult<ApplicationDto>> Handle(GetApplicationQuery r, CancellationToken ct)
     {
         var application = await store.Get(r.UserId, r.Id, ct);
-        return application is null ? NotFound() : WorkflowResult<ApplicationDto>.Ok(ApplicationDto.From(application));
+        return application is null ? NotFound() : WorkflowResult<ApplicationDto>.Ok(ApplicationDto.ForApplicant(application));
     }
     public Task<ApplicationPage> Handle(ListApplicationsQuery r, CancellationToken ct) => store.List(r.UserId, r.Page, r.PageSize, ct);
 
@@ -97,7 +97,7 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
             if (r.Input.FileUrl is not null) item.FileUrl = string.IsNullOrWhiteSpace(r.Input.FileUrl) ? null : r.Input.FileUrl.Trim();
             if (r.Input.Note is not null) item.Note = string.IsNullOrWhiteSpace(r.Input.Note) ? null : r.Input.Note.Trim();
             item.UpdatedAt = application.UpdatedAt = clock.GetUtcNow().UtcDateTime;
-            return Task.FromResult(WorkflowResult<ApplicationDto>.Ok(ApplicationDto.From(application)));
+            return Task.FromResult(WorkflowResult<ApplicationDto>.Ok(ApplicationDto.ForApplicant(application)));
         }, ct);
 
     public Task<WorkflowResult<ApplicationDto>> Handle(SubmitApplicationCommand r, CancellationToken ct) =>
@@ -114,7 +114,7 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
             application.Submit(code, r.UserId, now);
             ReviewDeadline.Start(application, now, deadlinePolicy);
             application.Versions.Add(ApplicationSnapshots.Capture(application, r.UserId, now));
-            return WorkflowResult<ApplicationDto>.Ok(ApplicationDto.From(application));
+            return WorkflowResult<ApplicationDto>.Ok(ApplicationDto.ForApplicant(application));
         }, ct);
 
     private static WorkflowResult<ApplicationDto> NotFound() => WorkflowResult<ApplicationDto>.Fail(404,
