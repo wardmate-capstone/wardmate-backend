@@ -1,0 +1,27 @@
+erDiagram
+    USER }o--o{ ROLE : holds
+    ROLE }o--o{ PERMISSION : grants
+    WARD ||--o{ USER : locates
+    USER ||--o{ AUTH_CHALLENGE : verifies
+    USER ||--o| WELCOME_MESSAGE : receives
+    CATEGORY ||--o{ PROCEDURE : classifies
+    PROCEDURE ||--o{ PROCEDURE_VERSION : versions
+    PROCEDURE ||--o{ PROCEDURE_DRAFT : prepares
+    USER ||--o{ APPLICATION : creates
+    WARD ||--o{ APPLICATION : receives
+    PROCEDURE ||--o{ APPLICATION : defines
+    APPLICATION ||--o{ CHECKLIST_ITEM : requires
+    APPLICATION ||--o{ REVIEW_VERSION : snapshots
+    REVIEW_VERSION ||--o{ REVIEW_COMMENT : annotates
+    APPLICATION ||--o{ STATUS_HISTORY : records
+    APPLICATION ||--o{ DOCUMENT : contains
+    FORM_TEMPLATE ||--o{ FILLED_FORM : produces
+    CHECKLIST_ITEM ||--o{ DOCUMENT : fulfilled_by
+    APPLICATION ||--o| QR_REFERENCE : identifies
+    APPLICATION ||--o| CITIZEN_FEEDBACK : receives
+    USER ||--o{ CHAT_SESSION : starts
+    CHAT_SESSION ||--o{ CHAT_MESSAGE : contains
+    APPLICATION ||--o{ NOTIFICATION : triggers
+    USER ||--o{ NOTIFICATION : receives
+    NOTIFICATION ||--o{ DELIVERY : dispatches
+    APPLICATION }o--o{ PERFORMANCE_METRIC : aggregates

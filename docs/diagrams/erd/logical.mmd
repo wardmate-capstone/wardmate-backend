@@ -1,0 +1,245 @@
+erDiagram
+    IAM_permissions ||--o{ IAM_role_permissions : "FK permission_id"
+    IAM_roles ||--o{ IAM_role_permissions : "FK role_id"
+    IAM_wards |o--o{ IAM_users : "FK ward_id"
+    IAM_users ||--o{ IAM_refresh_tokens : "FK user_id"
+    IAM_users ||--o{ IAM_user_otps : "FK user_id"
+    IAM_users ||--o| IAM_user_profiles : "FK user_id"
+    IAM_roles ||--o{ IAM_user_roles : "FK role_id"
+    IAM_users ||--o{ IAM_user_roles : "FK user_id"
+    IAM_users ||--o| IAM_welcome_emails : "FK user_id"
+    CAT_procedure_categories ||--o{ CAT_procedures : "FK category_id"
+    CAT_procedures ||--o{ CAT_procedure_versions : "FK procedure_id"
+    WF_applications ||--o{ WF_application_checklists : "FK application_id"
+    WF_applications ||--o{ WF_application_status_history : "FK application_id"
+    WF_applications ||--o{ WF_application_versions : "FK application_id"
+    WF_application_versions ||--o{ WF_application_comments : "FK application_id+application_version_id"
+    WF_applications ||--o{ WF_application_comments : "FK application_id"
+    DOC_form_templates ||--o{ DOC_form_template_versions : "FK template_id"
+    DOC_form_template_versions |o--o{ DOC_user_submissions : "FK template_version_id"
+    AI_chat_sessions ||--o{ AI_chat_messages : "FK session_id"
+    SYS_notifications ||--o{ SYS_notification_deliveries : "FK NotificationId"
+    IAM_users }o..o{ CAT_procedure_drafts : "REF CreatedBy/ReviewedBy"
+    CAT_procedures |o..o{ CAT_procedure_drafts : "REF PublishedProcedureId"
+    IAM_users }o..o{ WF_applications : "REF UserId/AssignedOfficerId"
+    IAM_wards |o..o{ WF_applications : "REF WardCode"
+    CAT_procedures |o..o{ WF_applications : "REF ProcedureId"
+    IAM_users |o..o{ WF_application_comments : "REF OfficerId"
+    IAM_users |o..o{ WF_application_versions : "REF SubmittedBy"
+    IAM_users |o..o{ WF_application_status_history : "REF ChangedBy"
+    WF_applications |o..o{ WF_workflow_outbox : "REF Payload.ApplicationId"
+    DOC_form_templates |o..o{ WF_application_checklists : "REF FormTemplateId"
+    CAT_procedures }o..o{ DOC_form_templates : "REF FormDefinitions JSON"
+    IAM_users |o..o{ DOC_user_submissions : "REF ApplicantId"
+    DOC_form_templates |o..o{ DOC_user_submissions : "REF TemplateId"
+    WF_applications |o..o{ DOC_user_submissions : "REF ApplicationId"
+    WF_application_checklists |o..o{ DOC_user_submissions : "REF ChecklistId"
+    WF_applications |o..o{ DOC_application_forms : "REF ApplicationId"
+    WF_applications |o..o{ DOC_supporting_documents : "REF ApplicationId"
+    WF_application_checklists |o..o{ DOC_supporting_documents : "REF ChecklistId"
+    WF_applications |o..o{ DOC_generated_documents : "REF ApplicationId"
+    WF_applications |o..o| DOC_approved_qrs : "REF ApplicationId unique"
+    DOC_user_submissions |o..o{ DOC_approved_qrs : "REF SubmissionId"
+    IAM_users |o..o{ AI_chat_sessions : "REF UserId"
+    IAM_wards |o..o{ AI_chat_sessions : "REF WardCode"
+    IAM_users |o..o{ SYS_notifications : "REF RecipientUserId"
+    IAM_wards |o..o{ SYS_notifications : "REF RecipientWardCode"
+    WF_applications |o..o{ SYS_notifications : "REF ApplicationId"
+    WF_workflow_outbox |o..o| SYS_notification_inbox : "REF EventId"
+    SYS_notification_inbox |o..o{ SYS_notifications : "REF SourceEventId"
+    WF_applications |o..o| SYS_citizen_feedback : "REF ApplicationId unique"
+    IAM_users |o..o{ SYS_citizen_feedback : "REF CitizenId"
+    CAT_procedures |o..o{ SYS_citizen_feedback : "REF ProcedureId"
+    CAT_procedures |o..o{ SYS_application_procedure_metrics : "REF ProcedureId"
+    IAM_users |o..o{ SYS_daily_performance_metrics : "REF OfficerId"
+    CAT_procedures |o..o{ SYS_daily_performance_metrics : "REF ProcedureId"
+    IAM_wards |o..o{ SYS_application_procedure_metrics : "REF WardCode"
+    IAM_wards |o..o{ SYS_daily_performance_metrics : "REF WardCode"
+    IAM_wards |o..o{ SYS_citizen_feedback : "REF WardCode"
+    IAM_users }o..o{ IAM_rbac_audit_logs : "REF ActorUserId/TargetUserId"
+    IAM_roles |o..o{ IAM_rbac_audit_logs : "REF RoleId"
+    IAM_permissions |o..o{ IAM_rbac_audit_logs : "REF PermissionId"
+    IAM_permissions {
+        value id PK "required"
+    }
+    IAM_rbac_audit_logs {
+        value id PK "required"
+        value actor_user_id "required"
+        value target_user_id "optional"
+        value role_id "optional"
+        value permission_id "optional"
+    }
+    IAM_roles {
+        value id PK "required"
+    }
+    IAM_wards {
+        value id PK "required"
+    }
+    IAM_role_permissions {
+        value role_id PK,FK "required"
+        value permission_id PK,FK "required"
+    }
+    IAM_users {
+        value id PK "required"
+        value security_stamp "required"
+        value verified_phone_number "optional"
+        value ward_id FK "optional"
+    }
+    IAM_refresh_tokens {
+        value id PK "required"
+        value user_id FK "required"
+    }
+    IAM_user_otps {
+        value id PK "required"
+        value user_id FK "required"
+    }
+    IAM_user_profiles {
+        value user_id PK,FK "required"
+    }
+    IAM_user_roles {
+        value user_id PK,FK "required"
+        value role_id PK,FK "required"
+    }
+    IAM_welcome_emails {
+        value id PK "required"
+        value user_id FK,UK "required"
+    }
+    CAT_procedure_categories {
+        value id PK "required"
+    }
+    CAT_procedure_drafts {
+        value id PK "required"
+        value status "required"
+        value published_procedure_id "optional"
+        value lease_id "optional"
+    }
+    CAT_procedures {
+        value id PK "required"
+        value category_id FK "required"
+        value status_change_reason "optional"
+    }
+    CAT_procedure_versions {
+        value id PK "required"
+        value procedure_id FK "required"
+    }
+    WF_applications {
+        value id PK "required"
+        value user_id "required"
+        value procedure_id "required"
+        value status "required"
+        value deadline_status "required"
+        value deadline_policy_code "optional"
+        value deadline_policy_version "optional"
+        value deadline_calendar_code "optional"
+        value deadline_calendar_version "optional"
+        value deadline_policy_snapshot "optional"
+        value deadline_paused_at_utc "optional"
+        value deadline_history "required"
+        value assigned_officer_id "optional"
+        value documents_ready_at "optional"
+        value receipt_number UK "optional"
+    }
+    WF_workflow_outbox {
+        value id PK "required"
+    }
+    WF_application_checklists {
+        value id PK "required"
+        value form_template_id "optional"
+        value application_id FK "required"
+        value status "required"
+    }
+    WF_application_status_history {
+        value id PK "required"
+        value application_id FK "required"
+        value from_status "optional"
+        value to_status "required"
+    }
+    WF_application_versions {
+        value id PK "required"
+        value application_id FK "required"
+    }
+    WF_application_comments {
+        value id PK "required"
+        value application_id FK "required"
+        value application_version_id FK "required"
+        value officer_id "required"
+        value target_id "required"
+        value status "required"
+    }
+    DOC_application_forms {
+        value id PK "required"
+        value application_id "required"
+    }
+    DOC_approved_qrs {
+        value id PK "required"
+        value application_id UK "required"
+        value submission_id "required"
+    }
+    DOC_form_templates {
+        value id PK "required"
+    }
+    DOC_generated_documents {
+        value id PK "required"
+        value application_id "required"
+        value submission_id "optional"
+    }
+    DOC_supporting_documents {
+        value id PK "required"
+        value application_id "required"
+        value checklist_id "optional"
+    }
+    DOC_form_template_versions {
+        value id PK "required"
+        value template_id FK "required"
+    }
+    DOC_user_submissions {
+        value id PK "required"
+        value template_version_id FK "optional"
+        value template_id "required"
+        value application_id "optional"
+        value checklist_id "optional"
+        value applicant_id "required"
+        value status "required"
+        value reviewed_by_officer_id "optional"
+    }
+    AI_chat_sessions {
+        value id PK "required"
+        value user_id "required"
+    }
+    AI_chat_messages {
+        value id PK "required"
+        value session_id FK "required"
+    }
+    SYS_notification_inbox {
+        value Id PK "required"
+    }
+    SYS_notifications {
+        value id PK "required"
+        value source_event_id "optional"
+        value recipient_user_id "required"
+        value application_id "optional"
+    }
+    SYS_notification_deliveries {
+        value Id PK "required"
+        value NotificationId FK "required"
+    }
+    SYS_application_procedure_metrics {
+        value MetricDate PK "required"
+        value ProcedureId PK "required"
+        value WardCode PK "required"
+    }
+    SYS_citizen_feedback {
+        value Id PK "required"
+        value ApplicationId UK "required"
+        value CitizenId "required"
+        value ProcedureId "required"
+    }
+    SYS_daily_performance_metrics {
+        value MetricDate PK "required"
+        value OfficerId PK "required"
+        value ProcedureId PK "required"
+        value WardCode PK "required"
+    }
+    SYS_metric_refreshes {
+        value MetricDate PK "required"
+    }

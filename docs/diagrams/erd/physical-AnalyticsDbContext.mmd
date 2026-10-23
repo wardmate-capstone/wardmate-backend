@@ -1,0 +1,38 @@
+erDiagram
+    SYS_application_procedure_metrics {
+        date MetricDate PK "date NOT NULL"
+        uuid ProcedureId PK "uuid NOT NULL"
+        character_varying(50) WardCode PK "character varying(50) NOT NULL"
+        integer ReceivedCount "integer NOT NULL"
+        integer ReadyCount "integer NOT NULL"
+        integer RevisionRequestedCount "integer NOT NULL"
+        integer ResubmittedCount "integer NOT NULL"
+        integer CancelledCount "integer NOT NULL"
+        integer LegacyApprovedCount "integer NOT NULL"
+        integer LegacyRejectedCount "integer NOT NULL"
+    }
+    SYS_citizen_feedback {
+        uuid Id PK "uuid NOT NULL"
+        uuid ApplicationId UK "uuid NOT NULL"
+        uuid CitizenId "uuid NOT NULL"
+        uuid ProcedureId "uuid NOT NULL"
+        character_varying(50) WardCode "character varying(50) NOT NULL"
+        integer Rating "integer NOT NULL"
+        character_varying(2000) Comment "character varying(2000) NULL"
+        timestamp_with_time_zone CreatedAtUtc "timestamp with time zone NOT NULL"
+    }
+    SYS_daily_performance_metrics {
+        date MetricDate PK "date NOT NULL"
+        uuid OfficerId PK "uuid NOT NULL"
+        uuid ProcedureId PK "uuid NOT NULL"
+        character_varying(50) WardCode PK "character varying(50) NOT NULL"
+        integer ReadyCount "integer NOT NULL"
+        integer RevisionRequestedCount "integer NOT NULL"
+        integer DurationSampleCount "integer NOT NULL"
+        double_precision TotalProcessingMinutes "double precision NOT NULL"
+    }
+    SYS_metric_refreshes {
+        date MetricDate PK "date NOT NULL"
+        timestamp_with_time_zone SourceAtUtc "timestamp with time zone NOT NULL"
+        timestamp_with_time_zone RefreshedAtUtc "timestamp with time zone NOT NULL"
+    }

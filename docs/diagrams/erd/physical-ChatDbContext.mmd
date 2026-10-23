@@ -1,0 +1,15 @@
+erDiagram
+    AI_chat_sessions ||--o{ AI_chat_messages : "FK session_id"
+    AI_chat_sessions {
+        uuid id PK "uuid NOT NULL DEFAULT (gen_random_uuid())"
+        uuid user_id "uuid NOT NULL"
+        character_varying(50) ward_code "character varying(50) NOT NULL"
+        timestamp_with_time_zone created_at "timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP)"
+    }
+    AI_chat_messages {
+        uuid id PK "uuid NOT NULL DEFAULT (gen_random_uuid())"
+        uuid session_id FK "uuid NOT NULL"
+        character_varying(20) role "character varying(20) NOT NULL"
+        character_varying(20000) content "character varying(20000) NOT NULL"
+        timestamp_with_time_zone created_at "timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP)"
+    }

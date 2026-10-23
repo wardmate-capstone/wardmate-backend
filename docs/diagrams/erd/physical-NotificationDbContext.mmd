@@ -1,0 +1,36 @@
+erDiagram
+    SYS_notifications ||--o{ SYS_notification_deliveries : "FK NotificationId"
+    SYS_notification_inbox {
+        uuid Id PK "uuid NOT NULL"
+        jsonb Payload "jsonb NOT NULL"
+        character_varying(30) State "character varying(30) NOT NULL"
+        integer Attempts "integer NOT NULL"
+        timestamp_with_time_zone NextAttemptAt "timestamp with time zone NOT NULL"
+        timestamp_with_time_zone CreatedAt "timestamp with time zone NOT NULL"
+        character_varying(100) ErrorCode "character varying(100) NULL"
+    }
+    SYS_notifications {
+        uuid id PK "uuid NOT NULL DEFAULT (gen_random_uuid())"
+        uuid source_event_id "uuid NULL"
+        character_varying(50) recipient_ward_code "character varying(50) NULL"
+        uuid recipient_user_id "uuid NOT NULL"
+        uuid application_id "uuid NULL"
+        character_varying(255) title "character varying(255) NOT NULL"
+        text content "text NOT NULL"
+        character_varying(50) type "character varying(50) NOT NULL"
+        character_varying(30) channel "character varying(30) NOT NULL DEFAULT 'IN_APP'"
+        boolean is_read "boolean NOT NULL DEFAULT FALSE"
+        timestamp_with_time_zone read_at "timestamp with time zone NULL"
+        character_varying(500) action_url "character varying(500) NULL"
+        timestamp_with_time_zone created_at "timestamp with time zone NOT NULL DEFAULT (now())"
+    }
+    SYS_notification_deliveries {
+        uuid Id PK "uuid NOT NULL"
+        uuid NotificationId FK "uuid NOT NULL"
+        character_varying(30) Channel "character varying(30) NOT NULL"
+        character_varying(30) State "character varying(30) NOT NULL"
+        integer Attempts "integer NOT NULL"
+        timestamp_with_time_zone NextAttemptAt "timestamp with time zone NOT NULL"
+        character_varying(100) ErrorCode "character varying(100) NULL"
+        timestamp_with_time_zone SentAt "timestamp with time zone NULL"
+    }
