@@ -2,6 +2,18 @@
 
 
 # WardMate — Nhật ký phát triển
+**Trạng thái TASK-LATEST-SUBMISSION-PDF-MERGE (Lọc Bản Mới Nhất Từng Đơn Khi Gộp PDF Nhiều Đơn): HOÀN THÀNH** — Tối ưu cơ chế gộp PDF cho hồ sơ có nhiều đơn (`GetQrPdfRedirectQuery`): (1) Thay vì lấy toàn bộ danh sách `allDocs`, bổ sung logic nhóm theo từng đơn `GroupBy(d => d.SubmissionId ?? d.Id)` và chỉ lấy bản PDF mới nhất `OrderByDescending(d => d.CreatedAtUtc).First()` của từng đơn; (2) Tránh triệt để việc gộp lặp lại các bản PDF cũ khi người dùng bấm "Generate PDF" lại nhiều lần cho một đơn; (3) Hỗ trợ không giới hạn số lượng đơn trong cùng 1 hồ sơ (2, 3, 5, 10 đơn...), tất cả bản mới nhất đều được Gotenberg ghép lần lượt thành 1 file duy nhất; (4) Bản gộp `COMBINED_APPLICATION` tự động tái sử dụng và chỉ sinh lại khi có bất kỳ đơn nào được xuất PDF mới hơn. Solution-wide Release build: **0 errors, 0 warnings**. Xác minh ngày 23/10/2026 lúc 11:35 (Asia/Saigon, UTC+07:00).
+
+**Paths thay đổi:**
+- `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/GetQrPdfRedirectQuery.cs`
+- `docs/system-constraints.md`
+- `docs/api-guide.md`
+- `PROGRESS.md`
+
+**Suggested Conventional Commit messages (theo thứ tự):**
+1. `fix(document-form): pick latest generated PDF per submission when merging multi-submission applications`
+2. `docs: update system-constraints, api-guide, and PROGRESS for multi-submission latest PDF merge`
+
 **Trạng thái TASK-REMOVE-QR-STAMP-FROM-DOCX (Bỏ Đóng Dấu Mã QR Vào Nội Dung Tờ Đơn): HOÀN THÀNH** — Theo yêu cầu người dùng, loại bỏ việc chèn/đóng dấu (stamp) hình ảnh mã QR vào góc cuối của tài liệu DOCX/PDF khi người dân hoặc cán bộ xuất giấy tờ: (1) Cập nhật `GeneratePdfDocumentCommand`: truyền trực tiếp `cleanDocxStream` vào Gotenberg Render Engine mà không qua `_qrStamper.StampQr`, đảm bảo văn bản in/kết xuất hoàn toàn sạch, đúng chuẩn mẫu đơn gốc của cơ quan nhà nước; (2) Bản ghi mã QR trong bảng `document.approved_qrs` vẫn được sinh và lưu trữ đầy đủ trong cơ sở dữ liệu để phục vụ việc tra cứu số, chia sẻ link hoặc hiển thị trên giao diện người dùng; (3) Toàn bộ luồng quét mã QR redirect đến file PDF vẫn hoạt động chuẩn xác. Solution-wide Release build: **0 errors, 0 warnings**. Xác minh ngày 23/10/2026 lúc 11:05 (Asia/Saigon, UTC+07:00).
 
 **Paths thay đổi:**
@@ -3168,3 +3180,15 @@ Commit gợi ý Antigravity: docs(erd): refresh conceptual logical and physical 
 - Runtime verification: replica wardmate-documentform--latest-54d30471-dacf-4ede-9255-79c15505a032; SharedKernel DLL SHA256 1f04a52ed7b3b8086d9f42ccb4cbba4ef99070050f0ae1458f90ad47b5eb4031 matches tested image. Console now exposes correct Iam__BaseUrl; IAM access-context reachable401 without token.
 - Gateway checks: GET /api/document-form/health200; GET /api/document-form/swagger/index.html200; GET /api/v1/officer/submissions/by-application/{applicationId} without token401 auth.unauthorized. Authenticated reproduction with user's token still pending; do not claim original503 conclusively fixed.
 - No endpoint/body/role changes beyond previous traceId/config validation notes. Existing solution Release0errors0warnings. Changed this session PROGRESS.md only, ignored smoke/build logs. Suggested Conventional Commit for Antigravity: fix(auth): expose safe IAM session failure diagnostics.
+
+## Analytics IAM503 diagnosis — 2026-10-23 (Asia/Saigon)
+- Read-only investigation requested. Azure image analytics-20261023-01; replica wardmate-analytics-system--latest-0cff8bed-6a9e-4a74-ab09-cf3146d13871.
+- Both Azure template and runtime shell Iam__BaseUrl=http://wardmate-iam. getent hosts wardmate-iam exits2 (cannot resolve); full IAM Azure FQDN resolves20.48.104.171/exit0. HTTPS GET access-context from same container via openssl returns401 without token, proving full endpoint reachable.
+- Confirmed configuration defect: unresolvable short IAM hostname prevents session/access-context checks. Recommended Iam__BaseUrl=https://wardmate-iam.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/ and runtime reload. No Azure mutation/Git/source changes; authenticated retest pending after configuration fix. No build necessary for read-only diagnostics.
+- Changed PROGRESS.md only. Suggested handoff: docs: record analytics IAM DNS failure diagnosis. No endpoint/body/token changes.
+
+## Analytics IAM DNS configuration repair — 2026-10-23 (Asia/Saigon)
+- User authorized fixing Analytics503. Changed only Azure wardmate-analytics-system Iam__BaseUrl from http://wardmate-iam to https://wardmate-iam.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/. Image analytics-20261023-01 unchanged.
+- Update Succeeded but old replica still had short hostname. Issued Azure REST stop/start api-version2025-01-01 (CLI start/stop commands unavailable). New replica wardmate-analytics-system--latest-1fd58b2a-a20b-486d-b723-8374a21447b0 exposes correct HTTPS URL.
+- Runtime HTTPS IAM GET /api/v1/users/access-context returns401 without token (expected); Analytics health200 and Gateway /api/analytics-system/swagger/index.html200 after restart. Before restart protected anonymous analytics returned401. Authenticated user Swagger retest pending; no claim of full dashboard functionality verification.
+- No API/request/DTO/roles/token changes, no source changes or Git commands. No build required for config-only repair. Local changed paths: docs/system-constraints.md, PROGRESS.md. Suggested Conventional Commit: docs(analytics): record Azure IAM DNS configuration repair.

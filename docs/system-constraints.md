@@ -773,3 +773,17 @@ Nguồn: WorkflowOutbox.cs, WorkflowDbContext.cs, RabbitTransport.cs, WorkflowNo
 - Response lỗi bổ sung traceId. Log phân loại nguyên nhân, host/port và upstream status; không ghi Bearer token/body/exception message. Logging chỉ hỗ trợ chẩn đoán, không đảm bảo sửa được sự cố kết nối Azure.
 Nguồn: src/BuildingBlocks/WardMate.SharedKernel/Web/AccountSessionMiddleware.cs.
 Lịch sử: 23/10/2026 bổ sung chẩn đoán và kiểm tra định dạng BaseUrl cho IAM-SEC-02; chưa xác nhận nguyên nhân runtime trên Azure.
+
+### IAM-SEC-02 — Analytics Azure runtime configuration (23/10/2026)
+Analytics trên môi trường Azure hiện tại phải cấu hình Iam__BaseUrl bằng HTTPS FQDN của IAM. Kiểm tra runtime xác nhận hostname ngắn wardmate-iam không phân giải được; đây là giới hạn môi trường đã kiểm chứng, không phải quy tắc chung cho mọi Azure environment. Cập nhật cấu hình trên control plane chưa nạp vào replica cũ trong lần này; stop/start riêng Analytics đã tạo replica mới với URL đúng. Lỗi DNS làm xác minh phiên trả503; không bỏ qua IAM hoặc phân quyền để khắc phục. Nguồn: AccountSessionMiddleware.cs, AnalyticsSystem.Infrastructure/DependencyInjection.cs; xác minh runtime23/10/2026.
+
+### DOC-QR-04 — Tự động gộp đơn PDF và loại bỏ dấu QR trong nội dung văn bản (23/10/2026)
+- **Phạm vi & Điều kiện:** Áp dụng cho module DocumentForm khi kết xuất PDF (`GeneratePdfDocumentCommand`) và tra cứu chuyển hướng QR (`GetQrPdfRedirectQuery`).
+- **Nội dung ràng buộc:**
+  1. Loại bỏ hoàn toàn việc dán ảnh QR vào DOCX/PDF: văn bản xuất ra không bị dán hình ảnh mã QR vào trang cuối.
+  2. Tra cứu qua mã QR (`GET /api/v1/public/applications/{applicationId}/pdf-redirect`) chuyển hướng HTTP 302 trực tiếp đến SAS URL trên Azure Blob Storage (thời hạn 15 phút, không cần token).
+  3. Với hồ sơ có từ 2 đơn trở lên, hệ thống tự động gộp tất cả các đơn của hồ sơ đó thành 1 file PDF trọn bộ bằng Gotenberg PDF merge (`/forms/pdfengines/merge`).
+  4. Lọc bản mới nhất: Quá trình gộp nhóm theo `SubmissionId ?? Id` và chỉ lấy bản PDF mới nhất của từng đơn, không giới hạn số lượng đơn trong hồ sơ và không ghép lặp lại các bản PDF cũ khi người dùng regenerate nhiều lần.
+  5. Cập nhật cache: Bản gộp `COMBINED_APPLICATION` được tái sử dụng nếu thời gian tạo lớn hơn hoặc bằng thời gian của tất cả các đơn thành phần; nếu có bất kỳ đơn nào được tạo lại mới hơn, hệ thống sẽ tự động gộp lại bản mới.
+- **Nguồn:** `GetQrPdfRedirectQuery.cs`, `GeneratePdfDocumentCommand.cs`, `GotenbergPdfRenderEngine.cs`.
+

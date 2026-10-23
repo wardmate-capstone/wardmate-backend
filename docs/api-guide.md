@@ -3867,3 +3867,19 @@ Sau khi sửa nguyên nhân, operator có thể replay đúng một InboxDead ho
 ### Chẩn đoán lỗi xác minh phiên IAM — cập nhật 23/10/2026
 Áp dụng cho API được bảo vệ bởi AccountSessionMiddleware, gồm DocumentForm. Response 401 auth.session_revoked hoặc 503 auth.session_unavailable bổ sung traceId để đối chiếu log; không thay đổi request hoặc quyền truy cập. FE gặp 503 giữ phiên và thông báo thử lại, gửi traceId cho vận hành.
 Log "IAM session check failed" phân biệt invalid_base_url, upstream_response (kèm HTTP status), transport_* (loại lỗi mạng .NET), timeout và invalid_authorization_header. Chỉ log authority IAM và traceId; không log token, body, query hoặc exception message. Nếu target là localhost trên Azure, kiểm tra cấu hình runtime Iam__BaseUrl; nếu upstream 5xx, kiểm tra IAM cùng thời điểm. Không suy ra lỗi role hoặc applicationId từ 503.
+
+### TASK-23 — Tra cứu QR chuyển hướng trực tiếp PDF & Tự động gộp đơn trọn bộ (23/10/2026)
+
+- **Method & Tuyến đường:** `GET /api/v1/public/applications/{applicationId}/pdf-redirect`
+  - **Service:** DocumentForm (Public API, `[AllowAnonymous]`)
+  - **Mục đích & Cách sử dụng:** Khi công dân hoặc cán bộ quét mã QR in trên giấy tờ, trình duyệt hoặc thiết bị quét tự động nhận mã HTTP 302 chuyển hướng thẳng đến SAS URL của file PDF lưu trên Azure Blob Storage (thời hạn 15 phút, không cần đăng nhập).
+  - **Cơ chế gộp tự động đa đơn (Multi-submission PDF Merge):**
+    - Nếu hồ sơ chỉ có đúng 1 đơn: Chuyển hướng thẳng đến file PDF của đơn đó.
+    - Nếu hồ sơ có nhiều đơn (2, 3, 5, 10 đơn...): Hệ thống tự động gom các đơn, lọc lấy bản PDF mới nhất của từng đơn (nhóm theo `SubmissionId`), nạp sang Gotenberg `/forms/pdfengines/merge` để nối thành 1 file PDF trọn bộ `combined_application_{guid}.pdf` và chuyển hướng đến file này.
+    - Cache: File gộp được tái sử dụng nếu thời gian tạo lớn hơn thời gian của tất cả các đơn thành phần. Khi bất kỳ đơn nào được bấm xuất lại PDF (có bản PDF mới hơn), hệ thống sẽ tự động ghép lại bản mới nhất.
+  - **Loại bỏ mã QR trong nội dung tờ đơn:** Quá trình xuất PDF không dán hình ảnh mã QR vào trang cuối biểu mẫu, giữ trang in văn bản của người dân sạch sẽ, chuẩn thể thức văn bản hành chính.
+  - **Lưu ý mã lỗi:**
+    - `404 qr.not_found`: Hồ sơ chưa có mã QR tra cứu hoặc chưa xuất giấy tờ.
+    - `404 qr.pdf_not_found`: Hồ sơ chưa có file PDF nào được tạo.
+    - `404 qr.pdf_blob_missing`: File PDF không tìm thấy trên hệ thống Azure Blob Storage.
+
