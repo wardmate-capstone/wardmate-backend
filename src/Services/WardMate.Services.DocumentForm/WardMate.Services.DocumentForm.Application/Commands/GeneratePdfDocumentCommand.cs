@@ -132,12 +132,14 @@ public sealed class GeneratePdfDocumentCommandHandler
                 _dbContext.ApprovedQrs.Add(approvedQr);
                 await _dbContext.SaveChangesAsync(cancellationToken);
             }
-            else if (!approvedQr.QrCodeValue.Contains("/public/qr-lookup"))
+            else if (!approvedQr.QrCodeValue.Contains("/pdf-redirect"))
             {
+                // QR cũ trỏ đến /qr-lookup — regenerate để trỏ đến /pdf-redirect
                 var newQr = _qrService.Generate(request.ApplicationId, submission.Id);
                 approvedQr.Update(newQr.QrCodeValue, newQr.QrImagePng);
                 await _dbContext.SaveChangesAsync(cancellationToken);
             }
+
 
             Stream docxForRender = _qrStamper.StampQr(cleanDocxStream, approvedQr.QrImagePng);
 
