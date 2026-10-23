@@ -50,8 +50,11 @@ public sealed class GetQrPdfRedirectQueryHandler(
             .Where(d => d.ApplicationId == request.ApplicationId && !d.IsDeleted)
             .ToListAsync(cancellationToken);
 
+        // Lấy bản PDF mới nhất cho từng đơn (tránh gộp các phiên bản cũ khi người dùng regenerate nhiều lần)
         var individualDocs = allDocs
             .Where(d => d.DocumentType != "COMBINED_APPLICATION")
+            .GroupBy(d => d.SubmissionId ?? d.Id)
+            .Select(g => g.OrderByDescending(d => d.CreatedAtUtc).First())
             .OrderBy(d => d.CreatedAtUtc)
             .ToList();
 
