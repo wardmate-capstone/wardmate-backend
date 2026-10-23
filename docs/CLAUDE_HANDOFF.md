@@ -1,5 +1,21 @@
 # Bàn giao WardMate cho Claude
 
+## Sửa sau review — 24/10/2026: lý do phân công và Email
+
+Đã sửa lỗ hổng còn lại của ForApplicant: ẩn assignmentHistory chưa đủ vì history.reason từng sao chép lý do giao/trả. Nay DTO công dân redact reason của SUBMITTED→UNDER_REVIEW và UNDER_REVIEW→SUBMITTED, bao gồm dữ liệu cũ; các lý do yêu cầu bổ sung giữ nguyên. ASSIGN/RELEASE mới chỉ ghi lý do vào application_assignment_history, cán bộ/Manager đọc qua AssignmentHistory. Không cần migration hoặc cập nhật DB cũ. Không bỏ lớp lọc DTO dù handler mới đã ngừng sao chép lý do.
+
+Giữ Email thông báo phân công theo yêu cầu chủ dự án. Báo cáo trước nói chỉ STATUS gửi Email là sai: inbox vẫn tạo EMAIL delivery; EmailSource trả context null cho event phân công và sender render fallback rồi gửi SMTP. api-guide và system-constraints đã được đính chính. Không gửi Email/SMS thật hoặc chạy Git; xem PROGRESS cho kết quả build phiên này.
+
+## Cập nhật 24/10/2026 — Phân công lĩnh vực
+
+Đã bổ sung BE phân công ưu tiên mềm: snapshot lĩnh vực, tên/thời điểm cán bộ, assignmentVersion và bảng application_assignment_history; filters categoryIds/scope/assignee/overdue/sort; release và Manager assignee API. IAM trả assignedCategories và tra cán bộ đích tối thiểu; quyền workflow.assign.manage chỉ seedManager. Không mở quyền review choManager.
+
+Manager PUT assignee bắt buộc expectedAssignmentVersion; đây là bổ sung hợp đồng FE để tránh lệnh giao cũ biến thành chuyển sau race. Dữ liệu lịch sử category chưa biết giữNULL (không backfill Catalog hiện tại). Chi tiết mới nhất ở đầu api-guide.md và system-constraints.md WORKFLOW-ASSIGN-01.
+
+Claude tiếp quản phần dang dở của Codex (24/10/2026): migration Workflow `20261023173500_CategoryAssignment` và IAM `20261024010000_ManagerAssignmentPermission` đã có, EF xác nhận model khớp; build Release toàn solution 0 lỗi/0 cảnh báo. Đã sửa thêm: route Gateway `/api/v1/manager/applications/{**catch-all}` → Workflow; overdue tính đúng khi pause; người nhận thông báo theo action (CLAIM → công dân, ASSIGN → công dân + cán bộ mới, TRANSFER → cán bộ mới/cũ, RELEASE → cán bộ cùng phường); ẩn assignmentHistory trong response API công dân. Chưa apply DB local/cloud, chưa Docker/Azure/FE.
+
+TASK-27 có eventVersion2 APPLICATION_ASSIGNED, previousOfficerId/action; Analytics phải deploy trướcWorkflow, consumer vẫn nhậnVersion1. Gateway cần deploy cùng Workflow để có route Manager. SMS mẫu riêng OFFICER_ASSIGNED/OFFICER_UNASSIGNED; chưa bật/gửiSMS. Kiểm tra PROGRESS phiên này cho build/migration thực tế; chưa xác nhận cloud/FE. Các mục cũ nói Manager chỉread hoặc không córelease đã được thay thế trong phạm vi phân công này. Không tự làm backlog analytics-category/category-audit/auto-expiry hoặc Git.
+
 Cập nhật: 23/10/2026, Asia/Saigon (UTC+07:00). Bản tổng hợp để tiếp tục backend, không phải bản xuất toàn bộ hội thoại hoặc xác nhận production mới.
 
 ## 1. Đọc thế nào và mức độ bằng chứng

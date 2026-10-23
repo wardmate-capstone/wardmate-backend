@@ -3933,3 +3933,74 @@ Hướng dẫn cấu hình, migration, truy vấn đối soát và phục hồi:
 
 Migration `20261023150528_EsmsNotificationDelivery` thêm `external_message_id`, `provider`, `is_sandbox` vào `notification_deliveries`. SQL idempotent: [notification-esms-delivery.sql](sql/notification-esms-delivery.sql), dành cho database Analytics có baseline ReliableNotificationDelivery. Không có endpoint webhook xác nhận SMS đến điện thoại trong phạm vi hiện tại. Không gọi SMS thật hoặc sandbox trong lượt phát triển này.
 
+## Phân công hồ sơ theo lĩnh vực — 24/10/2026
+
+Lĩnh vực là **ưu tiên mềm**: cán bộ vẫn xem/nhận được hồ sơ lĩnh vực khác trong cùng phường. Cán bộ không có assignedCategories phụ trách mọi lĩnh vực. Manager được giao/chuyển người phụ trách qua quyền mới `workflow.assign.manage`; không được comment, yêu cầu bổ sung, xác nhận sẵn sàng hoặc tiếp nhận tại quầy thay cán bộ.
+
+### Dữ liệu FE cần đọc
+
+- GET `/api/v1/users/me` và `/api/v1/users/access-context`: thêm `assignedCategories: [3,7]`. Access-context còn trả `fullName`; Workflow lấy lại ngữ cảnh từ IAM mỗi request, không tin field FE tự gửi.
+- Summary của danh sách công dân/cán bộ và ApplicationDto chi tiết có `categoryId`, `categoryName`, `assignedOfficerName`, `assignedAt`, `resubmitCount`, `assignmentVersion`. Các snapshot mới nullable, version bắt đầu 0. Chi tiết thêm `assignmentHistory` (action, fromOfficerId, toOfficerId, actorId, reason, createdAt).
+- Snapshot lĩnh vực lấy từ Catalog khi tạo; đổi thủ tục không đổi hồ sơ cũ. Hồ sơ cũ giữ NULL và FE hiển thị “Chưa xác định lĩnh vực”. Không chạy backfill từ Catalog hiện tại vì không chứng minh lĩnh vực lịch sử. Tên cán bộ là snapshot lúc nhận/giao/chuyển, có thể NULL nếu IAM chưa có profile.
+
+### GET `/api/v1/officer/applications` và `/pending`
+
+Giữ quyền đọc, phạm vi phường và loại hồ sơ do chính người gọi nộp. Danh sách tổng hợp giữ các bộ lọc cũ, thêm:
+
+| Query | Cách dùng |
+|---|---|
+| categoryIds=3,7 | ID dương, tối đa100 phần tử; lọc snapshot |
+| scope=my-categories | Lọc lĩnh vực được giao; danh sách lĩnh vực rỗng không lọc; Manager bỏ qua scope này |
+| assignee=me hoặc unassigned | Hồ sơ của mình hoặc chưa phân công |
+| assignee={GUID} | Chỉ Manager được lọc theo cán bộ cụ thể |
+| overdue=true | Deadline KNOWN, có dueAtUtc, chưa sẵn sàng, đang SUBMITTED/UNDER_REVIEW/NEED_REVISION, và dueAtUtc trước thời điểm bắt đầu pause (nếu đang pause) hoặc trước UTC hiện tại (nếu không pause). Hồ sơ đã quá hạn rồi mới chuyển sang chờ bổ sung vẫn là quá hạn, giống `openOverdue` của Analytics |
+| sort=submittedAt hoặc -submittedAt hoặc dueAt | Sắp xếp rõ ràng; giá trị NULL xếp cuối |
+
+Không truyền sort: cán bộ thấy lĩnh vực mình trước, rồi UpdatedAt giảm dần (pending dùng SubmittedAt tăng dần), Id làm khóa phụ. Đây là ưu tiên, không ẩn lĩnh vực khác. Manager giữ thứ tự thời gian, không ưu tiên lĩnh vực. `/pending` vẫn giữ phạm vi trạng thái và người phụ trách hiện hữu; dùng danh sách tổng hợp để xem toàn phường. Trả200 ApplicationPage; bộ lọc mới sai trả400 `workflow.validation`, sửa query rồi gọi lại. Deadline UNKNOWN/NOT_APPLICABLE hoặc đã hoàn thành không được gộp vào đang quá hạn. Hồ sơ đang pause chỉ tính quá hạn nếu đã quá hạn trước lúc pause.
+
+### Cán bộ tự nhận / trả lại
+
+- POST `/api/v1/officer/applications/{id}/assign` giữ request không body và policy `workflow.assign`. Nhận khác lĩnh vực vẫn được. Nay ghi snapshot tên, thời điểm, tăng assignmentVersion và lịch sử CLAIM. Người phụ trách được giữ qua lần nộp lại.
+- POST `/api/v1/officer/applications/{id}/release`, Bearer cán bộ đang thụ lý, policy `workflow.assign`, body `{"reason":"Chuyển cán bộ phụ trách đất đai","expectedAssignmentVersion":1}`. Version tùy chọn, nên gửi để phát hiện dữ liệu cũ. Lý do trim 5–500 ký tự. Chỉ UNDER_REVIEW: về SUBMITTED, xóa người/tên/thời điểm phân công; giữ nhận xét, snapshot, deadline. Ghi RELEASE. Trả200 ReviewResultDto;400 `workflow.validation`,403 `workflow.not_assignee`,404 ngoài phạm vi,409 `workflow.invalid_status` hoặc `workflow.assignment_conflict`. Gặp409 tải lại; không tự retry với version mới.
+
+### Manager giao/chuyển
+
+PUT `/api/v1/manager/applications/{id}/assignee`, Bearer role MANAGER + `workflow.assign.manage`:
+
+```json
+{"officerId":"00000000-0000-0000-0000-000000000001","reason":"Cân bằng khối lượng công việc","expectedAssignmentVersion":0}
+```
+
+`expectedAssignmentVersion` **bắt buộc**, lấy từ summary/detail gần nhất. Lệnh khóa dòng và so sánh version để một yêu cầu giao cũ không biến thành chuyển người sau khi cán bộ vừa nhận. Nếu chưa phân công ở SUBMITTED: chuyển UNDER_REVIEW và ghi ASSIGN. Nếu đang UNDER_REVIEW/NEED_REVISION/DOCUMENTS_READY và có người phụ trách: giữ trạng thái, ghi TRANSFER. Không cho DRAFT/OFFICIALLY_RECEIVED/CANCELLED hoặc hồ sơ cũ không có snapshot nộp. Không thay deadline/pause; không cho Manager xử lý hồ sơ mình nộp.
+
+Cán bộ đích được tra IAM: active, FRONT_DESK_OFFICER, không kiêm MANAGER, cùng phường, không phải công dân nộp hồ sơ. Không ràng buộc lĩnh vực. Trả200 ReviewResultDto;400 `workflow.validation`;403 thiếu quyền;404 ngoài phường/hồ sơ mình;422 `workflow.invalid_assignee`;409 `workflow.same_assignee`, `workflow.assignment_conflict`, `workflow.invalid_status`, `workflow.snapshot_missing`;503 `workflow.iam_unavailable` khi chưa xác minh được IAM. Sửa dữ liệu đích hoặc tải lại sau409; khi503 đợi IAM phục hồi.
+
+IAM bổ sung GET `/api/v1/manager/officers/{userId}/assignment-context`: Manager có `workflow.assign.manage` tra cán bộ đích, trả200 `{id,fullName,wardCode}`;403 thiếu quyền,404 cán bộ không hợp lệ/ngoài phạm vi. Workflow chuyển tiếp Bearer; không đọc database IAM trực tiếp. Kiểm tra này phản ánh thời điểm IAM trả lời, không phải transaction phân tán khóa tài khoản giữa hai DB.
+
+### Thông báo và triển khai
+
+Outbox ghi sự kiện `APPLICATION_ASSIGNED`, Version2, thêm `previousOfficerId`, `assignmentAction` CLAIM/RELEASE/ASSIGN/TRANSFER; không mang lý do hoặc PII lên RabbitMQ. Sự kiện này thay cho sự kiện STATUS của cùng thao tác, nên không có thông báo trùng. Người nhận theo từng hành động (người nhận phải còn active; cán bộ phải cùng phường; người nộp hồ sơ không nhận thông báo dành cho cán bộ):
+
+| Hành động | Ai nhận | Tiêu đề / type |
+|---|---|---|
+| CLAIM (cán bộ tự nhận) | Công dân | "Giấy tờ đang được kiểm tra" / APPLICATION_STATUS_CHANGED |
+| ASSIGN (Manager giao mới) | Công dân; cán bộ được giao | Công dân như CLAIM; cán bộ "Hồ sơ được giao cho bạn" / ASSIGNED_OFFICER |
+| TRANSFER (Manager chuyển) | Cán bộ mới; cán bộ cũ | "Hồ sơ được giao cho bạn"; "Hồ sơ đã chuyển cho cán bộ khác" / ASSIGNED_OFFICER |
+| RELEASE (cán bộ trả lại) | Các cán bộ cùng phường, trừ người vừa trả | "Có hồ sơ cần tiếp nhận" / APPLICATION_STATUS_CHANGED |
+
+Công dân không nhận thông báo khi chuyển người hoặc trả lại, vì trạng thái công dân thấy không đổi theo nghĩa nghiệp vụ. Khi Email:Enabled=true, sự kiện phân công vẫn tạo delivery EMAIL cho cùng danh sách người nhận. Email dùng tiêu đề/nội dung thông báo và template dự phòng, không gọi endpoint email-context của sự kiện STATUS, không đưa lý do phân công nội bộ vào thư. SMS: cán bộ được giao dùng mẫu OFFICER_ASSIGNED, cán bộ cũ dùng OFFICER_UNASSIGNED, nhóm cán bộ khi trả lại dùng OFFICER_SUBMITTED, công dân dùng mẫu trạng thái UNDER_REVIEW (thiếu mẫu thì Blocked, không gửi mẫu khác thay thế).
+
+Lịch sử phân công (`assignmentHistory`, gồm lý do) chỉ có trong response dành cho cán bộ/Manager. Các API của công dân (tạo, xem, cập nhật checklist, nộp, nộp lại, hủy hồ sơ) trả `assignmentHistory: null`; công dân vẫn thấy `assignedOfficerId`/`assignedOfficerName` như trước.
+
+Gateway: route mới `/api/v1/manager/applications/{**catch-all}` → ApplicationWorkflow, khai báo riêng trước route `/api/v1/manager/{**catch-all}` của IAM (cả `appsettings.json` và `appsettings.Production.json`). Gateway phải deploy kèm Workflow, nếu không PUT assignee sẽ bị chuyển sang IAM và trả 404.
+
+Deploy Analytics hỗ trợ Version2 **trước Workflow**, rồi IAM và Workflow cùng migration tương ứng, và Gateway có route mới. Consumer mới vẫn đọc Version1. Không để worker cũ nhận Version2 vì có thể đưa vào dead-letter queue. Chưa triển khai backfill suy đoán, analytics theo lĩnh vực, audit thay đổi assignedCategories hay kiểm tra category mồ côi.
+
+### Đính chính bảo mật phân công và Email — 24/10/2026
+
+Phản hồi dành cho công dân tiếp tục không trả assignmentHistory; history[].reason của hai chuyển trạng thái SUBMITTED → UNDER_REVIEW (nhận/giao) và UNDER_REVIEW → SUBMITTED (trả lại) được đặt NULL, kể cả dữ liệu cũ. Timeline vẫn giữ trạng thái, người thao tác và thời gian. Ghi chú yêu cầu bổ sung ở chuyển sang NEED_REVISION được giữ nguyên. FE không dựa vào reason của thao tác phân công để hiển thị cho công dân.
+
+Các thao tác giao/trả mới chỉ lưu lý do trong application_assignment_history, không sao chép vào application_status_history. Cán bộ/Manager đọc lý do trong assignmentHistory của chi tiết hồ sơ thuộc phạm vi. Không thay route/body/status code/token, không cần migration hay sửa dữ liệu cũ.
+
+Email phân công vẫn được gửi khi bật Email, theo người nhận CLAIM/ASSIGN/TRANSFER/RELEASE đã mô tả. NotificationEmailSource không lấy ngữ cảnh STATUS cho các event này; sender vẫn render template dự phòng và gửi SMTP. Thư chứa thông báo và liên kết hồ sơ, không chứa lý do nội bộ. Chưa gửi Email thật trong lượt sửa này.
+
