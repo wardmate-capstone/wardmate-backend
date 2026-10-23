@@ -766,3 +766,10 @@ Nguồn: IAM Domain/User.cs,UserOtp.cs; Infrastructure/Security/PhoneVerificatio
 - NOTIFY tạmthời khôngbền, listenerreconnect5s, pendingbounded10000; tínhiệu mất/overflow hoặc lỗiIAM/send đượclog và clientreload danh sách đãlưu. SentIN_APP khôngchứngminh đãnhận/đãđọc. Không autoACK từclient, không lưu vôhạn eventtrênRAM. Unreadcount tính scope từngconnection; list/read quyền khôngđổi. SignalR nhiều replica cần sticky/appropriateWebSocket transport. Worker cần replica hoạtđộng, không tựwake từDB.
 - Chưa có adminreplayAPI/alert tựđộng; SQLrunbook trongapi-guide, không reset/delete history tựđộng. Các hàngDead/Blocked cầnoperator xửlý, EmailSMTP khôngexactonce, SMSAnalytics chưatriểnkhai. Ràsoátsource/build không thay thế nghiệmthu trênAzure.
 Nguồn: WorkflowOutbox.cs, WorkflowDbContext.cs, RabbitTransport.cs, WorkflowNotificationConsumer.cs, NotificationInboxWorker.cs, NotificationDbContext.cs, NotificationDeliveryWorker.cs, NotificationRealtimeListener.cs, NotificationService.cs, NotificationConnectionGuard.cs, IAM/NotificationRecipients.cs. Lịch sử23/10/2026: thêmNOTIFY-PIPELINE-02; khôngmigration/khôngđổiDTO.
+
+### IAM-SEC-02 — bổ sung chẩn đoán phiên (23/10/2026)
+- Iam:BaseUrl phải là HTTP/HTTPS URI tuyệt đối, không chứa userinfo, query hoặc fragment. Sai cấu hình trả 503 auth.session_unavailable; vận hành sửa URL và nạp lại cấu hình.
+- Giữ kiểm tra IAM mỗi request, timeout 5 giây, không redirect/cache và không bỏ qua xác minh khi IAM lỗi. 401/403 từ IAM ánh xạ 401; lỗi upstream khác/transport/timeout trả 503.
+- Response lỗi bổ sung traceId. Log phân loại nguyên nhân, host/port và upstream status; không ghi Bearer token/body/exception message. Logging chỉ hỗ trợ chẩn đoán, không đảm bảo sửa được sự cố kết nối Azure.
+Nguồn: src/BuildingBlocks/WardMate.SharedKernel/Web/AccountSessionMiddleware.cs.
+Lịch sử: 23/10/2026 bổ sung chẩn đoán và kiểm tra định dạng BaseUrl cho IAM-SEC-02; chưa xác nhận nguyên nhân runtime trên Azure.
