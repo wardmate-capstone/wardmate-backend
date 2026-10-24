@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Npgsql;
@@ -58,6 +59,21 @@ public static class AssistantRegistration
         services.AddScoped<IAssistantModel>(s => s.GetRequiredService<GeminiAssistant>());
         services.AddHttpClient<IAuthorizedDocumentSource, AuthorizedDocumentSource>(h => { h.Timeout = TimeSpan.FromSeconds(60); h.MaxResponseContentBufferSize = 2 * 1024 * 1024; })
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        // Knowledge base (TASK-28): sources, import and chunking; embeddings/vector search come with TASK-29.
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddScoped<IKnowledgeBase, WardMate.Services.AIOCR.Infrastructure.Knowledge.KnowledgeBaseService>();
+        services.AddSingleton<IKnowledgePdfReader, WardMate.Services.AIOCR.Infrastructure.Knowledge.KnowledgePdfReader>();
+        services.AddHttpClient<IProcedureCatalogSource, WardMate.Services.AIOCR.Infrastructure.Knowledge.ProcedureCatalogSource>(h => { h.Timeout = TimeSpan.FromSeconds(15); h.MaxResponseContentBufferSize = 2 * 1024 * 1024; })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHttpClient("knowledge-iam", h => { h.Timeout = TimeSpan.FromSeconds(5); h.MaxResponseContentBufferSize = 64 * 1024; })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        // TASK-29: embeddings, in-memory vector search and the indexing worker (all inert while Knowledge:EmbeddingEnabled=false).
+        services.AddSingleton<WardMate.Services.AIOCR.Infrastructure.Knowledge.KnowledgeSettings>();
+        services.AddSingleton<WardMate.Services.AIOCR.Infrastructure.Knowledge.KnowledgeVectorCache>();
+        services.AddScoped<IKnowledgeRetriever, WardMate.Services.AIOCR.Infrastructure.Knowledge.KnowledgeRetriever>();
+        services.AddHttpClient<IEmbeddingProvider, WardMate.Services.AIOCR.Infrastructure.Knowledge.GeminiEmbeddingProvider>(h => { h.Timeout = TimeSpan.FromSeconds(60); h.MaxResponseContentBufferSize = 16 * 1024 * 1024; })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHostedService<WardMate.Services.AIOCR.Infrastructure.Knowledge.KnowledgeIndexingWorker>();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(o =>
         {
@@ -76,6 +92,8 @@ public sealed class AssistantExceptionHandler : IExceptionHandler
         {
             AiFailure e => e,
             PostgresException { SqlState: "55P03" } => new AiFailure(409, "chat.busy", "Phiên đang trả lời; chờ hoàn tất trước khi gửi tiếp."),
+            NpgsqlException or DbUpdateException when context.Request.Path.StartsWithSegments("/api/v1/ai/knowledge") =>
+                new AiFailure(503, "knowledge.database_unavailable", "Database AIOCR chưa sẵn sàng; kiểm tra kết nối và migration Knowledge Base."),
             NpgsqlException or DbUpdateException => new AiFailure(503, "chat.database_unavailable", "Database chat chưa sẵn sàng; kiểm tra kết nối và migration."),
             HttpRequestException => new AiFailure(503, "ai.dependency_unavailable", "Không kết nối được dịch vụ phụ thuộc."),
             OperationCanceledException when !context.RequestAborted.IsCancellationRequested => new AiFailure(504, "ai.timeout", "Dịch vụ AI hoặc tài liệu phản hồi quá lâu."),
