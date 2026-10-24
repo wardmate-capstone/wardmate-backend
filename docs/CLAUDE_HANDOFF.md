@@ -220,7 +220,7 @@ Nguồn các mốc dưới đây là PROGRESS, phiên bàn giao này không th�
 - `diagrams/erd/wardmate-erd.drawio`: đúng 3 tab toàn hệ thống. Người dùng không hài lòng độ rối của bản vẽ; không nói đã được duyệt hình.
 - `erd-drawing-guide.txt`: bản text 41 bảng/22 FK/46 REF để người dùng tự vẽ, kèm cột đề xuất của 6 bảng FUTURE; mục 5–8 sinh lại từ model-inventory.json.
 - `diagrams/erd/wardmate-erd-interactive.html` (tiếng Anh, 3 tab, có bảng FUTURE) và `diagrams/erd/wardmate-erd-en.drawio` (3 trang, xuất từ cùng bố cục). Nguồn dựng nằm ngoài repo (scratchpad của phiên Claude); khi schema đổi, cập nhật bằng cách dựng lại từ model-inventory.json.
-- `diagrams/erd/model-inventory.json`: dữ liệu nguồn ngày 24/10. 6 bảng FUTURE chưa có schema thực: ai_request_logs, ocr_scan_logs, audit_logs, system_settings, service_health_logs, system_backup_logs. knowledge_documents/knowledge_chunks đã triển khai (TASK-28/29). Ảnh *-preview.png là bản cũ 23/10, chưa render lại.
+- `diagrams/erd/model-inventory.json`: dữ liệu nguồn ngày 24/10. 6 bảng FUTURE chưa có schema thực: ai_request_logs, ocr_scan_logs, audit_logs, system_settings, service_health_logs, system_backup_logs. knowledge_documents/knowledge_chunks đã triển khai (TASK-28/29). Ảnh *-preview.png đã render lại từ SVG ngày 24/10. Cả hai file .drawio đã mở thử bằng bộ hiển thị chính thức của diagrams.net (viewer-static): 3 trang mỗi file, không cạnh nào thiếu đầu nối, nhãn HTML dựng đúng.
 - `system-diagrams.md` còn phần Activity/State/Structure lịch sử; khi đổi luồng phải đối chiếu ngày/phạm vi, không tin toàn bộ hình cũ đã cập nhật.
 - Khi tái sinh ERD, chạy generate-erd.cjs rồi generate-drawio.cjs; bước sau cập nhật bản trình bày3trang. Không tự chạy nếu task không cần.
 
