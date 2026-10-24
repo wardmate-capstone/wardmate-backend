@@ -10,7 +10,7 @@ public static class FeaturePermissions
     public static readonly string[] Workflow = ["workflow.cancel", "workflow.receipt.confirm", "workflow.create", "workflow.read", "workflow.checklist.write", "workflow.submit", "workflow.resubmit",
         "workflow.queue.read", "workflow.assign.manage", "workflow.assign", "workflow.comments.write", "workflow.revision.request", "workflow.readiness.confirm",
         "workflow.comments.read", "workflow.versions.read", "workflow.diff.read"];
-    public static readonly string[] Iam = ["iam.accounts.read", "iam.accounts.manage", "iam.wards.read", "iam.wards.manage", "iam.rbac.manage", "iam.audit.read"];
+    public static readonly string[] Notifications = ["notifications.deliveries.read", "notifications.deliveries.manage"]; public static readonly string[] Iam = ["iam.accounts.read", "iam.accounts.manage", "iam.wards.read", "iam.wards.manage", "iam.rbac.manage", "iam.audit.read"];
     public static IServiceCollection AddClaimPermissions(this IServiceCollection services, IEnumerable<string> codes)
     {
         services.AddAuthorization(options =>

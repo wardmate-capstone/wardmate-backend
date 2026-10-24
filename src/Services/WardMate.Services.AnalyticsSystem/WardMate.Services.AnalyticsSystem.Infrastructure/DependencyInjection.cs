@@ -25,7 +25,7 @@ public static class DependencyInjection
         {
             http.Timeout = TimeSpan.FromSeconds(10); http.MaxResponseContentBufferSize = 64 * 1024;
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-        services.AddScoped<ExternalNotificationSender>();
+        services.AddScoped<IDeliveryAdministration, DeliveryAdministration>(); services.AddScoped<ExternalNotificationSender>();
         services.AddHttpClient<NotificationEmailSource>(http =>
         {
             http.BaseAddress = new Uri((configuration["Workflow:BaseUrl"] ?? "http://localhost:5003/").TrimEnd('/') + "/");

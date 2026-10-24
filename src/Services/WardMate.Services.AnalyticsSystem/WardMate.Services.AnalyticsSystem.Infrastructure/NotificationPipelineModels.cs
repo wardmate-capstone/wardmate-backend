@@ -16,6 +16,8 @@ public sealed class NotificationInbox
 
 public sealed class NotificationDelivery
 {
+    public Guid Revision { get; set; } = Guid.NewGuid();
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public string? ExternalMessageId { get; set; }
     public string? Provider { get; set; }
     public bool? IsSandbox { get; set; }

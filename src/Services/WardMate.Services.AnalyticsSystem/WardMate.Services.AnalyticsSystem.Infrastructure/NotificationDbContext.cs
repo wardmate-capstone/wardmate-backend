@@ -10,14 +10,36 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
     public DbSet<NotificationInbox> Inbox => Set<NotificationInbox>();
     public DbSet<NotificationDelivery> Deliveries => Set<NotificationDelivery>();
 
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ChangeTracker.DetectChanges();
+        foreach (var entry in ChangeTracker.Entries<NotificationDelivery>().Where(x => x.State is EntityState.Added or EntityState.Modified))
+        {
+            entry.Entity.Revision = Guid.NewGuid();
+            entry.Entity.UpdatedAt = DateTime.UtcNow;
+        }
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        var audit = builder.Entity<DeliveryAdminAudit>();
+        audit.ToTable("notification_delivery_audits"); audit.HasKey(x => x.Id);
+        audit.Property(x => x.Action).HasMaxLength(40);
+        audit.Property(x => x.BeforeState).HasMaxLength(30); audit.Property(x => x.AfterState).HasMaxLength(30);
+        audit.Property(x => x.Reason).HasMaxLength(500); audit.Property(x => x.Reference).HasMaxLength(200);
+        audit.Property(x => x.BeforeMessageId).HasMaxLength(100); audit.Property(x => x.AfterMessageId).HasMaxLength(100);
+        audit.HasIndex(x => new { x.DeliveryId, x.CreatedAt });
+        // No cascading FK: administrative evidence must survive delivery cleanup.
         var inbox = builder.Entity<NotificationInbox>();
         inbox.ToTable("notification_inbox"); inbox.HasKey(x => x.Id);
         inbox.Property(x => x.Payload).HasColumnType("jsonb"); inbox.Property(x => x.State).HasMaxLength(30);
         inbox.Property(x => x.ErrorCode).HasMaxLength(100); inbox.HasIndex(x => new { x.State, x.NextAttemptAt });
         var delivery = builder.Entity<NotificationDelivery>();
         delivery.ToTable("notification_deliveries"); delivery.HasKey(x => x.Id);
+        delivery.Property(x => x.Revision).HasColumnName("revision").HasDefaultValueSql("gen_random_uuid()");
+        delivery.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()");
+        delivery.HasIndex(x => new { x.State, x.UpdatedAt });
         delivery.Property(x => x.Channel).HasMaxLength(30); delivery.Property(x => x.State).HasMaxLength(30);
         delivery.Property(x => x.ErrorCode).HasMaxLength(100);
         delivery.Property(x => x.ExternalMessageId).HasColumnName("external_message_id").HasMaxLength(100);

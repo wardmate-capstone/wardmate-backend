@@ -27,6 +27,9 @@ public sealed class NotificationDeliveryWorker(IServiceScopeFactory scopes, ICon
             await tx.CommitAsync(ct);
             // A crash after this fence requires reconciliation, not automatic re-send.
             await using var smsTx = await db.Database.BeginTransactionAsync(ct);
+            db.ChangeTracker.Clear();
+            row = await db.Deliveries.FromSqlInterpolated($"SELECT * FROM notification_deliveries WHERE \"Id\" = {row.Id} FOR UPDATE").SingleAsync(ct);
+            if (row.State != "Dispatching") { await smsTx.CommitAsync(ct); return true; }
             await ProcessDelivery();
             await db.SaveChangesAsync(ct); await smsTx.CommitAsync(ct); return true;
         }
