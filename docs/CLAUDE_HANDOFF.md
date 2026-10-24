@@ -1,5 +1,13 @@
 # Bàn giao WardMate cho Claude
 
+## Cập nhật 24/10/2026 — Quản trị delivery lỗi và đối soát SMS (NOTIFY-ADMIN-01)
+
+Codex bắt đầu rồi dừng giữa chừng (lỗi model); Claude hoàn tất. API IT_ADMIN `/api/v1/admin/notification-deliveries`: GET danh sách/chi tiết/audit, POST `{id}/replay`, POST `{id}/sms-reconciliation`; quyền `notifications.deliveries.read`/`.manage` seed cho IT_ADMIN. Migration Notifications `20261024020118_NotificationDeliveryAdministration` (cột revision/updated_at, bảng notification_delivery_audits; Down chặn khi có audit) và IAM `20261024090000_NotificationDeliveryAdministration`; SQL idempotent có preflight: `docs/sql/notification-delivery-administration.sql`, `docs/sql/iam-notification-delivery-permissions.sql`. Gateway có route riêng trước `/api/v1/admin/...` của IAM.
+
+**Bắt buộc chạy SQL Notifications trước khi deploy AnalyticsSystem mới**: code mới ghi `revision`/`updated_at` mỗi lần lưu delivery, thiếu cột thì toàn bộ luồng thông báo lỗi. Chưa apply DB, chưa deploy, không gửi SMS. Chưa có quota chi phí SMS toàn hệ thống, gửi lại hàng loạt hay DLR webhook.
+
+Việc còn mở đã thảo luận, chưa làm: cho cán bộ đang phụ trách rút nhận xét OPEN (có lý do, có audit) để cán bộ mới sau TRANSFER/RELEASE không bị chặn xác nhận sẵn sàng bởi nhận xét của người trước (`DocumentReadinessRequests.cs` lỗi `application.open_comments`). Chờ chủ dự án duyệt.
+
 ## Cập nhật 24/10/2026 — IAM lĩnh vực cán bộ
 
 Đã thêm ICategoryDirectory/HTTP Catalog validation, audit OFFICER_CATEGORIES_ASSIGNED và worker CategoryReconciliationWorker loại ID bị xóa có audit OFFICER_CATEGORIES_RECONCILED. Chạy cùng advisory lock RBAC, tối đa100 tài khoản/lượt mặc định300s. Không migration. Quyền/ward và ưu tiên mềm giữ nguyên. Xóa ởCatalog không bị chặn bởi IAM; đồng bộ eventual, lỗiCatalog giữ dữ liệu. Sau dọn mảngrỗng nghĩa mọi lĩnh vực. Không sửa snapshot hồ sơ, không ID reuse thủ công.

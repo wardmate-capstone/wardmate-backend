@@ -4021,3 +4021,76 @@ PUT `/api/v1/manager/officers/{userId}/categories` giữ body `{"categories":[3,
 
 Cấu hình mới **trên IAM**: `ProcedureCatalog__BaseUrl` trỏ đúng Catalog của cùng môi trường (local thường http://localhost:5002/, Docker đã cấu hình http://procedure-catalog:8080/, Azure dùng URL HTTPS của Catalog). `CategoryReconciliation__Enabled=true`, `CategoryReconciliation__IntervalSeconds=300` (giới hạn30..86400). BaseUrl mẫu để trống để không âm thầm trỏ sang môi trường khác; thiếuURL sẽ503 khi gán và worker chỉ log lỗi chung. HTTP timeout10s, không redirect. Không cần migration; dùng users.assigned_categories và rbac_audit_logs hiện hữu. Deploy IAM kèm cấu hình mới trước khi FE dùng tính năng.
 
+
+
+## Quản trị thông báo lỗi và đối soát SMS — 24/10/2026
+
+Dành cho **IT_ADMIN** để xem các lượt gửi thông báo (delivery) bị lỗi, đối soát SMS chưa rõ kết quả với eSMS và gửi lại có kiểm soát. Không dành cho FE công dân, cán bộ hay Manager. Mọi API cần Bearer, role IT_ADMIN (IAM xác minh lại mỗi request) và quyền:
+
+- `notifications.deliveries.read`: xem danh sách, chi tiết, lịch sử thao tác.
+- `notifications.deliveries.manage`: gửi lại và đối soát.
+
+Hai quyền được seed cho IT_ADMIN qua migration IAM `20261024090000_NotificationDeliveryAdministration` (SQL: `docs/sql/iam-notification-delivery-permissions.sql`). Quyền được đọc lại từ IAM mỗi request, nên không cần đăng nhập lại sau khi seed. Gateway có route riêng `/api/v1/admin/notification-deliveries` trỏ về AnalyticsSystem, ưu tiên hơn route `/api/v1/admin/...` của IAM.
+
+### Trạng thái delivery
+
+| State | Nghĩa | Thao tác được phép |
+|---|---|---|
+| Pending | Đang chờ worker gửi | Chỉ xem |
+| Dispatching | SMS đã được đánh dấu trước khi gọi eSMS; treo quá 15 phút thường do worker dừng giữa chừng | Đối soát (sau 15 phút) |
+| Sent / Sandbox | Nhà cung cấp đã nhận (Sent không chứng minh điện thoại đã nhận) | Chỉ xem |
+| Unknown | SMS lỗi, không rõ eSMS đã nhận hay chưa | Đối soát |
+| Blocked | Bị chặn do kênh tắt/thiếu cấu hình/thiếu mẫu, hoặc đã đối soát là eSMS không nhận | Gửi lại |
+| Dead | Hết 10 lần thử (IN_APP/EMAIL) | IN_APP/EMAIL: gửi lại; SMS: đối soát trước |
+| Suppressed | Người nhận không còn hợp lệ (khóa tài khoản, đổi phường…) | Chỉ xem, không gửi lại |
+
+### GET `/api/v1/admin/notification-deliveries`
+
+Query: `state` (một trong các state trên), `channel` (IN_APP/EMAIL/SMS), `notificationId`, `externalMessageId` (mã eSMS, chữ/số/_/-, tối đa 100), `page` (1..1000000, mặc định 1), `pageSize` (1..100, mặc định 20). Không truyền `state` thì chỉ trả các lượt cần xử lý: Dead, Blocked, Unknown, Dispatching. Sắp xếp `updatedAt` giảm dần.
+
+200 `{items, page, pageSize, total}`; mỗi item: `id, notificationId, channel, state, attempts, nextAttemptAt, errorCode, sentAt, provider, externalMessageId, isSandbox, revision, updatedAt, providerRequestId`. `providerRequestId` chính là RequestId đã gửi sang eSMS (ID delivery dạng 32 ký tự hex), dùng để tra trên trang quản trị eSMS. Bộ lọc sai trả 400 `notifications.validation`.
+
+### GET `/api/v1/admin/notification-deliveries/{id}` và `/{id}/audit`
+
+Chi tiết trả 200 cùng DTO trên, 404 `notifications.delivery_not_found`. `/audit?page=&pageSize=` trả 200 mảng `id, actorId, action, beforeState, afterState, beforeAttempts, beforeRevision, afterRevision, reason, reference, beforeMessageId, afterMessageId, createdAt`, mới nhất trước. `action` là `REPLAY`, `SMS_ACCEPTED`, `SMS_NOT_ACCEPTED` hoặc `SMS_UNRESOLVED`.
+
+### POST `/api/v1/admin/notification-deliveries/{id}/replay`
+
+```json
+{ "expectedRevision": "GUID revision vừa đọc", "reason": "Đã sửa cấu hình SMTP", "acknowledgeDuplicateRisk": true, "acknowledgeSmsCost": false }
+```
+
+Đưa delivery về Pending để worker gửi lại, dùng thông tin liên hệ **hiện tại** của người nhận.
+
+- `reason` 5–500 ký tự; `acknowledgeDuplicateRisk` phải là `true` vì người nhận có thể đã nhận bản trước.
+- Chỉ Blocked hoặc Dead. SMS chỉ được gửi lại khi Blocked; SMS Dead/Unknown/Dispatching phải đối soát trước.
+- Kênh phải đang bật (`Email:Enabled`, `Sms:Enabled`). SMS khi `Sms:Sandbox=0` (gửi thật, mất phí) cần `acknowledgeSmsCost: true`.
+- Số lần thử đặt lại 0 để worker có lại đủ lượt retry; số cũ lưu ở `beforeAttempts` trong audit, mã nhà cung cấp cũ ở `beforeMessageId`.
+
+202 kèm DTO mới (revision mới). API không gửi ngay; xem kết quả bằng GET chi tiết sau đó. Lỗi: 400 `notifications.validation`, `notifications.sms_cost_ack_required`; 404; 409 `notifications.revision_conflict` (người khác vừa thao tác, tải lại), `notifications.delivery_busy` (worker đang xử lý, thử lại sau), `notifications.invalid_state`, `notifications.reconciliation_required`, `notifications.channel_disabled`.
+
+### POST `/api/v1/admin/notification-deliveries/{id}/sms-reconciliation`
+
+```json
+{ "expectedRevision": "GUID", "outcome": "ACCEPTED", "reference": "eSMS portal 24/10 09:30", "reason": "Đã đối chiếu SMSID trên eSMS", "providerMessageId": "abc123" }
+```
+
+Ghi lại kết quả người vận hành **đã tự kiểm tra trên eSMS**; API không gọi eSMS. Chỉ cho SMS ở Unknown, Dead, hoặc Dispatching đã treo ít nhất 15 phút.
+
+- `ACCEPTED`: cần `providerMessageId` và chế độ gửi đã biết; chuyển Sent (hoặc Sandbox), ghi mã eSMS, errorCode `sms.manually_reconciled`.
+- `NOT_ACCEPTED`: chuyển Blocked (`sms.confirmed_not_accepted`); sau đó mới được gửi lại.
+- `UNRESOLVED`: giữ Unknown (`sms.reconciliation_unresolved`) để kiểm tra tiếp.
+
+`reference` 5–200 ký tự (nơi đối chiếu), `reason` 5–500 ký tự. 200 kèm DTO mới. Lỗi: 400 `notifications.validation`; 404; 409 `notifications.revision_conflict`, `notifications.delivery_busy`, `notifications.invalid_state`, `notifications.dispatch_active` (Dispatching chưa đủ 15 phút).
+
+### Lỗi chung và cách dùng đúng
+
+- 401 thiếu/sai token; 403 `analytics.forbidden` (không phải IT_ADMIN) hoặc `notifications.forbidden` (thiếu quyền); 503 `analytics.iam_unavailable` khi IAM chưa xác minh được, thử lại sau.
+- Luôn đọc chi tiết để lấy `revision` mới nhất ngay trước khi thao tác; không tự retry với revision cũ.
+- Không dùng gửi lại để thử SMS thật. Chưa có hạn mức chi phí SMS toàn hệ thống; mỗi lần gửi lại SMS thật đều tính phí.
+
+### Triển khai
+
+1. Chạy `docs/sql/iam-notification-delivery-permissions.sql` trên DB IAM.
+2. Chạy `docs/sql/notification-delivery-administration.sql` trên DB Notifications (cần đã có `20261023150528_EsmsNotificationDelivery`). Script thêm `revision`, `updated_at` cho `notification_deliveries` và bảng `notification_delivery_audits`. **Phải chạy trước khi deploy AnalyticsSystem mới**, nếu không mọi lần lưu delivery sẽ lỗi và toàn bộ luồng thông báo dừng.
+3. Deploy AnalyticsSystem, rồi Gateway có route mới.
