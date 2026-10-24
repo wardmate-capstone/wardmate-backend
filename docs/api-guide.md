@@ -4094,3 +4094,161 @@ Ghi lại kết quả người vận hành **đã tự kiểm tra trên eSMS**; 
 1. Chạy `docs/sql/iam-notification-delivery-permissions.sql` trên DB IAM.
 2. Chạy `docs/sql/notification-delivery-administration.sql` trên DB Notifications (cần đã có `20261023150528_EsmsNotificationDelivery`). Script thêm `revision`, `updated_at` cho `notification_deliveries` và bảng `notification_delivery_audits`. **Phải chạy trước khi deploy AnalyticsSystem mới**, nếu không mọi lần lưu delivery sẽ lỗi và toàn bộ luồng thông báo dừng.
 3. Deploy AnalyticsSystem, rồi Gateway có route mới.
+
+
+## TASK-28 — Knowledge Base cho trợ lý AI (24/10/2026)
+
+Knowledge Base là kho tài liệu mà chatbot sẽ dùng để trả lời có dẫn nguồn ở TASK-29. TASK-28 làm phần **nhập tài liệu, chia đoạn và quản lý nguồn**. Chưa tạo vector (embedding), chưa tìm kiếm và chatbot **chưa** dùng kho này: chat hiện tại vẫn gọi Gemini trực tiếp như trước.
+
+**Ai dùng:** PROCEDURE_MANAGER hoặc IT_ADMIN có quyền `knowledge.manage`. IAM được hỏi lại vai trò và quyền ở mỗi request, nên đổi quyền có hiệu lực ngay, không cần đăng nhập lại. Công dân, cán bộ một cửa và Manager không gọi các API này.
+
+**Nguồn tài liệu:**
+
+| sourceType | Cách tạo | Sửa nội dung |
+|---|---|---|
+| PROCEDURE | Đồng bộ từ thủ tục đang áp dụng trong Procedure Catalog | Không; sửa thủ tục rồi đồng bộ lại |
+| MANUAL_TEXT | Nhập văn bản | Có |
+| FAQ | Nhập hỏi–đáp, mỗi cặp cách nhau một dòng trống, ví dụ `Hỏi: …` / `Đáp: …` | Có |
+| PDF_FILE | Tải PDF có lớp chữ | Không; chỉ đổi tiêu đề, tải PDF mới nếu cần |
+
+**Chia đoạn:** tách theo đoạn văn và tiêu đề mục (dòng bắt đầu bằng `#`, kết thúc bằng `:`, `Chương/Mục/Điều/Phần …`, số La Mã hoặc số thứ tự đứng riêng, hoặc viết hoa toàn bộ). Mỗi đoạn khoảng 1.200 ký tự, không quá 1.500, đoạn sau lặp lại tối đa 200 ký tự cuối của đoạn trước nếu cắt giữa một mục, không lặp sang mục mới. Mỗi đoạn lưu `heading` là đường dẫn mục, ví dụ `Trường hợp và trình tự thực hiện › Thông thường`. Cùng nội dung và cùng phiên bản chia đoạn (`chunkingVersion`) luôn cho cùng kết quả. Nội dung được chuẩn hóa Unicode NFC, bỏ ký tự điều khiển, gộp dòng trống thừa; tối đa 200.000 ký tự và 500 đoạn mỗi tài liệu.
+
+Tất cả API dưới đây có tiền tố `/api/v1/ai/knowledge`, Bearer bắt buộc. Thao tác sửa, bật/tắt và chia lại cần `expectedRevision` lấy từ lần đọc gần nhất.
+
+### GET `/documents`
+
+Query: `search` (tìm trong tiêu đề và nguồn, tối đa 200 ký tự), `sourceType`, `isActive`, `procedureId`, `pageNumber` (1..100000, mặc định 1), `pageSize` (1..100, mặc định 20). Sắp xếp `updatedAt` giảm dần.
+
+200 `{items, pageNumber, pageSize, totalCount}`; mỗi item: `id, title, sourceType, procedureId, sourceReference, sourceVersion, status, isActive, chunkCount, contentLength, revision, createdAt, updatedAt, chunkedAt`. `status` hiện chỉ có `CHUNKED` (đã chia đoạn, chờ tạo vector ở TASK-29). Bộ lọc sai trả 400 `knowledge.validation`.
+
+### GET `/documents/{id}` và `/documents/{id}/chunks`
+
+Chi tiết trả 200 kèm `content` đầy đủ, `contentSha256`, `chunkingVersion`, `createdBy`, `updatedBy`; 404 `knowledge.not_found`. `/chunks?pageNumber=&pageSize=` trả các đoạn theo thứ tự: `id, chunkIndex, heading, content, charCount, contentSha256`. Dùng để người quản lý xem trước chatbot sẽ đọc được gì.
+
+### POST `/documents` — văn bản hoặc FAQ
+
+```json
+{ "title": "Hỏi đáp đăng ký khai sinh", "sourceType": "FAQ", "content": "Hỏi: Cần mang gì?\nĐáp: Mang tờ khai và giấy chứng sinh.\n\nHỏi: Mất bao lâu?\nĐáp: Trong ngày làm việc.", "procedureId": null }
+```
+
+`sourceType` chỉ nhận `MANUAL_TEXT` hoặc `FAQ`. Tiêu đề 3–500 ký tự; nội dung ít nhất 20 ký tự sau chuẩn hóa. `procedureId` tùy chọn để gắn tài liệu với một thủ tục; nếu có, thủ tục phải đang áp dụng trong Catalog. 201 kèm chi tiết tài liệu và header Location. Lỗi: 400 `knowledge.validation`; 422 `knowledge.procedure_not_found`, `knowledge.content_too_long`, `knowledge.too_many_chunks`, `knowledge.empty_content`; 503 `knowledge.catalog_unavailable` khi phải kiểm tra procedureId mà Catalog không phản hồi.
+
+### POST `/documents/pdf` — tải PDF
+
+`multipart/form-data`: `file` (bắt buộc, PDF tối đa 10 MiB, 1–100 trang), `title` (tùy chọn, mặc định là tên file), `procedureId` (tùy chọn). Chỉ đọc lớp chữ của PDF; **không lưu file gốc**, chỉ lưu văn bản đọc được và tên file trong `sourceReference`. PDF scan chỉ có ảnh bị từ chối, không tạo tài liệu rỗng.
+
+201 kèm chi tiết; nếu có trang không đọc được chữ thì `warnings` liệt kê số trang, và nội dung các trang đó không có trong Knowledge Base. Lỗi: 400 thiếu file; 413 `knowledge.pdf_too_large`; 415 `knowledge.pdf_invalid` (không phải PDF); 422 `knowledge.pdf_no_text`, `knowledge.pdf_unreadable`, `knowledge.pdf_page_limit`, `knowledge.content_too_long`. Không dùng FormData tự đặt boundary.
+
+### PUT `/documents/{id}`
+
+```json
+{ "expectedRevision": "GUID", "title": "Tiêu đề mới", "content": "Nội dung mới (bỏ trống nếu chỉ đổi tiêu đề)" }
+```
+
+MANUAL_TEXT/FAQ: đổi tiêu đề và/hoặc nội dung; đổi nội dung thì chia đoạn lại ngay. PDF_FILE: chỉ đổi tiêu đề. PROCEDURE: không sửa được (409 `knowledge.source_not_editable`). 200 kèm chi tiết mới (revision mới). Lỗi: 400; 404; 409 `knowledge.revision_conflict` (người khác vừa sửa, tải lại), `knowledge.source_not_editable`; 422 như khi tạo.
+
+### POST `/documents/{id}/activation`
+
+```json
+{ "expectedRevision": "GUID", "isActive": false }
+```
+
+Ngừng hoặc dùng lại tài liệu. Tài liệu ngừng dùng vẫn được giữ, chỉ không được dùng cho chatbot ở TASK-29. Không có API xóa hẳn. 200; 409 `knowledge.no_change` nếu trạng thái đã đúng như yêu cầu, `knowledge.revision_conflict`.
+
+### POST `/documents/{id}/rechunk`
+
+Body `{ "expectedRevision": "GUID" }`. Chia đoạn lại từ nội dung đang lưu, dùng khi phiên bản chia đoạn thay đổi. 200 kèm chi tiết mới.
+
+### POST `/procedures/{procedureId}/sync` — đồng bộ một thủ tục
+
+Không body. Đọc thủ tục từ API công khai của Procedure Catalog, dựng văn bản theo các mục (thông tin chung, cách thức thực hiện, trường hợp và trình tự, thành phần hồ sơ, biểu mẫu, kết quả, căn cứ pháp lý) rồi chia đoạn. Mỗi thủ tục chỉ có một tài liệu PROCEDURE.
+
+200 `{outcome, document}` với `outcome`:
+- `CREATED`: lần đầu đồng bộ.
+- `UPDATED`: nội dung thủ tục đã đổi, đã chia đoạn lại.
+- `UNCHANGED`: không đổi gì (chỉ cập nhật `sourceVersion` nếu Catalog có thời điểm sửa mới).
+- `DEACTIVATED`: thủ tục đã bị xóa hoặc ngừng áp dụng trong Catalog, tài liệu được ngừng dùng.
+
+Đồng bộ **không tự bật lại** tài liệu đã ngừng dùng: nếu thủ tục được áp dụng lại trong Catalog, người quản lý gọi `/activation` để bật. Lỗi: 404 `knowledge.procedure_not_found` (thủ tục không có trong Catalog và chưa từng đồng bộ); 502 `knowledge.catalog_invalid_response`; 503 `knowledge.catalog_unavailable`, `knowledge.catalog_not_configured`.
+
+### POST `/procedures/sync` — đồng bộ toàn bộ
+
+Không body. Lấy danh sách thủ tục đang áp dụng (tối đa 1.000), đồng bộ từng thủ tục, sau đó ngừng dùng tài liệu của các thủ tục không còn trong danh sách. Bước ngừng dùng **chỉ chạy khi danh sách đầy đủ** (`complete: true`), để lỗi mạng giữa chừng không tắt nhầm tài liệu. 200 `{scanned, created, updated, unchanged, deactivated, failed, complete, failedProcedureIds}`. Thủ tục lỗi được bỏ qua và liệt kê trong `failedProcedureIds`; gọi lại sau. Request có thể chạy lâu khi nhiều thủ tục, không gọi song song nhiều lần.
+
+### Lỗi chung
+
+401 thiếu/sai token hoặc `auth.session_revoked`; 403 `knowledge.forbidden` (không phải PROCEDURE_MANAGER/IT_ADMIN hoặc thiếu `knowledge.manage`); 503 `knowledge.iam_unavailable` khi chưa xác minh được quyền; 503 `knowledge.database_unavailable` khi database AIOCR chưa sẵn sàng hoặc chưa chạy migration. Lỗi trả ProblemDetails có `code` và `traceId`.
+
+### Triển khai
+
+1. Chạy `docs/sql/iam-knowledge-permission.sql` trên DB IAM (seed `knowledge.manage` cho PROCEDURE_MANAGER và IT_ADMIN).
+2. Chạy `docs/sql/aiocr-knowledge-base.sql` trên DB AIOCR (cần đã có migration `20261021080951_ChatSessions`). Không cần pgvector.
+3. Cấu hình AIOCR `Services__ProcedureCatalog__BaseUrl` trỏ Catalog cùng môi trường (Compose đã có `http://procedure-catalog:8080/`) và `Iam__BaseUrl` đúng địa chỉ IAM.
+4. Deploy AIOCR, rồi Gateway có route mới `/api/v1/ai/knowledge/{**catch-all}`.
+
+
+## TASK-29 — Tìm kiếm vector và chatbot RAG có dẫn nguồn (24/10/2026)
+
+TASK-29 nối Knowledge Base (TASK-28) vào chatbot: mỗi đoạn được tạo vector (embedding), câu hỏi của công dân được so khớp với các đoạn, và chatbot chỉ trả lời dựa trên các đoạn tìm được, kèm trích dẫn nguồn. **Mặc định tắt cả hai**, nên khi chưa bật thì chatbot hoạt động y như trước và không phát sinh chi phí embedding.
+
+### Hai công tắc cấu hình (AIOCR)
+
+| Cấu hình | Mặc định | Tác dụng |
+|---|---|---|
+| `Knowledge:EmbeddingEnabled` | false | Bật worker tạo vector và API tìm thử. Gọi Gemini embedding (tính phí) bằng `Gemini:Key` hiện có |
+| `Knowledge:RagEnabled` | false | Chat chuyển sang chế độ trả lời dựa trên nguồn. Cần bật cả `EmbeddingEnabled` và `Assistant:Enabled` |
+| `Knowledge:EmbeddingModel` | gemini-embedding-001 | Model embedding |
+| `Knowledge:EmbeddingDimensions` | 768 | Số chiều, chỉ nhận 768, 1536 hoặc 3072 |
+| `Knowledge:TopK` | 5 | Số đoạn tối đa đưa cho chatbot (1–10) |
+| `Knowledge:MinScore` | 0.55 | Độ tương đồng cosine tối thiểu để coi là liên quan (0–1) |
+| `Knowledge:MaxIndexedChunks` | 20000 | Giới hạn số đoạn tìm kiếm trong bộ nhớ |
+| `Knowledge:WorkerIntervalSeconds` | 10 | Chu kỳ worker khi không có việc |
+| `Knowledge:MaxEmbeddingAttempts` | 5 | Số lần thử lại tối đa khi tạo vector lỗi |
+
+Docker Compose: `AIOCR_KNOWLEDGE_EMBEDDING_ENABLED`, `AIOCR_KNOWLEDGE_RAG_ENABLED`. Đổi model hoặc số chiều thì worker tự tạo lại vector cho mọi tài liệu (vector khác "chữ ký" model@số chiều không bao giờ được so với nhau).
+
+**Thứ tự bật đúng:** (1) đồng bộ/nhập tài liệu; (2) bật `EmbeddingEnabled`, chờ `index-status` cho thấy tài liệu đã `EMBEDDED`; (3) dùng API tìm thử để kiểm tra chất lượng nguồn và ngưỡng `MinScore`; (4) mới bật `RagEnabled`.
+
+### Tạo vector (worker chạy nền)
+
+Worker lấy lần lượt từng tài liệu **đang dùng** có trạng thái `CHUNKED`, `EMBEDDING_FAILED` đến hạn thử lại, hoặc `EMBEDDED` theo model cũ; gửi tối đa 50 đoạn mỗi lần gọi; xong thì chuyển `EMBEDDED`. Lỗi thì chuyển `EMBEDDING_FAILED`, ghi mã lỗi vào `embeddingError` và thử lại sau 2, 4, 8… phút (tối đa 60 phút), dừng sau `MaxEmbeddingAttempts` lần. Các đoạn đã có vector trước khi lỗi được giữ, lần sau chỉ làm phần còn lại. Sửa nội dung hoặc chia đoạn lại sẽ đưa tài liệu về `CHUNKED` để tạo vector mới. Worker không đổi `revision` của tài liệu, nên không làm hỏng thao tác sửa đang dở của người quản lý.
+
+Chi tiết tài liệu (GET `/api/v1/ai/knowledge/documents/{id}`) có thêm `embeddingModel, embeddingAttempts, nextEmbeddingAt, embeddingError, embeddedAt`. `status` nay có thể là `CHUNKED`, `EMBEDDED`, `EMBEDDING_FAILED`.
+
+### API quản lý mới (PROCEDURE_MANAGER/IT_ADMIN + `knowledge.manage`)
+
+- **GET `/api/v1/ai/knowledge/index-status`** → 200 `{embeddingEnabled, ragEnabled, embeddingSignature, activeDocuments, chunked, embedded, embeddingFailed, inactive, searchableChunks, maxIndexedChunks, minScore, topK}`. Dùng để biết đã sẵn sàng bật RAG chưa.
+- **POST `/api/v1/ai/knowledge/documents/{id}/reindex`** body `{ "expectedRevision": "GUID" }` → 200. Xóa vector của tài liệu và đưa về `CHUNKED` để worker tạo lại, kể cả khi đã hết lượt thử lại. 409 `knowledge.revision_conflict`.
+- **POST `/api/v1/ai/knowledge/search`** body `{ "query": "đăng ký khai sinh cần gì", "topK": 5 }` → 200 mảng `{rank, documentId, title, sourceType, procedureId, chunkId, heading, content, score}`, chỉ gồm các đoạn đạt `MinScore` của tài liệu đang dùng. `query` 2–1000 ký tự, `topK` 1–10. Mỗi lần gọi tạo một embedding (tính phí). Lỗi 400 `knowledge.validation`; 503 `knowledge.embedding_disabled`, `knowledge.embedding_not_configured`, `knowledge.embedding_unavailable`, `knowledge.index_too_large`; 502 `knowledge.embedding_invalid`.
+
+### Thay đổi với chatbot công dân
+
+`POST /api/v1/ai/chat/completions` giữ nguyên request. Response thêm hai trường (FE cũ đọc bỏ qua được):
+
+```json
+{
+  "conversationId": "GUID",
+  "answer": "Bạn cần tờ khai đăng ký khai sinh [1] và giấy chứng sinh [1]. Thời hạn giải quyết trong ngày [2].",
+  "relatedProcedures": [ { "procedureId": "GUID", "title": "Đăng ký khai sinh" } ],
+  "citations": [
+    { "index": 1, "documentId": "GUID", "title": "Đăng ký khai sinh", "sourceType": "PROCEDURE", "procedureId": "GUID", "chunkId": "GUID", "heading": "Thành phần hồ sơ", "score": 0.81 }
+  ],
+  "grounded": true
+}
+```
+
+- **RagEnabled = false:** như trước — `grounded: false`, `citations: null`, `relatedProcedures: []`.
+- **RagEnabled = true và tìm được nguồn:** chatbot chỉ trả lời từ các đoạn tìm được, đánh số `[1]`, `[2]` theo `citations[].index`. `citations` chỉ gồm nguồn được nhắc trong câu trả lời; nếu câu trả lời không ghi số nào thì trả mọi nguồn đã dùng. `relatedProcedures` là các thủ tục (không trùng) trong `citations`. `grounded: true`.
+- **RagEnabled = true nhưng không có đoạn nào đạt ngưỡng:** **không gọi Gemini**; trả câu cố định "Knowledge Base hiện chưa có thông tin phù hợp…", `grounded: false`, `citations: null`.
+
+FE nên hiển thị `[n]` thành liên kết tới `citations[n]` (tiêu đề tài liệu, mục), và nếu có `procedureId` thì mở trang chi tiết thủ tục. Không hiển thị `score` cho công dân như độ tin cậy pháp lý.
+
+`GET /api/v1/ai/chat/sessions/{sessionId}/messages`: mỗi tin nhắn thêm `citations` (null với câu hỏi và câu trả lời không dựa trên nguồn), để mở lại lịch sử vẫn thấy nguồn.
+
+Lỗi mới của chat khi bật RAG: 503 `knowledge.embedding_disabled` (bật RAG mà chưa bật embedding), `knowledge.embedding_unavailable`, `knowledge.index_too_large`; 502 `knowledge.embedding_invalid`. Các lỗi chat cũ giữ nguyên.
+
+### Triển khai
+
+1. Đã chạy xong phần triển khai TASK-28.
+2. Chạy `docs/sql/aiocr-knowledge-retrieval.sql` trên DB AIOCR (thêm cột vector `real[]`, trạng thái tạo vector, `chat_messages.citations`). **Không cần pgvector.**
+3. Deploy AIOCR với hai công tắc để `false`, rồi bật theo thứ tự ở trên.
