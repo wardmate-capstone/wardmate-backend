@@ -2,7 +2,7 @@
 
 Mở **wardmate-erd.drawio** bằng diagrams.net → File → Open From → Device. Có đúng 3 tab: **Conceptual**, **Logical**, **Physical**. Không có tab theo service.
 
-Mỗi trang chứa toàn bộ 6 service và các quan hệ xuyên service. Nét liền là FK thật; nét đứt là REF logic, không phải FK xuyên database. Các ô FUTURE là 8 bảng dự kiến, chưa có schema triển khai. R01… đối chiếu danh mục quan hệ ngay dưới mỗi hình.
+Mỗi trang chứa toàn bộ 6 service và các quan hệ xuyên service. Nét liền là FK thật; nét đứt là REF logic, không phải FK xuyên database. Các ô FUTURE là 6 bảng dự kiến, chưa có schema triển khai. R01… đối chiếu danh mục quan hệ ngay dưới mỗi hình.
 
 - [Conceptual SVG](conceptual.svg)
 - [Logical SVG](logical.svg)

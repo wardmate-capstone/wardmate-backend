@@ -25,3 +25,9 @@ erDiagram
     USER ||--o{ NOTIFICATION : receives
     NOTIFICATION ||--o{ DELIVERY : dispatches
     APPLICATION }o--o{ PERFORMANCE_METRIC : aggregates
+    APPLICATION ||--o{ ASSIGNMENT_HISTORY : tracks
+    USER ||--o{ ASSIGNMENT_HISTORY : assigns
+    DELIVERY ||--o{ DELIVERY_AUDIT : audited_by
+    PROCEDURE |o--o{ KNOWLEDGE_DOCUMENT : sources
+    KNOWLEDGE_DOCUMENT ||--o{ KNOWLEDGE_CHUNK : splits_into
+    CHAT_MESSAGE }o--o{ KNOWLEDGE_CHUNK : cites

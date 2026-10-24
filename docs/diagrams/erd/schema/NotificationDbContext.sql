@@ -1,4 +1,23 @@
-﻿CREATE TABLE notification_inbox (
+﻿CREATE TABLE notification_delivery_audits (
+    "Id" uuid NOT NULL,
+    "DeliveryId" uuid NOT NULL,
+    "ActorId" uuid NOT NULL,
+    "Action" character varying(40) NOT NULL,
+    "BeforeState" character varying(30) NOT NULL,
+    "AfterState" character varying(30) NOT NULL,
+    "BeforeAttempts" integer NOT NULL,
+    "BeforeRevision" uuid NOT NULL,
+    "AfterRevision" uuid NOT NULL,
+    "Reason" character varying(500) NOT NULL,
+    "Reference" character varying(200),
+    "BeforeMessageId" character varying(100),
+    "AfterMessageId" character varying(100),
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_notification_delivery_audits" PRIMARY KEY ("Id")
+);
+
+
+CREATE TABLE notification_inbox (
     "Id" uuid NOT NULL,
     "Payload" jsonb NOT NULL,
     "State" character varying(30) NOT NULL,
@@ -33,6 +52,11 @@ CREATE TABLE notifications (
 
 CREATE TABLE notification_deliveries (
     "Id" uuid NOT NULL,
+    revision uuid NOT NULL DEFAULT (gen_random_uuid()),
+    updated_at timestamp with time zone NOT NULL DEFAULT (now()),
+    external_message_id character varying(100),
+    provider character varying(30),
+    is_sandbox boolean,
     "NotificationId" uuid NOT NULL,
     "Channel" character varying(30) NOT NULL,
     "State" character varying(30) NOT NULL,
@@ -48,7 +72,16 @@ CREATE TABLE notification_deliveries (
 CREATE UNIQUE INDEX "IX_notification_deliveries_NotificationId_Channel" ON notification_deliveries ("NotificationId", "Channel");
 
 
+CREATE INDEX "IX_notification_deliveries_provider_external_message_id" ON notification_deliveries (provider, external_message_id);
+
+
 CREATE INDEX "IX_notification_deliveries_State_NextAttemptAt" ON notification_deliveries ("State", "NextAttemptAt");
+
+
+CREATE INDEX "IX_notification_deliveries_State_updated_at" ON notification_deliveries ("State", updated_at);
+
+
+CREATE INDEX "IX_notification_delivery_audits_DeliveryId_CreatedAt" ON notification_delivery_audits ("DeliveryId", "CreatedAt");
 
 
 CREATE INDEX "IX_notification_inbox_State_NextAttemptAt" ON notification_inbox ("State", "NextAttemptAt");

@@ -1,10 +1,10 @@
 # WardMate — Logical ERD
 
-Cập nhật 23/10/2026 (UTC+07:00).
+Cập nhật 24/10/2026 (UTC+07:00). Bản tương tác và draw.io tiếng Anh: [wardmate-erd-interactive.html](diagrams/erd/wardmate-erd-interactive.html), [wardmate-erd-en.drawio](diagrams/erd/wardmate-erd-en.drawio).
 
-Mỗi trang chứa toàn bộ 6 service và các quan hệ xuyên service. Nét liền là FK thật; nét đứt là REF logic, không phải FK xuyên database. Các ô FUTURE là 8 bảng dự kiến, chưa có schema triển khai. R01… đối chiếu danh mục quan hệ ngay dưới mỗi hình.
+Mỗi trang chứa toàn bộ 6 service và các quan hệ xuyên service. Nét liền là FK thật; nét đứt là REF logic, không phải FK xuyên database. Các ô FUTURE là 6 bảng dự kiến, chưa có schema triển khai. R01… đối chiếu danh mục quan hệ ngay dưới mỗi hình.
 
-37 bảng hiện có, 8 bảng dự kiến. Hiển thị thuộc tính và khóa; không đưa kiểu lưu trữ SQL vào từng thuộc tính.
+41 bảng hiện có, 6 bảng dự kiến. Hiển thị thuộc tính và khóa; không đưa kiểu lưu trữ SQL vào từng thuộc tính.
 
 [ Mở hình SVG để phóng to ](diagrams/erd/logical.svg) · [File draw.io — chọn trang Logical](diagrams/erd/wardmate-erd.drawio)
 

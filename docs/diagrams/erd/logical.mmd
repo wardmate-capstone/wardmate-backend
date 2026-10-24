@@ -10,6 +10,7 @@ erDiagram
     IAM_users ||--o| IAM_welcome_emails : "FK user_id"
     CAT_procedure_categories ||--o{ CAT_procedures : "FK category_id"
     CAT_procedures ||--o{ CAT_procedure_versions : "FK procedure_id"
+    WF_applications ||--o{ WF_application_assignment_history : "FK application_id"
     WF_applications ||--o{ WF_application_checklists : "FK application_id"
     WF_applications ||--o{ WF_application_status_history : "FK application_id"
     WF_applications ||--o{ WF_application_versions : "FK application_id"
@@ -18,6 +19,7 @@ erDiagram
     DOC_form_templates ||--o{ DOC_form_template_versions : "FK template_id"
     DOC_form_template_versions |o--o{ DOC_user_submissions : "FK template_version_id"
     AI_chat_sessions ||--o{ AI_chat_messages : "FK session_id"
+    AI_knowledge_documents ||--o{ AI_knowledge_chunks : "FK document_id"
     SYS_notifications ||--o{ SYS_notification_deliveries : "FK NotificationId"
     IAM_users }o..o{ CAT_procedure_drafts : "REF CreatedBy/ReviewedBy"
     CAT_procedures |o..o{ CAT_procedure_drafts : "REF PublishedProcedureId"
@@ -59,6 +61,12 @@ erDiagram
     IAM_users }o..o{ IAM_rbac_audit_logs : "REF ActorUserId/TargetUserId"
     IAM_roles |o..o{ IAM_rbac_audit_logs : "REF RoleId"
     IAM_permissions |o..o{ IAM_rbac_audit_logs : "REF PermissionId"
+    IAM_users }o..o{ WF_application_assignment_history : "REF FromOfficerId/ToOfficerId/ActorId"
+    SYS_notification_deliveries |o..o{ SYS_notification_delivery_audits : "REF DeliveryId"
+    IAM_users |o..o{ SYS_notification_delivery_audits : "REF ActorId"
+    IAM_users }o..o{ AI_knowledge_documents : "REF CreatedBy/UpdatedBy"
+    CAT_procedures |o..o{ AI_knowledge_documents : "REF ProcedureId"
+    AI_knowledge_chunks }o..o{ AI_chat_messages : "REF Citations JSON"
     IAM_permissions {
         value id PK "required"
     }
@@ -126,6 +134,7 @@ erDiagram
         value id PK "required"
         value user_id "required"
         value procedure_id "required"
+        value category_id "optional"
         value status "required"
         value deadline_status "required"
         value deadline_policy_code "optional"
@@ -141,6 +150,13 @@ erDiagram
     }
     WF_workflow_outbox {
         value id PK "required"
+    }
+    WF_application_assignment_history {
+        value id PK "required"
+        value application_id FK "required"
+        value from_officer_id "optional"
+        value to_officer_id "optional"
+        value actor_id "required"
     }
     WF_application_checklists {
         value id PK "required"
@@ -206,9 +222,25 @@ erDiagram
         value id PK "required"
         value user_id "required"
     }
+    AI_knowledge_documents {
+        value id PK "required"
+        value procedure_id "optional"
+        value status "required"
+    }
     AI_chat_messages {
         value id PK "required"
         value session_id FK "required"
+    }
+    AI_knowledge_chunks {
+        value id PK "required"
+        value document_id FK "required"
+    }
+    SYS_notification_delivery_audits {
+        value Id PK "required"
+        value DeliveryId "required"
+        value ActorId "required"
+        value BeforeMessageId "optional"
+        value AfterMessageId "optional"
     }
     SYS_notification_inbox {
         value Id PK "required"
@@ -221,6 +253,7 @@ erDiagram
     }
     SYS_notification_deliveries {
         value Id PK "required"
+        value external_message_id "optional"
         value NotificationId FK "required"
     }
     SYS_application_procedure_metrics {

@@ -1,12 +1,12 @@
 # WardMate — Sơ đồ phân tích hệ thống
 
-ERD đã cập nhật 23/10/2026: [Conceptual](system-erd-conceptual.md), [Logical hợp nhất](system-unified-erd.md), [Physical đầy đủ](system-erd-physical.md). Có37bảng EFứngdụng của6service;8bảng tươnglai táchriêng. Chỉ đối chiếu source, không xác nhậnAzure.
+ERD đã cập nhật 24/10/2026: [Conceptual](system-erd-conceptual.md), [Logical hợp nhất](system-unified-erd.md), [Physical đầy đủ](system-erd-physical.md), [ERD tương tác 3 mức](diagrams/erd/wardmate-erd-interactive.html), [draw.io tiếng Anh](diagrams/erd/wardmate-erd-en.drawio). Có 41 bảng EF ứng dụng của 6 service; 6 bảng tương lai tách riêng. Chỉ đối chiếu source, không xác nhận Azure.
 
 Các mục Activity/State/Structure bên dưới giữ nguyên từbộtrước, không thuộc lượt cậpnhậtERD này; không dùng thôngtin lịchsử ở đó để phủđịnh ERD mới. [Bản cũ đầyđủ](diagrams/erd/archive-system-diagrams-20261015.md).
 
 ## 1. ERD — ba trang toàn hệ thống
 
-[Conceptual](system-erd-conceptual.md) · [Logical](system-unified-erd.md) · [Physical](system-erd-physical.md) · [File draw.io 3 trang](diagrams/erd/wardmate-erd.drawio). Mỗi trang nối toàn bộ 6 service. 37 bảng hiện có; 8 bảng FUTURE được đánh dấu riêng trong cùng hình.
+[Conceptual](system-erd-conceptual.md) · [Logical](system-unified-erd.md) · [Physical](system-erd-physical.md) · [File draw.io 3 trang](diagrams/erd/wardmate-erd.drawio). Mỗi trang nối toàn bộ 6 service. 41 bảng hiện có; 6 bảng FUTURE được đánh dấu riêng trong cùng hình. Bản tương tác: [wardmate-erd-interactive.html](diagrams/erd/wardmate-erd-interactive.html); draw.io tiếng Anh: [wardmate-erd-en.drawio](diagrams/erd/wardmate-erd-en.drawio).
 
 ## 2. Activity Diagram — Luồng hoạt động
 
@@ -271,15 +271,9 @@ flowchart LR
 
 Tài liệu không xác nhận độ chính xác tuyệt đối của AI, giao dịch nguyên tử xuyên service, gửi thông báo exactly-once, SMS/Email production, hay kiểm thử toàn luồng Azure. Khi bổ sung entity, FK hoặc chuyển trạng thái mới, cần sửa sơ đồ tương ứng thay vì coi sơ đồ này là đặc tả bất biến.
 
-> Mục6 là thiết kế lịch sử. Trạng thái bảng hiện tại và8bảng FUTURE đúng xem LogicalERD ngày23/10/2026.
-
-> Mục6 là thiết kế lịch sử. Trạng thái bảng hiện tại và8bảng FUTURE đúng xem LogicalERD ngày23/10/2026.
-
-> Mục6 là thiết kế lịch sử. Trạng thái bảng hiện tại và8bảng FUTURE đúng xem LogicalERD ngày23/10/2026.
-
 ## 6. ERD tương lai
 
-8 bảng chưa triển khai được giữ riêng trong [Logical ERD](system-unified-erd.md). Chat, metrics, feedback và QR đã có, không còn thuộc phần tương lai. Xem bản lưu lịch sử nếu cần thiết kế trước đây.
+6 bảng chưa triển khai được giữ riêng trong [Logical ERD](system-unified-erd.md). Chat, Knowledge Base, metrics, feedback và QR đã có, không còn thuộc phần tương lai. Xem bản lưu lịch sử nếu cần thiết kế trước đây.
 
 ## 7. Activity, State Machine và Structure Analysis
 
@@ -287,4 +281,4 @@ Xem [bộ sơ đồ luồng](system-future-flows.md); phần này không thay đ
 
 ## 8. ERD hợp nhất
 
-[37 bảng hiện có và 8 bảng tương lai](system-unified-erd.md); FK vật lý và REF logic được phân biệt.
+[41 bảng hiện có và 6 bảng tương lai](system-unified-erd.md); FK vật lý và REF logic được phân biệt.

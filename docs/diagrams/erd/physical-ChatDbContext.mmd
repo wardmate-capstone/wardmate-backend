@@ -1,10 +1,36 @@
 erDiagram
     AI_chat_sessions ||--o{ AI_chat_messages : "FK session_id"
+    AI_knowledge_documents ||--o{ AI_knowledge_chunks : "FK document_id"
     AI_chat_sessions {
         uuid id PK "uuid NOT NULL DEFAULT (gen_random_uuid())"
         uuid user_id "uuid NOT NULL"
         character_varying(50) ward_code "character varying(50) NOT NULL"
         timestamp_with_time_zone created_at "timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP)"
+    }
+    AI_knowledge_documents {
+        uuid id PK "uuid NOT NULL"
+        character_varying(500) title "character varying(500) NOT NULL"
+        character_varying(20) source_type "character varying(20) NOT NULL"
+        uuid procedure_id "uuid NULL"
+        character_varying(500) source_reference "character varying(500) NULL"
+        character_varying(100) source_version "character varying(100) NULL"
+        text content "text NOT NULL"
+        character_varying(64) content_sha256 "character varying(64) NOT NULL"
+        character_varying(20) status "character varying(20) NOT NULL"
+        boolean is_active "boolean NOT NULL"
+        integer chunk_count "integer NOT NULL"
+        character_varying(50) chunking_version "character varying(50) NOT NULL"
+        uuid created_by "uuid NOT NULL"
+        uuid updated_by "uuid NOT NULL"
+        timestamp_with_time_zone created_at "timestamp with time zone NOT NULL"
+        timestamp_with_time_zone updated_at "timestamp with time zone NOT NULL"
+        timestamp_with_time_zone chunked_at "timestamp with time zone NULL"
+        character_varying(120) embedding_model "character varying(120) NULL"
+        integer embedding_attempts "integer NOT NULL"
+        timestamp_with_time_zone next_embedding_at "timestamp with time zone NULL"
+        character_varying(100) embedding_error "character varying(100) NULL"
+        timestamp_with_time_zone embedded_at "timestamp with time zone NULL"
+        uuid revision "uuid NOT NULL"
     }
     AI_chat_messages {
         uuid id PK "uuid NOT NULL DEFAULT (gen_random_uuid())"
@@ -12,4 +38,18 @@ erDiagram
         character_varying(20) role "character varying(20) NOT NULL"
         character_varying(20000) content "character varying(20000) NOT NULL"
         timestamp_with_time_zone created_at "timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP)"
+        jsonb citations "jsonb NULL"
+    }
+    AI_knowledge_chunks {
+        uuid id PK "uuid NOT NULL"
+        uuid document_id FK "uuid NOT NULL"
+        integer chunk_index "integer NOT NULL"
+        character_varying(500) heading "character varying(500) NULL"
+        text content "text NOT NULL"
+        integer char_count "integer NOT NULL"
+        character_varying(64) content_sha256 "character varying(64) NOT NULL"
+        timestamp_with_time_zone created_at "timestamp with time zone NOT NULL"
+        real_array embedding "real[] NULL"
+        character_varying(120) embedding_model "character varying(120) NULL"
+        timestamp_with_time_zone embedded_at "timestamp with time zone NULL"
     }

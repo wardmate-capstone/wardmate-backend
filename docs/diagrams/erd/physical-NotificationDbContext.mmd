@@ -1,5 +1,21 @@
 erDiagram
     SYS_notifications ||--o{ SYS_notification_deliveries : "FK NotificationId"
+    SYS_notification_delivery_audits {
+        uuid Id PK "uuid NOT NULL"
+        uuid DeliveryId "uuid NOT NULL"
+        uuid ActorId "uuid NOT NULL"
+        character_varying(40) Action "character varying(40) NOT NULL"
+        character_varying(30) BeforeState "character varying(30) NOT NULL"
+        character_varying(30) AfterState "character varying(30) NOT NULL"
+        integer BeforeAttempts "integer NOT NULL"
+        uuid BeforeRevision "uuid NOT NULL"
+        uuid AfterRevision "uuid NOT NULL"
+        character_varying(500) Reason "character varying(500) NOT NULL"
+        character_varying(200) Reference "character varying(200) NULL"
+        character_varying(100) BeforeMessageId "character varying(100) NULL"
+        character_varying(100) AfterMessageId "character varying(100) NULL"
+        timestamp_with_time_zone CreatedAt "timestamp with time zone NOT NULL"
+    }
     SYS_notification_inbox {
         uuid Id PK "uuid NOT NULL"
         jsonb Payload "jsonb NOT NULL"
@@ -26,6 +42,11 @@ erDiagram
     }
     SYS_notification_deliveries {
         uuid Id PK "uuid NOT NULL"
+        uuid revision "uuid NOT NULL DEFAULT (gen_random_uuid())"
+        timestamp_with_time_zone updated_at "timestamp with time zone NOT NULL DEFAULT (now())"
+        character_varying(100) external_message_id "character varying(100) NULL"
+        character_varying(30) provider "character varying(30) NULL"
+        boolean is_sandbox "boolean NULL"
         uuid NotificationId FK "uuid NOT NULL"
         character_varying(30) Channel "character varying(30) NOT NULL"
         character_varying(30) State "character varying(30) NOT NULL"

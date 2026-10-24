@@ -34,7 +34,12 @@ const refs=[
  ['WF_applications','SYS_citizen_feedback','ApplicationId unique'],['IAM_users','SYS_citizen_feedback','CitizenId'],['CAT_procedures','SYS_citizen_feedback','ProcedureId'],
  ['CAT_procedures','SYS_application_procedure_metrics','ProcedureId'],['IAM_users','SYS_daily_performance_metrics','OfficerId'],['CAT_procedures','SYS_daily_performance_metrics','ProcedureId'],
  ['IAM_wards','SYS_application_procedure_metrics','WardCode'],['IAM_wards','SYS_daily_performance_metrics','WardCode'],['IAM_wards','SYS_citizen_feedback','WardCode'],
- ['IAM_users','IAM_rbac_audit_logs','ActorUserId/TargetUserId'],['IAM_roles','IAM_rbac_audit_logs','RoleId'],['IAM_permissions','IAM_rbac_audit_logs','PermissionId']
+ ['IAM_users','IAM_rbac_audit_logs','ActorUserId/TargetUserId'],['IAM_roles','IAM_rbac_audit_logs','RoleId'],['IAM_permissions','IAM_rbac_audit_logs','PermissionId'],
+ // 24/10/2026: assignment history, notification admin audit, knowledge base (TASK-28/29).
+ ['IAM_users','WF_application_assignment_history','FromOfficerId/ToOfficerId/ActorId'],
+ ['SYS_notification_deliveries','SYS_notification_delivery_audits','DeliveryId'],['IAM_users','SYS_notification_delivery_audits','ActorId'],
+ ['IAM_users','AI_knowledge_documents','CreatedBy/UpdatedBy'],['CAT_procedures','AI_knowledge_documents','ProcedureId'],
+ ['AI_knowledge_chunks','AI_chat_messages','Citations JSON']
 ];
 for(const [a,b]of refs)if(!tables.some(t=>t.id===a)||!tables.some(t=>t.id===b))throw Error('Unknown REF '+a+' '+b);
 const edgeText=e=>`    ${e.from} ${e.left}--${e.right} ${e.to} : "${e.label}"`;
@@ -45,11 +50,11 @@ function entity(t,physical){let cols=t.cols;if(!physical)cols=cols.filter(c=>t.p
  return `        ${type} ${c.name}${keys.length?' '+keys.join(','):''} "${sanitize(physical?c.spec+(c.nullable?' NULL':''):c.nullable?'optional':'required')}"`;
  }), '    }'].join('\n');}
 let logical=['erDiagram',...edges.map(edgeText),...refs.map(([a,b,label])=>`    ${a} ${label.includes("/") || label.includes("JSON") ? "}o..o{" : label.includes("unique") || label === "EventId" ? "|o..o|" : "|o..o{"} ${b} : "REF ${label}"`),...tables.map(t=>entity(t,false))].join('\n');fs.writeFileSync(path.join(out,'logical.mmd'),logical+'\n');
-let physical='# WardMate — Physical ERD\n\nĐối chiếu EF model Release ngày 23/10/2026 (UTC+07:00), không đọc DB Azure. Có '+tables.length+' bảng ứng dụng trong 7 DbContext / 6 service. Không đếm bảng EF history, Hangfire hoặc hạ tầng broker. Alias IAM/CAT/WF/DOC/AI/SYS là nhãn sơ đồ, không phải schema.\n\nMỗi sơ đồ chỉ vẽ FK vật lý trong cùng DbContext. Cột giữ đúng casing PostgreSQL; PascalCase phải dùng dấu ngoặc kép khi SQL. Comment giữ kiểu SQL/nullable/default. Kiểu có khoảng trắng đổi thành underscore trong Mermaid. PK ghép được đánh dấu ở từng cột; UNIQUE ghép nằm trong bảng ràng buộc bên dưới. DDL [schema/](diagrams/erd/schema/) do EF dbcontext script sinh chỉ để đối chiếu mô hình, **không phải migration nâng cấp, không chạy trên database hiện hữu**.\n\n';
+let physical='# WardMate — Physical ERD\n\nĐối chiếu EF model Release ngày 24/10/2026 (UTC+07:00), không đọc DB Azure. Có '+tables.length+' bảng ứng dụng trong 7 DbContext / 6 service. Không đếm bảng EF history, Hangfire hoặc hạ tầng broker. Alias IAM/CAT/WF/DOC/AI/SYS là nhãn sơ đồ, không phải schema.\n\nMỗi sơ đồ chỉ vẽ FK vật lý trong cùng DbContext. Cột giữ đúng casing PostgreSQL; PascalCase phải dùng dấu ngoặc kép khi SQL. Comment giữ kiểu SQL/nullable/default. Kiểu có khoảng trắng đổi thành underscore trong Mermaid. PK ghép được đánh dấu ở từng cột; UNIQUE ghép nằm trong bảng ràng buộc bên dưới. DDL [schema/](diagrams/erd/schema/) do EF dbcontext script sinh chỉ để đối chiếu mô hình, **không phải migration nâng cấp, không chạy trên database hiện hữu**.\n\n';
 let blocks=[];
 for(const [g,ctx]of groups){const ts=tables.filter(t=>t.ctx===ctx),ids=new Set(ts.map(t=>t.id));const mmd=['erDiagram',...edges.filter(e=>ids.has(e.to)).map(edgeText),...ts.map(t=>entity(t,true))].join('\n');fs.writeFileSync(path.join(out,'physical-'+ctx+'.mmd'),mmd+'\n');blocks.push({ctx,mmd});physical+=`## ${g} — ${ctx} (${ts.length} bảng)\n\n`+'~~~mermaid\n'+mmd+'\n~~~\n\n| Alias | Bảng PostgreSQL | PK | UNIQUE (kể cả ghép) |\n|---|---|---|---|\n'+ts.map(t=>`| ${t.id} | ${t.sqlName.includes('.')?t.sqlName:'public.'+t.sqlName} | ${t.pk.join(', ')} | ${t.unique.map(k=>k.join(' + ')).join('; ')||'—'} |`).join('\n')+`\n\nDDL đầy đủ, gồm CHECK, index, FK và ON DELETE: [${ctx}.sql](diagrams/erd/schema/${ctx}.sql).\n\n`;}
 fs.writeFileSync('docs/system-erd-physical.md',physical);
-fs.writeFileSync(path.join(out,'model-inventory.json'),JSON.stringify({date:'2026-10-23',tables,edges,refs},null,2));
+fs.writeFileSync(path.join(out,'model-inventory.json'),JSON.stringify({date:'2026-10-24',tables,edges,refs},null,2));
 const concept=`erDiagram
     USER }o--o{ ROLE : holds
     ROLE }o--o{ PERMISSION : grants
@@ -77,13 +82,19 @@ const concept=`erDiagram
     USER ||--o{ NOTIFICATION : receives
     NOTIFICATION ||--o{ DELIVERY : dispatches
     APPLICATION }o--o{ PERFORMANCE_METRIC : aggregates
+    APPLICATION ||--o{ ASSIGNMENT_HISTORY : tracks
+    USER ||--o{ ASSIGNMENT_HISTORY : assigns
+    DELIVERY ||--o{ DELIVERY_AUDIT : audited_by
+    PROCEDURE |o--o{ KNOWLEDGE_DOCUMENT : sources
+    KNOWLEDGE_DOCUMENT ||--o{ KNOWLEDGE_CHUNK : splits_into
+    CHAT_MESSAGE }o--o{ KNOWLEDGE_CHUNK : cites
 `;
 fs.writeFileSync(path.join(out,'conceptual.mmd'),concept);
-fs.writeFileSync('docs/system-erd-conceptual.md','# WardMate — Conceptual ERD\n\nCập nhật 23/10/2026. Mô hình khái niệm của cả6service, tên tiếng Anh. Quan hệ ở đây thể hiện ý nghĩa nghiệp vụ, không phải FK SQL; không mô tả cột hoặc bảng kỹ thuật. APPLICATION là hồ sơ chuẩn bị/kiểm tra giấy tờ và ghi nhận tiếp nhận, không phải quyết định phê duyệt hành chính. AUTH_CHALLENGE gồm OTP mật khẩu/xác minh số; DOCUMENT gom metadata tài liệu, không có nghĩa một bảng duy nhất.\n\n~~~mermaid\n'+concept+'~~~\n\nXem [Logical](system-unified-erd.md) để tách đủ bảng, [Physical](system-erd-physical.md) để thấy tên cột, schema và FK thực tế. Các mục tương lai nằm riêng ở Logical, không trộn vào phần đã triển khai.\n');
+fs.writeFileSync('docs/system-erd-conceptual.md','# WardMate — Conceptual ERD\n\nCập nhật 24/10/2026. Mô hình khái niệm của cả6service, tên tiếng Anh. Quan hệ ở đây thể hiện ý nghĩa nghiệp vụ, không phải FK SQL; không mô tả cột hoặc bảng kỹ thuật. APPLICATION là hồ sơ chuẩn bị/kiểm tra giấy tờ và ghi nhận tiếp nhận, không phải quyết định phê duyệt hành chính. AUTH_CHALLENGE gồm OTP mật khẩu/xác minh số; DOCUMENT gom metadata tài liệu, không có nghĩa một bảng duy nhất.\n\n~~~mermaid\n'+concept+'~~~\n\nXem [Logical](system-unified-erd.md) để tách đủ bảng, [Physical](system-erd-physical.md) để thấy tên cột, schema và FK thực tế. Các mục tương lai nằm riêng ở Logical, không trộn vào phần đã triển khai.\n');
+const futureTables=['ai_request_logs','ocr_scan_logs','audit_logs','system_settings','service_health_logs','system_backup_logs'];
+const count=ctx=>tables.filter(t=>t.ctx===ctx).length;
 let future=`erDiagram
-    FUTURE_knowledge_documents ||--o{ FUTURE_knowledge_chunks : proposed_FK
     AI_chat_sessions ||..o{ FUTURE_ai_request_logs : proposed_REF
-    AI_chat_messages }o..o{ FUTURE_knowledge_chunks : proposed_REF
     IAM_users ||..o{ FUTURE_ocr_scan_logs : proposed_REF
     IAM_users ||..o{ FUTURE_audit_logs : proposed_REF
     IAM_users ||..o{ FUTURE_system_settings : proposed_REF
@@ -97,7 +108,7 @@ let future=`erDiagram
 fs.writeFileSync(path.join(out,'future.mmd'),future);
 fs.writeFileSync('docs/system-unified-erd.md',`# WardMate — Logical ERD hợp nhất 6 service
 
-Cập nhật 23/10/2026 từ 7 EF DbContext Release: **${tables.length} bảng ứng dụng đã có trong source**. Đây không phải xác nhận database/revision Azure đã được cập nhật.
+Cập nhật 24/10/2026 từ 7 EF DbContext Release: **${tables.length} bảng ứng dụng đã có trong source**. Đây không phải xác nhận database/revision Azure đã được cập nhật.
 
 - [Conceptual ERD](system-erd-conceptual.md): thực thể nghiệp vụ.
 - [Physical ERD](system-erd-physical.md): đầy đủ cột và ràng buộc từ EF model.
@@ -108,14 +119,14 @@ Cập nhật 23/10/2026 từ 7 EF DbContext Release: **${tables.length} bảng �
 
 | Service | Bảng hiện có | Thay đổi quan trọng |
 |---|---:|---|
-| IAM | 11 | Thêm iam.user_otps, iam.welcome_emails; users có security_stamp/verified_phone_number; OTP có target_phone_number |
-| ProcedureCatalog | 4 | Cases/checklist/form definitions vẫn JSONB, không tạo bảng riêng |
-| ApplicationWorkflow | 6 | applications thêm deadline/pause history JSONB, readiness, receipt và appointment; không tạo bảng deadline riêng |
-| DocumentForm | 7 | document.approved_qrs đã có trong code; tên legacy, không mang nghĩa hệ thống phê duyệt hành chính |
-| AIOCR | 2 | chat_sessions/chat_messages đã triển khai, không còn FUTURE |
-| AnalyticsSystem | 7 | 3 bảng thông báo + 4 bảng analytics (metrics, feedback, refresh) |
+| IAM | ${count('IamDbContext')} | iam.user_otps, iam.welcome_emails; users có security_stamp/verified_phone_number. Quyền mới (workflow.assign.manage, notifications.deliveries.*, knowledge.manage) chỉ là dữ liệu, không thêm bảng; audit gán lĩnh vực dùng rbac_audit_logs |
+| ProcedureCatalog | ${count('ProcedureDbContext')} | Cases/checklist/form definitions vẫn JSONB, không tạo bảng riêng |
+| ApplicationWorkflow | ${count('WorkflowDbContext')} | Mới 24/10: application_assignment_history (CLAIM/RELEASE/ASSIGN/TRANSFER). applications thêm category_id/category_name (snapshot lĩnh vực), assigned_officer_name, assigned_at, assignment_version; cùng deadline/readiness/receipt đã có |
+| DocumentForm | ${count('DocumentDbContext')} | document.approved_qrs; tên legacy, không mang nghĩa phê duyệt hành chính |
+| AIOCR | ${count('ChatDbContext')} | Mới 24/10: knowledge_documents, knowledge_chunks (TASK-28, trước đây là FUTURE); chunks có embedding real[] (TASK-29, không pgvector); chat_messages thêm citations jsonb |
+| AnalyticsSystem | ${count('NotificationDbContext')+count('AnalyticsDbContext')} | ${count('NotificationDbContext')} bảng thông báo (mới 24/10: notification_delivery_audits; deliveries thêm provider/external_message_id/is_sandbox, revision, updated_at) + ${count('AnalyticsDbContext')} bảng analytics |
 
-Bản cũ đếm28 bảng đãcó +14 tươnglai; đối chiếu lần này có37 bảng đãcó (+9 trong tậpđãtriểnkhai:2IAM,2chat,4analytics,1QR), còn8 bảng thiết kế tươnglai. Đây là chênh lệch tài liệu, không nói cả9bảng được tạo ở lượt này. TASK25/27 LISTEN/NOTIFY, workerquota/cleanup và security_stamp không tạo thêm bảng realtime/session/quota.
+Bản 23/10 có 37 bảng đã có và 8 bảng tương lai. Bản 24/10 có ${tables.length} bảng đã có: thêm application_assignment_history, notification_delivery_audits và knowledge_documents/knowledge_chunks (2 bảng này chuyển từ FUTURE sang đã triển khai), còn ${futureTables.length} bảng tương lai. Các thay đổi còn lại là cột mới, không tạo bảng.
 
 ## Quy ước
 
@@ -127,7 +138,7 @@ ${logical}
 
 ## Phần tương lai — chưa có entity/migration
 
-8 bảng: knowledge_documents,knowledge_chunks,ai_request_logs,ocr_scan_logs,audit_logs,system_settings,service_health_logs,system_backup_logs. FK/REF trong hình dưới chỉ đềxuất. Chat đãcó khôngđồngnghĩa vectorRAG đãcó. AuditRBAC đãcó riêng, khôngđồngnghĩa audittoànhệthống.
+${futureTables.length} bảng: ${futureTables.join(', ')}. FK/REF trong hình dưới chỉ là đề xuất. knowledge_documents/knowledge_chunks đã triển khai từ 24/10 nên không còn ở đây. Audit RBAC và audit quản trị thông báo đã có riêng, không đồng nghĩa audit toàn hệ thống.
 
 ~~~mermaid
 ${future}
@@ -141,11 +152,12 @@ ${future}
 - Document approved_qrs.SubmissionId và ApplicationId làREF, không vẽ FKgiả; application_id có unique.
 - PhysicalSQL là GenerateCreateScript của model, khác migration ALTER nângcấp và không gồm EFhistory/Hangfire hạtầng.
 `);
-let old=fs.readFileSync('docs/system-diagrams.md','utf8');let a=old.indexOf('## 1. ERD'),b=old.indexOf('## 2.',a);if(a<0||b<0)throw Error('Missing section');let intro='# WardMate — Sơ đồ phân tích hệ thống\n\nERD đã cập nhật 23/10/2026: [Conceptual](system-erd-conceptual.md), [Logical hợp nhất](system-unified-erd.md), [Physical đầy đủ](system-erd-physical.md). Có37bảng EFứngdụng của6service;8bảng tươnglai táchriêng. Chỉ đối chiếu source, không xác nhậnAzure.\n\nCác mục Activity/State/Structure bên dưới giữ nguyên từbộtrước, không thuộc lượt cậpnhậtERD này; không dùng thôngtin lịchsử ở đó để phủđịnh ERD mới. [Bản cũ đầyđủ](diagrams/erd/archive-system-diagrams-20261015.md).\n\n';
+let old=fs.readFileSync('docs/system-diagrams.md','utf8');let a=old.indexOf('## 1. ERD'),b=old.indexOf('## 2.',a);if(a<0||b<0)throw Error('Missing section');let intro='# WardMate — Sơ đồ phân tích hệ thống\n\nERD đã cập nhật 24/10/2026: [Conceptual](system-erd-conceptual.md), [Logical hợp nhất](system-unified-erd.md), [Physical đầy đủ](system-erd-physical.md), [ERD tương tác 3 mức](diagrams/erd/wardmate-erd-interactive.html), [draw.io tiếng Anh](diagrams/erd/wardmate-erd-en.drawio). Có '+tables.length+' bảng EF ứng dụng của 6 service; '+futureTables.length+' bảng tương lai tách riêng. Chỉ đối chiếu source, không xác nhận Azure.\n\nCác mục Activity/State/Structure bên dưới giữ nguyên từbộtrước, không thuộc lượt cậpnhậtERD này; không dùng thôngtin lịchsử ở đó để phủđịnh ERD mới. [Bản cũ đầyđủ](diagrams/erd/archive-system-diagrams-20261015.md).\n\n';
 let section='## 1. ERD — mô hình dữ liệu hiện tại\n\nĐây là7sơđồ vật lý theoDbContext của6service. Tấtcảcột lấy từEFmodel; FK nội bộ nétliền. [Các bảng tênSQL/PK/unique vàDDL](system-erd-physical.md). [Liên kết xuyênservice](system-unified-erd.md) chỉlàREF.\n\n'+blocks.map(x=>'### '+x.ctx+'\n\n~~~mermaid\n'+x.mmd+'\n~~~\n').join('\n');
 // Keep activity/state/structure unchanged; clearly mark the old future section as historical.
-let tail=old.slice(b).replace('## 6.', '> Mục6 là thiết kế lịch sử. Trạng thái bảng hiện tại và8bảng FUTURE đúng xem LogicalERD ngày23/10/2026.\n\n## 6.');const futureStart = tail.indexOf('## 6.');
-if (futureStart >= 0) tail = tail.slice(0, futureStart) + '## 6. ERD tương lai\n\n8 bảng chưa triển khai được giữ riêng trong [Logical ERD](system-unified-erd.md). Chat, metrics, feedback và QR đã có, không còn thuộc phần tương lai. Xem bản lưu lịch sử nếu cần thiết kế trước đây.\n\n## 7. Activity, State Machine và Structure Analysis\n\nXem [bộ sơ đồ luồng](system-future-flows.md); phần này không thay đổi trong lượt cập nhật ERD.\n\n## 8. ERD hợp nhất\n\n[37 bảng hiện có và 8 bảng tương lai](system-unified-erd.md); FK vật lý và REF logic được phân biệt.\n';
+// Idempotent: drop any earlier generated note before section 6 so reruns do not stack notes.
+let tail=old.slice(b).replace(/> Mục ?6 là thiết kế lịch sử[^\r\n]*(\r?\n)+/g,'');const futureStart = tail.indexOf('## 6.');
+if (futureStart >= 0) tail = tail.slice(0, futureStart) + '## 6. ERD tương lai\n\n'+futureTables.length+' bảng chưa triển khai được giữ riêng trong [Logical ERD](system-unified-erd.md). Chat, Knowledge Base, metrics, feedback và QR đã có, không còn thuộc phần tương lai. Xem bản lưu lịch sử nếu cần thiết kế trước đây.\n\n## 7. Activity, State Machine và Structure Analysis\n\nXem [bộ sơ đồ luồng](system-future-flows.md); phần này không thay đổi trong lượt cập nhật ERD.\n\n## 8. ERD hợp nhất\n\n['+tables.length+' bảng hiện có và '+futureTables.length+' bảng tương lai](system-unified-erd.md); FK vật lý và REF logic được phân biệt.\n';
 fs.writeFileSync('docs/system-diagrams.md',intro+section+'\n'+tail);
 console.log(JSON.stringify({tables:tables.length,columns:tables.reduce((n,t)=>n+t.cols.length,0),foreignKeys:edges.length,refs:refs.length,groups:groups.map(([g,ctx])=>[ctx,tables.filter(t=>t.ctx===ctx).length])}));
 

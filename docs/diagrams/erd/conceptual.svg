@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2780" height="3660" viewBox="0 0 2780 3660"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#475569"/></marker></defs><rect width="100%" height="100%" fill="#f8fafc"/><text x="80" y="55" font-family="Arial,sans-serif" font-size="34" font-weight="bold" fill="#172b4d">WARDMATE | CONCEPTUAL ERD</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="2780" height="3730" viewBox="0 0 2780 3730"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#475569"/></marker></defs><rect width="100%" height="100%" fill="#f8fafc"/><text x="80" y="55" font-family="Arial,sans-serif" font-size="34" font-weight="bold" fill="#172b4d">WARDMATE | CONCEPTUAL ERD</text>
 <text x="80" y="90" font-family="Arial,sans-serif" font-size="18" font-weight="normal" fill="#172b4d">ONE SYSTEM / SIX SERVICES | Business relationships | Gray: FUTURE</text>
 <text x="80" y="120" font-family="Arial,sans-serif" font-size="16" font-weight="normal" fill="#172b4d">Rxx links to the relationship register below. REF is not a database foreign key.</text>
 <rect x="80" y="155" width="225" height="36" rx="5" fill="#dbeafe"/>
@@ -39,12 +39,16 @@
 <polyline points="380,470 463,470 463,358 1507,358 1507,1890 1460,1890" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
 <polyline points="1460,1894 1510,1894 1510,1826 2035,1826 2035,1886 2000,1886" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
 <polyline points="380,1206 466,1206 466,1074 2572,1074 2572,1886 2540,1886" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="380,2246 469,2246 469,2190 961,2190 961,2246 920,2246" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="380,1894 472,1894 472,1822 1513,1822 1513,2246 1460,2246" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="920,1890 964,1890 964,1818 967,1818 967,2250 920,2250" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="380,474 475,474 475,354 2038,354 2038,2246 2000,2246" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="380,478 478,478 478,350 2575,350 2575,2246 2540,2246" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="380,482 481,482 481,346 484,346 484,2606 380,2606" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="380,1210 469,1210 469,1070 472,1070 472,2246 380,2246" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="380,474 475,474 475,354 478,354 478,2250 380,2250" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="2000,1890 2038,1890 2038,1822 961,1822 961,2246 920,2246" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="1460,822 1513,822 1513,734 1516,734 1516,2246 1460,2246" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="1460,2250 1519,2250 1519,2190 2041,2190 2041,2246 2000,2246" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="920,1890 964,1890 964,1818 2044,1818 2044,2250 2000,2250" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="380,1894 481,1894 481,1814 2575,1814 2575,2246 2540,2246" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="380,478 484,478 484,350 487,350 487,2606 380,2606" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="380,482 490,482 490,346 967,346 967,2606 920,2606" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="380,486 493,486 493,342 1522,342 1522,2606 1460,2606" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
 <rect x="80" y="420" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
 <rect x="81" y="421" width="298" height="52" rx="5" fill="#dbeafe"/>
 <text x="92" y="440" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">IAM</text>
@@ -145,38 +149,46 @@
 <rect x="2241" y="1861" width="298" height="52" rx="5" fill="#cffafe"/>
 <text x="2252" y="1880" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
 <text x="2252" y="1903" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">PERFORMANCE METRIC</text>
-<rect x="80" y="2220" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="81" y="2221" width="298" height="52" rx="5" fill="#ffe4e6"/>
-<text x="92" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
-<text x="92" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">knowledge_documents</text>
-<rect x="620" y="2220" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="621" y="2221" width="298" height="52" rx="5" fill="#ffe4e6"/>
-<text x="632" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
-<text x="632" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">knowledge_chunks</text>
-<rect x="1160" y="2220" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<rect x="80" y="2220" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="81" y="2221" width="298" height="52" rx="5" fill="#fef3c7"/>
+<text x="92" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
+<text x="92" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">ASSIGNMENT HISTORY</text>
+<rect x="620" y="2220" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="621" y="2221" width="298" height="52" rx="5" fill="#cffafe"/>
+<text x="632" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
+<text x="632" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">DELIVERY AUDIT</text>
+<rect x="1160" y="2220" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
 <rect x="1161" y="2221" width="298" height="52" rx="5" fill="#ffe4e6"/>
-<text x="1172" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
-<text x="1172" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">ai_request_logs</text>
-<rect x="1700" y="2220" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<text x="1172" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">AI / OCR</text>
+<text x="1172" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">KNOWLEDGE DOCUMENT</text>
+<rect x="1700" y="2220" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
 <rect x="1701" y="2221" width="298" height="52" rx="5" fill="#ffe4e6"/>
-<text x="1712" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
-<text x="1712" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">ocr_scan_logs</text>
+<text x="1712" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">AI / OCR</text>
+<text x="1712" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">KNOWLEDGE CHUNK</text>
 <rect x="2240" y="2220" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="2241" y="2221" width="298" height="52" rx="5" fill="#cffafe"/>
-<text x="2252" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
-<text x="2252" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">audit_logs</text>
+<rect x="2241" y="2221" width="298" height="52" rx="5" fill="#ffe4e6"/>
+<text x="2252" y="2240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
+<text x="2252" y="2263" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">ai_request_logs</text>
 <rect x="80" y="2580" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="81" y="2581" width="298" height="52" rx="5" fill="#cffafe"/>
-<text x="92" y="2600" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
-<text x="92" y="2623" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">system_settings</text>
+<rect x="81" y="2581" width="298" height="52" rx="5" fill="#ffe4e6"/>
+<text x="92" y="2600" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
+<text x="92" y="2623" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">ocr_scan_logs</text>
 <rect x="620" y="2580" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
 <rect x="621" y="2581" width="298" height="52" rx="5" fill="#cffafe"/>
 <text x="632" y="2600" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
-<text x="632" y="2623" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">service_health_logs</text>
+<text x="632" y="2623" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">audit_logs</text>
 <rect x="1160" y="2580" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
 <rect x="1161" y="2581" width="298" height="52" rx="5" fill="#cffafe"/>
 <text x="1172" y="2600" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
-<text x="1172" y="2623" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">system_backup_logs</text>
+<text x="1172" y="2623" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">system_settings</text>
+<rect x="1700" y="2580" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<rect x="1701" y="2581" width="298" height="52" rx="5" fill="#cffafe"/>
+<text x="1712" y="2600" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
+<text x="1712" y="2623" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">service_health_logs</text>
+<rect x="2240" y="2580" width="300" height="100" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<rect x="2241" y="2581" width="298" height="52" rx="5" fill="#cffafe"/>
+<text x="2252" y="2600" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
+<text x="2252" y="2623" font-family="Arial,sans-serif" font-size="17" font-weight="bold" fill="#172b4d">system_backup_logs</text>
 <rect x="398" y="373" width="36" height="17" fill="white"/>
 <text x="400" y="386" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R01</text>
 <rect x="941" y="369" width="36" height="17" fill="white"/>
@@ -229,18 +241,26 @@
 <text x="1510" y="1822" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R25</text>
 <rect x="464" y="1057" width="36" height="17" fill="white"/>
 <text x="466" y="1070" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R26</text>
-<rect x="467" y="2173" width="36" height="17" fill="white"/>
-<text x="469" y="2186" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R27</text>
-<rect x="470" y="1805" width="36" height="17" fill="white"/>
-<text x="472" y="1818" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R28</text>
-<rect x="962" y="1801" width="36" height="17" fill="white"/>
-<text x="964" y="1814" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R29</text>
+<rect x="467" y="1053" width="36" height="17" fill="white"/>
+<text x="469" y="1066" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R27</text>
 <rect x="473" y="337" width="36" height="17" fill="white"/>
-<text x="475" y="350" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R30</text>
-<rect x="476" y="333" width="36" height="17" fill="white"/>
-<text x="478" y="346" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R31</text>
-<rect x="479" y="329" width="36" height="17" fill="white"/>
-<text x="481" y="342" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R32</text>
+<text x="475" y="350" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R28</text>
+<rect x="2036" y="1805" width="36" height="17" fill="white"/>
+<text x="2038" y="1818" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R29</text>
+<rect x="1511" y="717" width="36" height="17" fill="white"/>
+<text x="1513" y="730" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R30</text>
+<rect x="1517" y="2173" width="36" height="17" fill="white"/>
+<text x="1519" y="2186" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R31</text>
+<rect x="962" y="1801" width="36" height="17" fill="white"/>
+<text x="964" y="1814" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R32</text>
+<rect x="479" y="1797" width="36" height="17" fill="white"/>
+<text x="481" y="1810" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R33</text>
+<rect x="482" y="333" width="36" height="17" fill="white"/>
+<text x="484" y="346" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R34</text>
+<rect x="488" y="329" width="36" height="17" fill="white"/>
+<text x="490" y="342" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R35</text>
+<rect x="491" y="325" width="36" height="17" fill="white"/>
+<text x="493" y="338" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R36</text>
 <text x="80" y="2780" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="#172b4d">RELATIONSHIP REGISTER</text>
 <text x="80" y="2810" font-family="Arial,sans-serif" font-size="16" font-weight="normal" fill="#172b4d">PK = primary key | FK = database constraint | UK* = member of a UNIQUE key; see grouped UNIQUE in Physical.</text>
 <text x="80" y="2855" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R01  USER -&gt; ROLE</text>
@@ -265,45 +285,53 @@
 <text x="80" y="3507" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">receives [||--o{]</text>
 <text x="80" y="3555" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R11  PROCEDURE -&gt; APPLICATION</text>
 <text x="80" y="3577" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">defines [||--o{]</text>
-<text x="1006.6666666666666" y="2855" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R12  APPLICATION -&gt; CHECKLIST_ITEM</text>
-<text x="1006.6666666666666" y="2877" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">requires [||--o{]</text>
-<text x="1006.6666666666666" y="2925" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R13  APPLICATION -&gt; REVIEW_VERSION</text>
-<text x="1006.6666666666666" y="2947" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">snapshots [||--o{]</text>
-<text x="1006.6666666666666" y="2995" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R14  REVIEW_VERSION -&gt; REVIEW_COMMENT</text>
-<text x="1006.6666666666666" y="3017" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">annotates [||--o{]</text>
-<text x="1006.6666666666666" y="3065" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R15  APPLICATION -&gt; STATUS_HISTORY</text>
-<text x="1006.6666666666666" y="3087" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">records [||--o{]</text>
-<text x="1006.6666666666666" y="3135" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R16  APPLICATION -&gt; DOCUMENT</text>
-<text x="1006.6666666666666" y="3157" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">contains [||--o{]</text>
-<text x="1006.6666666666666" y="3205" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R17  FORM_TEMPLATE -&gt; FILLED_FORM</text>
-<text x="1006.6666666666666" y="3227" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">produces [||--o{]</text>
-<text x="1006.6666666666666" y="3275" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R18  CHECKLIST_ITEM -&gt; DOCUMENT</text>
-<text x="1006.6666666666666" y="3297" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">fulfilled_by [||--o{]</text>
-<text x="1006.6666666666666" y="3345" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R19  APPLICATION -&gt; QR_REFERENCE</text>
-<text x="1006.6666666666666" y="3367" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">identifies [||--o|]</text>
-<text x="1006.6666666666666" y="3415" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R20  APPLICATION -&gt; CITIZEN_FEEDBACK</text>
-<text x="1006.6666666666666" y="3437" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">receives [||--o|]</text>
-<text x="1006.6666666666666" y="3485" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R21  USER -&gt; CHAT_SESSION</text>
-<text x="1006.6666666666666" y="3507" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">starts [||--o{]</text>
-<text x="1006.6666666666666" y="3555" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R22  CHAT_SESSION -&gt; CHAT_MESSAGE</text>
-<text x="1006.6666666666666" y="3577" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">contains [||--o{]</text>
-<text x="1933.3333333333333" y="2855" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R23  APPLICATION -&gt; NOTIFICATION</text>
-<text x="1933.3333333333333" y="2877" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">triggers [||--o{]</text>
-<text x="1933.3333333333333" y="2925" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R24  USER -&gt; NOTIFICATION</text>
-<text x="1933.3333333333333" y="2947" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">receives [||--o{]</text>
-<text x="1933.3333333333333" y="2995" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R25  NOTIFICATION -&gt; DELIVERY</text>
-<text x="1933.3333333333333" y="3017" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">dispatches [||--o{]</text>
-<text x="1933.3333333333333" y="3065" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R26  APPLICATION -&gt; PERFORMANCE_METRIC</text>
-<text x="1933.3333333333333" y="3087" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">aggregates [}o--o{]</text>
-<text x="1933.3333333333333" y="3135" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R27  FUTURE_knowledge_documents -&gt; FUTURE_knowledge_chunks</text>
-<text x="1933.3333333333333" y="3157" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed contains</text>
-<text x="1933.3333333333333" y="3205" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R28  CHAT_SESSION -&gt; FUTURE_ai_request_logs</text>
-<text x="1933.3333333333333" y="3227" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed request log</text>
-<text x="1933.3333333333333" y="3275" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R29  CHAT_MESSAGE -&gt; FUTURE_knowledge_chunks</text>
-<text x="1933.3333333333333" y="3297" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed retrieval</text>
-<text x="1933.3333333333333" y="3345" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R30  USER -&gt; FUTURE_ocr_scan_logs</text>
-<text x="1933.3333333333333" y="3367" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed actor</text>
-<text x="1933.3333333333333" y="3415" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R31  USER -&gt; FUTURE_audit_logs</text>
-<text x="1933.3333333333333" y="3437" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed actor</text>
-<text x="1933.3333333333333" y="3485" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R32  USER -&gt; FUTURE_system_settings</text>
-<text x="1933.3333333333333" y="3507" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed editor</text></svg>
+<text x="80" y="3625" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R12  APPLICATION -&gt; CHECKLIST_ITEM</text>
+<text x="80" y="3647" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">requires [||--o{]</text>
+<text x="1006.6666666666666" y="2855" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R13  APPLICATION -&gt; REVIEW_VERSION</text>
+<text x="1006.6666666666666" y="2877" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">snapshots [||--o{]</text>
+<text x="1006.6666666666666" y="2925" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R14  REVIEW_VERSION -&gt; REVIEW_COMMENT</text>
+<text x="1006.6666666666666" y="2947" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">annotates [||--o{]</text>
+<text x="1006.6666666666666" y="2995" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R15  APPLICATION -&gt; STATUS_HISTORY</text>
+<text x="1006.6666666666666" y="3017" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">records [||--o{]</text>
+<text x="1006.6666666666666" y="3065" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R16  APPLICATION -&gt; DOCUMENT</text>
+<text x="1006.6666666666666" y="3087" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">contains [||--o{]</text>
+<text x="1006.6666666666666" y="3135" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R17  FORM_TEMPLATE -&gt; FILLED_FORM</text>
+<text x="1006.6666666666666" y="3157" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">produces [||--o{]</text>
+<text x="1006.6666666666666" y="3205" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R18  CHECKLIST_ITEM -&gt; DOCUMENT</text>
+<text x="1006.6666666666666" y="3227" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">fulfilled_by [||--o{]</text>
+<text x="1006.6666666666666" y="3275" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R19  APPLICATION -&gt; QR_REFERENCE</text>
+<text x="1006.6666666666666" y="3297" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">identifies [||--o|]</text>
+<text x="1006.6666666666666" y="3345" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R20  APPLICATION -&gt; CITIZEN_FEEDBACK</text>
+<text x="1006.6666666666666" y="3367" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">receives [||--o|]</text>
+<text x="1006.6666666666666" y="3415" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R21  USER -&gt; CHAT_SESSION</text>
+<text x="1006.6666666666666" y="3437" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">starts [||--o{]</text>
+<text x="1006.6666666666666" y="3485" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R22  CHAT_SESSION -&gt; CHAT_MESSAGE</text>
+<text x="1006.6666666666666" y="3507" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">contains [||--o{]</text>
+<text x="1006.6666666666666" y="3555" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R23  APPLICATION -&gt; NOTIFICATION</text>
+<text x="1006.6666666666666" y="3577" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">triggers [||--o{]</text>
+<text x="1006.6666666666666" y="3625" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R24  USER -&gt; NOTIFICATION</text>
+<text x="1006.6666666666666" y="3647" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">receives [||--o{]</text>
+<text x="1933.3333333333333" y="2855" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R25  NOTIFICATION -&gt; DELIVERY</text>
+<text x="1933.3333333333333" y="2877" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">dispatches [||--o{]</text>
+<text x="1933.3333333333333" y="2925" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R26  APPLICATION -&gt; PERFORMANCE_METRIC</text>
+<text x="1933.3333333333333" y="2947" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">aggregates [}o--o{]</text>
+<text x="1933.3333333333333" y="2995" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R27  APPLICATION -&gt; ASSIGNMENT_HISTORY</text>
+<text x="1933.3333333333333" y="3017" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">tracks [||--o{]</text>
+<text x="1933.3333333333333" y="3065" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R28  USER -&gt; ASSIGNMENT_HISTORY</text>
+<text x="1933.3333333333333" y="3087" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">assigns [||--o{]</text>
+<text x="1933.3333333333333" y="3135" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R29  DELIVERY -&gt; DELIVERY_AUDIT</text>
+<text x="1933.3333333333333" y="3157" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">audited_by [||--o{]</text>
+<text x="1933.3333333333333" y="3205" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R30  PROCEDURE -&gt; KNOWLEDGE_DOCUMENT</text>
+<text x="1933.3333333333333" y="3227" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">sources [|o--o{]</text>
+<text x="1933.3333333333333" y="3275" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R31  KNOWLEDGE_DOCUMENT -&gt; KNOWLEDGE_CHUNK</text>
+<text x="1933.3333333333333" y="3297" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">splits_into [||--o{]</text>
+<text x="1933.3333333333333" y="3345" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R32  CHAT_MESSAGE -&gt; KNOWLEDGE_CHUNK</text>
+<text x="1933.3333333333333" y="3367" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">cites [}o--o{]</text>
+<text x="1933.3333333333333" y="3415" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R33  CHAT_SESSION -&gt; FUTURE_ai_request_logs</text>
+<text x="1933.3333333333333" y="3437" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed request log</text>
+<text x="1933.3333333333333" y="3485" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R34  USER -&gt; FUTURE_ocr_scan_logs</text>
+<text x="1933.3333333333333" y="3507" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed actor</text>
+<text x="1933.3333333333333" y="3555" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R35  USER -&gt; FUTURE_audit_logs</text>
+<text x="1933.3333333333333" y="3577" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed actor</text>
+<text x="1933.3333333333333" y="3625" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R36  USER -&gt; FUTURE_system_settings</text>
+<text x="1933.3333333333333" y="3647" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed editor</text></svg>

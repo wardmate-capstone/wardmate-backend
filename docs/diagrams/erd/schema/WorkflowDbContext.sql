@@ -8,6 +8,11 @@ CREATE TABLE applications (
     procedure_id uuid NOT NULL,
     ward_code character varying(50),
     procedure_title character varying(500) NOT NULL,
+    category_id integer,
+    category_name character varying(255),
+    assigned_officer_name character varying(255),
+    assigned_at timestamp with time zone,
+    assignment_version bigint NOT NULL DEFAULT 0,
     case_code character varying(100),
     status character varying(50) NOT NULL DEFAULT 'DRAFT',
     form_data jsonb NOT NULL,
@@ -47,6 +52,20 @@ CREATE TABLE workflow_outbox (
     attempts integer NOT NULL,
     last_error character varying(100),
     CONSTRAINT pk_workflow_outbox PRIMARY KEY (id)
+);
+
+
+CREATE TABLE application_assignment_history (
+    id uuid NOT NULL,
+    application_id uuid NOT NULL,
+    action character varying(20) NOT NULL,
+    from_officer_id uuid,
+    to_officer_id uuid,
+    actor_id uuid NOT NULL,
+    reason character varying(500),
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT pk_application_assignment_history PRIMARY KEY (id),
+    CONSTRAINT fk_application_assignment_history_applications_application_id FOREIGN KEY (application_id) REFERENCES applications (id) ON DELETE CASCADE
 );
 
 
@@ -121,6 +140,9 @@ CREATE TABLE application_comments (
 );
 
 
+CREATE INDEX ix_application_assignment_history_application_id_created_at ON application_assignment_history (application_id, created_at);
+
+
 CREATE UNIQUE INDEX ix_application_checklists_application_id_code ON application_checklists (application_id, code);
 
 
@@ -146,6 +168,9 @@ CREATE INDEX ix_applications_status_submitted_at_id ON applications (status, sub
 
 
 CREATE INDEX ix_applications_user_id_created_at ON applications (user_id, created_at);
+
+
+CREATE INDEX ix_applications_ward_code_category_id_status ON applications (ward_code, category_id, status);
 
 
 CREATE INDEX ix_applications_ward_code_deadline_status_due_at_utc ON applications (ward_code, deadline_status, due_at_utc);

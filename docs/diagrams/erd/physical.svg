@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="5066" height="6940" viewBox="0 0 5066 6940"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#475569"/></marker></defs><rect width="100%" height="100%" fill="#f8fafc"/><text x="80" y="55" font-family="Arial,sans-serif" font-size="34" font-weight="bold" fill="#172b4d">WARDMATE | PHYSICAL ERD</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="5066" height="7793" viewBox="0 0 5066 7793"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#475569"/></marker></defs><rect width="100%" height="100%" fill="#f8fafc"/><text x="80" y="55" font-family="Arial,sans-serif" font-size="34" font-weight="bold" fill="#172b4d">WARDMATE | PHYSICAL ERD</text>
 <text x="80" y="90" font-family="Arial,sans-serif" font-size="18" font-weight="normal" fill="#172b4d">ONE SYSTEM / SIX SERVICES | Solid: FK | Dashed: logical REF | Gray: FUTURE</text>
 <text x="80" y="120" font-family="Arial,sans-serif" font-size="16" font-weight="normal" fill="#172b4d">Rxx links to the relationship register below. REF is not a database foreign key.</text>
 <rect x="80" y="155" width="225" height="36" rx="5" fill="#dbeafe"/>
@@ -25,60 +25,66 @@
 <polyline points="4826,1069 4864,1069 4864,1013 1525,1013 1525,1623 1502,1623" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
 <polyline points="1502,1627 1528,1627 1528,1567 2362,1567 2362,1623 2333,1623" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
 <polyline points="3164,1623 3193,1623 3193,1563 4867,1563 4867,1623 4826,1623" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
-<polyline points="3164,1627 3196,1627 3196,1559 697,1559 697,2683 671,2683" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
-<polyline points="3164,1631 3199,1631 3199,1555 1531,1555 1531,2683 1502,2683" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
-<polyline points="1502,2687 1534,2687 1534,2627 2365,2627 2365,2683 2333,2683" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
-<polyline points="3164,1635 3202,1635 3202,1551 2368,1551 2368,2687 2333,2687" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
-<polyline points="4826,2683 4870,2683 4870,2623 2371,2623 2371,3283 2333,3283" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
-<polyline points="2333,3287 2374,3287 2374,3227 3205,3227 3205,3283 3164,3283" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
-<polyline points="3995,3283 4024,3283 4024,3223 4873,3223 4873,3283 4826,3283" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
-<polyline points="1502,4090 1537,4090 1537,4034 2377,4034 2377,4090 2333,4090" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
-<polyline points="4826,470 4876,470 4876,354 700,354 700,1623 671,1623" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="1502,1631 1540,1631 1540,1547 703,1547 703,1627 671,1627" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,474 4879,474 4879,350 3208,350 3208,1639 3164,1639" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,450 3211,450 3211,346 3214,346 3214,1643 3164,1643" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="1502,1635 1543,1635 1543,1543 3217,1543 3217,1647 3164,1647" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,478 4882,478 4882,342 2380,342 2380,2691 2333,2691" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,482 4885,482 4885,338 1546,338 1546,2691 1502,2691" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,486 4888,486 4888,334 706,334 706,2687 671,2687" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,1651 3220,1651 3220,1539 4027,1539 4027,1623 3995,1623" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,2687 4891,2687 4891,1535 4894,1535 4894,1627 4826,1627" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="1502,1639 1549,1639 1549,1531 4897,1531 4897,2691 4826,2691" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,490 4900,490 4900,330 3223,330 3223,3287 3164,3287" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,2695 4903,2695 4903,2619 3226,2619 3226,3291 3164,3291" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,1655 3229,1655 3229,1527 3232,1527 3232,3295 3164,3295" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,1631 4906,1631 4906,1523 3235,1523 3235,3299 3164,3299" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,1659 3238,1659 3238,1519 3241,1519 3241,2683 3164,2683" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,1663 3244,1663 3244,1515 1552,1515 1552,3283 1502,3283" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,1635 4909,1635 4909,1511 1555,1511 1555,3287 1502,3287" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,1667 3247,1667 3247,1507 709,1507 709,3283 671,3283" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,1671 3250,1671 3250,1503 4030,1503 4030,2683 3995,2683" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,3303 3253,3303 3253,2615 4033,2615 4033,2687 3995,2687" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,494 4912,494 4912,326 4036,326 4036,3287 3995,3287" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,454 3256,454 3256,322 4039,322 4039,3291 3995,3291" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,498 4915,498 4915,318 1558,318 1558,4094 1502,4094" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,458 3259,458 3259,314 1561,314 1561,4098 1502,4098" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,1675 3262,1675 3262,1499 1564,1499 1564,4102 1502,4102" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3995,1627 4042,1627 4042,1495 712,1495 712,4090 671,4090" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="671,4094 715,4094 715,4030 1567,4030 1567,4106 1502,4106" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,1679 3265,1679 3265,1491 4045,1491 4045,4090 3995,4090" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,502 4918,502 4918,310 4048,310 4048,4094 3995,4094" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="1502,1643 1570,1643 1570,1487 4051,1487 4051,4098 3995,4098" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="1502,1647 1573,1647 1573,1483 3268,1483 3268,4090 3164,4090" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,506 4921,506 4921,306 4924,306 4924,4090 4826,4090" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="1502,1651 1576,1651 1576,1479 4927,1479 4927,4094 4826,4094" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,462 3271,462 3271,302 3274,302 3274,4094 3164,4094" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,466 3277,466 3277,298 4930,298 4930,4098 4826,4098" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3164,470 3280,470 3280,294 4054,294 4054,4102 3995,4102" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,510 4933,510 4933,290 1579,290 1579,446 1502,446" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="2333,454 2383,454 2383,286 1582,286 1582,450 1502,450" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="671,450 718,450 718,282 1585,282 1585,454 1502,454" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="1502,4736 1588,4736 1588,4680 2386,4680 2386,4736 2333,4736" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="3995,3295 4057,3295 4057,3219 3283,3219 3283,4736 3164,4736" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,3287 4936,3287 4936,3215 2389,3215 2389,4740 2333,4740" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,514 4939,514 4939,278 4060,278 4060,4736 3995,4736" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,518 4942,518 4942,274 4945,274 4945,4736 4826,4736" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<polyline points="4826,522 4948,522 4948,270 721,270 721,5129 671,5129" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,1627 3196,1627 3196,1559 697,1559 697,2798 671,2798" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="3164,1631 3199,1631 3199,1555 1531,1555 1531,2798 1502,2798" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="3164,1635 3202,1635 3202,1551 2365,1551 2365,2798 2333,2798" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="2333,2802 2368,2802 2368,2742 3205,2742 3205,2798 3164,2798" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="3164,1639 3208,1639 3208,1547 3211,1547 3211,2802 3164,2802" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="671,3536 700,3536 700,3480 3214,3480 3214,3536 3164,3536" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="3164,3540 3217,3540 3217,3476 4024,3476 4024,3536 3995,3536" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="4826,3536 4870,3536 4870,3472 1534,3472 1534,4343 1502,4343" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="671,4343 703,4343 703,4287 2371,4287 2371,4343 2333,4343" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="4826,4343 4873,4343 4873,4283 706,4283 706,5196 671,5196" fill="none" stroke="#23384f" stroke-width="1.5"  marker-end="url(#arrow)"/>
+<polyline points="4826,470 4876,470 4876,354 709,354 709,1623 671,1623" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="1502,1631 1537,1631 1537,1543 712,1543 712,1627 671,1627" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,474 4879,474 4879,350 3220,350 3220,1643 3164,1643" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,450 3223,450 3223,346 3226,346 3226,1647 3164,1647" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="1502,1635 1540,1635 1540,1539 3229,1539 3229,1651 3164,1651" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,478 4882,478 4882,342 3232,342 3232,2806 3164,2806" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,482 4885,482 4885,338 2374,338 2374,2806 2333,2806" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,486 4888,486 4888,334 1543,334 1543,2802 1502,2802" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,1655 3235,1655 3235,1535 4027,1535 4027,1623 3995,1623" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="671,3540 715,3540 715,2738 718,2738 718,2802 671,2802" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="1502,1639 1546,1639 1546,1531 721,1531 721,3544 671,3544" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,490 4891,490 4891,330 4030,330 4030,3540 3995,3540" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="671,3548 724,3548 724,3468 4033,3468 4033,3544 3995,3544" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,1659 3238,1659 3238,1527 4036,1527 4036,3548 3995,3548" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="671,2806 727,2806 727,2734 4039,2734 4039,3552 3995,3552" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,1663 3241,1663 3241,1523 4042,1523 4042,2798 3995,2798" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,1667 3244,1667 3244,1519 2377,1519 2377,3536 2333,3536" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="671,2810 730,2810 730,2730 2380,2730 2380,3540 2333,3540" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,1671 3247,1671 3247,1515 1549,1515 1549,3536 1502,3536" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,1675 3250,1675 3250,1511 4894,1511 4894,2798 4826,2798" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3995,3556 4045,3556 4045,2726 4897,2726 4897,2802 4826,2802" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,494 4900,494 4900,326 4903,326 4903,3540 4826,3540" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,454 3253,454 3253,322 4906,322 4906,3544 4826,3544" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,498 4909,498 4909,318 4912,318 4912,4347 4826,4347" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,458 3256,458 3256,314 4915,314 4915,4351 4826,4351" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,1679 3259,1679 3259,1507 4918,1507 4918,4355 4826,4355" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3995,1627 4048,1627 4048,1503 4051,1503 4051,4343 3995,4343" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3995,4347 4054,4347 4054,4279 4921,4279 4921,4359 4826,4359" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,1683 3262,1683 3262,1499 2383,1499 2383,5196 2333,5196" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,502 4924,502 4924,310 2386,310 2386,5200 2333,5200" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="1502,1643 1552,1643 1552,1495 2389,1495 2389,5204 2333,5204" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="1502,1647 1555,1647 1555,1491 1558,1491 1558,5196 1502,5196" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,506 4927,506 4927,306 3265,306 3265,5196 3164,5196" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="1502,1651 1561,1651 1561,1487 3268,1487 3268,5200 3164,5200" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,462 3271,462 3271,302 1564,302 1564,5200 1502,5200" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,466 3274,466 3274,298 3277,298 3277,5204 3164,5204" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="3164,470 3280,470 3280,294 2392,294 2392,5208 2333,5208" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,510 4930,510 4930,290 1567,290 1567,446 1502,446" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="2333,454 2395,454 2395,286 1570,286 1570,450 1502,450" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="671,450 733,450 733,282 1573,282 1573,454 1502,454" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,514 4933,514 4933,278 4936,278 4936,1627 4826,1627" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="671,5200 736,5200 736,4275 3283,4275 3283,4343 3164,4343" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,518 4939,518 4939,274 3286,274 3286,4347 3164,4347" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,522 4942,522 4942,270 739,270 739,4347 671,4347" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="1502,1655 1576,1655 1576,1483 742,1483 742,4351 671,4351" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="2333,4347 2398,4347 2398,4271 1579,4271 1579,4347 1502,4347" fill="none" stroke="#55718f" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,3548 4945,3548 4945,3464 4948,3464 4948,5196 4826,5196" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,526 4951,526 4951,266 745,266 745,5842 671,5842" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,530 4954,530 4954,262 1582,262 1582,5842 1502,5842" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<polyline points="4826,534 4957,534 4957,258 2401,258 2401,5842 2333,5842" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
 <rect x="80" y="420" width="591" height="179" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
 <rect x="81" y="421" width="589" height="52" rx="5" fill="#dbeafe"/>
 <text x="92" y="440" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">IAM</text>
@@ -260,7 +266,7 @@
 <text x="1754" y="1832" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         snapshot_data : jsonb NOT NULL</text>
 <text x="1754" y="1855" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
 <text x="1754" y="1878" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (procedure_id, version_number)</text>
-<rect x="2573" y="1597" width="591" height="800" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="2573" y="1597" width="591" height="915" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
 <rect x="2574" y="1598" width="589" height="52" rx="5" fill="#fef3c7"/>
 <text x="2585" y="1617" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
 <text x="2585" y="1640" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.applications</text>
@@ -270,32 +276,37 @@
 <text x="2585" y="1740" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         procedure_id : uuid NOT NULL</text>
 <text x="2585" y="1763" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ward_code : character varying(50) NULL</text>
 <text x="2585" y="1786" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         procedure_title : character varying(500) NOT NULL</text>
-<text x="2585" y="1809" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         case_code : character varying(100) NULL</text>
-<text x="2585" y="1832" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         status : character varying(50) NOT NULL</text>
-<text x="2585" y="1855" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         form_data : jsonb NOT NULL</text>
-<text x="2585" y="1878" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submitted_at : timestamp with time zone NULL</text>
-<text x="2585" y="1901" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         first_submitted_at_utc : timestamp with time zone NULL</text>
-<text x="2585" y="1924" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         due_at_utc : timestamp with time zone NULL</text>
-<text x="2585" y="1947" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_status : character varying(20) NOT NULL</text>
-<text x="2585" y="1970" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_policy_code : character varying(100) NULL</text>
-<text x="2585" y="1993" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_policy_version : character varying(100) NULL</text>
-<text x="2585" y="2016" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_calendar_code : character varying(100) NULL</text>
-<text x="2585" y="2039" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_calendar_version : character varying(100) NULL</text>
-<text x="2585" y="2062" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_policy_snapshot : jsonb NULL</text>
-<text x="2585" y="2085" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_paused_at_utc : timestamp with time zone NULL</text>
-<text x="2585" y="2108" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_history : jsonb NOT NULL</text>
-<text x="2585" y="2131" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
-<text x="2585" y="2154" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamp with time zone NOT NULL</text>
-<text x="2585" y="2177" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         assigned_officer_id : uuid NULL</text>
-<text x="2585" y="2200" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         resubmit_count : integer NOT NULL</text>
-<text x="2585" y="2223" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         notes : text NULL</text>
-<text x="2585" y="2246" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         approved_at : timestamp with time zone NULL</text>
-<text x="2585" y="2269" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         documents_ready_at : timestamp with time zone NULL</text>
-<text x="2585" y="2292" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      receipt_number : character varying(64) NULL</text>
-<text x="2585" y="2315" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         received_at : timestamp with time zone NULL</text>
-<text x="2585" y="2338" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         appointment_date : timestamp with time zone NULL</text>
-<text x="2585" y="2361" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_code)</text>
-<text x="2585" y="2384" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (receipt_number)</text>
+<text x="2585" y="1809" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         category_id : integer NULL</text>
+<text x="2585" y="1832" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         category_name : character varying(255) NULL</text>
+<text x="2585" y="1855" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         assigned_officer_name : character varying(255) NULL</text>
+<text x="2585" y="1878" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         assigned_at : timestamp with time zone NULL</text>
+<text x="2585" y="1901" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         assignment_version : bigint NOT NULL</text>
+<text x="2585" y="1924" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         case_code : character varying(100) NULL</text>
+<text x="2585" y="1947" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         status : character varying(50) NOT NULL</text>
+<text x="2585" y="1970" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         form_data : jsonb NOT NULL</text>
+<text x="2585" y="1993" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submitted_at : timestamp with time zone NULL</text>
+<text x="2585" y="2016" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         first_submitted_at_utc : timestamp with time zone NULL</text>
+<text x="2585" y="2039" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         due_at_utc : timestamp with time zone NULL</text>
+<text x="2585" y="2062" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_status : character varying(20) NOT NULL</text>
+<text x="2585" y="2085" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_policy_code : character varying(100) NULL</text>
+<text x="2585" y="2108" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_policy_version : character varying(100) NULL</text>
+<text x="2585" y="2131" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_calendar_code : character varying(100) NULL</text>
+<text x="2585" y="2154" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_calendar_version : character varying(100) NULL</text>
+<text x="2585" y="2177" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_policy_snapshot : jsonb NULL</text>
+<text x="2585" y="2200" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_paused_at_utc : timestamp with time zone NULL</text>
+<text x="2585" y="2223" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deadline_history : jsonb NOT NULL</text>
+<text x="2585" y="2246" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<text x="2585" y="2269" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamp with time zone NOT NULL</text>
+<text x="2585" y="2292" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         assigned_officer_id : uuid NULL</text>
+<text x="2585" y="2315" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         resubmit_count : integer NOT NULL</text>
+<text x="2585" y="2338" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         notes : text NULL</text>
+<text x="2585" y="2361" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         approved_at : timestamp with time zone NULL</text>
+<text x="2585" y="2384" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         documents_ready_at : timestamp with time zone NULL</text>
+<text x="2585" y="2407" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      receipt_number : character varying(64) NULL</text>
+<text x="2585" y="2430" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         received_at : timestamp with time zone NULL</text>
+<text x="2585" y="2453" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         appointment_date : timestamp with time zone NULL</text>
+<text x="2585" y="2476" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_code)</text>
+<text x="2585" y="2499" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (receipt_number)</text>
 <rect x="3404" y="1597" width="591" height="225" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
 <rect x="3405" y="1598" width="589" height="52" rx="5" fill="#fef3c7"/>
 <text x="3416" y="1617" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
@@ -307,329 +318,398 @@
 <text x="3416" y="1763" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         published_at : timestamp with time zone NULL</text>
 <text x="3416" y="1786" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         attempts : integer NOT NULL</text>
 <text x="3416" y="1809" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         last_error : character varying(100) NULL</text>
-<rect x="4235" y="1597" width="591" height="478" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="4235" y="1597" width="591" height="248" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
 <rect x="4236" y="1598" width="589" height="52" rx="5" fill="#fef3c7"/>
 <text x="4247" y="1617" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
-<text x="4247" y="1640" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.application_checklists</text>
+<text x="4247" y="1640" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.application_assignment_history</text>
 <text x="4247" y="1671" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="4247" y="1694" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         sort_order : integer NOT NULL</text>
-<text x="4247" y="1717" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         case_code : text NULL</text>
-<text x="4247" y="1740" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submission_type : character varying(30) NULL</text>
-<text x="4247" y="1763" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         document_copy_type : character varying(30) NULL</text>
-<text x="4247" y="1786" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         quantity : integer NOT NULL</text>
-<text x="4247" y="1809" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         condition_note : text NULL</text>
-<text x="4247" y="1832" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         form_template_id : uuid NULL</text>
-<text x="4247" y="1855" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK,UK*   application_id : uuid NOT NULL</text>
-<text x="4247" y="1878" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      code : character varying(255) NOT NULL</text>
-<text x="4247" y="1901" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         title : character varying(255) NOT NULL</text>
-<text x="4247" y="1924" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_required : boolean NOT NULL</text>
-<text x="4247" y="1947" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         status : character varying(30) NOT NULL</text>
-<text x="4247" y="1970" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_url : character varying(500) NULL</text>
-<text x="4247" y="1993" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         note : character varying(4000) NULL</text>
-<text x="4247" y="2016" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
-<text x="4247" y="2039" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamp with time zone NOT NULL</text>
-<text x="4247" y="2062" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_id, code)</text>
-<rect x="80" y="2657" width="591" height="225" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="81" y="2658" width="589" height="52" rx="5" fill="#fef3c7"/>
-<text x="92" y="2677" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
-<text x="92" y="2700" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.application_status_history</text>
-<text x="92" y="2731" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="92" y="2754" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       application_id : uuid NOT NULL</text>
-<text x="92" y="2777" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         from_status : character varying(50) NULL</text>
-<text x="92" y="2800" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         to_status : character varying(50) NOT NULL</text>
-<text x="92" y="2823" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         changed_by : uuid NOT NULL</text>
-<text x="92" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         reason : text NULL</text>
-<text x="92" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
-<rect x="911" y="2657" width="591" height="248" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="912" y="2658" width="589" height="52" rx="5" fill="#fef3c7"/>
-<text x="923" y="2677" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
-<text x="923" y="2700" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.application_versions</text>
-<text x="923" y="2731" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK,UK*   id : uuid NOT NULL</text>
-<text x="923" y="2754" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK,UK*   application_id : uuid NOT NULL</text>
-<text x="923" y="2777" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      version_number : integer NOT NULL</text>
-<text x="923" y="2800" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submitted_by : uuid NOT NULL</text>
-<text x="923" y="2823" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submitted_at : timestamp with time zone NOT NULL</text>
-<text x="923" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         snapshot_data : jsonb NOT NULL</text>
-<text x="923" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_id, id)</text>
-<text x="923" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_id, version_number)</text>
-<rect x="1742" y="2657" width="591" height="317" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="1743" y="2658" width="589" height="52" rx="5" fill="#fef3c7"/>
-<text x="1754" y="2677" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
-<text x="1754" y="2700" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.application_comments</text>
-<text x="1754" y="2731" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="1754" y="2754" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       application_id : uuid NOT NULL</text>
-<text x="1754" y="2777" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       application_version_id : uuid NOT NULL</text>
-<text x="1754" y="2800" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         officer_id : uuid NOT NULL</text>
-<text x="1754" y="2823" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         target_type : character varying(30) NOT NULL</text>
-<text x="1754" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         target_id : character varying(100) NOT NULL</text>
-<text x="1754" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         field_label : character varying(255) NOT NULL</text>
-<text x="1754" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         comment_text : text NOT NULL</text>
-<text x="1754" y="2915" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         status : character varying(20) NOT NULL</text>
-<text x="1754" y="2938" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
-<text x="1754" y="2961" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamp with time zone NOT NULL</text>
-<rect x="2573" y="2657" width="591" height="271" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="2574" y="2658" width="589" height="52" rx="5" fill="#ede9fe"/>
-<text x="2585" y="2677" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
-<text x="2585" y="2700" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.application_forms</text>
-<text x="2585" y="2731" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="2585" y="2754" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NOT NULL</text>
-<text x="2585" y="2777" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         form_data : jsonb NOT NULL</text>
-<text x="2585" y="2800" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
-<text x="2585" y="2823" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
-<text x="2585" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
-<text x="2585" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
-<text x="2585" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
-<text x="2585" y="2915" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
-<rect x="3404" y="2657" width="591" height="225" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="3405" y="2658" width="589" height="52" rx="5" fill="#ede9fe"/>
-<text x="3416" y="2677" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
-<text x="3416" y="2700" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.approved_qrs</text>
-<text x="3416" y="2731" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="3416" y="2754" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      application_id : uuid NOT NULL</text>
-<text x="3416" y="2777" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submission_id : uuid NOT NULL</text>
-<text x="3416" y="2800" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         qr_code_value : character varying(2048) NOT NULL</text>
-<text x="3416" y="2823" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         qr_image_png : bytea NOT NULL</text>
-<text x="3416" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         generated_at : timestamptz NOT NULL</text>
-<text x="3416" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_id)</text>
-<rect x="4235" y="2657" width="591" height="340" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="4236" y="2658" width="589" height="52" rx="5" fill="#ede9fe"/>
-<text x="4247" y="2677" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
-<text x="4247" y="2700" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.form_templates</text>
-<text x="4247" y="2731" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="4247" y="2754" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      code : character varying(50) NOT NULL</text>
-<text x="4247" y="2777" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         title : character varying(255) NOT NULL</text>
-<text x="4247" y="2800" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_docx_url : text NULL</text>
-<text x="4247" y="2823" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_active : boolean NOT NULL</text>
-<text x="4247" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
-<text x="4247" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
-<text x="4247" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
-<text x="4247" y="2915" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
-<text x="4247" y="2938" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
-<text x="4247" y="2961" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
-<text x="4247" y="2984" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (code)</text>
-<rect x="80" y="3257" width="591" height="317" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="81" y="3258" width="589" height="52" rx="5" fill="#ede9fe"/>
-<text x="92" y="3277" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
-<text x="92" y="3300" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.generated_documents</text>
-<text x="92" y="3331" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="92" y="3354" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NOT NULL</text>
-<text x="92" y="3377" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submission_id : uuid NULL</text>
-<text x="92" y="3400" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         document_type : character varying(50) NOT NULL</text>
-<text x="92" y="3423" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         pdf_blob_url : text NOT NULL</text>
-<text x="92" y="3446" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
-<text x="92" y="3469" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
-<text x="92" y="3492" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
-<text x="92" y="3515" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
-<text x="92" y="3538" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
-<text x="92" y="3561" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
-<rect x="911" y="3257" width="591" height="432" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="912" y="3258" width="589" height="52" rx="5" fill="#ede9fe"/>
-<text x="923" y="3277" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
-<text x="923" y="3300" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.supporting_documents</text>
-<text x="923" y="3331" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="923" y="3354" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NOT NULL</text>
-<text x="923" y="3377" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submission_type : character varying(30) NULL</text>
-<text x="923" y="3400" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         document_copy_type : character varying(30) NULL</text>
-<text x="923" y="3423" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         quantity : integer NOT NULL</text>
-<text x="923" y="3446" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         checklist_id : uuid NULL</text>
-<text x="923" y="3469" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_name : character varying(255) NOT NULL</text>
-<text x="923" y="3492" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         blob_url : text NOT NULL</text>
-<text x="923" y="3515" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_size_bytes : bigint NULL</text>
-<text x="923" y="3538" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content_type : character varying(100) NULL</text>
-<text x="923" y="3561" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
-<text x="923" y="3584" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
-<text x="923" y="3607" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
-<text x="923" y="3630" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
-<text x="923" y="3653" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
-<text x="923" y="3676" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
-<rect x="1742" y="3257" width="591" height="386" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="1743" y="3258" width="589" height="52" rx="5" fill="#ede9fe"/>
-<text x="1754" y="3277" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
-<text x="1754" y="3300" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.form_template_versions</text>
-<text x="1754" y="3331" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="1754" y="3354" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         original_blob_url : character varying(2048) NOT NULL</text>
-<text x="1754" y="3377" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         original_sha256 : character varying(64) NOT NULL</text>
-<text x="1754" y="3400" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         mapping_definition : jsonb NOT NULL</text>
-<text x="1754" y="3423" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK,UK*   template_id : uuid NOT NULL</text>
-<text x="1754" y="3446" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      version_number : integer NOT NULL</text>
-<text x="1754" y="3469" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         schema_definition : jsonb NOT NULL</text>
-<text x="1754" y="3492" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : text NULL</text>
-<text x="1754" y="3515" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : text NULL</text>
-<text x="1754" y="3538" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at_utc : timestamp with time zone NOT NULL</text>
-<text x="1754" y="3561" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at_utc : timestamp with time zone NULL</text>
-<text x="1754" y="3584" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
-<text x="1754" y="3607" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at_utc : timestamp with time zone NULL</text>
-<text x="1754" y="3630" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (template_id, version_number)</text>
-<rect x="2573" y="3257" width="591" height="547" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="2574" y="3258" width="589" height="52" rx="5" fill="#ede9fe"/>
-<text x="2585" y="3277" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
-<text x="2585" y="3300" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.user_submissions</text>
-<text x="2585" y="3331" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="2585" y="3354" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       template_version_id : uuid NULL</text>
-<text x="2585" y="3377" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         form_data : jsonb NULL</text>
-<text x="2585" y="3400" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         template_id : uuid NOT NULL</text>
-<text x="2585" y="3423" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NULL</text>
-<text x="2585" y="3446" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         checklist_id : uuid NULL</text>
-<text x="2585" y="3469" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         applicant_id : uuid NOT NULL</text>
-<text x="2585" y="3492" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         blob_url : character varying(2048) NOT NULL</text>
-<text x="2585" y="3515" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_name : character varying(512) NOT NULL</text>
-<text x="2585" y="3538" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_size_bytes : bigint NOT NULL</text>
-<text x="2585" y="3561" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         status : character varying(50) NOT NULL</text>
-<text x="2585" y="3584" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         officer_comment : character varying(2000) NULL</text>
-<text x="2585" y="3607" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         reviewed_by_officer_id : uuid NULL</text>
-<text x="2585" y="3630" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submitted_at : timestamptz NULL</text>
-<text x="2585" y="3653" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         reviewed_at : timestamptz NULL</text>
-<text x="2585" y="3676" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
-<text x="2585" y="3699" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
-<text x="2585" y="3722" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
-<text x="2585" y="3745" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
-<text x="2585" y="3768" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
-<text x="2585" y="3791" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
-<rect x="3404" y="3257" width="591" height="156" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="3405" y="3258" width="589" height="52" rx="5" fill="#ffe4e6"/>
-<text x="3416" y="3277" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">AI / OCR</text>
-<text x="3416" y="3300" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.chat_sessions</text>
-<text x="3416" y="3331" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="3416" y="3354" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         user_id : uuid NOT NULL</text>
-<text x="3416" y="3377" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ward_code : character varying(50) NOT NULL</text>
-<text x="3416" y="3400" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
-<rect x="4235" y="3257" width="591" height="179" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="4236" y="3258" width="589" height="52" rx="5" fill="#ffe4e6"/>
-<text x="4247" y="3277" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">AI / OCR</text>
-<text x="4247" y="3300" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.chat_messages</text>
-<text x="4247" y="3331" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="4247" y="3354" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       session_id : uuid NOT NULL</text>
-<text x="4247" y="3377" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         role : character varying(20) NOT NULL</text>
-<text x="4247" y="3400" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content : character varying(20000) NOT NULL</text>
-<text x="4247" y="3423" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
-<rect x="80" y="4064" width="591" height="225" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="81" y="4065" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="92" y="4084" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
-<text x="92" y="4107" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.notification_inbox</text>
-<text x="92" y="4138" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       Id : uuid NOT NULL</text>
-<text x="92" y="4161" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Payload : jsonb NOT NULL</text>
-<text x="92" y="4184" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         State : character varying(30) NOT NULL</text>
-<text x="92" y="4207" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Attempts : integer NOT NULL</text>
-<text x="92" y="4230" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         NextAttemptAt : timestamp with time zone NOT NULL</text>
-<text x="92" y="4253" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         CreatedAt : timestamp with time zone NOT NULL</text>
-<text x="92" y="4276" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ErrorCode : character varying(100) NULL</text>
-<rect x="911" y="4064" width="591" height="386" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="912" y="4065" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="923" y="4084" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
-<text x="923" y="4107" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.notifications</text>
-<text x="923" y="4138" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
-<text x="923" y="4161" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      source_event_id : uuid NULL</text>
-<text x="923" y="4184" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         recipient_ward_code : character varying(50) NULL</text>
-<text x="923" y="4207" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      recipient_user_id : uuid NOT NULL</text>
-<text x="923" y="4230" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NULL</text>
-<text x="923" y="4253" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         title : character varying(255) NOT NULL</text>
-<text x="923" y="4276" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content : text NOT NULL</text>
-<text x="923" y="4299" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         type : character varying(50) NOT NULL</text>
-<text x="923" y="4322" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      channel : character varying(30) NOT NULL</text>
-<text x="923" y="4345" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_read : boolean NOT NULL</text>
-<text x="923" y="4368" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         read_at : timestamp with time zone NULL</text>
-<text x="923" y="4391" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         action_url : character varying(500) NULL</text>
-<text x="923" y="4414" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
-<text x="923" y="4437" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (source_event_id, recipient_user_id, channel)</text>
-<rect x="1742" y="4064" width="591" height="271" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="1743" y="4065" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="1754" y="4084" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
-<text x="1754" y="4107" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.notification_deliveries</text>
-<text x="1754" y="4138" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       Id : uuid NOT NULL</text>
-<text x="1754" y="4161" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK,UK*   NotificationId : uuid NOT NULL</text>
-<text x="1754" y="4184" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      Channel : character varying(30) NOT NULL</text>
-<text x="1754" y="4207" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         State : character varying(30) NOT NULL</text>
-<text x="1754" y="4230" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Attempts : integer NOT NULL</text>
-<text x="1754" y="4253" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         NextAttemptAt : timestamp with time zone NOT NULL</text>
-<text x="1754" y="4276" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ErrorCode : character varying(100) NULL</text>
-<text x="1754" y="4299" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         SentAt : timestamp with time zone NULL</text>
-<text x="1754" y="4322" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (NotificationId, Channel)</text>
-<rect x="2573" y="4064" width="591" height="294" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="2574" y="4065" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="2585" y="4084" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
-<text x="2585" y="4107" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">analytics.application_procedure_metrics</text>
-<text x="2585" y="4138" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       MetricDate : date NOT NULL</text>
-<text x="2585" y="4161" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       ProcedureId : uuid NOT NULL</text>
-<text x="2585" y="4184" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       WardCode : character varying(50) NOT NULL</text>
-<text x="2585" y="4207" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ReceivedCount : integer NOT NULL</text>
-<text x="2585" y="4230" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ReadyCount : integer NOT NULL</text>
-<text x="2585" y="4253" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         RevisionRequestedCount : integer NOT NULL</text>
-<text x="2585" y="4276" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ResubmittedCount : integer NOT NULL</text>
-<text x="2585" y="4299" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         CancelledCount : integer NOT NULL</text>
-<text x="2585" y="4322" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         LegacyApprovedCount : integer NOT NULL</text>
-<text x="2585" y="4345" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         LegacyRejectedCount : integer NOT NULL</text>
-<rect x="3404" y="4064" width="591" height="271" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="3405" y="4065" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="3416" y="4084" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
-<text x="3416" y="4107" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">analytics.citizen_feedback</text>
-<text x="3416" y="4138" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       Id : uuid NOT NULL</text>
-<text x="3416" y="4161" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      ApplicationId : uuid NOT NULL</text>
-<text x="3416" y="4184" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         CitizenId : uuid NOT NULL</text>
-<text x="3416" y="4207" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ProcedureId : uuid NOT NULL</text>
-<text x="3416" y="4230" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         WardCode : character varying(50) NOT NULL</text>
-<text x="3416" y="4253" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Rating : integer NOT NULL</text>
-<text x="3416" y="4276" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Comment : character varying(2000) NULL</text>
-<text x="3416" y="4299" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         CreatedAtUtc : timestamp with time zone NOT NULL</text>
-<text x="3416" y="4322" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (ApplicationId)</text>
-<rect x="4235" y="4064" width="591" height="248" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="4236" y="4065" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="4247" y="4084" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
-<text x="4247" y="4107" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">analytics.daily_performance_metrics</text>
-<text x="4247" y="4138" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       MetricDate : date NOT NULL</text>
-<text x="4247" y="4161" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       OfficerId : uuid NOT NULL</text>
-<text x="4247" y="4184" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       ProcedureId : uuid NOT NULL</text>
-<text x="4247" y="4207" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       WardCode : character varying(50) NOT NULL</text>
-<text x="4247" y="4230" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ReadyCount : integer NOT NULL</text>
-<text x="4247" y="4253" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         RevisionRequestedCount : integer NOT NULL</text>
-<text x="4247" y="4276" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         DurationSampleCount : integer NOT NULL</text>
-<text x="4247" y="4299" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         TotalProcessingMinutes : double precision NOT NULL</text>
-<rect x="80" y="4710" width="591" height="133" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
-<rect x="81" y="4711" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="92" y="4730" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
-<text x="92" y="4753" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">analytics.metric_refreshes</text>
-<text x="92" y="4784" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       MetricDate : date NOT NULL</text>
-<text x="92" y="4807" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         SourceAtUtc : timestamp with time zone NOT NULL</text>
-<text x="92" y="4830" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         RefreshedAtUtc : timestamp with time zone NOT NULL</text>
-<rect x="911" y="4710" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="912" y="4711" width="589" height="52" rx="5" fill="#ffe4e6"/>
-<text x="923" y="4730" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
-<text x="923" y="4753" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">knowledge_documents</text>
-<text x="923" y="4784" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
-<rect x="1742" y="4710" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="1743" y="4711" width="589" height="52" rx="5" fill="#ffe4e6"/>
-<text x="1754" y="4730" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
-<text x="1754" y="4753" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">knowledge_chunks</text>
-<text x="1754" y="4784" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
-<rect x="2573" y="4710" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="2574" y="4711" width="589" height="52" rx="5" fill="#ffe4e6"/>
-<text x="2585" y="4730" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
-<text x="2585" y="4753" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">ai_request_logs</text>
-<text x="2585" y="4784" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
-<rect x="3404" y="4710" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="3405" y="4711" width="589" height="52" rx="5" fill="#ffe4e6"/>
-<text x="3416" y="4730" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
-<text x="3416" y="4753" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">ocr_scan_logs</text>
-<text x="3416" y="4784" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
-<rect x="4235" y="4710" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="4236" y="4711" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="4247" y="4730" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
-<text x="4247" y="4753" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">audit_logs</text>
-<text x="4247" y="4784" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
-<rect x="80" y="5103" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="81" y="5104" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="92" y="5123" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
-<text x="92" y="5146" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">system_settings</text>
-<text x="92" y="5177" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
-<rect x="911" y="5103" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="912" y="5104" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="923" y="5123" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
-<text x="923" y="5146" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">service_health_logs</text>
-<text x="923" y="5177" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
-<rect x="1742" y="5103" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
-<rect x="1743" y="5104" width="589" height="52" rx="5" fill="#cffafe"/>
-<text x="1754" y="5123" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
-<text x="1754" y="5146" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">system_backup_logs</text>
-<text x="1754" y="5177" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
+<text x="4247" y="1694" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       application_id : uuid NOT NULL</text>
+<text x="4247" y="1717" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         action : character varying(20) NOT NULL</text>
+<text x="4247" y="1740" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         from_officer_id : uuid NULL</text>
+<text x="4247" y="1763" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         to_officer_id : uuid NULL</text>
+<text x="4247" y="1786" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         actor_id : uuid NOT NULL</text>
+<text x="4247" y="1809" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         reason : character varying(500) NULL</text>
+<text x="4247" y="1832" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<rect x="80" y="2772" width="591" height="478" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="81" y="2773" width="589" height="52" rx="5" fill="#fef3c7"/>
+<text x="92" y="2792" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
+<text x="92" y="2815" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.application_checklists</text>
+<text x="92" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="92" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         sort_order : integer NOT NULL</text>
+<text x="92" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         case_code : text NULL</text>
+<text x="92" y="2915" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submission_type : character varying(30) NULL</text>
+<text x="92" y="2938" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         document_copy_type : character varying(30) NULL</text>
+<text x="92" y="2961" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         quantity : integer NOT NULL</text>
+<text x="92" y="2984" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         condition_note : text NULL</text>
+<text x="92" y="3007" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         form_template_id : uuid NULL</text>
+<text x="92" y="3030" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK,UK*   application_id : uuid NOT NULL</text>
+<text x="92" y="3053" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      code : character varying(255) NOT NULL</text>
+<text x="92" y="3076" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         title : character varying(255) NOT NULL</text>
+<text x="92" y="3099" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_required : boolean NOT NULL</text>
+<text x="92" y="3122" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         status : character varying(30) NOT NULL</text>
+<text x="92" y="3145" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_url : character varying(500) NULL</text>
+<text x="92" y="3168" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         note : character varying(4000) NULL</text>
+<text x="92" y="3191" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<text x="92" y="3214" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamp with time zone NOT NULL</text>
+<text x="92" y="3237" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_id, code)</text>
+<rect x="911" y="2772" width="591" height="225" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="912" y="2773" width="589" height="52" rx="5" fill="#fef3c7"/>
+<text x="923" y="2792" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
+<text x="923" y="2815" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.application_status_history</text>
+<text x="923" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="923" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       application_id : uuid NOT NULL</text>
+<text x="923" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         from_status : character varying(50) NULL</text>
+<text x="923" y="2915" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         to_status : character varying(50) NOT NULL</text>
+<text x="923" y="2938" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         changed_by : uuid NOT NULL</text>
+<text x="923" y="2961" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         reason : text NULL</text>
+<text x="923" y="2984" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<rect x="1742" y="2772" width="591" height="248" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="1743" y="2773" width="589" height="52" rx="5" fill="#fef3c7"/>
+<text x="1754" y="2792" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
+<text x="1754" y="2815" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.application_versions</text>
+<text x="1754" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK,UK*   id : uuid NOT NULL</text>
+<text x="1754" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK,UK*   application_id : uuid NOT NULL</text>
+<text x="1754" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      version_number : integer NOT NULL</text>
+<text x="1754" y="2915" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submitted_by : uuid NOT NULL</text>
+<text x="1754" y="2938" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submitted_at : timestamp with time zone NOT NULL</text>
+<text x="1754" y="2961" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         snapshot_data : jsonb NOT NULL</text>
+<text x="1754" y="2984" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_id, id)</text>
+<text x="1754" y="3007" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_id, version_number)</text>
+<rect x="2573" y="2772" width="591" height="317" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="2574" y="2773" width="589" height="52" rx="5" fill="#fef3c7"/>
+<text x="2585" y="2792" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Application Workflow</text>
+<text x="2585" y="2815" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.application_comments</text>
+<text x="2585" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="2585" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       application_id : uuid NOT NULL</text>
+<text x="2585" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       application_version_id : uuid NOT NULL</text>
+<text x="2585" y="2915" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         officer_id : uuid NOT NULL</text>
+<text x="2585" y="2938" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         target_type : character varying(30) NOT NULL</text>
+<text x="2585" y="2961" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         target_id : character varying(100) NOT NULL</text>
+<text x="2585" y="2984" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         field_label : character varying(255) NOT NULL</text>
+<text x="2585" y="3007" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         comment_text : text NOT NULL</text>
+<text x="2585" y="3030" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         status : character varying(20) NOT NULL</text>
+<text x="2585" y="3053" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<text x="2585" y="3076" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamp with time zone NOT NULL</text>
+<rect x="3404" y="2772" width="591" height="271" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="3405" y="2773" width="589" height="52" rx="5" fill="#ede9fe"/>
+<text x="3416" y="2792" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
+<text x="3416" y="2815" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.application_forms</text>
+<text x="3416" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="3416" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NOT NULL</text>
+<text x="3416" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         form_data : jsonb NOT NULL</text>
+<text x="3416" y="2915" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
+<text x="3416" y="2938" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
+<text x="3416" y="2961" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
+<text x="3416" y="2984" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
+<text x="3416" y="3007" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
+<text x="3416" y="3030" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
+<rect x="4235" y="2772" width="591" height="225" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="4236" y="2773" width="589" height="52" rx="5" fill="#ede9fe"/>
+<text x="4247" y="2792" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
+<text x="4247" y="2815" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.approved_qrs</text>
+<text x="4247" y="2846" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="4247" y="2869" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      application_id : uuid NOT NULL</text>
+<text x="4247" y="2892" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submission_id : uuid NOT NULL</text>
+<text x="4247" y="2915" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         qr_code_value : character varying(2048) NOT NULL</text>
+<text x="4247" y="2938" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         qr_image_png : bytea NOT NULL</text>
+<text x="4247" y="2961" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         generated_at : timestamptz NOT NULL</text>
+<text x="4247" y="2984" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (application_id)</text>
+<rect x="80" y="3510" width="591" height="340" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="81" y="3511" width="589" height="52" rx="5" fill="#ede9fe"/>
+<text x="92" y="3530" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
+<text x="92" y="3553" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.form_templates</text>
+<text x="92" y="3584" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="92" y="3607" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      code : character varying(50) NOT NULL</text>
+<text x="92" y="3630" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         title : character varying(255) NOT NULL</text>
+<text x="92" y="3653" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_docx_url : text NULL</text>
+<text x="92" y="3676" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_active : boolean NOT NULL</text>
+<text x="92" y="3699" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
+<text x="92" y="3722" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
+<text x="92" y="3745" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
+<text x="92" y="3768" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
+<text x="92" y="3791" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
+<text x="92" y="3814" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
+<text x="92" y="3837" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (code)</text>
+<rect x="911" y="3510" width="591" height="317" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="912" y="3511" width="589" height="52" rx="5" fill="#ede9fe"/>
+<text x="923" y="3530" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
+<text x="923" y="3553" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.generated_documents</text>
+<text x="923" y="3584" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="923" y="3607" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NOT NULL</text>
+<text x="923" y="3630" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submission_id : uuid NULL</text>
+<text x="923" y="3653" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         document_type : character varying(50) NOT NULL</text>
+<text x="923" y="3676" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         pdf_blob_url : text NOT NULL</text>
+<text x="923" y="3699" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
+<text x="923" y="3722" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
+<text x="923" y="3745" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
+<text x="923" y="3768" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
+<text x="923" y="3791" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
+<text x="923" y="3814" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
+<rect x="1742" y="3510" width="591" height="432" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="1743" y="3511" width="589" height="52" rx="5" fill="#ede9fe"/>
+<text x="1754" y="3530" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
+<text x="1754" y="3553" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.supporting_documents</text>
+<text x="1754" y="3584" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="1754" y="3607" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NOT NULL</text>
+<text x="1754" y="3630" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submission_type : character varying(30) NULL</text>
+<text x="1754" y="3653" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         document_copy_type : character varying(30) NULL</text>
+<text x="1754" y="3676" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         quantity : integer NOT NULL</text>
+<text x="1754" y="3699" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         checklist_id : uuid NULL</text>
+<text x="1754" y="3722" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_name : character varying(255) NOT NULL</text>
+<text x="1754" y="3745" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         blob_url : text NOT NULL</text>
+<text x="1754" y="3768" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_size_bytes : bigint NULL</text>
+<text x="1754" y="3791" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content_type : character varying(100) NULL</text>
+<text x="1754" y="3814" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
+<text x="1754" y="3837" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
+<text x="1754" y="3860" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
+<text x="1754" y="3883" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
+<text x="1754" y="3906" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
+<text x="1754" y="3929" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
+<rect x="2573" y="3510" width="591" height="386" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="2574" y="3511" width="589" height="52" rx="5" fill="#ede9fe"/>
+<text x="2585" y="3530" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
+<text x="2585" y="3553" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.form_template_versions</text>
+<text x="2585" y="3584" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="2585" y="3607" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         original_blob_url : character varying(2048) NOT NULL</text>
+<text x="2585" y="3630" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         original_sha256 : character varying(64) NOT NULL</text>
+<text x="2585" y="3653" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         mapping_definition : jsonb NOT NULL</text>
+<text x="2585" y="3676" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK,UK*   template_id : uuid NOT NULL</text>
+<text x="2585" y="3699" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      version_number : integer NOT NULL</text>
+<text x="2585" y="3722" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         schema_definition : jsonb NOT NULL</text>
+<text x="2585" y="3745" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : text NULL</text>
+<text x="2585" y="3768" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : text NULL</text>
+<text x="2585" y="3791" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at_utc : timestamp with time zone NOT NULL</text>
+<text x="2585" y="3814" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at_utc : timestamp with time zone NULL</text>
+<text x="2585" y="3837" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
+<text x="2585" y="3860" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at_utc : timestamp with time zone NULL</text>
+<text x="2585" y="3883" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (template_id, version_number)</text>
+<rect x="3404" y="3510" width="591" height="547" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="3405" y="3511" width="589" height="52" rx="5" fill="#ede9fe"/>
+<text x="3416" y="3530" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Document Form</text>
+<text x="3416" y="3553" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">document.user_submissions</text>
+<text x="3416" y="3584" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="3416" y="3607" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       template_version_id : uuid NULL</text>
+<text x="3416" y="3630" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         form_data : jsonb NULL</text>
+<text x="3416" y="3653" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         template_id : uuid NOT NULL</text>
+<text x="3416" y="3676" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NULL</text>
+<text x="3416" y="3699" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         checklist_id : uuid NULL</text>
+<text x="3416" y="3722" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         applicant_id : uuid NOT NULL</text>
+<text x="3416" y="3745" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         blob_url : character varying(2048) NOT NULL</text>
+<text x="3416" y="3768" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_name : character varying(512) NOT NULL</text>
+<text x="3416" y="3791" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         file_size_bytes : bigint NOT NULL</text>
+<text x="3416" y="3814" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         status : character varying(50) NOT NULL</text>
+<text x="3416" y="3837" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         officer_comment : character varying(2000) NULL</text>
+<text x="3416" y="3860" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         reviewed_by_officer_id : uuid NULL</text>
+<text x="3416" y="3883" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         submitted_at : timestamptz NULL</text>
+<text x="3416" y="3906" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         reviewed_at : timestamptz NULL</text>
+<text x="3416" y="3929" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : character varying(100) NULL</text>
+<text x="3416" y="3952" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : character varying(100) NULL</text>
+<text x="3416" y="3975" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamptz NOT NULL</text>
+<text x="3416" y="3998" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamptz NULL</text>
+<text x="3416" y="4021" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_deleted : boolean NOT NULL</text>
+<text x="3416" y="4044" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         deleted_at : timestamptz NULL</text>
+<rect x="4235" y="3510" width="591" height="156" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="4236" y="3511" width="589" height="52" rx="5" fill="#ffe4e6"/>
+<text x="4247" y="3530" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">AI / OCR</text>
+<text x="4247" y="3553" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.chat_sessions</text>
+<text x="4247" y="3584" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="4247" y="3607" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         user_id : uuid NOT NULL</text>
+<text x="4247" y="3630" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ward_code : character varying(50) NOT NULL</text>
+<text x="4247" y="3653" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<rect x="80" y="4317" width="591" height="593" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="81" y="4318" width="589" height="52" rx="5" fill="#ffe4e6"/>
+<text x="92" y="4337" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">AI / OCR</text>
+<text x="92" y="4360" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.knowledge_documents</text>
+<text x="92" y="4391" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="92" y="4414" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         title : character varying(500) NOT NULL</text>
+<text x="92" y="4437" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         source_type : character varying(20) NOT NULL</text>
+<text x="92" y="4460" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         procedure_id : uuid NULL</text>
+<text x="92" y="4483" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         source_reference : character varying(500) NULL</text>
+<text x="92" y="4506" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         source_version : character varying(100) NULL</text>
+<text x="92" y="4529" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content : text NOT NULL</text>
+<text x="92" y="4552" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content_sha256 : character varying(64) NOT NULL</text>
+<text x="92" y="4575" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         status : character varying(20) NOT NULL</text>
+<text x="92" y="4598" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_active : boolean NOT NULL</text>
+<text x="92" y="4621" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         chunk_count : integer NOT NULL</text>
+<text x="92" y="4644" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         chunking_version : character varying(50) NOT NULL</text>
+<text x="92" y="4667" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_by : uuid NOT NULL</text>
+<text x="92" y="4690" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_by : uuid NOT NULL</text>
+<text x="92" y="4713" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<text x="92" y="4736" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamp with time zone NOT NULL</text>
+<text x="92" y="4759" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         chunked_at : timestamp with time zone NULL</text>
+<text x="92" y="4782" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         embedding_model : character varying(120) NULL</text>
+<text x="92" y="4805" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         embedding_attempts : integer NOT NULL</text>
+<text x="92" y="4828" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         next_embedding_at : timestamp with time zone NULL</text>
+<text x="92" y="4851" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         embedding_error : character varying(100) NULL</text>
+<text x="92" y="4874" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         embedded_at : timestamp with time zone NULL</text>
+<text x="92" y="4897" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         revision : uuid NOT NULL</text>
+<rect x="911" y="4317" width="591" height="202" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="912" y="4318" width="589" height="52" rx="5" fill="#ffe4e6"/>
+<text x="923" y="4337" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">AI / OCR</text>
+<text x="923" y="4360" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.chat_messages</text>
+<text x="923" y="4391" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="923" y="4414" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK       session_id : uuid NOT NULL</text>
+<text x="923" y="4437" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         role : character varying(20) NOT NULL</text>
+<text x="923" y="4460" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content : character varying(20000) NOT NULL</text>
+<text x="923" y="4483" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<text x="923" y="4506" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         citations : jsonb NULL</text>
+<rect x="1742" y="4317" width="591" height="340" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="1743" y="4318" width="589" height="52" rx="5" fill="#ffe4e6"/>
+<text x="1754" y="4337" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">AI / OCR</text>
+<text x="1754" y="4360" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.knowledge_chunks</text>
+<text x="1754" y="4391" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="1754" y="4414" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK,UK*   document_id : uuid NOT NULL</text>
+<text x="1754" y="4437" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      chunk_index : integer NOT NULL</text>
+<text x="1754" y="4460" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         heading : character varying(500) NULL</text>
+<text x="1754" y="4483" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content : text NOT NULL</text>
+<text x="1754" y="4506" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         char_count : integer NOT NULL</text>
+<text x="1754" y="4529" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content_sha256 : character varying(64) NOT NULL</text>
+<text x="1754" y="4552" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<text x="1754" y="4575" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         embedding : real[] NULL</text>
+<text x="1754" y="4598" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         embedding_model : character varying(120) NULL</text>
+<text x="1754" y="4621" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         embedded_at : timestamp with time zone NULL</text>
+<text x="1754" y="4644" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (document_id, chunk_index)</text>
+<rect x="2573" y="4317" width="591" height="386" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="2574" y="4318" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="2585" y="4337" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
+<text x="2585" y="4360" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.notification_delivery_audits</text>
+<text x="2585" y="4391" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       Id : uuid NOT NULL</text>
+<text x="2585" y="4414" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         DeliveryId : uuid NOT NULL</text>
+<text x="2585" y="4437" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ActorId : uuid NOT NULL</text>
+<text x="2585" y="4460" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Action : character varying(40) NOT NULL</text>
+<text x="2585" y="4483" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         BeforeState : character varying(30) NOT NULL</text>
+<text x="2585" y="4506" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         AfterState : character varying(30) NOT NULL</text>
+<text x="2585" y="4529" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         BeforeAttempts : integer NOT NULL</text>
+<text x="2585" y="4552" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         BeforeRevision : uuid NOT NULL</text>
+<text x="2585" y="4575" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         AfterRevision : uuid NOT NULL</text>
+<text x="2585" y="4598" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Reason : character varying(500) NOT NULL</text>
+<text x="2585" y="4621" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Reference : character varying(200) NULL</text>
+<text x="2585" y="4644" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         BeforeMessageId : character varying(100) NULL</text>
+<text x="2585" y="4667" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         AfterMessageId : character varying(100) NULL</text>
+<text x="2585" y="4690" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         CreatedAt : timestamp with time zone NOT NULL</text>
+<rect x="3404" y="4317" width="591" height="225" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="3405" y="4318" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="3416" y="4337" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
+<text x="3416" y="4360" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.notification_inbox</text>
+<text x="3416" y="4391" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       Id : uuid NOT NULL</text>
+<text x="3416" y="4414" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Payload : jsonb NOT NULL</text>
+<text x="3416" y="4437" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         State : character varying(30) NOT NULL</text>
+<text x="3416" y="4460" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Attempts : integer NOT NULL</text>
+<text x="3416" y="4483" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         NextAttemptAt : timestamp with time zone NOT NULL</text>
+<text x="3416" y="4506" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         CreatedAt : timestamp with time zone NOT NULL</text>
+<text x="3416" y="4529" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ErrorCode : character varying(100) NULL</text>
+<rect x="4235" y="4317" width="591" height="386" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="4236" y="4318" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="4247" y="4337" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
+<text x="4247" y="4360" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.notifications</text>
+<text x="4247" y="4391" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       id : uuid NOT NULL</text>
+<text x="4247" y="4414" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      source_event_id : uuid NULL</text>
+<text x="4247" y="4437" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         recipient_ward_code : character varying(50) NULL</text>
+<text x="4247" y="4460" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      recipient_user_id : uuid NOT NULL</text>
+<text x="4247" y="4483" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         application_id : uuid NULL</text>
+<text x="4247" y="4506" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         title : character varying(255) NOT NULL</text>
+<text x="4247" y="4529" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         content : text NOT NULL</text>
+<text x="4247" y="4552" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         type : character varying(50) NOT NULL</text>
+<text x="4247" y="4575" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      channel : character varying(30) NOT NULL</text>
+<text x="4247" y="4598" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_read : boolean NOT NULL</text>
+<text x="4247" y="4621" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         read_at : timestamp with time zone NULL</text>
+<text x="4247" y="4644" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         action_url : character varying(500) NULL</text>
+<text x="4247" y="4667" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         created_at : timestamp with time zone NOT NULL</text>
+<text x="4247" y="4690" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (source_event_id, recipient_user_id, channel)</text>
+<rect x="80" y="5170" width="591" height="386" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="81" y="5171" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="92" y="5190" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
+<text x="92" y="5213" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">public.notification_deliveries</text>
+<text x="92" y="5244" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       Id : uuid NOT NULL</text>
+<text x="92" y="5267" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         revision : uuid NOT NULL</text>
+<text x="92" y="5290" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         updated_at : timestamp with time zone NOT NULL</text>
+<text x="92" y="5313" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         external_message_id : character varying(100) NULL</text>
+<text x="92" y="5336" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         provider : character varying(30) NULL</text>
+<text x="92" y="5359" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         is_sandbox : boolean NULL</text>
+<text x="92" y="5382" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FK,UK*   NotificationId : uuid NOT NULL</text>
+<text x="92" y="5405" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      Channel : character varying(30) NOT NULL</text>
+<text x="92" y="5428" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         State : character varying(30) NOT NULL</text>
+<text x="92" y="5451" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Attempts : integer NOT NULL</text>
+<text x="92" y="5474" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         NextAttemptAt : timestamp with time zone NOT NULL</text>
+<text x="92" y="5497" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ErrorCode : character varying(100) NULL</text>
+<text x="92" y="5520" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         SentAt : timestamp with time zone NULL</text>
+<text x="92" y="5543" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (NotificationId, Channel)</text>
+<rect x="911" y="5170" width="591" height="294" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="912" y="5171" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="923" y="5190" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
+<text x="923" y="5213" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">analytics.application_procedure_metrics</text>
+<text x="923" y="5244" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       MetricDate : date NOT NULL</text>
+<text x="923" y="5267" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       ProcedureId : uuid NOT NULL</text>
+<text x="923" y="5290" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       WardCode : character varying(50) NOT NULL</text>
+<text x="923" y="5313" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ReceivedCount : integer NOT NULL</text>
+<text x="923" y="5336" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ReadyCount : integer NOT NULL</text>
+<text x="923" y="5359" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         RevisionRequestedCount : integer NOT NULL</text>
+<text x="923" y="5382" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ResubmittedCount : integer NOT NULL</text>
+<text x="923" y="5405" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         CancelledCount : integer NOT NULL</text>
+<text x="923" y="5428" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         LegacyApprovedCount : integer NOT NULL</text>
+<text x="923" y="5451" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         LegacyRejectedCount : integer NOT NULL</text>
+<rect x="1742" y="5170" width="591" height="271" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="1743" y="5171" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="1754" y="5190" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
+<text x="1754" y="5213" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">analytics.citizen_feedback</text>
+<text x="1754" y="5244" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       Id : uuid NOT NULL</text>
+<text x="1754" y="5267" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UK*      ApplicationId : uuid NOT NULL</text>
+<text x="1754" y="5290" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         CitizenId : uuid NOT NULL</text>
+<text x="1754" y="5313" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ProcedureId : uuid NOT NULL</text>
+<text x="1754" y="5336" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         WardCode : character varying(50) NOT NULL</text>
+<text x="1754" y="5359" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Rating : integer NOT NULL</text>
+<text x="1754" y="5382" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         Comment : character varying(2000) NULL</text>
+<text x="1754" y="5405" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         CreatedAtUtc : timestamp with time zone NOT NULL</text>
+<text x="1754" y="5428" font-family="Consolas,monospace" font-size="14" fill="#1e293b">UNIQUE (ApplicationId)</text>
+<rect x="2573" y="5170" width="591" height="248" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="2574" y="5171" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="2585" y="5190" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
+<text x="2585" y="5213" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">analytics.daily_performance_metrics</text>
+<text x="2585" y="5244" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       MetricDate : date NOT NULL</text>
+<text x="2585" y="5267" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       OfficerId : uuid NOT NULL</text>
+<text x="2585" y="5290" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       ProcedureId : uuid NOT NULL</text>
+<text x="2585" y="5313" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       WardCode : character varying(50) NOT NULL</text>
+<text x="2585" y="5336" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         ReadyCount : integer NOT NULL</text>
+<text x="2585" y="5359" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         RevisionRequestedCount : integer NOT NULL</text>
+<text x="2585" y="5382" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         DurationSampleCount : integer NOT NULL</text>
+<text x="2585" y="5405" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         TotalProcessingMinutes : double precision NOT NULL</text>
+<rect x="3404" y="5170" width="591" height="133" rx="6" fill="white" stroke="#334155" stroke-width="1.5" />
+<rect x="3405" y="5171" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="3416" y="5190" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">Analytics / Notifications</text>
+<text x="3416" y="5213" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">analytics.metric_refreshes</text>
+<text x="3416" y="5244" font-family="Consolas,monospace" font-size="14" fill="#1e293b">PK       MetricDate : date NOT NULL</text>
+<text x="3416" y="5267" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         SourceAtUtc : timestamp with time zone NOT NULL</text>
+<text x="3416" y="5290" font-family="Consolas,monospace" font-size="14" fill="#1e293b">         RefreshedAtUtc : timestamp with time zone NOT NULL</text>
+<rect x="4235" y="5170" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<rect x="4236" y="5171" width="589" height="52" rx="5" fill="#ffe4e6"/>
+<text x="4247" y="5190" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
+<text x="4247" y="5213" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">ai_request_logs</text>
+<text x="4247" y="5244" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
+<rect x="80" y="5816" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<rect x="81" y="5817" width="589" height="52" rx="5" fill="#ffe4e6"/>
+<text x="92" y="5836" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / AI / OCR</text>
+<text x="92" y="5859" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">ocr_scan_logs</text>
+<text x="92" y="5890" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
+<rect x="911" y="5816" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<rect x="912" y="5817" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="923" y="5836" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
+<text x="923" y="5859" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">audit_logs</text>
+<text x="923" y="5890" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
+<rect x="1742" y="5816" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<rect x="1743" y="5817" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="1754" y="5836" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
+<text x="1754" y="5859" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">system_settings</text>
+<text x="1754" y="5890" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
+<rect x="2573" y="5816" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<rect x="2574" y="5817" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="2585" y="5836" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
+<text x="2585" y="5859" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">service_health_logs</text>
+<text x="2585" y="5890" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
+<rect x="3404" y="5816" width="591" height="87" rx="6" fill="white" stroke="#334155" stroke-width="1.5" stroke-dasharray="8 5"/>
+<rect x="3405" y="5817" width="589" height="52" rx="5" fill="#cffafe"/>
+<text x="3416" y="5836" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FUTURE / Analytics / Notifications</text>
+<text x="3416" y="5859" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="#172b4d">system_backup_logs</text>
+<text x="3416" y="5890" font-family="Consolas,monospace" font-size="14" fill="#1e293b">FUTURE - schema not implemented</text>
 <rect x="689" y="373" width="36" height="17" fill="white"/>
 <text x="691" y="386" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R01</text>
 <rect x="2351" y="369" width="36" height="17" fill="white"/>
@@ -658,241 +738,265 @@
 <text x="3196" y="1555" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R13</text>
 <rect x="3197" y="1538" width="36" height="17" fill="white"/>
 <text x="3199" y="1551" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R14</text>
-<rect x="1532" y="2610" width="36" height="17" fill="white"/>
-<text x="1534" y="2623" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R15</text>
 <rect x="3200" y="1534" width="36" height="17" fill="white"/>
-<text x="3202" y="1547" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R16</text>
-<rect x="4868" y="2606" width="36" height="17" fill="white"/>
-<text x="4870" y="2619" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R17</text>
-<rect x="2372" y="3210" width="36" height="17" fill="white"/>
-<text x="2374" y="3223" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R18</text>
-<rect x="4022" y="3206" width="36" height="17" fill="white"/>
-<text x="4024" y="3219" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R19</text>
-<rect x="1535" y="4017" width="36" height="17" fill="white"/>
-<text x="1537" y="4030" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R20</text>
+<text x="3202" y="1547" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R15</text>
+<rect x="2366" y="2725" width="36" height="17" fill="white"/>
+<text x="2368" y="2738" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R16</text>
+<rect x="3206" y="1530" width="36" height="17" fill="white"/>
+<text x="3208" y="1543" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R17</text>
+<rect x="698" y="3463" width="36" height="17" fill="white"/>
+<text x="700" y="3476" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R18</text>
+<rect x="3215" y="3459" width="36" height="17" fill="white"/>
+<text x="3217" y="3472" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R19</text>
+<rect x="4868" y="3455" width="36" height="17" fill="white"/>
+<text x="4870" y="3468" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R20</text>
+<rect x="701" y="4270" width="36" height="17" fill="white"/>
+<text x="703" y="4283" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R21</text>
+<rect x="4871" y="4266" width="36" height="17" fill="white"/>
+<text x="4873" y="4279" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R22</text>
 <rect x="4874" y="337" width="36" height="17" fill="white"/>
-<text x="4876" y="350" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R21</text>
-<rect x="1538" y="1530" width="36" height="17" fill="white"/>
-<text x="1540" y="1543" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R22</text>
+<text x="4876" y="350" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R23</text>
+<rect x="1535" y="1526" width="36" height="17" fill="white"/>
+<text x="1537" y="1539" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R24</text>
 <rect x="4877" y="333" width="36" height="17" fill="white"/>
-<text x="4879" y="346" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R23</text>
-<rect x="3209" y="329" width="36" height="17" fill="white"/>
-<text x="3211" y="342" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R24</text>
-<rect x="1541" y="1526" width="36" height="17" fill="white"/>
-<text x="1543" y="1539" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R25</text>
+<text x="4879" y="346" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R25</text>
+<rect x="3221" y="329" width="36" height="17" fill="white"/>
+<text x="3223" y="342" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R26</text>
+<rect x="1538" y="1522" width="36" height="17" fill="white"/>
+<text x="1540" y="1535" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R27</text>
 <rect x="4880" y="325" width="36" height="17" fill="white"/>
-<text x="4882" y="338" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R26</text>
+<text x="4882" y="338" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R28</text>
 <rect x="4883" y="321" width="36" height="17" fill="white"/>
-<text x="4885" y="334" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R27</text>
+<text x="4885" y="334" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R29</text>
 <rect x="4886" y="317" width="36" height="17" fill="white"/>
-<text x="4888" y="330" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R28</text>
-<rect x="3218" y="1522" width="36" height="17" fill="white"/>
-<text x="3220" y="1535" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R29</text>
-<rect x="4889" y="1518" width="36" height="17" fill="white"/>
-<text x="4891" y="1531" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R30</text>
-<rect x="1547" y="1514" width="36" height="17" fill="white"/>
-<text x="1549" y="1527" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R31</text>
-<rect x="4898" y="313" width="36" height="17" fill="white"/>
-<text x="4900" y="326" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R32</text>
-<rect x="4901" y="2602" width="36" height="17" fill="white"/>
-<text x="4903" y="2615" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R33</text>
-<rect x="3227" y="1510" width="36" height="17" fill="white"/>
-<text x="3229" y="1523" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R34</text>
-<rect x="4904" y="1506" width="36" height="17" fill="white"/>
-<text x="4906" y="1519" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R35</text>
-<rect x="3236" y="1502" width="36" height="17" fill="white"/>
-<text x="3238" y="1515" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R36</text>
-<rect x="3242" y="1498" width="36" height="17" fill="white"/>
-<text x="3244" y="1511" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R37</text>
-<rect x="4907" y="1494" width="36" height="17" fill="white"/>
-<text x="4909" y="1507" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R38</text>
-<rect x="3245" y="1490" width="36" height="17" fill="white"/>
-<text x="3247" y="1503" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R39</text>
-<rect x="3248" y="1486" width="36" height="17" fill="white"/>
-<text x="3250" y="1499" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R40</text>
-<rect x="3251" y="2598" width="36" height="17" fill="white"/>
-<text x="3253" y="2611" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R41</text>
-<rect x="4910" y="309" width="36" height="17" fill="white"/>
-<text x="4912" y="322" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R42</text>
-<rect x="3254" y="305" width="36" height="17" fill="white"/>
-<text x="3256" y="318" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R43</text>
-<rect x="4913" y="301" width="36" height="17" fill="white"/>
-<text x="4915" y="314" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R44</text>
-<rect x="3257" y="297" width="36" height="17" fill="white"/>
-<text x="3259" y="310" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R45</text>
+<text x="4888" y="330" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R30</text>
+<rect x="3233" y="1518" width="36" height="17" fill="white"/>
+<text x="3235" y="1531" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R31</text>
+<rect x="713" y="2721" width="36" height="17" fill="white"/>
+<text x="715" y="2734" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R32</text>
+<rect x="1544" y="1514" width="36" height="17" fill="white"/>
+<text x="1546" y="1527" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R33</text>
+<rect x="4889" y="313" width="36" height="17" fill="white"/>
+<text x="4891" y="326" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R34</text>
+<rect x="722" y="3451" width="36" height="17" fill="white"/>
+<text x="724" y="3464" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R35</text>
+<rect x="3236" y="1510" width="36" height="17" fill="white"/>
+<text x="3238" y="1523" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R36</text>
+<rect x="725" y="2717" width="36" height="17" fill="white"/>
+<text x="727" y="2730" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R37</text>
+<rect x="3239" y="1506" width="36" height="17" fill="white"/>
+<text x="3241" y="1519" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R38</text>
+<rect x="3242" y="1502" width="36" height="17" fill="white"/>
+<text x="3244" y="1515" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R39</text>
+<rect x="728" y="2713" width="36" height="17" fill="white"/>
+<text x="730" y="2726" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R40</text>
+<rect x="3245" y="1498" width="36" height="17" fill="white"/>
+<text x="3247" y="1511" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R41</text>
+<rect x="3248" y="1494" width="36" height="17" fill="white"/>
+<text x="3250" y="1507" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R42</text>
+<rect x="4043" y="2709" width="36" height="17" fill="white"/>
+<text x="4045" y="2722" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R43</text>
+<rect x="4898" y="309" width="36" height="17" fill="white"/>
+<text x="4900" y="322" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R44</text>
+<rect x="3251" y="305" width="36" height="17" fill="white"/>
+<text x="3253" y="318" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R45</text>
+<rect x="4907" y="301" width="36" height="17" fill="white"/>
+<text x="4909" y="314" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R46</text>
+<rect x="3254" y="297" width="36" height="17" fill="white"/>
+<text x="3256" y="310" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R47</text>
+<rect x="3257" y="1490" width="36" height="17" fill="white"/>
+<text x="3259" y="1503" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R48</text>
+<rect x="4046" y="1486" width="36" height="17" fill="white"/>
+<text x="4048" y="1499" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R49</text>
+<rect x="4052" y="4262" width="36" height="17" fill="white"/>
+<text x="4054" y="4275" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R50</text>
 <rect x="3260" y="1482" width="36" height="17" fill="white"/>
-<text x="3262" y="1495" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R46</text>
-<rect x="4040" y="1478" width="36" height="17" fill="white"/>
-<text x="4042" y="1491" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R47</text>
-<rect x="713" y="4013" width="36" height="17" fill="white"/>
-<text x="715" y="4026" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R48</text>
-<rect x="3263" y="1474" width="36" height="17" fill="white"/>
-<text x="3265" y="1487" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R49</text>
-<rect x="4916" y="293" width="36" height="17" fill="white"/>
-<text x="4918" y="306" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R50</text>
-<rect x="1568" y="1470" width="36" height="17" fill="white"/>
-<text x="1570" y="1483" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R51</text>
-<rect x="1571" y="1466" width="36" height="17" fill="white"/>
-<text x="1573" y="1479" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R52</text>
-<rect x="4919" y="289" width="36" height="17" fill="white"/>
-<text x="4921" y="302" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R53</text>
-<rect x="1574" y="1462" width="36" height="17" fill="white"/>
-<text x="1576" y="1475" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R54</text>
+<text x="3262" y="1495" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R51</text>
+<rect x="4922" y="293" width="36" height="17" fill="white"/>
+<text x="4924" y="306" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R52</text>
+<rect x="1550" y="1478" width="36" height="17" fill="white"/>
+<text x="1552" y="1491" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R53</text>
+<rect x="1553" y="1474" width="36" height="17" fill="white"/>
+<text x="1555" y="1487" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R54</text>
+<rect x="4925" y="289" width="36" height="17" fill="white"/>
+<text x="4927" y="302" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R55</text>
+<rect x="1559" y="1470" width="36" height="17" fill="white"/>
+<text x="1561" y="1483" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R56</text>
 <rect x="3269" y="285" width="36" height="17" fill="white"/>
-<text x="3271" y="298" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R55</text>
-<rect x="3275" y="281" width="36" height="17" fill="white"/>
-<text x="3277" y="294" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R56</text>
+<text x="3271" y="298" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R57</text>
+<rect x="3272" y="281" width="36" height="17" fill="white"/>
+<text x="3274" y="294" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R58</text>
 <rect x="3278" y="277" width="36" height="17" fill="white"/>
-<text x="3280" y="290" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R57</text>
-<rect x="4931" y="273" width="36" height="17" fill="white"/>
-<text x="4933" y="286" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R58</text>
-<rect x="2381" y="269" width="36" height="17" fill="white"/>
-<text x="2383" y="282" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R59</text>
-<rect x="716" y="265" width="36" height="17" fill="white"/>
-<text x="718" y="278" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R60</text>
-<rect x="1586" y="4663" width="36" height="17" fill="white"/>
-<text x="1588" y="4676" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R61</text>
-<rect x="4055" y="3202" width="36" height="17" fill="white"/>
-<text x="4057" y="3215" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R62</text>
-<rect x="4934" y="3198" width="36" height="17" fill="white"/>
-<text x="4936" y="3211" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R63</text>
-<rect x="4937" y="261" width="36" height="17" fill="white"/>
-<text x="4939" y="274" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R64</text>
-<rect x="4940" y="257" width="36" height="17" fill="white"/>
-<text x="4942" y="270" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R65</text>
-<rect x="4946" y="253" width="36" height="17" fill="white"/>
-<text x="4948" y="266" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R66</text>
-<text x="80" y="5290" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="#172b4d">RELATIONSHIP REGISTER</text>
-<text x="80" y="5320" font-family="Arial,sans-serif" font-size="16" font-weight="normal" fill="#172b4d">PK = primary key | FK = database constraint | UK* = member of a UNIQUE key; see grouped UNIQUE in Physical.</text>
-<text x="80" y="5365" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R01  IAM_permissions -&gt; IAM_role_permissions</text>
-<text x="80" y="5387" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK permission_id [|| -&gt; o{]</text>
-<text x="80" y="5435" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R02  IAM_roles -&gt; IAM_role_permissions</text>
-<text x="80" y="5457" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK role_id [|| -&gt; o{]</text>
-<text x="80" y="5505" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R03  IAM_wards -&gt; IAM_users</text>
-<text x="80" y="5527" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK ward_id [|o -&gt; o{]</text>
-<text x="80" y="5575" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R04  IAM_users -&gt; IAM_refresh_tokens</text>
-<text x="80" y="5597" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o{]</text>
-<text x="80" y="5645" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R05  IAM_users -&gt; IAM_user_otps</text>
-<text x="80" y="5667" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o{]</text>
-<text x="80" y="5715" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R06  IAM_users -&gt; IAM_user_profiles</text>
-<text x="80" y="5737" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o|]</text>
-<text x="80" y="5785" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R07  IAM_roles -&gt; IAM_user_roles</text>
-<text x="80" y="5807" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK role_id [|| -&gt; o{]</text>
-<text x="80" y="5855" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R08  IAM_users -&gt; IAM_user_roles</text>
-<text x="80" y="5877" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o{]</text>
-<text x="80" y="5925" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R09  IAM_users -&gt; IAM_welcome_emails</text>
-<text x="80" y="5947" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o|]</text>
-<text x="80" y="5995" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R10  CAT_procedure_categories -&gt; CAT_procedures</text>
-<text x="80" y="6017" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK category_id [|| -&gt; o{]</text>
-<text x="80" y="6065" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R11  CAT_procedures -&gt; CAT_procedure_versions</text>
-<text x="80" y="6087" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK procedure_id [|| -&gt; o{]</text>
-<text x="80" y="6135" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R12  WF_applications -&gt; WF_application_checklists</text>
-<text x="80" y="6157" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id [|| -&gt; o{]</text>
-<text x="80" y="6205" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R13  WF_applications -&gt; WF_application_status_history</text>
-<text x="80" y="6227" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id [|| -&gt; o{]</text>
-<text x="80" y="6275" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R14  WF_applications -&gt; WF_application_versions</text>
-<text x="80" y="6297" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id [|| -&gt; o{]</text>
-<text x="80" y="6345" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R15  WF_application_versions -&gt; WF_application_comments</text>
-<text x="80" y="6367" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id+application_version_id [|| -&gt; o{]</text>
-<text x="80" y="6415" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R16  WF_applications -&gt; WF_application_comments</text>
-<text x="80" y="6437" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id [|| -&gt; o{]</text>
-<text x="80" y="6485" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R17  DOC_form_templates -&gt; DOC_form_template_versions</text>
-<text x="80" y="6507" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK template_id [|| -&gt; o{]</text>
-<text x="80" y="6555" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R18  DOC_form_template_versions -&gt; DOC_user_submissions</text>
-<text x="80" y="6577" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK template_version_id [|o -&gt; o{]</text>
-<text x="80" y="6625" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R19  AI_chat_sessions -&gt; AI_chat_messages</text>
-<text x="80" y="6647" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK session_id [|| -&gt; o{]</text>
-<text x="80" y="6695" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R20  SYS_notifications -&gt; SYS_notification_deliveries</text>
-<text x="80" y="6717" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK NotificationId [|| -&gt; o{]</text>
-<text x="80" y="6765" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R21  IAM_users -&gt; CAT_procedure_drafts</text>
-<text x="80" y="6787" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF CreatedBy/ReviewedBy</text>
-<text x="80" y="6835" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R22  CAT_procedures -&gt; CAT_procedure_drafts</text>
-<text x="80" y="6857" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF PublishedProcedureId</text>
-<text x="1768.6666666666667" y="5365" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R23  IAM_users -&gt; WF_applications</text>
-<text x="1768.6666666666667" y="5387" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF UserId/AssignedOfficerId</text>
-<text x="1768.6666666666667" y="5435" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R24  IAM_wards -&gt; WF_applications</text>
-<text x="1768.6666666666667" y="5457" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
-<text x="1768.6666666666667" y="5505" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R25  CAT_procedures -&gt; WF_applications</text>
-<text x="1768.6666666666667" y="5527" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ProcedureId</text>
-<text x="1768.6666666666667" y="5575" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R26  IAM_users -&gt; WF_application_comments</text>
-<text x="1768.6666666666667" y="5597" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF OfficerId</text>
-<text x="1768.6666666666667" y="5645" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R27  IAM_users -&gt; WF_application_versions</text>
-<text x="1768.6666666666667" y="5667" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF SubmittedBy</text>
-<text x="1768.6666666666667" y="5715" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R28  IAM_users -&gt; WF_application_status_history</text>
-<text x="1768.6666666666667" y="5737" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ChangedBy</text>
-<text x="1768.6666666666667" y="5785" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R29  WF_applications -&gt; WF_workflow_outbox</text>
-<text x="1768.6666666666667" y="5807" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF Payload.ApplicationId</text>
-<text x="1768.6666666666667" y="5855" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R30  DOC_form_templates -&gt; WF_application_checklists</text>
-<text x="1768.6666666666667" y="5877" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF FormTemplateId</text>
-<text x="1768.6666666666667" y="5925" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R31  CAT_procedures -&gt; DOC_form_templates</text>
-<text x="1768.6666666666667" y="5947" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF FormDefinitions JSON</text>
-<text x="1768.6666666666667" y="5995" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R32  IAM_users -&gt; DOC_user_submissions</text>
-<text x="1768.6666666666667" y="6017" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicantId</text>
-<text x="1768.6666666666667" y="6065" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R33  DOC_form_templates -&gt; DOC_user_submissions</text>
-<text x="1768.6666666666667" y="6087" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF TemplateId</text>
-<text x="1768.6666666666667" y="6135" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R34  WF_applications -&gt; DOC_user_submissions</text>
-<text x="1768.6666666666667" y="6157" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
-<text x="1768.6666666666667" y="6205" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R35  WF_application_checklists -&gt; DOC_user_submissions</text>
-<text x="1768.6666666666667" y="6227" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ChecklistId</text>
-<text x="1768.6666666666667" y="6275" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R36  WF_applications -&gt; DOC_application_forms</text>
-<text x="1768.6666666666667" y="6297" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
-<text x="1768.6666666666667" y="6345" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R37  WF_applications -&gt; DOC_supporting_documents</text>
-<text x="1768.6666666666667" y="6367" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
-<text x="1768.6666666666667" y="6415" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R38  WF_application_checklists -&gt; DOC_supporting_documents</text>
-<text x="1768.6666666666667" y="6437" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ChecklistId</text>
-<text x="1768.6666666666667" y="6485" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R39  WF_applications -&gt; DOC_generated_documents</text>
-<text x="1768.6666666666667" y="6507" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
-<text x="1768.6666666666667" y="6555" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R40  WF_applications -&gt; DOC_approved_qrs</text>
-<text x="1768.6666666666667" y="6577" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId unique</text>
-<text x="1768.6666666666667" y="6625" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R41  DOC_user_submissions -&gt; DOC_approved_qrs</text>
-<text x="1768.6666666666667" y="6647" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF SubmissionId</text>
-<text x="1768.6666666666667" y="6695" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R42  IAM_users -&gt; AI_chat_sessions</text>
-<text x="1768.6666666666667" y="6717" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF UserId</text>
-<text x="1768.6666666666667" y="6765" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R43  IAM_wards -&gt; AI_chat_sessions</text>
-<text x="1768.6666666666667" y="6787" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
-<text x="1768.6666666666667" y="6835" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R44  IAM_users -&gt; SYS_notifications</text>
-<text x="1768.6666666666667" y="6857" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF RecipientUserId</text>
-<text x="3457.3333333333335" y="5365" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R45  IAM_wards -&gt; SYS_notifications</text>
-<text x="3457.3333333333335" y="5387" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF RecipientWardCode</text>
-<text x="3457.3333333333335" y="5435" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R46  WF_applications -&gt; SYS_notifications</text>
-<text x="3457.3333333333335" y="5457" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
-<text x="3457.3333333333335" y="5505" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R47  WF_workflow_outbox -&gt; SYS_notification_inbox</text>
-<text x="3457.3333333333335" y="5527" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF EventId</text>
-<text x="3457.3333333333335" y="5575" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R48  SYS_notification_inbox -&gt; SYS_notifications</text>
-<text x="3457.3333333333335" y="5597" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF SourceEventId</text>
-<text x="3457.3333333333335" y="5645" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R49  WF_applications -&gt; SYS_citizen_feedback</text>
-<text x="3457.3333333333335" y="5667" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId unique</text>
-<text x="3457.3333333333335" y="5715" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R50  IAM_users -&gt; SYS_citizen_feedback</text>
-<text x="3457.3333333333335" y="5737" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF CitizenId</text>
-<text x="3457.3333333333335" y="5785" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R51  CAT_procedures -&gt; SYS_citizen_feedback</text>
-<text x="3457.3333333333335" y="5807" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ProcedureId</text>
-<text x="3457.3333333333335" y="5855" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R52  CAT_procedures -&gt; SYS_application_procedure_metrics</text>
-<text x="3457.3333333333335" y="5877" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ProcedureId</text>
-<text x="3457.3333333333335" y="5925" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R53  IAM_users -&gt; SYS_daily_performance_metrics</text>
-<text x="3457.3333333333335" y="5947" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF OfficerId</text>
-<text x="3457.3333333333335" y="5995" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R54  CAT_procedures -&gt; SYS_daily_performance_metrics</text>
-<text x="3457.3333333333335" y="6017" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ProcedureId</text>
-<text x="3457.3333333333335" y="6065" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R55  IAM_wards -&gt; SYS_application_procedure_metrics</text>
-<text x="3457.3333333333335" y="6087" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
-<text x="3457.3333333333335" y="6135" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R56  IAM_wards -&gt; SYS_daily_performance_metrics</text>
-<text x="3457.3333333333335" y="6157" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
-<text x="3457.3333333333335" y="6205" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R57  IAM_wards -&gt; SYS_citizen_feedback</text>
-<text x="3457.3333333333335" y="6227" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
-<text x="3457.3333333333335" y="6275" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R58  IAM_users -&gt; IAM_rbac_audit_logs</text>
-<text x="3457.3333333333335" y="6297" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ActorUserId/TargetUserId</text>
-<text x="3457.3333333333335" y="6345" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R59  IAM_roles -&gt; IAM_rbac_audit_logs</text>
-<text x="3457.3333333333335" y="6367" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF RoleId</text>
-<text x="3457.3333333333335" y="6415" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R60  IAM_permissions -&gt; IAM_rbac_audit_logs</text>
-<text x="3457.3333333333335" y="6437" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF PermissionId</text>
-<text x="3457.3333333333335" y="6485" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R61  FUTURE_knowledge_documents -&gt; FUTURE_knowledge_chunks</text>
-<text x="3457.3333333333335" y="6507" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed contains</text>
-<text x="3457.3333333333335" y="6555" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R62  AI_chat_sessions -&gt; FUTURE_ai_request_logs</text>
-<text x="3457.3333333333335" y="6577" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed request log</text>
-<text x="3457.3333333333335" y="6625" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R63  AI_chat_messages -&gt; FUTURE_knowledge_chunks</text>
-<text x="3457.3333333333335" y="6647" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed retrieval</text>
-<text x="3457.3333333333335" y="6695" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R64  IAM_users -&gt; FUTURE_ocr_scan_logs</text>
-<text x="3457.3333333333335" y="6717" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed actor</text>
-<text x="3457.3333333333335" y="6765" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R65  IAM_users -&gt; FUTURE_audit_logs</text>
-<text x="3457.3333333333335" y="6787" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed actor</text>
-<text x="3457.3333333333335" y="6835" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R66  IAM_users -&gt; FUTURE_system_settings</text>
-<text x="3457.3333333333335" y="6857" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed editor</text></svg>
+<text x="3280" y="290" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R59</text>
+<rect x="4928" y="273" width="36" height="17" fill="white"/>
+<text x="4930" y="286" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R60</text>
+<rect x="2393" y="269" width="36" height="17" fill="white"/>
+<text x="2395" y="282" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R61</text>
+<rect x="731" y="265" width="36" height="17" fill="white"/>
+<text x="733" y="278" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R62</text>
+<rect x="4931" y="261" width="36" height="17" fill="white"/>
+<text x="4933" y="274" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R63</text>
+<rect x="734" y="4258" width="36" height="17" fill="white"/>
+<text x="736" y="4271" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R64</text>
+<rect x="4937" y="257" width="36" height="17" fill="white"/>
+<text x="4939" y="270" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R65</text>
+<rect x="4940" y="253" width="36" height="17" fill="white"/>
+<text x="4942" y="266" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R66</text>
+<rect x="1574" y="1466" width="36" height="17" fill="white"/>
+<text x="1576" y="1479" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R67</text>
+<rect x="2396" y="4254" width="36" height="17" fill="white"/>
+<text x="2398" y="4267" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R68</text>
+<rect x="4943" y="3447" width="36" height="17" fill="white"/>
+<text x="4945" y="3460" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R69</text>
+<rect x="4949" y="249" width="36" height="17" fill="white"/>
+<text x="4951" y="262" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R70</text>
+<rect x="4952" y="245" width="36" height="17" fill="white"/>
+<text x="4954" y="258" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R71</text>
+<rect x="4955" y="241" width="36" height="17" fill="white"/>
+<text x="4957" y="254" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#172b4d">R72</text>
+<text x="80" y="6003" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="#172b4d">RELATIONSHIP REGISTER</text>
+<text x="80" y="6033" font-family="Arial,sans-serif" font-size="16" font-weight="normal" fill="#172b4d">PK = primary key | FK = database constraint | UK* = member of a UNIQUE key; see grouped UNIQUE in Physical.</text>
+<text x="80" y="6078" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R01  IAM_permissions -&gt; IAM_role_permissions</text>
+<text x="80" y="6100" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK permission_id [|| -&gt; o{]</text>
+<text x="80" y="6148" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R02  IAM_roles -&gt; IAM_role_permissions</text>
+<text x="80" y="6170" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK role_id [|| -&gt; o{]</text>
+<text x="80" y="6218" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R03  IAM_wards -&gt; IAM_users</text>
+<text x="80" y="6240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK ward_id [|o -&gt; o{]</text>
+<text x="80" y="6288" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R04  IAM_users -&gt; IAM_refresh_tokens</text>
+<text x="80" y="6310" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o{]</text>
+<text x="80" y="6358" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R05  IAM_users -&gt; IAM_user_otps</text>
+<text x="80" y="6380" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o{]</text>
+<text x="80" y="6428" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R06  IAM_users -&gt; IAM_user_profiles</text>
+<text x="80" y="6450" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o|]</text>
+<text x="80" y="6498" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R07  IAM_roles -&gt; IAM_user_roles</text>
+<text x="80" y="6520" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK role_id [|| -&gt; o{]</text>
+<text x="80" y="6568" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R08  IAM_users -&gt; IAM_user_roles</text>
+<text x="80" y="6590" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o{]</text>
+<text x="80" y="6638" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R09  IAM_users -&gt; IAM_welcome_emails</text>
+<text x="80" y="6660" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK user_id [|| -&gt; o|]</text>
+<text x="80" y="6708" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R10  CAT_procedure_categories -&gt; CAT_procedures</text>
+<text x="80" y="6730" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK category_id [|| -&gt; o{]</text>
+<text x="80" y="6778" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R11  CAT_procedures -&gt; CAT_procedure_versions</text>
+<text x="80" y="6800" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK procedure_id [|| -&gt; o{]</text>
+<text x="80" y="6848" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R12  WF_applications -&gt; WF_application_assignment_history</text>
+<text x="80" y="6870" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id [|| -&gt; o{]</text>
+<text x="80" y="6918" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R13  WF_applications -&gt; WF_application_checklists</text>
+<text x="80" y="6940" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id [|| -&gt; o{]</text>
+<text x="80" y="6988" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R14  WF_applications -&gt; WF_application_status_history</text>
+<text x="80" y="7010" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id [|| -&gt; o{]</text>
+<text x="80" y="7058" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R15  WF_applications -&gt; WF_application_versions</text>
+<text x="80" y="7080" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id [|| -&gt; o{]</text>
+<text x="80" y="7128" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R16  WF_application_versions -&gt; WF_application_comments</text>
+<text x="80" y="7150" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id+application_version_id [|| -&gt; o{]</text>
+<text x="80" y="7198" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R17  WF_applications -&gt; WF_application_comments</text>
+<text x="80" y="7220" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK application_id [|| -&gt; o{]</text>
+<text x="80" y="7268" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R18  DOC_form_templates -&gt; DOC_form_template_versions</text>
+<text x="80" y="7290" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK template_id [|| -&gt; o{]</text>
+<text x="80" y="7338" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R19  DOC_form_template_versions -&gt; DOC_user_submissions</text>
+<text x="80" y="7360" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK template_version_id [|o -&gt; o{]</text>
+<text x="80" y="7408" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R20  AI_chat_sessions -&gt; AI_chat_messages</text>
+<text x="80" y="7430" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK session_id [|| -&gt; o{]</text>
+<text x="80" y="7478" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R21  AI_knowledge_documents -&gt; AI_knowledge_chunks</text>
+<text x="80" y="7500" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK document_id [|| -&gt; o{]</text>
+<text x="80" y="7548" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R22  SYS_notifications -&gt; SYS_notification_deliveries</text>
+<text x="80" y="7570" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">FK NotificationId [|| -&gt; o{]</text>
+<text x="80" y="7618" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R23  IAM_users -&gt; CAT_procedure_drafts</text>
+<text x="80" y="7640" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF CreatedBy/ReviewedBy</text>
+<text x="80" y="7688" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R24  CAT_procedures -&gt; CAT_procedure_drafts</text>
+<text x="80" y="7710" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF PublishedProcedureId</text>
+<text x="1768.6666666666667" y="6078" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R25  IAM_users -&gt; WF_applications</text>
+<text x="1768.6666666666667" y="6100" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF UserId/AssignedOfficerId</text>
+<text x="1768.6666666666667" y="6148" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R26  IAM_wards -&gt; WF_applications</text>
+<text x="1768.6666666666667" y="6170" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
+<text x="1768.6666666666667" y="6218" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R27  CAT_procedures -&gt; WF_applications</text>
+<text x="1768.6666666666667" y="6240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ProcedureId</text>
+<text x="1768.6666666666667" y="6288" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R28  IAM_users -&gt; WF_application_comments</text>
+<text x="1768.6666666666667" y="6310" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF OfficerId</text>
+<text x="1768.6666666666667" y="6358" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R29  IAM_users -&gt; WF_application_versions</text>
+<text x="1768.6666666666667" y="6380" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF SubmittedBy</text>
+<text x="1768.6666666666667" y="6428" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R30  IAM_users -&gt; WF_application_status_history</text>
+<text x="1768.6666666666667" y="6450" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ChangedBy</text>
+<text x="1768.6666666666667" y="6498" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R31  WF_applications -&gt; WF_workflow_outbox</text>
+<text x="1768.6666666666667" y="6520" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF Payload.ApplicationId</text>
+<text x="1768.6666666666667" y="6568" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R32  DOC_form_templates -&gt; WF_application_checklists</text>
+<text x="1768.6666666666667" y="6590" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF FormTemplateId</text>
+<text x="1768.6666666666667" y="6638" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R33  CAT_procedures -&gt; DOC_form_templates</text>
+<text x="1768.6666666666667" y="6660" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF FormDefinitions JSON</text>
+<text x="1768.6666666666667" y="6708" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R34  IAM_users -&gt; DOC_user_submissions</text>
+<text x="1768.6666666666667" y="6730" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicantId</text>
+<text x="1768.6666666666667" y="6778" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R35  DOC_form_templates -&gt; DOC_user_submissions</text>
+<text x="1768.6666666666667" y="6800" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF TemplateId</text>
+<text x="1768.6666666666667" y="6848" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R36  WF_applications -&gt; DOC_user_submissions</text>
+<text x="1768.6666666666667" y="6870" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
+<text x="1768.6666666666667" y="6918" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R37  WF_application_checklists -&gt; DOC_user_submissions</text>
+<text x="1768.6666666666667" y="6940" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ChecklistId</text>
+<text x="1768.6666666666667" y="6988" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R38  WF_applications -&gt; DOC_application_forms</text>
+<text x="1768.6666666666667" y="7010" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
+<text x="1768.6666666666667" y="7058" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R39  WF_applications -&gt; DOC_supporting_documents</text>
+<text x="1768.6666666666667" y="7080" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
+<text x="1768.6666666666667" y="7128" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R40  WF_application_checklists -&gt; DOC_supporting_documents</text>
+<text x="1768.6666666666667" y="7150" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ChecklistId</text>
+<text x="1768.6666666666667" y="7198" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R41  WF_applications -&gt; DOC_generated_documents</text>
+<text x="1768.6666666666667" y="7220" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
+<text x="1768.6666666666667" y="7268" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R42  WF_applications -&gt; DOC_approved_qrs</text>
+<text x="1768.6666666666667" y="7290" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId unique</text>
+<text x="1768.6666666666667" y="7338" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R43  DOC_user_submissions -&gt; DOC_approved_qrs</text>
+<text x="1768.6666666666667" y="7360" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF SubmissionId</text>
+<text x="1768.6666666666667" y="7408" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R44  IAM_users -&gt; AI_chat_sessions</text>
+<text x="1768.6666666666667" y="7430" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF UserId</text>
+<text x="1768.6666666666667" y="7478" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R45  IAM_wards -&gt; AI_chat_sessions</text>
+<text x="1768.6666666666667" y="7500" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
+<text x="1768.6666666666667" y="7548" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R46  IAM_users -&gt; SYS_notifications</text>
+<text x="1768.6666666666667" y="7570" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF RecipientUserId</text>
+<text x="1768.6666666666667" y="7618" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R47  IAM_wards -&gt; SYS_notifications</text>
+<text x="1768.6666666666667" y="7640" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF RecipientWardCode</text>
+<text x="1768.6666666666667" y="7688" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R48  WF_applications -&gt; SYS_notifications</text>
+<text x="1768.6666666666667" y="7710" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId</text>
+<text x="3457.3333333333335" y="6078" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R49  WF_workflow_outbox -&gt; SYS_notification_inbox</text>
+<text x="3457.3333333333335" y="6100" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF EventId</text>
+<text x="3457.3333333333335" y="6148" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R50  SYS_notification_inbox -&gt; SYS_notifications</text>
+<text x="3457.3333333333335" y="6170" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF SourceEventId</text>
+<text x="3457.3333333333335" y="6218" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R51  WF_applications -&gt; SYS_citizen_feedback</text>
+<text x="3457.3333333333335" y="6240" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ApplicationId unique</text>
+<text x="3457.3333333333335" y="6288" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R52  IAM_users -&gt; SYS_citizen_feedback</text>
+<text x="3457.3333333333335" y="6310" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF CitizenId</text>
+<text x="3457.3333333333335" y="6358" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R53  CAT_procedures -&gt; SYS_citizen_feedback</text>
+<text x="3457.3333333333335" y="6380" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ProcedureId</text>
+<text x="3457.3333333333335" y="6428" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R54  CAT_procedures -&gt; SYS_application_procedure_metrics</text>
+<text x="3457.3333333333335" y="6450" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ProcedureId</text>
+<text x="3457.3333333333335" y="6498" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R55  IAM_users -&gt; SYS_daily_performance_metrics</text>
+<text x="3457.3333333333335" y="6520" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF OfficerId</text>
+<text x="3457.3333333333335" y="6568" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R56  CAT_procedures -&gt; SYS_daily_performance_metrics</text>
+<text x="3457.3333333333335" y="6590" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ProcedureId</text>
+<text x="3457.3333333333335" y="6638" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R57  IAM_wards -&gt; SYS_application_procedure_metrics</text>
+<text x="3457.3333333333335" y="6660" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
+<text x="3457.3333333333335" y="6708" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R58  IAM_wards -&gt; SYS_daily_performance_metrics</text>
+<text x="3457.3333333333335" y="6730" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
+<text x="3457.3333333333335" y="6778" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R59  IAM_wards -&gt; SYS_citizen_feedback</text>
+<text x="3457.3333333333335" y="6800" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF WardCode</text>
+<text x="3457.3333333333335" y="6848" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R60  IAM_users -&gt; IAM_rbac_audit_logs</text>
+<text x="3457.3333333333335" y="6870" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ActorUserId/TargetUserId</text>
+<text x="3457.3333333333335" y="6918" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R61  IAM_roles -&gt; IAM_rbac_audit_logs</text>
+<text x="3457.3333333333335" y="6940" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF RoleId</text>
+<text x="3457.3333333333335" y="6988" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R62  IAM_permissions -&gt; IAM_rbac_audit_logs</text>
+<text x="3457.3333333333335" y="7010" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF PermissionId</text>
+<text x="3457.3333333333335" y="7058" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R63  IAM_users -&gt; WF_application_assignment_history</text>
+<text x="3457.3333333333335" y="7080" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF FromOfficerId/ToOfficerId/ActorId</text>
+<text x="3457.3333333333335" y="7128" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R64  SYS_notification_deliveries -&gt; SYS_notification_delivery_audits</text>
+<text x="3457.3333333333335" y="7150" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF DeliveryId</text>
+<text x="3457.3333333333335" y="7198" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R65  IAM_users -&gt; SYS_notification_delivery_audits</text>
+<text x="3457.3333333333335" y="7220" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ActorId</text>
+<text x="3457.3333333333335" y="7268" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R66  IAM_users -&gt; AI_knowledge_documents</text>
+<text x="3457.3333333333335" y="7290" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF CreatedBy/UpdatedBy</text>
+<text x="3457.3333333333335" y="7338" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R67  CAT_procedures -&gt; AI_knowledge_documents</text>
+<text x="3457.3333333333335" y="7360" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF ProcedureId</text>
+<text x="3457.3333333333335" y="7408" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R68  AI_knowledge_chunks -&gt; AI_chat_messages</text>
+<text x="3457.3333333333335" y="7430" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">REF Citations JSON</text>
+<text x="3457.3333333333335" y="7478" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R69  AI_chat_sessions -&gt; FUTURE_ai_request_logs</text>
+<text x="3457.3333333333335" y="7500" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed request log</text>
+<text x="3457.3333333333335" y="7548" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R70  IAM_users -&gt; FUTURE_ocr_scan_logs</text>
+<text x="3457.3333333333335" y="7570" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed actor</text>
+<text x="3457.3333333333335" y="7618" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R71  IAM_users -&gt; FUTURE_audit_logs</text>
+<text x="3457.3333333333335" y="7640" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed actor</text>
+<text x="3457.3333333333335" y="7688" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#172b4d">R72  IAM_users -&gt; FUTURE_system_settings</text>
+<text x="3457.3333333333335" y="7710" font-family="Arial,sans-serif" font-size="12" font-weight="normal" fill="#172b4d">proposed editor</text></svg>

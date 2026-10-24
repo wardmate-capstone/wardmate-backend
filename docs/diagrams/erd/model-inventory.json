@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-23",
+  "date": "2026-10-24",
   "tables": [
     {
       "group": "IAM",
@@ -1142,6 +1142,36 @@
           "nullable": false
         },
         {
+          "name": "category_id",
+          "spec": "integer",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "category_name",
+          "spec": "character varying(255)",
+          "type": "character varying(255)",
+          "nullable": true
+        },
+        {
+          "name": "assigned_officer_name",
+          "spec": "character varying(255)",
+          "type": "character varying(255)",
+          "nullable": true
+        },
+        {
+          "name": "assigned_at",
+          "spec": "timestamp with time zone",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "assignment_version",
+          "spec": "bigint NOT NULL DEFAULT 0",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
           "name": "case_code",
           "spec": "character varying(100)",
           "type": "character varying(100)",
@@ -1363,6 +1393,83 @@
         "CONSTRAINT pk_workflow_outbox PRIMARY KEY (id)"
       ],
       "id": "WF_workflow_outbox"
+    },
+    {
+      "group": "WF",
+      "ctx": "WorkflowDbContext",
+      "sqlName": "application_assignment_history",
+      "name": "application_assignment_history",
+      "cols": [
+        {
+          "name": "id",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "application_id",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "action",
+          "spec": "character varying(20) NOT NULL",
+          "type": "character varying(20)",
+          "nullable": false
+        },
+        {
+          "name": "from_officer_id",
+          "spec": "uuid",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "to_officer_id",
+          "spec": "uuid",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "actor_id",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "reason",
+          "spec": "character varying(500)",
+          "type": "character varying(500)",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "spec": "timestamp with time zone NOT NULL",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "fks": [
+        {
+          "cols": [
+            "application_id"
+          ],
+          "target": "applications",
+          "targetCols": [
+            "id"
+          ],
+          "action": "ON DELETE CASCADE"
+        }
+      ],
+      "pk": [
+        "id"
+      ],
+      "unique": [],
+      "constraints": [
+        "CONSTRAINT pk_application_assignment_history PRIMARY KEY (id)",
+        "CONSTRAINT fk_application_assignment_history_applications_application_id FOREIGN KEY (application_id) REFERENCES applications (id) ON DELETE CASCADE"
+      ],
+      "id": "WF_application_assignment_history"
     },
     {
       "group": "WF",
@@ -2480,6 +2587,164 @@
     {
       "group": "AI",
       "ctx": "ChatDbContext",
+      "sqlName": "knowledge_documents",
+      "name": "knowledge_documents",
+      "cols": [
+        {
+          "name": "id",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "spec": "character varying(500) NOT NULL",
+          "type": "character varying(500)",
+          "nullable": false
+        },
+        {
+          "name": "source_type",
+          "spec": "character varying(20) NOT NULL",
+          "type": "character varying(20)",
+          "nullable": false
+        },
+        {
+          "name": "procedure_id",
+          "spec": "uuid",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "source_reference",
+          "spec": "character varying(500)",
+          "type": "character varying(500)",
+          "nullable": true
+        },
+        {
+          "name": "source_version",
+          "spec": "character varying(100)",
+          "type": "character varying(100)",
+          "nullable": true
+        },
+        {
+          "name": "content",
+          "spec": "text NOT NULL",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "content_sha256",
+          "spec": "character varying(64) NOT NULL",
+          "type": "character varying(64)",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "spec": "character varying(20) NOT NULL",
+          "type": "character varying(20)",
+          "nullable": false
+        },
+        {
+          "name": "is_active",
+          "spec": "boolean NOT NULL",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "chunk_count",
+          "spec": "integer NOT NULL",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "chunking_version",
+          "spec": "character varying(50) NOT NULL",
+          "type": "character varying(50)",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "updated_by",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "spec": "timestamp with time zone NOT NULL",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "spec": "timestamp with time zone NOT NULL",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "chunked_at",
+          "spec": "timestamp with time zone",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "embedding_model",
+          "spec": "character varying(120)",
+          "type": "character varying(120)",
+          "nullable": true
+        },
+        {
+          "name": "embedding_attempts",
+          "spec": "integer NOT NULL",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "next_embedding_at",
+          "spec": "timestamp with time zone",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "embedding_error",
+          "spec": "character varying(100)",
+          "type": "character varying(100)",
+          "nullable": true
+        },
+        {
+          "name": "embedded_at",
+          "spec": "timestamp with time zone",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "revision",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        }
+      ],
+      "fks": [],
+      "pk": [
+        "id"
+      ],
+      "unique": [],
+      "constraints": [
+        "CONSTRAINT pk_knowledge_documents PRIMARY KEY (id)",
+        "CONSTRAINT ck_knowledge_documents_procedure CHECK (source_type <> 'PROCEDURE' OR procedure_id IS NOT NULL)",
+        "CONSTRAINT ck_knowledge_documents_source_type CHECK (source_type IN ('PROCEDURE','MANUAL_TEXT','FAQ','PDF_FILE'))",
+        "CONSTRAINT ck_knowledge_documents_status CHECK (status IN ('CHUNKED','EMBEDDED','EMBEDDING_FAILED'))"
+      ],
+      "id": "AI_knowledge_documents"
+    },
+    {
+      "group": "AI",
+      "ctx": "ChatDbContext",
       "sqlName": "chat_messages",
       "name": "chat_messages",
       "cols": [
@@ -2512,6 +2777,12 @@
           "spec": "timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP)",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "citations",
+          "spec": "jsonb",
+          "type": "jsonb",
+          "nullable": true
         }
       ],
       "fks": [
@@ -2536,6 +2807,207 @@
         "CONSTRAINT fk_chat_messages_chat_sessions_session_id FOREIGN KEY (session_id) REFERENCES chat_sessions (id) ON DELETE CASCADE"
       ],
       "id": "AI_chat_messages"
+    },
+    {
+      "group": "AI",
+      "ctx": "ChatDbContext",
+      "sqlName": "knowledge_chunks",
+      "name": "knowledge_chunks",
+      "cols": [
+        {
+          "name": "id",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "document_id",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "chunk_index",
+          "spec": "integer NOT NULL",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "heading",
+          "spec": "character varying(500)",
+          "type": "character varying(500)",
+          "nullable": true
+        },
+        {
+          "name": "content",
+          "spec": "text NOT NULL",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "char_count",
+          "spec": "integer NOT NULL",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "content_sha256",
+          "spec": "character varying(64) NOT NULL",
+          "type": "character varying(64)",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "spec": "timestamp with time zone NOT NULL",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "embedding",
+          "spec": "real[]",
+          "type": "real[]",
+          "nullable": true
+        },
+        {
+          "name": "embedding_model",
+          "spec": "character varying(120)",
+          "type": "character varying(120)",
+          "nullable": true
+        },
+        {
+          "name": "embedded_at",
+          "spec": "timestamp with time zone",
+          "type": "timestamp with time zone",
+          "nullable": true
+        }
+      ],
+      "fks": [
+        {
+          "cols": [
+            "document_id"
+          ],
+          "target": "knowledge_documents",
+          "targetCols": [
+            "id"
+          ],
+          "action": "ON DELETE CASCADE"
+        }
+      ],
+      "pk": [
+        "id"
+      ],
+      "unique": [
+        [
+          "document_id",
+          "chunk_index"
+        ]
+      ],
+      "constraints": [
+        "CONSTRAINT pk_knowledge_chunks PRIMARY KEY (id)",
+        "CONSTRAINT fk_knowledge_chunks_knowledge_documents_document_id FOREIGN KEY (document_id) REFERENCES knowledge_documents (id) ON DELETE CASCADE"
+      ],
+      "id": "AI_knowledge_chunks"
+    },
+    {
+      "group": "SYS",
+      "ctx": "NotificationDbContext",
+      "sqlName": "notification_delivery_audits",
+      "name": "notification_delivery_audits",
+      "cols": [
+        {
+          "name": "Id",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "DeliveryId",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "ActorId",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "Action",
+          "spec": "character varying(40) NOT NULL",
+          "type": "character varying(40)",
+          "nullable": false
+        },
+        {
+          "name": "BeforeState",
+          "spec": "character varying(30) NOT NULL",
+          "type": "character varying(30)",
+          "nullable": false
+        },
+        {
+          "name": "AfterState",
+          "spec": "character varying(30) NOT NULL",
+          "type": "character varying(30)",
+          "nullable": false
+        },
+        {
+          "name": "BeforeAttempts",
+          "spec": "integer NOT NULL",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "BeforeRevision",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "AfterRevision",
+          "spec": "uuid NOT NULL",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "Reason",
+          "spec": "character varying(500) NOT NULL",
+          "type": "character varying(500)",
+          "nullable": false
+        },
+        {
+          "name": "Reference",
+          "spec": "character varying(200)",
+          "type": "character varying(200)",
+          "nullable": true
+        },
+        {
+          "name": "BeforeMessageId",
+          "spec": "character varying(100)",
+          "type": "character varying(100)",
+          "nullable": true
+        },
+        {
+          "name": "AfterMessageId",
+          "spec": "character varying(100)",
+          "type": "character varying(100)",
+          "nullable": true
+        },
+        {
+          "name": "CreatedAt",
+          "spec": "timestamp with time zone NOT NULL",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "fks": [],
+      "pk": [
+        "Id"
+      ],
+      "unique": [],
+      "constraints": [
+        "CONSTRAINT \"PK_notification_delivery_audits\" PRIMARY KEY (\"Id\")"
+      ],
+      "id": "SYS_notification_delivery_audits"
     },
     {
       "group": "SYS",
@@ -2711,6 +3183,36 @@
           "spec": "uuid NOT NULL",
           "type": "uuid",
           "nullable": false
+        },
+        {
+          "name": "revision",
+          "spec": "uuid NOT NULL DEFAULT (gen_random_uuid())",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "spec": "timestamp with time zone NOT NULL DEFAULT (now())",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "external_message_id",
+          "spec": "character varying(100)",
+          "type": "character varying(100)",
+          "nullable": true
+        },
+        {
+          "name": "provider",
+          "spec": "character varying(30)",
+          "type": "character varying(30)",
+          "nullable": true
+        },
+        {
+          "name": "is_sandbox",
+          "spec": "boolean",
+          "type": "boolean",
+          "nullable": true
         },
         {
           "name": "NotificationId",
@@ -3225,6 +3727,23 @@
     },
     {
       "from": "WF_applications",
+      "to": "WF_application_assignment_history",
+      "left": "||",
+      "right": "o{",
+      "label": "FK application_id",
+      "f": {
+        "cols": [
+          "application_id"
+        ],
+        "target": "applications",
+        "targetCols": [
+          "id"
+        ],
+        "action": "ON DELETE CASCADE"
+      }
+    },
+    {
+      "from": "WF_applications",
       "to": "WF_application_checklists",
       "left": "||",
       "right": "o{",
@@ -3355,6 +3874,23 @@
           "session_id"
         ],
         "target": "chat_sessions",
+        "targetCols": [
+          "id"
+        ],
+        "action": "ON DELETE CASCADE"
+      }
+    },
+    {
+      "from": "AI_knowledge_documents",
+      "to": "AI_knowledge_chunks",
+      "left": "||",
+      "right": "o{",
+      "label": "FK document_id",
+      "f": {
+        "cols": [
+          "document_id"
+        ],
+        "target": "knowledge_documents",
         "targetCols": [
           "id"
         ],
@@ -3579,6 +4115,36 @@
       "IAM_permissions",
       "IAM_rbac_audit_logs",
       "PermissionId"
+    ],
+    [
+      "IAM_users",
+      "WF_application_assignment_history",
+      "FromOfficerId/ToOfficerId/ActorId"
+    ],
+    [
+      "SYS_notification_deliveries",
+      "SYS_notification_delivery_audits",
+      "DeliveryId"
+    ],
+    [
+      "IAM_users",
+      "SYS_notification_delivery_audits",
+      "ActorId"
+    ],
+    [
+      "IAM_users",
+      "AI_knowledge_documents",
+      "CreatedBy/UpdatedBy"
+    ],
+    [
+      "CAT_procedures",
+      "AI_knowledge_documents",
+      "ProcedureId"
+    ],
+    [
+      "AI_knowledge_chunks",
+      "AI_chat_messages",
+      "Citations JSON"
     ]
   ]
 }

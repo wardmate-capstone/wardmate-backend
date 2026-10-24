@@ -1,4 +1,5 @@
 erDiagram
+    WF_applications ||--o{ WF_application_assignment_history : "FK application_id"
     WF_applications ||--o{ WF_application_checklists : "FK application_id"
     WF_applications ||--o{ WF_application_status_history : "FK application_id"
     WF_applications ||--o{ WF_application_versions : "FK application_id"
@@ -11,6 +12,11 @@ erDiagram
         uuid procedure_id "uuid NOT NULL"
         character_varying(50) ward_code "character varying(50) NULL"
         character_varying(500) procedure_title "character varying(500) NOT NULL"
+        integer category_id "integer NULL"
+        character_varying(255) category_name "character varying(255) NULL"
+        character_varying(255) assigned_officer_name "character varying(255) NULL"
+        timestamp_with_time_zone assigned_at "timestamp with time zone NULL"
+        bigint assignment_version "bigint NOT NULL DEFAULT 0"
         character_varying(100) case_code "character varying(100) NULL"
         character_varying(50) status "character varying(50) NOT NULL DEFAULT 'DRAFT'"
         jsonb form_data "jsonb NOT NULL"
@@ -44,6 +50,16 @@ erDiagram
         timestamp_with_time_zone published_at "timestamp with time zone NULL"
         integer attempts "integer NOT NULL"
         character_varying(100) last_error "character varying(100) NULL"
+    }
+    WF_application_assignment_history {
+        uuid id PK "uuid NOT NULL"
+        uuid application_id FK "uuid NOT NULL"
+        character_varying(20) action "character varying(20) NOT NULL"
+        uuid from_officer_id "uuid NULL"
+        uuid to_officer_id "uuid NULL"
+        uuid actor_id "uuid NOT NULL"
+        character_varying(500) reason "character varying(500) NULL"
+        timestamp_with_time_zone created_at "timestamp with time zone NOT NULL"
     }
     WF_application_checklists {
         uuid id PK "uuid NOT NULL"
