@@ -223,6 +223,9 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ProcedureCatalog__BaseUrl: http://procedure-catalog:8080/
+      CategoryReconciliation__Enabled: "true"
+      CategoryReconciliation__IntervalSeconds: "300"
       ConnectionStrings__Database: Host=iam-db;Port=5432;Database=wardmate_iam_db;Username=wardmate;Password=${IAM_DB_PASSWORD:-wardmate_secret}
       Notifications__ServiceKey: ${NOTIFICATIONS_SERVICE_KEY:-}
       Database__AutoMigrate: "true"
