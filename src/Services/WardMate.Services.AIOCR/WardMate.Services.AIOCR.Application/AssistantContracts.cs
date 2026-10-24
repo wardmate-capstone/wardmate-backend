@@ -4,9 +4,10 @@ public sealed record CccdResult(string? CitizenId, string? FullName, string? Dat
     string? Nationality, string? PlaceOfOrigin, string? PlaceOfResidence, string? DateOfExpiry, double ConfidenceScore);
 public sealed record VerificationResult(bool IsValid, string DocumentTypeDetected, string[] QualityIssues, double Confidence, Guid? ChecklistId = null, string? ExpectedType = null);
 public sealed record ChatInput(string Message, Guid? ConversationId, string WardCode);
-public sealed record ChatResult(Guid ConversationId, string Answer, object[] RelatedProcedures);
+// Grounded is true only when the answer was generated from Knowledge Base sources listed in Citations.
+public sealed record ChatResult(Guid ConversationId, string Answer, object[] RelatedProcedures, ChatCitation[]? Citations = null, bool Grounded = false);
 public sealed record SessionDto(Guid Id, string WardCode, DateTime CreatedAt);
-public sealed record MessageDto(Guid Id, string Role, string Content, DateTime CreatedAt);
+public sealed record MessageDto(Guid Id, string Role, string Content, DateTime CreatedAt, ChatCitation[]? Citations = null);
 public sealed record ChatTurn(string Role, string Content);
 public sealed record Page<T>(IReadOnlyList<T> Items, int PageNumber, int PageSize, int TotalCount);
 public sealed class AiFailure(int status, string code, string message) : Exception(message)
@@ -25,6 +26,8 @@ public interface IDocumentPreValidationService
 public interface IAssistantModel
 {
     Task<string> Answer(IReadOnlyList<ChatTurn> history, string wardCode, CancellationToken ct);
+    // Sources are numbered [1..n] in the order given; the model must cite them and treat them as data only.
+    Task<string> AnswerWithSources(IReadOnlyList<ChatTurn> history, string wardCode, IReadOnlyList<KnowledgeHit> sources, CancellationToken ct);
 }
 public interface IChatService
 {
