@@ -4010,3 +4010,14 @@ GET `/api/v1/officer/applications`, GET `/api/v1/officer/applications/pending` v
 
 Nộp lại vẫn về SUBMITTED, giữ AssignedOfficerId. Cán bộ phụ trách gọi POST `/api/v1/officer/applications/{id}/assign` để bắt đầu kiểm tra phiên bản mới (UNDER_REVIEW). Không thêm trạng thái RESUBMITTED, không đổi request, phân quyền, HTTP status hay ProblemDetails. Không cần migration. FE đang nhận nullable vẫn tương thích với giá trị số nguyên này.
 
+## Kiểm tra và đối soát lĩnh vực cán bộ — 24/10/2026
+
+PUT `/api/v1/manager/officers/{userId}/categories` giữ body `{"categories":[3,7]}`, quyền/phạm vi hiện hữu và204 khi thành công. IAM kiểm tra các ID với danh sách đầy đủ GET `/api/v1/procedures/categories` của Catalog, không đọc DB chéo service. Vẫn tối đa100 ID dương không trùng; mảng rỗng hợp lệ (phụ trách mọi lĩnh vực).
+
+- ID không tồn tại:400 `iam.invalid_categories`; tải lại danh mục và chọn lại. Catalog thiếu cấu hình, lỗi HTTP/JSON hoặc timeout:503 `iam.catalog_unavailable`; dữ liệu cũ giữ nguyên, thử lại khi Catalog phục hồi. Ngay cả gửi mảng rỗng cũng cần xác minh Catalog trong triển khai hiện tại.
+- Thay đổi thật ghi rbac_audit_logs action `OFFICER_CATEGORIES_ASSIGNED`, actor/target/time và details.before/after là các ID đã sắp xếp. Gửi lại cùng tập ID trả204, không thêm audit. Audit dùng endpoint quản trị RBAC hiện có, không mở quyền xem audit cho Manager.
+- Xóa lĩnh vực ở Catalog vẫn409 category.in_use nếu còn thủ tục liên kết. Sau khi xóa hợp lệ, IAM worker đối soát danh sách đầy đủ và loại ID không còn tồn tại khỏi assignedCategories. Mỗi lượt tối đa100 tài khoản, mặc định300giây; backlog cần nhiều lượt. Không cam kết dọn ngay tại thời điểm DELETE. Audit hệ thống `OFFICER_CATEGORIES_RECONCILED`, ActorUserId=Guid.Empty, details.source=CATALOG_RECONCILIATION và before/after. Không gửi thông báo hoặc sửa snapshot lĩnh vực của hồ sơ cũ.
+- Khi mất hết lĩnh vực, mảng rỗng có nghĩa mọi lĩnh vực theo quy tắc ưu tiên mềm; đây không phải thu hồi quyền. Có thể có ID cũ giữa hai lượt hoặc khi IAM/Catalog tạm lỗi. Lỗi Catalog không được chuyển thành danh sách rỗng; worker giữ dữ liệu và thử sau. Danh sách rỗng200 hợp lệ từ endpoint đầy đủ là Catalog thực sự không còn lĩnh vực.
+
+Cấu hình mới **trên IAM**: `ProcedureCatalog__BaseUrl` trỏ đúng Catalog của cùng môi trường (local thường http://localhost:5002/, Docker đã cấu hình http://procedure-catalog:8080/, Azure dùng URL HTTPS của Catalog). `CategoryReconciliation__Enabled=true`, `CategoryReconciliation__IntervalSeconds=300` (giới hạn30..86400). BaseUrl mẫu để trống để không âm thầm trỏ sang môi trường khác; thiếuURL sẽ503 khi gán và worker chỉ log lỗi chung. HTTP timeout10s, không redirect. Không cần migration; dùng users.assigned_categories và rbac_audit_logs hiện hữu. Deploy IAM kèm cấu hình mới trước khi FE dùng tính năng.
+

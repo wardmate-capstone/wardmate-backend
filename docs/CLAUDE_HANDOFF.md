@@ -1,5 +1,11 @@
 # Bàn giao WardMate cho Claude
 
+## Cập nhật 24/10/2026 — IAM lĩnh vực cán bộ
+
+Đã thêm ICategoryDirectory/HTTP Catalog validation, audit OFFICER_CATEGORIES_ASSIGNED và worker CategoryReconciliationWorker loại ID bị xóa có audit OFFICER_CATEGORIES_RECONCILED. Chạy cùng advisory lock RBAC, tối đa100 tài khoản/lượt mặc định300s. Không migration. Quyền/ward và ưu tiên mềm giữ nguyên. Xóa ởCatalog không bị chặn bởi IAM; đồng bộ eventual, lỗiCatalog giữ dữ liệu. Sau dọn mảngrỗng nghĩa mọi lĩnh vực. Không sửa snapshot hồ sơ, không ID reuse thủ công.
+
+IAM cần ProcedureCatalog__BaseUrl đúng môi trường, CategoryReconciliation__Enabled/IntervalSeconds. Compose đã cấu hình; appsettings URLrỗng. Chưa deploy/chưa gọi Catalog thật hoặc chạycleanupDB trong phiên này. Xem IAM-CATEGORY-01/api-guide và PROGRESS. Các mục cũ ghi chưa validate categories/chưa audit/chưa dọn ID đã được thay trong phạm vi này. Không tự làm analytics-category hoặc Git.
+
 ### Cập nhật 24/10/2026 — summary resubmitCount
 
 Ba projection danh sách đã có x.ResubmitCount từ đợt phân công. Nay chuẩn hóa ApplicationSummaryDto thành int ResubmitCount=0 (trước là int?=null), không đổi thứ tự tham số đang dùng hoặc các field mới khác. Không migration, không đổi resubmit/assign; FE đọc số thật thay suy luận AssignedOfficerId. Xem PROGRESS để biết build, không coi là đã deploy.
