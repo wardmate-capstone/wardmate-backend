@@ -347,6 +347,9 @@ services:
       Database__AutoMigrate: ${AIOCR_AUTO_MIGRATE:-false}
       Services__ApplicationWorkflow__BaseUrl: http://application-workflow:8080/
       Services__DocumentForm__BaseUrl: http://document-form:8080/
+      Services__ProcedureCatalog__BaseUrl: http://procedure-catalog:8080/
+      Knowledge__EmbeddingEnabled: ${AIOCR_KNOWLEDGE_EMBEDDING_ENABLED:-false}
+      Knowledge__RagEnabled: ${AIOCR_KNOWLEDGE_RAG_ENABLED:-false}
       Extraction__Enabled: ${PROCEDURE_EXTRACTION_ENABLED:-false}
       Extraction__UseAI: ${PROCEDURE_USE_AI:-false}
       Extraction__OcrFallbackEnabled: ${PROCEDURE_OCR_FALLBACK_ENABLED:-false}
