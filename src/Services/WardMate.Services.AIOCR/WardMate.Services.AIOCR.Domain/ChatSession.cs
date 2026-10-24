@@ -16,4 +16,6 @@ public sealed class ChatMessage
     public string Role { get; set; } = "User";
     public string Content { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    // JSON array of knowledge citations for grounded assistant answers; null for user turns and ungrounded answers.
+    public string? Citations { get; set; }
 }
