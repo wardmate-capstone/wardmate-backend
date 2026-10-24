@@ -1,5 +1,19 @@
 # Bàn giao WardMate cho Claude
 
+## Cập nhật 24/10/2026 — TASK-28 Knowledge Base (KB-01)
+
+AIOCR có Knowledge Base: bảng `knowledge_documents`/`knowledge_chunks` (migration `20261024034956_KnowledgeBase`, SQL `docs/sql/aiocr-knowledge-base.sql`), API `/api/v1/ai/knowledge` cho PROCEDURE_MANAGER/IT_ADMIN có `knowledge.manage` (IAM migration `20261024100000_KnowledgeManagePermission`, SQL `docs/sql/iam-knowledge-permission.sql`). Nguồn: đồng bộ thủ tục từ API công khai Catalog, văn bản/FAQ, PDF có lớp chữ. Chia đoạn tất định trong `Application/KnowledgeChunker.cs` (phiên bản `v1-paragraph-1200-1500-200-900`).
+
+Cần cấu hình AIOCR `Services__ProcedureCatalog__BaseUrl`. Chưa apply DB, chưa deploy.
+
+## Cập nhật 24/10/2026 — TASK-29 tìm kiếm vector và RAG (KB-02)
+
+Đã có: Gemini embedding (`Infrastructure/Knowledge/GeminiEmbeddingProvider.cs`), worker `KnowledgeIndexingWorker`, tìm kiếm cosine trong bộ nhớ `KnowledgeRetriever` (vector `real[]`, **không dùng pgvector**, giới hạn 20.000 đoạn), chat RAG trong `ChatService` có `citations`/`grounded`, API `index-status`, `documents/{id}/reindex`, `search`. Migration AIOCR `20261024035926_KnowledgeRetrieval`, SQL `docs/sql/aiocr-knowledge-retrieval.sql`. Mặc định `Knowledge:EmbeddingEnabled=false`, `Knowledge:RagEnabled=false`: chat như cũ, không phí embedding. Chưa gọi Gemini embedding thật (định dạng request theo tài liệu batchEmbedContents/embedContent v1beta, cần thử khi bật), chưa apply DB, chưa deploy.
+
+**Yêu cầu chủ dự án 24/10/2026:** Antigravity commit cả TASK-28 và TASK-29 trong phiên tiếp theo theo kế hoạch commit ở mục TASK-29 cuối PROGRESS.md; báo số commit/loại/message cho chủ dự án và chờ xác nhận trước khi push `kha` (AGENTS.md). Claude không chạy Git.
+
+Còn mở sau TASK-29: ai_request_logs/thống kê chi phí AI, lọc nguồn theo phường, reranker, chuyển pgvector khi vượt 20.000 đoạn, việc rút nhận xét OPEN (chờ duyệt).
+
 ## Cập nhật 24/10/2026 — Quản trị delivery lỗi và đối soát SMS (NOTIFY-ADMIN-01)
 
 Codex bắt đầu rồi dừng giữa chừng (lỗi model); Claude hoàn tất. API IT_ADMIN `/api/v1/admin/notification-deliveries`: GET danh sách/chi tiết/audit, POST `{id}/replay`, POST `{id}/sms-reconciliation`; quyền `notifications.deliveries.read`/`.manage` seed cho IT_ADMIN. Migration Notifications `20261024020118_NotificationDeliveryAdministration` (cột revision/updated_at, bảng notification_delivery_audits; Down chặn khi có audit) và IAM `20261024090000_NotificationDeliveryAdministration`; SQL idempotent có preflight: `docs/sql/notification-delivery-administration.sql`, `docs/sql/iam-notification-delivery-permissions.sql`. Gateway có route riêng trước `/api/v1/admin/...` của IAM.
@@ -147,7 +161,7 @@ Bộ EF model kiểm kê ngày 23/10: 37 bảng ứng dụng, 343 cột, 20 FK t
 | Cần đối chiếu deploy | IAM security hardening | Source/migration/SQL có; chưa tìm thấy xác nhận rollout đầy đủ của migration security + IAM và 5 service trong các mục đã đọc. So cloud history khi được phép, không apply lại mù. |
 | Cần đối chiếu deploy | TASK-25/27 nhiều replica | Listener đã có/build pass; runtime đa replica, reconnect và DB LISTEN connection cần xác nhận. Không tạo thêm queue/table nếu vấn đề là config. |
 | Chưa triển khai | SMS thông báo hồ sơ | Adapter Analytics vẫn stub. Cần mẫu CSKH hợp lệ, config Brandname, mapping trạng thái/provider result, retry và chính sách chi phí; không tái sử dụng mẫu OTP đăng ký cho nội dung hồ sơ. |
-| Chưa triển khai | RAG thật (TASK-28/29) | Chat hiện LLM thuần. Còn knowledge ingest/chunking/retrieval/citation/embedding/vector, phân quyền nguồn, cập nhật/xóa dữ liệu. |
+| Có trong source, chưa nghiệm thu | RAG (TASK-28/29) | KB-01 nguồn/nhập/chia đoạn; KB-02 embedding Gemini, tìm kiếm trong bộ nhớ (không pgvector), chat có citations. Mặc định tắt. Chưa gọi provider thật/chưa deploy. Còn ai_request_logs, lọc theo phường, reranker. |
 | Một phần | TASK-30 CCCD OCR | Endpoint/adaptor có; accuracy/provider/cấu hình cloud chưa được kiểm tra lại. OCR logs/eKYC không được suy ra là đã có. |
 | Một phần | TASK-34 | RBAC audit + HTTP logging có; global data-change audit/system settings chưa thấy triển khai trong rà soát lịch sử; cần kiểm tra source trước khi bắt đầu. |
 | Một phần | TASK-35 | Health endpoint có; dependency health DB/Rabbit, lịch sử sức khỏe, backup tự động/restore drill chưa thấy bằng chứng hoàn tất. |
