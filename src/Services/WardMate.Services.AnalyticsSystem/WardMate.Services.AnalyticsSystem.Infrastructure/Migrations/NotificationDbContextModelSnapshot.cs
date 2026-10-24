@@ -114,6 +114,69 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Infrastructure.DeliveryAdminAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AfterMessageId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("AfterRevision")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AfterState")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int>("BeforeAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("BeforeMessageId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("BeforeRevision")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BeforeState")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeliveryId", "CreatedAt");
+
+                    b.ToTable("notification_delivery_audits", (string)null);
+                });
+
             modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Infrastructure.NotificationDelivery", b =>
                 {
                     b.Property<Guid>("Id")
@@ -152,6 +215,12 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
                         .HasColumnType("character varying(30)")
                         .HasColumnName("provider");
 
+                    b.Property<Guid>("Revision")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("revision")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<DateTime?>("SentAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -159,6 +228,12 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.HasKey("Id");
 
@@ -168,6 +243,8 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
                     b.HasIndex("Provider", "ExternalMessageId");
 
                     b.HasIndex("State", "NextAttemptAt");
+
+                    b.HasIndex("State", "UpdatedAt");
 
                     b.ToTable("notification_deliveries", (string)null);
                 });
