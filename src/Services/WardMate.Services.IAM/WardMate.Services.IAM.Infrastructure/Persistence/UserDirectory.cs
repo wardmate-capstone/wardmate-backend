@@ -6,7 +6,7 @@ using WardMate.Services.IAM.Domain;
 
 namespace WardMate.Services.IAM.Infrastructure.Persistence;
 
-public sealed class UserDirectory(IamDbContext db, ManagementScope scope, IRbacStore rbac) : IUserDirectory
+public sealed class UserDirectory(IamDbContext db, ManagementScope scope, IRbacStore rbac, ICategoryDirectory categories) : IUserDirectory
 {
     public async Task<Result<DirectoryPage>> List(DirectoryQuery r, CancellationToken ct)
     {
@@ -41,7 +41,18 @@ public sealed class UserDirectory(IamDbContext db, ManagementScope scope, IRbacS
         var user = await scope.VisibleUsers(r.ActorId).SingleOrDefaultAsync(x => x.Id == r.UserId &&
             x.UserRoles.Any(ur => ur.Role.RoleName == RoleNames.FrontDeskOfficer), ct);
         if (user is null) return Result<bool>.Failure(RbacErrors.UserNotFound);
-        user.AssignedCategories = r.Categories.Order().ToArray(); user.UpdatedAt = DateTime.UtcNow;
+        int[] valid;
+        try { valid = await categories.ReadIds(ct); }
+        catch (Exception e) when (e is HttpRequestException or System.Text.Json.JsonException || e is OperationCanceledException && !ct.IsCancellationRequested)
+        { return Result<bool>.Failure(new("iam.catalog_unavailable", "Chưa xác minh được lĩnh vực từ Catalog. Vui lòng thử lại.", ErrorKind.ServiceUnavailable)); }
+        if (r.Categories.Except(valid).Any())
+            return Result<bool>.Failure(new("iam.invalid_categories", "Có lĩnh vực không tồn tại. Hãy tải lại danh sách lĩnh vực.", ErrorKind.BadRequest));
+        var before = user.AssignedCategories.Order().ToArray();
+        var after = r.Categories.Order().ToArray();
+        if (before.SequenceEqual(after)) return Result<bool>.Success(true);
+        user.AssignedCategories = after; user.UpdatedAt = DateTime.UtcNow;
+        rbac.Audit(r.ActorId, "OFFICER_CATEGORIES_ASSIGNED", user.Id, null, null,
+            System.Text.Json.JsonSerializer.Serialize(new { before, after }));
         await db.SaveChangesAsync(ct); return Result<bool>.Success(true);
     }, ct);
     public async Task<AccessContextDto?> Access(Guid userId, CancellationToken ct)
