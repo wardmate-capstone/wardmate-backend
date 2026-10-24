@@ -1,5 +1,5 @@
 WARDMATE — HƯỚNG DẪN TỰ VẼ ERD
-Ngày đối chiếu: 23/10/2026 (UTC+07:00)
+Ngày đối chiếu: 24/10/2026 (UTC+07:00)
 Nguồn: docs/diagrams/erd/model-inventory.json; không xác nhận database Azure.
 
 1. CÁCH CHIA 3 TRANG
@@ -7,7 +7,7 @@ Nguồn: docs/diagrams/erd/model-inventory.json; không xác nhận database Azu
 Trang 1 — CONCEPTUAL:
 Chỉ vẽ khái niệm nghiệp vụ, tên và quan hệ; không đưa toàn bộ bảng kỹ thuật/cột SQL vào đây.
 Trang 2 — LOGICAL:
-Vẽ 37 bảng hiện có, các thuộc tính và khóa. Có thể bỏ kiểu SQL. Bảng nối user_roles, role_permissions phải hiện diện.
+Vẽ 41 bảng hiện có (410 cột), các thuộc tính và khóa. Có thể bỏ kiểu SQL. Bảng nối user_roles, role_permissions phải hiện diện.
 Trang 3 — PHYSICAL:
 Giữ quan hệ của Logical; bổ sung đúng schema, kiểu dữ liệu, NULL/NOT NULL, PK và UNIQUE. Dùng danh sách thuộc tính ở mục 5.
 Cả ba trang đều là toàn hệ thống, không chia thành trang riêng theo service.
@@ -18,7 +18,8 @@ Cả ba trang đều là toàn hệ thống, không chia thành trang riêng the
 Đặt application_checklists sát bên phải applications; application_versions và application_comments phía dưới applications.
 Đặt form_templates, user_submissions, supporting_documents ở phía phải checklist.
 Đặt notifications, notification_deliveries ở phía dưới bên trái applications.
-Đặt chat_sessions và chat_messages sát users; đặt các bảng thống kê ở cạnh dưới trang.
+Đặt chat_sessions và chat_messages sát users; đặt knowledge_documents, knowledge_chunks cạnh chat_messages; đặt các bảng thống kê ở cạnh dưới trang.
+Đặt application_assignment_history dưới applications; notification_delivery_audits cạnh notification_deliveries.
 Các bảng roles, permissions và bảng nối đặt quanh users. procedure_categories, procedure_versions, procedure_drafts đặt quanh procedures.
 Dùng màu tiêu đề để nhận diện service, không cần khung service cứng buộc đường nối phải đi vòng.
 Vẽ các quan hệ FK nội bộ trước; sau đó thêm REF xuyên service. Không kéo tất cả đường qua một hành lang chung.
@@ -65,6 +66,12 @@ APPLICATION — triggers — NOTIFICATION (||--o{)
 USER — receives — NOTIFICATION (||--o{)
 NOTIFICATION — dispatches — DELIVERY (||--o{)
 APPLICATION — aggregates — PERFORMANCE_METRIC (}o--o{)
+APPLICATION — tracks — ASSIGNMENT_HISTORY (||--o{)
+USER — assigns — ASSIGNMENT_HISTORY (||--o{)
+DELIVERY — audited by — DELIVERY_AUDIT (||--o{)
+PROCEDURE — sources — KNOWLEDGE_DOCUMENT (|o--o{)
+KNOWLEDGE_DOCUMENT — splits into — KNOWLEDGE_CHUNK (||--o{)
+CHAT_MESSAGE — cites — KNOWLEDGE_CHUNK (}o--o{)
 
 Trong Conceptual: DOCUMENT gom các loại giấy tờ; không phải tên một bảng SQL. AUTH_CHALLENGE gom OTP. APPLICATION là hồ sơ chuẩn bị/kiểm tra giấy tờ và ghi nhận tiếp nhận, không phải quyết định phê duyệt hành chính. Quan hệ ở đây là nghiệp vụ, không khẳng định FK vật lý.
 
@@ -189,6 +196,7 @@ UNIQUE: (user_id)
   next_attempt_at_utc | timestamp with time zone NOT NULL
   sent_at_utc | timestamp with time zone
 
+
 Procedure Catalog — thủ tục
 =================================================================
 
@@ -258,6 +266,7 @@ UNIQUE: (procedure_id, version_number)
   snapshot_data | jsonb NOT NULL
   created_at | timestamp with time zone NOT NULL DEFAULT (now())
 
+
 Application Workflow — hồ sơ
 =================================================================
 
@@ -272,6 +281,11 @@ UNIQUE: (receipt_number)
   procedure_id | uuid NOT NULL
   ward_code | character varying(50)
   procedure_title | character varying(500) NOT NULL
+  category_id | integer
+  category_name | character varying(255)
+  assigned_officer_name | character varying(255)
+  assigned_at | timestamp with time zone
+  assignment_version | bigint NOT NULL DEFAULT 0
   case_code | character varying(100)
   status | character varying(50) NOT NULL DEFAULT 'DRAFT'
   form_data | jsonb NOT NULL
@@ -307,6 +321,18 @@ PK: (id)
   published_at | timestamp with time zone
   attempts | integer NOT NULL
   last_error | character varying(100)
+
+BẢNG: public.application_assignment_history
+Alias trong quan hệ: WF_application_assignment_history
+PK: (id)
+  id | uuid NOT NULL
+  application_id | uuid NOT NULL
+  action | character varying(20) NOT NULL
+  from_officer_id | uuid
+  to_officer_id | uuid
+  actor_id | uuid NOT NULL
+  reason | character varying(500)
+  created_at | timestamp with time zone NOT NULL
 
 BẢNG: public.application_checklists
 Alias trong quan hệ: WF_application_checklists
@@ -367,6 +393,7 @@ PK: (id)
   status | character varying(20) NOT NULL DEFAULT 'OPEN'
   created_at | timestamp with time zone NOT NULL
   updated_at | timestamp with time zone NOT NULL
+
 
 Document Form — biểu mẫu và giấy tờ
 =================================================================
@@ -489,7 +516,8 @@ PK: (id)
   is_deleted | boolean NOT NULL DEFAULT FALSE
   deleted_at | timestamptz
 
-AI/OCR — hội thoại
+
+AI/OCR — hội thoại và Knowledge Base
 =================================================================
 
 BẢNG: public.chat_sessions
@@ -500,6 +528,33 @@ PK: (id)
   ward_code | character varying(50) NOT NULL
   created_at | timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 
+BẢNG: public.knowledge_documents
+Alias trong quan hệ: AI_knowledge_documents
+PK: (id)
+  id | uuid NOT NULL
+  title | character varying(500) NOT NULL
+  source_type | character varying(20) NOT NULL
+  procedure_id | uuid
+  source_reference | character varying(500)
+  source_version | character varying(100)
+  content | text NOT NULL
+  content_sha256 | character varying(64) NOT NULL
+  status | character varying(20) NOT NULL
+  is_active | boolean NOT NULL
+  chunk_count | integer NOT NULL
+  chunking_version | character varying(50) NOT NULL
+  created_by | uuid NOT NULL
+  updated_by | uuid NOT NULL
+  created_at | timestamp with time zone NOT NULL
+  updated_at | timestamp with time zone NOT NULL
+  chunked_at | timestamp with time zone
+  embedding_model | character varying(120)
+  embedding_attempts | integer NOT NULL
+  next_embedding_at | timestamp with time zone
+  embedding_error | character varying(100)
+  embedded_at | timestamp with time zone
+  revision | uuid NOT NULL
+
 BẢNG: public.chat_messages
 Alias trong quan hệ: AI_chat_messages
 PK: (id)
@@ -508,9 +563,45 @@ PK: (id)
   role | character varying(20) NOT NULL
   content | character varying(20000) NOT NULL
   created_at | timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+  citations | jsonb
+
+BẢNG: public.knowledge_chunks
+Alias trong quan hệ: AI_knowledge_chunks
+PK: (id)
+UNIQUE: (document_id, chunk_index)
+  id | uuid NOT NULL
+  document_id | uuid NOT NULL
+  chunk_index | integer NOT NULL
+  heading | character varying(500)
+  content | text NOT NULL
+  char_count | integer NOT NULL
+  content_sha256 | character varying(64) NOT NULL
+  created_at | timestamp with time zone NOT NULL
+  embedding | real[]
+  embedding_model | character varying(120)
+  embedded_at | timestamp with time zone
+
 
 Analytics System — thông báo và thống kê
 =================================================================
+
+BẢNG: public.notification_delivery_audits
+Alias trong quan hệ: SYS_notification_delivery_audits
+PK: (Id)
+  Id | uuid NOT NULL
+  DeliveryId | uuid NOT NULL
+  ActorId | uuid NOT NULL
+  Action | character varying(40) NOT NULL
+  BeforeState | character varying(30) NOT NULL
+  AfterState | character varying(30) NOT NULL
+  BeforeAttempts | integer NOT NULL
+  BeforeRevision | uuid NOT NULL
+  AfterRevision | uuid NOT NULL
+  Reason | character varying(500) NOT NULL
+  Reference | character varying(200)
+  BeforeMessageId | character varying(100)
+  AfterMessageId | character varying(100)
+  CreatedAt | timestamp with time zone NOT NULL
 
 BẢNG: public.notification_inbox
 Alias trong quan hệ: SYS_notification_inbox
@@ -546,6 +637,11 @@ Alias trong quan hệ: SYS_notification_deliveries
 PK: (Id)
 UNIQUE: (NotificationId, Channel)
   Id | uuid NOT NULL
+  revision | uuid NOT NULL DEFAULT (gen_random_uuid())
+  updated_at | timestamp with time zone NOT NULL DEFAULT (now())
+  external_message_id | character varying(100)
+  provider | character varying(30)
+  is_sandbox | boolean
   NotificationId | uuid NOT NULL
   Channel | character varying(30) NOT NULL
   State | character varying(30) NOT NULL
@@ -600,7 +696,7 @@ PK: (MetricDate)
   SourceAtUtc | timestamp with time zone NOT NULL
   RefreshedAtUtc | timestamp with time zone NOT NULL
 
-6. CÁC ĐƯỜNG FK THẬT PHẢI VẼ (20)
+6. CÁC ĐƯỜNG FK THẬT PHẢI VẼ (22)
 
 1. public.role_permissions (permission_id) -> public.permissions (id)
    Phía cha: 1; phía con: 0..N. ON DELETE CASCADE
@@ -624,26 +720,30 @@ PK: (MetricDate)
    Phía cha: 1; phía con: 0..N. ON DELETE RESTRICT
 11. public.procedure_versions (procedure_id) -> public.procedures (id)
    Phía cha: 1; phía con: 0..N. ON DELETE RESTRICT
-12. public.application_checklists (application_id) -> public.applications (id)
+12. public.application_assignment_history (application_id) -> public.applications (id)
    Phía cha: 1; phía con: 0..N. ON DELETE CASCADE
-13. public.application_status_history (application_id) -> public.applications (id)
+13. public.application_checklists (application_id) -> public.applications (id)
    Phía cha: 1; phía con: 0..N. ON DELETE CASCADE
-14. public.application_versions (application_id) -> public.applications (id)
+14. public.application_status_history (application_id) -> public.applications (id)
    Phía cha: 1; phía con: 0..N. ON DELETE CASCADE
-15. public.application_comments (application_id, application_version_id) -> public.application_versions (application_id, id)
+15. public.application_versions (application_id) -> public.applications (id)
+   Phía cha: 1; phía con: 0..N. ON DELETE CASCADE
+16. public.application_comments (application_id, application_version_id) -> public.application_versions (application_id, id)
    Phía cha: 1; phía con: 0..N. ON DELETE RESTRICT
-16. public.application_comments (application_id) -> public.applications (id)
+17. public.application_comments (application_id) -> public.applications (id)
    Phía cha: 1; phía con: 0..N. ON DELETE CASCADE
-17. document.form_template_versions (template_id) -> document.form_templates (id)
+18. document.form_template_versions (template_id) -> document.form_templates (id)
    Phía cha: 1; phía con: 0..N. ON DELETE RESTRICT
-18. document.user_submissions (template_version_id) -> document.form_template_versions (id)
+19. document.user_submissions (template_version_id) -> document.form_template_versions (id)
    Phía cha: 0..1; phía con: 0..N. ON DELETE RESTRICT
-19. public.chat_messages (session_id) -> public.chat_sessions (id)
+20. public.chat_messages (session_id) -> public.chat_sessions (id)
    Phía cha: 1; phía con: 0..N. ON DELETE CASCADE
-20. public.notification_deliveries (NotificationId) -> public.notifications (id)
+21. public.knowledge_chunks (document_id) -> public.knowledge_documents (id)
+   Phía cha: 1; phía con: 0..N. ON DELETE CASCADE
+22. public.notification_deliveries (NotificationId) -> public.notifications (id)
    Phía cha: 1; phía con: 0..N. ON DELETE CASCADE
 
-7. CÁC ĐƯỜNG REF LOGIC — NÉT ĐỨT (40 NHÓM)
+7. CÁC ĐƯỜNG REF LOGIC — NÉT ĐỨT (46 NHÓM)
 Không biến các quan hệ này thành FK SQL. Một nhóm có thể gồm nhiều trường vai trò.
 
 1. public.procedure_drafts tham chiếu public.users: CreatedBy/ReviewedBy
@@ -686,40 +786,24 @@ Không biến các quan hệ này thành FK SQL. Một nhóm có thể gồm nhi
 38. public.rbac_audit_logs tham chiếu public.users: ActorUserId/TargetUserId
 39. public.rbac_audit_logs tham chiếu public.roles: RoleId
 40. public.rbac_audit_logs tham chiếu public.permissions: PermissionId
+41. public.application_assignment_history tham chiếu public.users: FromOfficerId/ToOfficerId/ActorId
+42. public.notification_delivery_audits tham chiếu public.notification_deliveries: DeliveryId
+43. public.notification_delivery_audits tham chiếu public.users: ActorId
+44. public.knowledge_documents tham chiếu public.users: CreatedBy/UpdatedBy
+45. public.knowledge_documents tham chiếu public.procedures: ProcedureId
+46. public.chat_messages tham chiếu public.knowledge_chunks: Citations JSON
 
 8. PHẦN TƯƠNG LAI — CHƯA TRIỂN KHAI
 
-8 bảng dự kiến: knowledge_documents, knowledge_chunks, ai_request_logs, ocr_scan_logs, audit_logs, system_settings, service_health_logs, system_backup_logs.
-Không tính chúng vào 37 bảng hiện có. Vẽ ô viền nét đứt, tiêu đề có nhãn FUTURE, đặt trong vùng service dự kiến (AIOCR hoặc Analytics System).
+6 bảng dự kiến: ai_request_logs, ocr_scan_logs, audit_logs, system_settings, service_health_logs, system_backup_logs.
+Không tính chúng vào 41 bảng hiện có. Vẽ ô viền nét đứt, tiêu đề có nhãn FUTURE, đặt trong vùng service dự kiến (AIOCR hoặc Analytics System).
 
 Nguồn cột: đặc tả backend gốc 35 bảng, chép lại trong docs/diagrams/erd/archive-unified-20261015.md (khối AI_FUTURE_* và SYS_FUTURE_*).
-Đối chiếu 23/10/2026: chưa có entity, migration hay bảng nào trong source cho 8 bảng này. 6 bảng khác của đặc tả gốc đã được làm (chat_sessions, chat_messages, approved_qrs, citizen_feedback, daily_performance_metrics, application_procedure_metrics), xem mục 5.
+Đối chiếu 24/10/2026: chưa có entity, migration hay bảng nào trong source cho 6 bảng này.
+knowledge_documents và knowledge_chunks đã triển khai ngày 24/10/2026 (TASK-28/29) nên đã chuyển sang mục 5, không còn là FUTURE. Thiết kế thực tế khác đặc tả gốc: vector nằm ở cột knowledge_chunks.embedding (real[], không dùng pgvector) và trích dẫn lưu ở chat_messages.citations (jsonb) thay cho cột ReferencedChunkIds.
 Tên cột giữ theo đặc tả (PascalCase). Kiểu dưới đây là kiểu đề xuất: độ dài varchar, schema, NOT NULL, index và UNIQUE chưa chốt, trừ chỗ ghi rõ. Khi triển khai thật, migration EF mới là căn cứ.
 
 8.1. Cột đề xuất
-
-FUTURE: knowledge_documents  (AIOCR — kho tri thức cho RAG, TASK-28/29)
-PK: (Id)
-  Id | uuid
-  ProcedureId | uuid NULL — REF thủ tục (procedures.id), có thể rỗng
-  Title | varchar
-  SourceType | varchar — MANUAL_TEXT, PDF_FILE, FAQ
-  RawContent | text
-  FileUrl | varchar
-  IsActive | boolean
-  UploadedBy | uuid — REF users.id
-  CreatedAt | timestamptz
-  UpdatedAt | timestamptz
-
-FUTURE: knowledge_chunks  (AIOCR — đoạn văn bản đã cắt và vector hóa)
-PK: (Id)
-  Id | uuid
-  DocumentId | uuid — FK dự kiến tới knowledge_documents.id
-  ChunkIndex | integer
-  ChunkContent | text
-  Embedding | vector(768) — pgvector, 768 chiều theo đặc tả gốc
-  Metadata | jsonb
-  CreatedAt | timestamptz
 
 FUTURE: ai_request_logs  (AIOCR — nhật ký mỗi lần gọi mô hình AI)
 PK: (Id)
@@ -753,7 +837,7 @@ PK: (Id)
   Details | jsonb
   IpAddress | varchar
   CreatedAt | timestamptz
-Khác với public.rbac_audit_logs của IAM (chỉ ghi thay đổi phân quyền, đã có).
+Khác với public.rbac_audit_logs của IAM và public.notification_delivery_audits (đều đã có, chỉ ghi phạm vi riêng).
 
 FUTURE: system_settings  (Analytics System — cấu hình hệ thống, TASK-34)
 PK: (Id)
@@ -787,29 +871,17 @@ PK: (Id)
 
 8.2. Quan hệ dự kiến (vẽ nét đứt, ghi FUTURE)
 
-F1. knowledge_documents (Id) -> knowledge_chunks (DocumentId)
+F1. chat_sessions (id) -> ai_request_logs (SessionId)
     FK dự kiến, cùng database AIOCR. Phía cha: 1; phía con: 0..N.
-F2. chat_sessions (id) -> ai_request_logs (SessionId)
-    FK dự kiến, cùng database AIOCR. Phía cha: 1; phía con: 0..N.
-F3. procedures (id) -> knowledge_documents (ProcedureId)
-    REF dự kiến giữa Procedure Catalog và AIOCR. Phía cha: 0..1; phía con: 0..N.
-F4. users (id) -> knowledge_documents (UploadedBy)
-    REF dự kiến giữa IAM và AIOCR. Phía cha: 1; phía con: 0..N.
-F5. knowledge_chunks (Id) <-> chat_messages (ReferencedChunkIds)
-    REF dự kiến nhiều–nhiều. ReferencedChunkIds là CỘT MỚI dự kiến thêm vào public.chat_messages (mảng uuid), hiện chưa có trong bảng.
-F6. users (id) -> ocr_scan_logs (UserId)
+F2. users (id) -> ocr_scan_logs (UserId)
     REF dự kiến giữa IAM và AIOCR. Phía cha: 0..1; phía con: 0..N.
-F7. users (id) -> audit_logs (UserId)
+F3. users (id) -> audit_logs (UserId)
     REF dự kiến giữa IAM và Analytics System. Phía cha: 0..1; phía con: 0..N.
-F8. users (id) -> system_settings (UpdatedBy)
+F4. users (id) -> system_settings (UpdatedBy)
     REF dự kiến giữa IAM và Analytics System. Phía cha: 1; phía con: 0..N.
 service_health_logs và system_backup_logs đứng độc lập, không nối bảng nào.
 
 8.3. Conceptual (FUTURE)
-PROCEDURE — is source of — KNOWLEDGE_DOCUMENT (|o--o{)
-USER — uploads — KNOWLEDGE_DOCUMENT (||--o{)
-KNOWLEDGE_DOCUMENT — splits into — KNOWLEDGE_CHUNK (||--o{)
-CHAT_MESSAGE — cites — KNOWLEDGE_CHUNK (}o--o{)
 CHAT_SESSION — logs — AI_REQUEST_LOG (||--o{)
 USER — scans — OCR_SCAN_LOG (|o--o{)
 USER — performs — AUDIT_LOG (|o--o{)
@@ -823,6 +895,8 @@ SERVICE_HEALTH_LOG, SYSTEM_BACKUP_LOG: khái niệm vận hành độc lập.
 - FK ghép của application_comments phải nối đủ các cột tới application_versions.
 - Không vẽ QR thành bảng tương lai: document.approved_qrs đã có.
 - OTP và welcome email đã có trong schema iam.
+- knowledge_documents/knowledge_chunks đã có (TASK-28/29); vector là cột knowledge_chunks.embedding (real[]), không phải bảng hay pgvector.
+- application_assignment_history và notification_delivery_audits là bảng mới ngày 24/10/2026; notification_delivery_audits.DeliveryId cố ý không có FK để giữ bằng chứng khi xóa delivery.
 - RabbitMQ, Azure Blob, SignalR và LISTEN/NOTIFY không phải bảng ERD.
 - Với tên SQL PascalCase, dùng dấu ngoặc kép khi viết SQL.
 - DDL tham khảo đầy đủ index/CHECK/ON DELETE: docs/diagrams/erd/schema/. Không chạy các script CREATE này lên database đang dùng.

@@ -76,7 +76,7 @@ Workspace: `E:\Code\CODE_FPT\9\SEP490\Code\wardmate-backend`.
 
 Mỗi service giữ ranh giới database. Liên kết ID xuyên service thường là REF nghiệp vụ, không phải FK SQL. Gọi nội bộ qua HTTP/key chuyên dụng hoặc sự kiện, không đọc bảng service khác để bỏ qua quyền.
 
-Bộ EF model kiểm kê ngày 23/10: 37 bảng ứng dụng, 343 cột, 20 FK thật, 40 nhóm REF; 7 DbContext/6 service. IAM 11, Catalog 4, Workflow 6, DocumentForm 7, AIOCR 2, AnalyticsSystem 7 (Notification 3 + Analytics 4). Không đếm Hangfire, EF history, broker, Blob. Không tự coi mọi bảng đã có trên cloud chỉ vì có migration.
+Bộ EF model kiểm kê ngày 24/10: 41 bảng ứng dụng, 410 cột, 22 FK thật, 46 nhóm REF; 7 DbContext/6 service. IAM 11, Catalog 4, Workflow 7 (thêm application_assignment_history), DocumentForm 7, AIOCR 4 (thêm knowledge_documents, knowledge_chunks), AnalyticsSystem 8 (Notification 4 gồm notification_delivery_audits + Analytics 4). Không đếm Hangfire, EF history, broker, Blob. Không tự coi mọi bảng đã có trên cloud chỉ vì có migration.
 
 ## 3. Các chức năng đã triển khai
 
@@ -218,8 +218,9 @@ Nguồn các mốc dưới đây là PROGRESS, phiên bàn giao này không th�
 
 - `system-erd-conceptual.md`, `system-unified-erd.md`, `system-erd-physical.md`.
 - `diagrams/erd/wardmate-erd.drawio`: đúng 3 tab toàn hệ thống. Người dùng không hài lòng độ rối của bản vẽ; không nói đã được duyệt hình.
-- `erd-drawing-guide.txt`: bản text37 bảng/20FK/40REF để người dùng tự vẽ, yêu cầu này đã được chấp nhận.
-- `diagrams/erd/model-inventory.json`: dữ liệu nguồn; 8 bảng FUTURE chưa có schema thực: knowledge_documents, knowledge_chunks, ai_request_logs, ocr_scan_logs, audit_logs, system_settings, service_health_logs, system_backup_logs.
+- `erd-drawing-guide.txt`: bản text 41 bảng/22 FK/46 REF để người dùng tự vẽ, kèm cột đề xuất của 6 bảng FUTURE; mục 5–8 sinh lại từ model-inventory.json.
+- `diagrams/erd/wardmate-erd-interactive.html` (tiếng Anh, 3 tab, có bảng FUTURE) và `diagrams/erd/wardmate-erd-en.drawio` (3 trang, xuất từ cùng bố cục). Nguồn dựng nằm ngoài repo (scratchpad của phiên Claude); khi schema đổi, cập nhật bằng cách dựng lại từ model-inventory.json.
+- `diagrams/erd/model-inventory.json`: dữ liệu nguồn ngày 24/10. 6 bảng FUTURE chưa có schema thực: ai_request_logs, ocr_scan_logs, audit_logs, system_settings, service_health_logs, system_backup_logs. knowledge_documents/knowledge_chunks đã triển khai (TASK-28/29). Ảnh *-preview.png là bản cũ 23/10, chưa render lại.
 - `system-diagrams.md` còn phần Activity/State/Structure lịch sử; khi đổi luồng phải đối chiếu ngày/phạm vi, không tin toàn bộ hình cũ đã cập nhật.
 - Khi tái sinh ERD, chạy generate-erd.cjs rồi generate-drawio.cjs; bước sau cập nhật bản trình bày3trang. Không tự chạy nếu task không cần.
 

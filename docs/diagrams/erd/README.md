@@ -8,7 +8,7 @@ Mỗi trang chứa toàn bộ 6 service và các quan hệ xuyên service. Nét 
 - [Logical SVG](logical.svg)
 - [Physical SVG](physical.svg)
 
-SVG có thể phóng to mà không vỡ chữ. Physical là canvas lớn để chứa toàn bộ 343 cột; không ép về một trang A4. Màu tiêu đề chỉ ra service sở hữu bảng, không tách thành sơ đồ riêng.
+SVG có thể phóng to mà không vỡ chữ. Physical là canvas lớn để chứa toàn bộ cột của mọi bảng; không ép về một trang A4. Màu tiêu đề chỉ ra service sở hữu bảng, không tách thành sơ đồ riêng.
 
 Tái sinh bằng node docs/diagrams/erd/generate-erd.cjs (đọc DDL đã xuất), sau đó node docs/diagrams/erd/generate-drawio.cjs. Các file physical-*.mmd và archive-* là nguồn tham khảo/bản cũ, không phải bộ 3 trang bàn giao.
 
