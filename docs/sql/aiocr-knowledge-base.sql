@@ -1,14 +1,10 @@
--- Run in the AIOCR database (wardmate_aiocr_db) before deploying the new AIOCR code.
+-- Run in the AIOCR Supabase/PostgreSQL database before deploying the new AIOCR code.
 -- Idempotent: 20261024034956_KnowledgeBase. Auto-provisions ChatSessions baseline if empty.
 START TRANSACTION;
 SET LOCAL search_path TO public;
 
 DO $preflight$
 BEGIN
-    IF current_database() NOT LIKE '%aiocr%' THEN
-        RAISE EXCEPTION 'Current database is "%". Please select the AIOCR database (wardmate_aiocr_db) before running this script.', current_database();
-    END IF;
-
     -- Auto-provision __EFMigrationsHistory if database is brand new
     CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
         migration_id character varying(150) NOT NULL CONSTRAINT pk_ef_migrations_history PRIMARY KEY,
@@ -17,16 +13,16 @@ BEGIN
 
     -- Auto-provision baseline 20261021080951_ChatSessions if missing
     IF to_regclass('public.chat_sessions') IS NULL THEN
-        CREATE TABLE chat_sessions (
+        CREATE TABLE IF NOT EXISTS chat_sessions (
             id uuid NOT NULL DEFAULT gen_random_uuid(),
             user_id uuid NOT NULL,
             ward_code character varying(50) NOT NULL,
             created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT pk_chat_sessions PRIMARY KEY (id)
         );
-        CREATE INDEX ix_chat_sessions_user_id_created_at ON chat_sessions (user_id, created_at);
+        CREATE INDEX IF NOT EXISTS ix_chat_sessions_user_id_created_at ON chat_sessions (user_id, created_at);
 
-        CREATE TABLE chat_messages (
+        CREATE TABLE IF NOT EXISTS chat_messages (
             id uuid NOT NULL DEFAULT gen_random_uuid(),
             session_id uuid NOT NULL,
             role character varying(20) NOT NULL,
@@ -36,7 +32,7 @@ BEGIN
             CONSTRAINT ck_chat_message_role CHECK (role IN ('User','Assistant')),
             CONSTRAINT fk_chat_messages_chat_sessions_session_id FOREIGN KEY (session_id) REFERENCES chat_sessions (id) ON DELETE CASCADE
         );
-        CREATE INDEX ix_chat_messages_session_id_created_at ON chat_messages (session_id, created_at);
+        CREATE INDEX IF NOT EXISTS ix_chat_messages_session_id_created_at ON chat_messages (session_id, created_at);
 
         INSERT INTO "__EFMigrationsHistory" (migration_id, product_version)
         VALUES ('20261021080951_ChatSessions', '8.0.11')

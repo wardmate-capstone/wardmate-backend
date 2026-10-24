@@ -1,4 +1,4 @@
--- Run in the AIOCR database (wardmate_aiocr_db) after aiocr-knowledge-base.sql and before deploying the TASK-29 AIOCR code.
+-- Run in the AIOCR Supabase/PostgreSQL database after aiocr-knowledge-base.sql and before deploying the TASK-29 AIOCR code.
 -- Idempotent: 20261024035926_KnowledgeRetrieval. Vectors are stored as real[]; pgvector is NOT required.
 START TRANSACTION;
 SET LOCAL search_path TO public;
@@ -7,10 +7,6 @@ DO $preflight$
 DECLARE
     v_has_baseline boolean := false;
 BEGIN
-    IF current_database() NOT LIKE '%aiocr%' THEN
-        RAISE EXCEPTION 'Current database is "%". Please select the AIOCR database (wardmate_aiocr_db) before running this script.', current_database();
-    END IF;
-
     IF to_regclass('public.knowledge_documents') IS NULL OR to_regclass('public."__EFMigrationsHistory"') IS NULL THEN
         RAISE EXCEPTION 'knowledge_documents or migration history missing. Run aiocr-knowledge-base.sql in the AIOCR database first.';
     END IF;
