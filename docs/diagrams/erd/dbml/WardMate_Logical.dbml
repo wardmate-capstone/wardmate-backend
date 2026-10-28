@@ -1,0 +1,706 @@
+// ============================================================
+// WardMate – Logical ERD
+// 39 thực thể. Không phụ thuộc DBMS: tên theo property C#, kiểu dữ liệu chung (String, Integer, DateTime, UUID, JSON…), không đánh dấu PK.
+// dbdiagram bắt buộc quan hệ nối giữa 2 cột, nên thuộc tính tham chiếu (vd UserId) được giữ lại làm điểm nối.
+// Quan hệ N–N User–Role, Role–Permission vẽ trực tiếp bằng <> (Physical tách thành user_roles, role_permissions).
+// Tên Ref = động từ quan hệ (đọc từ phía "1" sang phía "nhiều").
+// ============================================================
+
+Table ChatMessage {
+  Id UUID
+  Citations JSON
+  Content String
+  CreatedAt DateTime
+  Role String
+  SessionId UUID
+  Note: 'Tin nhắn trong phiên chat; citations (JSON) lưu các đoạn kiến thức được trích dẫn.'
+}
+
+Table ChatSession {
+  Id UUID
+  CreatedAt DateTime
+  UserId UUID
+  WardCode String
+  Note: 'Phiên chat của người dùng với trợ lý AI.'
+}
+
+Table KnowledgeChunk {
+  Id UUID
+  CharCount Integer
+  ChunkIndex Integer
+  Content String
+  ContentSha256 String
+  CreatedAt DateTime
+  DocumentId UUID
+  EmbeddedAt DateTime
+  Embedding List
+  EmbeddingModel String
+  Heading String
+  Note: 'Đoạn đã chia nhỏ của tài liệu kiến thức, kèm vector embedding.'
+}
+
+Table KnowledgeDocument {
+  Id UUID
+  ChunkCount Integer
+  ChunkedAt DateTime
+  ChunkingVersion String
+  Content String
+  ContentSha256 String
+  CreatedAt DateTime
+  CreatedBy UUID
+  EmbeddedAt DateTime
+  EmbeddingAttempts Integer
+  EmbeddingError String
+  EmbeddingModel String
+  IsActive Boolean
+  NextEmbeddingAt DateTime
+  ProcedureId UUID
+  Revision UUID
+  SourceReference String
+  SourceType String
+  SourceVersion String
+  Status String
+  Title String
+  UpdatedAt DateTime
+  UpdatedBy UUID
+  Note: 'Tài liệu kiến thức cho RAG (từ thủ tục, văn bản tay, FAQ, PDF).'
+}
+
+Table CitizenFeedback {
+  Id UUID
+  ApplicationId UUID
+  CitizenId UUID
+  Comment String
+  CreatedAtUtc DateTime
+  ProcedureId UUID
+  Rating Integer
+  WardCode String
+  Note: 'Đánh giá 1–5 sao của công dân, tối đa 1 đánh giá mỗi hồ sơ.'
+}
+
+Table MetricRefresh {
+  MetricDate Date
+  RefreshedAtUtc DateTime
+  SourceAtUtc DateTime
+  Note: 'Mốc làm mới số liệu thống kê theo ngày (watermark).'
+}
+
+Table OfficerDailyMetric {
+  MetricDate Date
+  WardCode String
+  OfficerId UUID
+  ProcedureId UUID
+  DurationSampleCount Integer
+  ReadyCount Integer
+  RevisionRequestedCount Integer
+  TotalProcessingMinutes Decimal
+  Note: 'Thống kê hiệu suất theo ngày × phường × cán bộ × thủ tục.'
+}
+
+Table ProcedureDailyMetric {
+  MetricDate Date
+  WardCode String
+  ProcedureId UUID
+  CancelledCount Integer
+  LegacyApprovedCount Integer
+  LegacyRejectedCount Integer
+  ReadyCount Integer
+  ReceivedCount Integer
+  ResubmittedCount Integer
+  RevisionRequestedCount Integer
+  Note: 'Thống kê theo ngày × phường × thủ tục (số hồ sơ sẵn sàng, tiếp nhận, nộp lại…).'
+}
+
+Table Notification {
+  Id UUID
+  ActionUrl String
+  ApplicationId UUID
+  Channel String
+  Content String
+  CreatedAt DateTime
+  IsRead Boolean
+  ReadAt DateTime
+  RecipientUserId UUID
+  RecipientWardCode String
+  SourceEventId UUID
+  Title String
+  Type String
+  Note: 'Thông báo cho từng người nhận theo kênh IN_APP/EMAIL/SMS.'
+}
+
+Table NotificationDeliveryAudit {
+  Id UUID
+  Action String
+  ActorId UUID
+  AfterMessageId String
+  AfterRevision UUID
+  AfterState String
+  BeforeAttempts Integer
+  BeforeMessageId String
+  BeforeRevision UUID
+  BeforeState String
+  CreatedAt DateTime
+  DeliveryId UUID
+  Reason String
+  Reference String
+  Note: 'Nhật ký thao tác quản trị trên delivery (replay, đối soát SMS).'
+}
+
+Table NotificationDelivery {
+  Id UUID
+  Attempts Integer
+  Channel String
+  ErrorCode String
+  ExternalMessageId String
+  IsSandbox Boolean
+  NextAttemptAt DateTime
+  NotificationId UUID
+  Provider String
+  Revision UUID
+  SentAt DateTime
+  State String
+  UpdatedAt DateTime
+  Note: 'Trạng thái gửi từng kênh của thông báo (số lần thử, provider, lỗi).'
+}
+
+Table NotificationInbox {
+  Id UUID
+  Attempts Integer
+  CreatedAt DateTime
+  ErrorCode String
+  NextAttemptAt DateTime
+  Payload JSON
+  State String
+  Note: 'Sự kiện nhận từ RabbitMQ (Id = EventId của outbox) để chống xử lý trùng.'
+}
+
+Table ApplicationAssignmentHistory {
+  Id UUID
+  Action String
+  ActorId UUID
+  ApplicationId UUID
+  CreatedAt DateTime
+  FromOfficerId UUID
+  Reason String
+  ToOfficerId UUID
+  Note: 'Lịch sử phân công: CLAIM/ASSIGN/TRANSFER/RELEASE, từ cán bộ nào sang cán bộ nào.'
+}
+
+Table ApplicationChecklistItem {
+  Id UUID
+  ApplicationId UUID
+  CaseCode String
+  Code String
+  ConditionNote String
+  CreatedAt DateTime
+  DocumentCopyType String
+  FileUrl String
+  FormTemplateId UUID
+  IsRequired Boolean
+  Note String
+  Quantity Integer
+  SortOrder Integer
+  Status String
+  SubmissionType String
+  Title String
+  UpdatedAt DateTime
+  Note: 'Danh sách giấy tờ cần nộp, sao chép (snapshot) từ checklist thủ tục lúc tạo hồ sơ.'
+}
+
+Table ApplicationComment {
+  Id UUID
+  ApplicationId UUID
+  ApplicationVersionId UUID
+  CommentText String
+  CreatedAt DateTime
+  FieldLabel String
+  OfficerId UUID
+  Status String
+  TargetId String
+  TargetType String
+  UpdatedAt DateTime
+  Note: 'Nhận xét in-line của cán bộ trên một trường form hoặc một mục checklist của một phiên bản.'
+}
+
+Table Application {
+  Id UUID
+  ApplicationCode String
+  AppointmentDate DateTime
+  ApprovedAt DateTime
+  AssignedAt DateTime
+  AssignedOfficerId UUID
+  AssignedOfficerName String
+  AssignmentVersion Integer
+  CaseCode String
+  CategoryId Integer
+  CategoryName String
+  CreatedAt DateTime
+  DeadlineCalendarCode String
+  DeadlineCalendarVersion String
+  DeadlineHistory JSON
+  DeadlinePausedAtUtc DateTime
+  DeadlinePolicyCode String
+  DeadlinePolicySnapshot JSON
+  DeadlinePolicyVersion String
+  DeadlineStatus String
+  DocumentsReadyAt DateTime
+  DueAtUtc DateTime
+  FirstSubmittedAtUtc DateTime
+  FormData JSON
+  Notes String
+  ProcedureId UUID
+  ProcedureTitle String
+  ReceiptNumber String
+  ReceivedAt DateTime
+  ResubmitCount Integer
+  Status String
+  SubmittedAt DateTime
+  UpdatedAt DateTime
+  UserId UUID
+  WardCode String
+  Note: 'Hồ sơ tiền kiểm của công dân: trạng thái, phường, thủ tục, cán bộ phụ trách, hạn xử lý 45 giờ làm việc, biên nhận tại quầy.'
+}
+
+Table ApplicationStatusHistory {
+  Id UUID
+  ApplicationId UUID
+  ChangedBy UUID
+  CreatedAt DateTime
+  FromStatus String
+  Reason String
+  ToStatus String
+  Note: 'Lịch sử chuyển trạng thái hồ sơ.'
+}
+
+Table ApplicationVersion {
+  Id UUID
+  ApplicationId UUID
+  SnapshotData JSON
+  SubmittedAt DateTime
+  SubmittedBy UUID
+  VersionNumber Integer
+  Note: 'Snapshot mỗi lần công dân nộp/nộp lại hồ sơ (version 1, 2, …).'
+}
+
+Table WorkflowOutbox {
+  Id UUID
+  Attempts Integer
+  CreatedAt DateTime
+  LastError String
+  NextAttemptAt DateTime
+  Payload JSON
+  PublishedAt DateTime
+  Note: 'Outbox sự kiện chờ đẩy sang RabbitMQ (cùng transaction với thay đổi hồ sơ).'
+}
+
+Table ApplicationForm {
+  Id UUID
+  ApplicationId UUID
+  CreatedAtUtc DateTime
+  CreatedBy String
+  DeletedAtUtc DateTime
+  FormData JSON
+  IsDeleted Boolean
+  UpdatedAtUtc DateTime
+  UpdatedBy String
+  Note: 'Dữ liệu form JSON của hồ sơ (lưu riêng ở DocumentForm).'
+}
+
+Table ApprovedQr {
+  Id UUID
+  ApplicationId UUID
+  GeneratedAt DateTime
+  QrCodeValue String
+  QrImagePng Binary
+  SubmissionId UUID
+  Note: 'Mã QR tra cứu nhanh, tối đa 1 mã mỗi hồ sơ (sinh khi hồ sơ sẵn sàng).'
+}
+
+Table FormTemplate {
+  Id UUID
+  Code String
+  CreatedAtUtc DateTime
+  CreatedBy String
+  DeletedAtUtc DateTime
+  FileDocxUrl String
+  IsActive Boolean
+  IsDeleted Boolean
+  Title String
+  UpdatedAtUtc DateTime
+  UpdatedBy String
+  Note: 'Mẫu tờ khai DOCX (mã, tiêu đề).'
+}
+
+Table FormTemplateVersion {
+  Id UUID
+  CreatedAtUtc DateTime
+  CreatedBy String
+  DeletedAtUtc DateTime
+  IsDeleted Boolean
+  MappingDefinition JSON
+  OriginalBlobUrl String
+  OriginalSha256 String
+  SchemaDefinition JSON
+  TemplateId UUID
+  UpdatedAtUtc DateTime
+  UpdatedBy String
+  VersionNumber Integer
+  Note: 'Phiên bản của mẫu: file gốc, JSON schema các trường, mapping placeholder.'
+}
+
+Table GeneratedDocument {
+  Id UUID
+  ApplicationId UUID
+  CreatedAtUtc DateTime
+  CreatedBy String
+  DeletedAtUtc DateTime
+  DocumentType String
+  IsDeleted Boolean
+  PdfBlobUrl String
+  SubmissionId UUID
+  UpdatedAtUtc DateTime
+  UpdatedBy String
+  Note: 'File PDF hệ thống sinh ra từ hồ sơ/tờ khai.'
+}
+
+Table SupportingDocument {
+  Id UUID
+  ApplicationId UUID
+  BlobUrl String
+  ChecklistId UUID
+  ContentType String
+  CreatedAtUtc DateTime
+  CreatedBy String
+  DeletedAtUtc DateTime
+  DocumentCopyType String
+  FileName String
+  FileSizeBytes Integer
+  IsDeleted Boolean
+  Quantity Integer
+  SubmissionType String
+  UpdatedAtUtc DateTime
+  UpdatedBy String
+  Note: 'Giấy tờ minh chứng công dân upload (Blob), gắn với hồ sơ và mục checklist.'
+}
+
+Table FormSubmission {
+  Id UUID
+  ApplicantId UUID
+  ApplicationId UUID
+  BlobUrl String
+  ChecklistId UUID
+  CreatedAtUtc DateTime
+  CreatedBy String
+  DeletedAtUtc DateTime
+  FileName String
+  FileSizeBytes Integer
+  FormData JSON
+  IsDeleted Boolean
+  OfficerComment String
+  ReviewedAt DateTime
+  ReviewedByOfficerId UUID
+  Status String
+  SubmittedAt DateTime
+  TemplateId UUID
+  TemplateVersionId UUID
+  UpdatedAtUtc DateTime
+  UpdatedBy String
+  Note: 'Tờ khai công dân đã điền (online hoặc upload DOCX), gắn với hồ sơ và mục checklist.'
+}
+
+Table Permission {
+  Id Integer
+  Module String
+  PermissionCode String
+  PermissionName String
+  Note: 'Quyền chi tiết (ví dụ workflow.assign.manage, knowledge.manage), nhóm theo module.'
+}
+
+Table RbacAuditLog {
+  Id UUID
+  Action String
+  ActorUserId UUID
+  CreatedAt DateTime
+  Details JSON
+  PermissionId Integer
+  RoleId Integer
+  TargetUserId UUID
+  Note: 'Nhật ký thay đổi phân quyền (ai đổi, đổi cho ai, role/permission nào).'
+}
+
+Table RefreshToken {
+  Id UUID
+  CreatedAt DateTime
+  ExpiresAt DateTime
+  IsRevoked Boolean
+  Token String
+  UserId UUID
+  Note: 'Refresh token đăng nhập (rotation/revoke).'
+}
+
+Table Role {
+  Id Integer
+  Description String
+  RoleName String
+  Note: 'Vai trò RBAC: REGISTERED_CITIZEN, FRONT_DESK_OFFICER, MANAGER, PROCEDURE_MANAGER, IT_ADMIN.'
+}
+
+Table User {
+  Id UUID
+  AssignedCategories List
+  CreatedAt DateTime
+  Email String
+  IsActive Boolean
+  PasswordHash String
+  SecurityStamp UUID
+  UpdatedAt DateTime
+  Username String
+  VerifiedPhoneNumber String
+  WardId UUID
+  Note: 'Tài khoản đăng nhập của mọi vai trò. ward_id = phường trực thuộc; assigned_categories = các lĩnh vực cán bộ phụ trách (mảng rỗng = mọi lĩnh vực).'
+}
+
+Table UserOtp {
+  Id UUID
+  Attempts Integer
+  Channel String
+  CreatedAtUtc DateTime
+  ExpiresAtUtc DateTime
+  IsUsed Boolean
+  OtpHash String
+  Purpose String
+  TargetPhoneNumber String
+  UserId UUID
+  Note: 'OTP đổi mật khẩu/quên mật khẩu/xác minh số điện thoại (lưu hash, tối đa 5 lần sai).'
+}
+
+Table UserProfile {
+  UserId UUID
+  DateOfBirth Date
+  FullName String
+  Gender String
+  IdentityNumber String
+  PermanentAddress String
+  PhoneNumber String
+  TemporaryAddress String
+  UpdatedAt DateTime
+  Note: 'Thông tin cá nhân, quan hệ 1–1 với users (PK cũng là FK user_id).'
+}
+
+Table Ward {
+  Id UUID
+  Code String
+  Name String
+  Note: 'Danh mục phường/xã. Các service khác tham chiếu bằng code (không phải id).'
+}
+
+Table WelcomeEmail {
+  Id UUID
+  Attempts Integer
+  NextAttemptAtUtc DateTime
+  SentAtUtc DateTime
+  UserId UUID
+  Note: 'Hàng đợi gửi email chào mừng, tối đa 1 bản ghi mỗi user.'
+}
+
+Table Procedure {
+  Id UUID
+  CategoryId Integer
+  ChecklistSchema JSON
+  ContentPayload JSON
+  CreatedAt DateTime
+  ExecutingAgency String
+  FeeSummary String
+  FormDefinitions JSON
+  IsActive Boolean
+  IssuingAuthority String
+  LevelOfImplementation String
+  OriginalPdfUrl String
+  PdfFileName String
+  ProcedureCode String
+  ProcessingTimeSummary String
+  StatusChangeReason String
+  TargetAudience String
+  Title String
+  UpdatedAt DateTime
+  Note: 'Thủ tục hành chính đang công bố; nội dung, checklist giấy tờ và biểu mẫu lưu JSONB.'
+}
+
+Table ProcedureCategory {
+  Id Integer
+  CategoryName String
+  Description String
+  Note: 'Lĩnh vực thủ tục (ví dụ Hộ tịch, Chứng thực).'
+}
+
+Table ProcedureDraft {
+  Id UUID
+  Attempts Integer
+  BlobName String
+  CreatedAt DateTime
+  CreatedBy String
+  ExtractedText String
+  FailureCode String
+  LeaseId UUID
+  LeaseUntil DateTime
+  OriginalPdfUrl String
+  PayloadJson JSON
+  PdfFileName String
+  PublishedProcedureId UUID
+  ReviewedBy String
+  Revision UUID
+  Status String
+  UpdatedAt DateTime
+  WarningsJson JSON
+  Note: 'Bản nháp thủ tục tạo từ PDF + AI bóc tách; khi publish thì ghi published_procedure_id.'
+}
+
+Table ProcedureVersion {
+  Id UUID
+  CreatedAt DateTime
+  DecisionNumber String
+  EffectiveDate Date
+  OriginalPdfUrl String
+  PdfFileName String
+  ProcedureId UUID
+  SnapshotData JSON
+  VersionNumber Integer
+  Note: 'Lịch sử phiên bản thủ tục (snapshot JSON, số quyết định, ngày hiệu lực).'
+}
+
+Ref contains: ChatMessage.SessionId > ChatSession.Id
+Ref is_split_into: KnowledgeChunk.DocumentId > KnowledgeDocument.Id
+Ref is_delivered_via: NotificationDelivery.NotificationId > Notification.Id
+Ref logs_assignment: ApplicationAssignmentHistory.ApplicationId > Application.Id
+Ref contains_2: ApplicationChecklistItem.ApplicationId > Application.Id
+Ref has: ApplicationComment.ApplicationId > Application.Id
+Ref receives: ApplicationComment.(ApplicationId, ApplicationVersionId) > ApplicationVersion.(ApplicationId, Id)
+Ref logs_status: ApplicationStatusHistory.ApplicationId > Application.Id
+Ref has_2: ApplicationVersion.ApplicationId > Application.Id
+Ref has_3: FormTemplateVersion.TemplateId > FormTemplate.Id
+Ref is_filled_as: FormSubmission.TemplateVersionId > FormTemplateVersion.Id
+Ref owns: RefreshToken.UserId > User.Id
+Ref has_4: User.WardId > Ward.Id
+Ref requests: UserOtp.UserId > User.Id
+Ref has_5: UserProfile.UserId - User.Id
+Ref is_sent: WelcomeEmail.UserId - User.Id
+Ref classifies: Procedure.CategoryId > ProcedureCategory.Id
+Ref has_6: ProcedureVersion.ProcedureId > Procedure.Id
+Ref is_assigned: User.Id <> Role.Id
+Ref grants: Role.Id <> Permission.Id
+Ref performs_actor: RbacAuditLog.ActorUserId > User.Id
+Ref is_target_of: RbacAuditLog.TargetUserId > User.Id
+Ref is_audited_in: RbacAuditLog.RoleId > Role.Id
+Ref is_audited_in_2: RbacAuditLog.PermissionId > Permission.Id
+Ref specializes_in: User.AssignedCategories <> ProcedureCategory.Id
+Ref uploads: ProcedureDraft.CreatedBy > User.Id
+Ref reviews: ProcedureDraft.ReviewedBy > User.Id
+Ref is_published_from: ProcedureDraft.PublishedProcedureId > Procedure.Id
+Ref uses: Procedure.FormDefinitions <> FormTemplate.Id
+Ref submits_applicant: Application.UserId > User.Id
+Ref handles_assigned_officer: Application.AssignedOfficerId > User.Id
+Ref receives_2: Application.WardCode > Ward.Code
+Ref is_applied_for_in: Application.ProcedureId > Procedure.Id
+Ref categorizes_snapshot: Application.CategoryId > ProcedureCategory.Id
+Ref submits_version: ApplicationVersion.SubmittedBy > User.Id
+Ref writes: ApplicationComment.OfficerId > User.Id
+Ref changes_status: ApplicationStatusHistory.ChangedBy > User.Id
+Ref performs_assignment: ApplicationAssignmentHistory.ActorId > User.Id
+Ref is_released_from: ApplicationAssignmentHistory.FromOfficerId > User.Id
+Ref is_assigned_to: ApplicationAssignmentHistory.ToOfficerId > User.Id
+Ref is_required_by: ApplicationChecklistItem.FormTemplateId > FormTemplate.Id
+Ref emits_event: WorkflowOutbox.Payload > Application.Id
+Ref fills: FormSubmission.ApplicantId > User.Id
+Ref reviews_2: FormSubmission.ReviewedByOfficerId > User.Id
+Ref is_filled_from: FormSubmission.TemplateId > FormTemplate.Id
+Ref includes: FormSubmission.ApplicationId > Application.Id
+Ref is_fulfilled_by: FormSubmission.ChecklistId > ApplicationChecklistItem.Id
+Ref stores_form_data_in: ApplicationForm.ApplicationId > Application.Id
+Ref attaches: SupportingDocument.ApplicationId > Application.Id
+Ref is_proven_by: SupportingDocument.ChecklistId > ApplicationChecklistItem.Id
+Ref produces: GeneratedDocument.ApplicationId > Application.Id
+Ref is_rendered_as: GeneratedDocument.SubmissionId > FormSubmission.Id
+Ref is_identified_by: ApprovedQr.ApplicationId - Application.Id
+Ref is_encoded_in: ApprovedQr.SubmissionId > FormSubmission.Id
+Ref opens: ChatSession.UserId > User.Id
+Ref scopes: ChatSession.WardCode > Ward.Code
+Ref creates: KnowledgeDocument.CreatedBy > User.Id
+Ref updates: KnowledgeDocument.UpdatedBy > User.Id
+Ref is_indexed_as: KnowledgeDocument.ProcedureId - Procedure.Id
+Ref is_cited_by: ChatMessage.Citations <> KnowledgeChunk.Id
+Ref receives_3: Notification.RecipientUserId > User.Id
+Ref scopes_2: Notification.RecipientWardCode > Ward.Code
+Ref triggers: Notification.ApplicationId > Application.Id
+Ref creates_2: Notification.SourceEventId > NotificationInbox.Id
+Ref is_consumed_as: NotificationInbox.Id - WorkflowOutbox.Id
+Ref is_audited_in_3: NotificationDeliveryAudit.DeliveryId > NotificationDelivery.Id
+Ref administers: NotificationDeliveryAudit.ActorId > User.Id
+Ref is_rated_by: CitizenFeedback.ApplicationId - Application.Id
+Ref gives: CitizenFeedback.CitizenId > User.Id
+Ref is_rated_in: CitizenFeedback.ProcedureId > Procedure.Id
+Ref collects: CitizenFeedback.WardCode > Ward.Code
+Ref is_measured_in: OfficerDailyMetric.OfficerId > User.Id
+Ref is_measured_in_2: OfficerDailyMetric.ProcedureId > Procedure.Id
+Ref is_measured_in_3: OfficerDailyMetric.WardCode > Ward.Code
+Ref is_measured_in_4: ProcedureDailyMetric.ProcedureId > Procedure.Id
+Ref is_measured_in_5: ProcedureDailyMetric.WardCode > Ward.Code
+
+TableGroup Identity_and_Access {
+  Permission
+  RbacAuditLog
+  RefreshToken
+  Role
+  User
+  UserOtp
+  UserProfile
+  Ward
+  WelcomeEmail
+}
+
+TableGroup Procedure_Catalog {
+  Procedure
+  ProcedureCategory
+  ProcedureDraft
+  ProcedureVersion
+}
+
+TableGroup Application_Workflow {
+  ApplicationAssignmentHistory
+  ApplicationChecklistItem
+  ApplicationComment
+  Application
+  ApplicationStatusHistory
+  ApplicationVersion
+  WorkflowOutbox
+}
+
+TableGroup Documents_and_Forms {
+  ApplicationForm
+  ApprovedQr
+  FormTemplate
+  FormTemplateVersion
+  GeneratedDocument
+  SupportingDocument
+  FormSubmission
+}
+
+TableGroup AI_Assistant {
+  ChatMessage
+  ChatSession
+  KnowledgeChunk
+  KnowledgeDocument
+}
+
+TableGroup Notifications {
+  Notification
+  NotificationDeliveryAudit
+  NotificationDelivery
+  NotificationInbox
+}
+
+TableGroup Analytics {
+  CitizenFeedback
+  MetricRefresh
+  OfficerDailyMetric
+  ProcedureDailyMetric
+}

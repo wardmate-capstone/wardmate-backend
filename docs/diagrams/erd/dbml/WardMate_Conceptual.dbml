@@ -1,0 +1,278 @@
+// ============================================================
+// WardMate – Conceptual ERD
+// 33 thực thể nghiệp vụ, 46 quan hệ + generalization User → 5 vai trò.
+// dbdiagram bắt buộc mỗi bảng có ít nhất 1 dòng: dòng duy nhất ghi nghĩa tiếng Việt (không phải thuộc tính).
+// Generalization (is a) vẽ bằng quan hệ một-một tên is_a_User; dbdiagram không có ký hiệu tam giác UML.
+// dbdiagram chỉ hiển thị 1 và *, không phân biệt bắt buộc/tùy chọn (0..1, 0..*) – bản số đầy đủ ghi ở comment // cuối mỗi Ref và trong WardMate_ERD_GUIDE.md.
+// ============================================================
+
+Table Ward {
+  "Phường/xã" concept
+  Note: 'Bảng vật lý: wards'
+}
+
+Table User {
+  "Tài khoản người dùng" concept
+  Note: 'Bảng vật lý: users, user_profiles'
+}
+
+Table Role {
+  "Vai trò RBAC" concept
+  Note: 'Bảng vật lý: roles, user_roles'
+}
+
+Table Permission {
+  "Quyền" concept
+  Note: 'Bảng vật lý: permissions, role_permissions'
+}
+
+Table Citizen {
+  "Công dân" concept
+  Note: 'Bảng vật lý: users + user_roles'
+}
+
+Table FrontDeskOfficer {
+  "Cán bộ Một cửa" concept
+  Note: 'Bảng vật lý: users + user_roles'
+}
+
+Table Manager {
+  "Lãnh đạo/quản lý phường" concept
+  Note: 'Bảng vật lý: users + user_roles'
+}
+
+Table ProcedureManager {
+  "Cán bộ quản lý thủ tục" concept
+  Note: 'Bảng vật lý: users + user_roles'
+}
+
+Table ITAdmin {
+  "Quản trị hệ thống" concept
+  Note: 'Bảng vật lý: users + user_roles'
+}
+
+Table ProcedureCategory {
+  "Lĩnh vực thủ tục" concept
+  Note: 'Bảng vật lý: procedure_categories'
+}
+
+Table Procedure {
+  "Thủ tục hành chính" concept
+  Note: 'Bảng vật lý: procedures'
+}
+
+Table ProcedureVersion {
+  "Phiên bản thủ tục" concept
+  Note: 'Bảng vật lý: procedure_versions'
+}
+
+Table ProcedureDraft {
+  "Bản nháp thủ tục từ PDF" concept
+  Note: 'Bảng vật lý: procedure_drafts'
+}
+
+Table Application {
+  "Hồ sơ tiền kiểm" concept
+  Note: 'Bảng vật lý: applications'
+}
+
+Table ApplicationVersion {
+  "Lần nộp hồ sơ" concept
+  Note: 'Bảng vật lý: application_versions'
+}
+
+Table ChecklistItem {
+  "Mục giấy tờ cần nộp" concept
+  Note: 'Bảng vật lý: application_checklists'
+}
+
+Table ReviewComment {
+  "Nhận xét của cán bộ" concept
+  Note: 'Bảng vật lý: application_comments'
+}
+
+Table StatusChange {
+  "Lần chuyển trạng thái" concept
+  Note: 'Bảng vật lý: application_status_history'
+}
+
+Table AssignmentRecord {
+  "Lần phân công" concept
+  Note: 'Bảng vật lý: application_assignment_history'
+}
+
+Table FormTemplate {
+  "Mẫu tờ khai" concept
+  Note: 'Bảng vật lý: form_templates'
+}
+
+Table FormTemplateVersion {
+  "Phiên bản mẫu tờ khai" concept
+  Note: 'Bảng vật lý: form_template_versions'
+}
+
+Table FormSubmission {
+  "Tờ khai đã điền" concept
+  Note: 'Bảng vật lý: user_submissions'
+}
+
+Table ApplicationFormData {
+  "Dữ liệu form của hồ sơ" concept
+  Note: 'Bảng vật lý: application_forms'
+}
+
+Table SupportingDocument {
+  "Giấy tờ minh chứng" concept
+  Note: 'Bảng vật lý: supporting_documents'
+}
+
+Table GeneratedDocument {
+  "PDF hệ thống sinh" concept
+  Note: 'Bảng vật lý: generated_documents'
+}
+
+Table ApprovedQR {
+  "Mã QR tra cứu" concept
+  Note: 'Bảng vật lý: approved_qrs'
+}
+
+Table ChatSession {
+  "Phiên chat AI" concept
+  Note: 'Bảng vật lý: chat_sessions'
+}
+
+Table ChatMessage {
+  "Tin nhắn chat" concept
+  Note: 'Bảng vật lý: chat_messages'
+}
+
+Table KnowledgeDocument {
+  "Tài liệu kiến thức" concept
+  Note: 'Bảng vật lý: knowledge_documents'
+}
+
+Table KnowledgeChunk {
+  "Đoạn kiến thức" concept
+  Note: 'Bảng vật lý: knowledge_chunks'
+}
+
+Table Notification {
+  "Thông báo" concept
+  Note: 'Bảng vật lý: notifications, notification_deliveries'
+}
+
+Table CitizenFeedback {
+  "Đánh giá của công dân" concept
+  Note: 'Bảng vật lý: citizen_feedback'
+}
+
+Table PerformanceStatistic {
+  "Số liệu thống kê" concept
+  Note: 'Bảng vật lý: daily_performance_metrics, application_procedure_metrics'
+}
+
+Ref is_a_User_Citizen: Citizen."Công dân" - User."Tài khoản người dùng"
+Ref is_a_User_FrontDeskOfficer: FrontDeskOfficer."Cán bộ Một cửa" - User."Tài khoản người dùng"
+Ref is_a_User_Manager: Manager."Lãnh đạo/quản lý phường" - User."Tài khoản người dùng"
+Ref is_a_User_ProcedureManager: ProcedureManager."Cán bộ quản lý thủ tục" - User."Tài khoản người dùng"
+Ref is_a_User_ITAdmin: ITAdmin."Quản trị hệ thống" - User."Tài khoản người dùng"
+Ref Ward_has_User: User."Tài khoản người dùng" > Ward."Phường/xã" // Ward (0..1) has User (0..*)
+Ref User_plays_Role: Role."Vai trò RBAC" <> User."Tài khoản người dùng" // User (0..*) plays Role (0..*)
+Ref Role_grants_Permission: Permission."Quyền" <> Role."Vai trò RBAC" // Role (0..*) grants Permission (0..*)
+Ref ITAdmin_manages_Role: Role."Vai trò RBAC" > ITAdmin."Quản trị hệ thống" // IT Admin (1) manages Role (0..*)
+Ref ProcedureCategory_classifies_Procedure: Procedure."Thủ tục hành chính" > ProcedureCategory."Lĩnh vực thủ tục" // Procedure Category (1) classifies Procedure (0..*)
+Ref FrontDeskOfficer_specializes_in_ProcedureCategory: ProcedureCategory."Lĩnh vực thủ tục" <> FrontDeskOfficer."Cán bộ Một cửa" // Front Desk Officer (0..*) specializes in Procedure Category (0..*)
+Ref Procedure_has_ProcedureVersion: ProcedureVersion."Phiên bản thủ tục" > Procedure."Thủ tục hành chính" // Procedure (1) has Procedure Version (0..*)
+Ref ProcedureManager_uploads_ProcedureDraft: ProcedureDraft."Bản nháp thủ tục từ PDF" > ProcedureManager."Cán bộ quản lý thủ tục" // Procedure Manager (1) uploads Procedure Draft (0..*)
+Ref Procedure_is_published_from_ProcedureDraft: ProcedureDraft."Bản nháp thủ tục từ PDF" > Procedure."Thủ tục hành chính" // Procedure (0..1) is published from Procedure Draft (0..*)
+Ref Procedure_uses_FormTemplate: FormTemplate."Mẫu tờ khai" <> Procedure."Thủ tục hành chính" // Procedure (0..*) uses Form Template (0..*)
+Ref Citizen_submits_Application: Application."Hồ sơ tiền kiểm" > Citizen."Công dân" // Citizen (1) submits Application (0..*)
+Ref FrontDeskOfficer_handles_Application: Application."Hồ sơ tiền kiểm" > FrontDeskOfficer."Cán bộ Một cửa" // Front Desk Officer (0..1) handles Application (0..*)
+Ref Ward_receives_Application: Application."Hồ sơ tiền kiểm" > Ward."Phường/xã" // Ward (0..1) receives Application (0..*)
+Ref Procedure_is_applied_for_in_Application: Application."Hồ sơ tiền kiểm" > Procedure."Thủ tục hành chính" // Procedure (1) is applied for in Application (0..*)
+Ref Application_has_ApplicationVersion: ApplicationVersion."Lần nộp hồ sơ" > Application."Hồ sơ tiền kiểm" // Application (1) has Application Version (0..*)
+Ref Application_contains_ChecklistItem: ChecklistItem."Mục giấy tờ cần nộp" > Application."Hồ sơ tiền kiểm" // Application (1) contains Checklist Item (0..*)
+Ref ApplicationVersion_receives_ReviewComment: ReviewComment."Nhận xét của cán bộ" > ApplicationVersion."Lần nộp hồ sơ" // Application Version (1) receives Review Comment (0..*)
+Ref FrontDeskOfficer_writes_ReviewComment: ReviewComment."Nhận xét của cán bộ" > FrontDeskOfficer."Cán bộ Một cửa" // Front Desk Officer (1) writes Review Comment (0..*)
+Ref Application_logs_StatusChange: StatusChange."Lần chuyển trạng thái" > Application."Hồ sơ tiền kiểm" // Application (1) logs Status Change (0..*)
+Ref User_makes_StatusChange: StatusChange."Lần chuyển trạng thái" > User."Tài khoản người dùng" // User (1) makes Status Change (0..*)
+Ref Application_logs_AssignmentRecord: AssignmentRecord."Lần phân công" > Application."Hồ sơ tiền kiểm" // Application (1) logs Assignment Record (0..*)
+Ref User_performs_AssignmentRecord: AssignmentRecord."Lần phân công" > User."Tài khoản người dùng" // User (1) performs Assignment Record (0..*)
+Ref Manager_reassigns_AssignmentRecord: AssignmentRecord."Lần phân công" > Manager."Lãnh đạo/quản lý phường" // Manager (0..1) reassigns Assignment Record (0..*)
+Ref FormTemplate_is_required_by_ChecklistItem: ChecklistItem."Mục giấy tờ cần nộp" > FormTemplate."Mẫu tờ khai" // Form Template (0..1) is required by Checklist Item (0..*)
+Ref FormTemplate_has_FormTemplateVersion: FormTemplateVersion."Phiên bản mẫu tờ khai" > FormTemplate."Mẫu tờ khai" // Form Template (1) has Form Template Version (0..*)
+Ref FormTemplateVersion_is_filled_as_FormSubmission: FormSubmission."Tờ khai đã điền" > FormTemplateVersion."Phiên bản mẫu tờ khai" // Form Template Version (0..1) is filled as Form Submission (0..*)
+Ref Citizen_fills_FormSubmission: FormSubmission."Tờ khai đã điền" > Citizen."Công dân" // Citizen (1) fills Form Submission (0..*)
+Ref ChecklistItem_is_fulfilled_by_FormSubmission: FormSubmission."Tờ khai đã điền" - ChecklistItem."Mục giấy tờ cần nộp" // Checklist Item (0..1) is fulfilled by Form Submission (0..1)
+Ref Application_stores_ApplicationFormData: ApplicationFormData."Dữ liệu form của hồ sơ" > Application."Hồ sơ tiền kiểm" // Application (1) stores Application Form Data (0..*)
+Ref ChecklistItem_is_proven_by_SupportingDocument: SupportingDocument."Giấy tờ minh chứng" > ChecklistItem."Mục giấy tờ cần nộp" // Checklist Item (0..1) is proven by Supporting Document (0..*)
+Ref Application_attaches_SupportingDocument: SupportingDocument."Giấy tờ minh chứng" > Application."Hồ sơ tiền kiểm" // Application (1) attaches Supporting Document (0..*)
+Ref Application_produces_GeneratedDocument: GeneratedDocument."PDF hệ thống sinh" > Application."Hồ sơ tiền kiểm" // Application (1) produces Generated Document (0..*)
+Ref Application_is_identified_by_ApprovedQR: ApprovedQR."Mã QR tra cứu" - Application."Hồ sơ tiền kiểm" // Application (1) is identified by Approved QR (0..1)
+Ref Citizen_opens_ChatSession: ChatSession."Phiên chat AI" > Citizen."Công dân" // Citizen (1) opens Chat Session (0..*)
+Ref ChatSession_contains_ChatMessage: ChatMessage."Tin nhắn chat" > ChatSession."Phiên chat AI" // Chat Session (1) contains Chat Message (0..*)
+Ref ProcedureManager_manages_KnowledgeDocument: KnowledgeDocument."Tài liệu kiến thức" > ProcedureManager."Cán bộ quản lý thủ tục" // Procedure Manager (1) manages Knowledge Document (0..*)
+Ref Procedure_is_indexed_as_KnowledgeDocument: KnowledgeDocument."Tài liệu kiến thức" - Procedure."Thủ tục hành chính" // Procedure (0..1) is indexed as Knowledge Document (0..1)
+Ref KnowledgeDocument_is_split_into_KnowledgeChunk: KnowledgeChunk."Đoạn kiến thức" > KnowledgeDocument."Tài liệu kiến thức" // Knowledge Document (1) is split into Knowledge Chunk (0..*)
+Ref ChatMessage_cites_KnowledgeChunk: KnowledgeChunk."Đoạn kiến thức" <> ChatMessage."Tin nhắn chat" // Chat Message (0..*) cites Knowledge Chunk (0..*)
+Ref User_receives_Notification: Notification."Thông báo" > User."Tài khoản người dùng" // User (1) receives Notification (0..*)
+Ref Application_triggers_Notification: Notification."Thông báo" > Application."Hồ sơ tiền kiểm" // Application (0..1) triggers Notification (0..*)
+Ref Citizen_gives_CitizenFeedback: CitizenFeedback."Đánh giá của công dân" > Citizen."Công dân" // Citizen (1) gives Citizen Feedback (0..*)
+Ref Application_is_rated_by_CitizenFeedback: CitizenFeedback."Đánh giá của công dân" - Application."Hồ sơ tiền kiểm" // Application (1) is rated by Citizen Feedback (0..1)
+Ref FrontDeskOfficer_is_measured_by_PerformanceStatistic: PerformanceStatistic."Số liệu thống kê" > FrontDeskOfficer."Cán bộ Một cửa" // Front Desk Officer (1) is measured by Performance Statistic (0..*)
+Ref Procedure_is_measured_by_PerformanceStatistic: PerformanceStatistic."Số liệu thống kê" > Procedure."Thủ tục hành chính" // Procedure (1) is measured by Performance Statistic (0..*)
+Ref Ward_is_measured_by_PerformanceStatistic: PerformanceStatistic."Số liệu thống kê" > Ward."Phường/xã" // Ward (1) is measured by Performance Statistic (0..*)
+
+TableGroup IAM {
+  Ward
+  User
+  Role
+  Permission
+  Citizen
+  FrontDeskOfficer
+  Manager
+  ProcedureManager
+  ITAdmin
+}
+
+TableGroup Catalog {
+  ProcedureCategory
+  Procedure
+  ProcedureVersion
+  ProcedureDraft
+}
+
+TableGroup Workflow {
+  Application
+  ApplicationVersion
+  ChecklistItem
+  ReviewComment
+  StatusChange
+  AssignmentRecord
+}
+
+TableGroup Document {
+  FormTemplate
+  FormTemplateVersion
+  FormSubmission
+  ApplicationFormData
+  SupportingDocument
+  GeneratedDocument
+  ApprovedQR
+}
+
+TableGroup AI {
+  ChatSession
+  ChatMessage
+  KnowledgeDocument
+  KnowledgeChunk
+}
+
+TableGroup Notification {
+  Notification
+}
+
+TableGroup Analytics {
+  CitizenFeedback
+  PerformanceStatistic
+}
