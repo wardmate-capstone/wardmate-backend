@@ -1,0 +1,231 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1102" viewBox="0 0 2200 1102" font-family="Segoe UI, Arial, sans-serif">
+<defs><marker id="open" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M1 1 L11 6 L1 11" fill="none" stroke="#334155" stroke-width="1.4"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="110" y="52" font-size="26" font-weight="700" fill="#0f172a">WardMate Backend — Package Diagram</text>
+<text x="110" y="76" font-size="13" fill="#475569">.NET 8 · Clean Architecture · database-per-service · dependencies = ProjectReference in each .csproj</text>
+<path d="M110 236 h90 v18 h210 v540 h-300 Z" fill="#f8fafc" stroke="#475569" stroke-width="1.6"/>
+<line x1="110" y1="254" x2="200" y2="254" stroke="#475569" stroke-width="1.2"/>
+<text x="118" y="249" font-size="11" fill="#475569">«service»</text>
+<text x="118" y="271" font-size="14" font-weight="700" fill="#0f172a">WardMate.Services.IAM</text>
+<path d="M446 236 h90 v18 h210 v540 h-300 Z" fill="#f8fafc" stroke="#475569" stroke-width="1.6"/>
+<line x1="446" y1="254" x2="536" y2="254" stroke="#475569" stroke-width="1.2"/>
+<text x="454" y="249" font-size="11" fill="#475569">«service»</text>
+<text x="454" y="271" font-size="14" font-weight="700" fill="#0f172a">WardMate.Services.ProcedureCatalog</text>
+<path d="M782 236 h90 v18 h210 v540 h-300 Z" fill="#f8fafc" stroke="#475569" stroke-width="1.6"/>
+<line x1="782" y1="254" x2="872" y2="254" stroke="#475569" stroke-width="1.2"/>
+<text x="790" y="249" font-size="11" fill="#475569">«service»</text>
+<text x="790" y="271" font-size="14" font-weight="700" fill="#0f172a">WardMate.Services.DocumentForm</text>
+<path d="M1118 236 h90 v18 h210 v540 h-300 Z" fill="#f8fafc" stroke="#475569" stroke-width="1.6"/>
+<line x1="1118" y1="254" x2="1208" y2="254" stroke="#475569" stroke-width="1.2"/>
+<text x="1126" y="249" font-size="11" fill="#475569">«service»</text>
+<text x="1126" y="271" font-size="14" font-weight="700" fill="#0f172a">WardMate.Services.AIOCR</text>
+<path d="M1454 236 h90 v18 h210 v540 h-300 Z" fill="#f8fafc" stroke="#475569" stroke-width="1.6"/>
+<line x1="1454" y1="254" x2="1544" y2="254" stroke="#475569" stroke-width="1.2"/>
+<text x="1462" y="249" font-size="11" fill="#475569">«service»</text>
+<text x="1462" y="271" font-size="14" font-weight="700" fill="#0f172a">WardMate.Services.ApplicationWorkflow</text>
+<path d="M1790 236 h90 v18 h210 v540 h-300 Z" fill="#f8fafc" stroke="#475569" stroke-width="1.6"/>
+<line x1="1790" y1="254" x2="1880" y2="254" stroke="#475569" stroke-width="1.2"/>
+<text x="1798" y="249" font-size="11" fill="#475569">«service»</text>
+<text x="1798" y="271" font-size="14" font-weight="700" fill="#0f172a">WardMate.Services.AnalyticsSystem</text>
+<path d="M870 96 h90 v18 h370 v56 h-460 Z" fill="#e0f2fe" stroke="#0369a1" stroke-width="1.2"/>
+<line x1="870" y1="114" x2="960" y2="114" stroke="#0369a1" stroke-width="1.2"/>
+<text x="878" y="109" font-size="11" fill="#0369a1">«gateway»</text>
+<text x="878" y="131" font-size="12.5" font-weight="700" fill="#0f172a">WardMate.YarpGateway</text>
+<text x="878" y="148" font-size="11" fill="#334155">YARP reverse proxy: routes /api/v1/* to 6 service clusters (Program.cs,</text>
+<text x="878" y="163" font-size="11" fill="#334155">appsettings.json)</text>
+<path d="M110 890 h132 v18 h1442 v74 h-1574 Z" fill="#fef9c3" stroke="#a16207" stroke-width="1.2"/>
+<line x1="110" y1="908" x2="242" y2="908" stroke="#a16207" stroke-width="1.2"/>
+<text x="118" y="903" font-size="11" fill="#a16207">«building block»</text>
+<text x="118" y="925" font-size="12.5" font-weight="700" fill="#0f172a">WardMate.SharedKernel</text>
+<text x="118" y="942" font-size="11" fill="#334155">Blob, CQRS, Common (Result, Error), Domain, Logging, Web (ProblemDetails, auth helpers)</text>
+<path d="M1810 890 h132 v18 h108 v74 h-240 Z" fill="#fef9c3" stroke="#a16207" stroke-width="1.2"/>
+<line x1="1810" y1="908" x2="1942" y2="908" stroke="#a16207" stroke-width="1.2"/>
+<text x="1818" y="903" font-size="11" fill="#a16207">«building block»</text>
+<text x="1818" y="925" font-size="12.5" font-weight="700" fill="#0f172a">WardMate.EventBus</text>
+<text x="1818" y="942" font-size="11" fill="#334155">RabbitTransport, WorkflowEvent</text>
+<path d="M124 282 h90 v18 h158 v75 h-248 Z" fill="#dbeafe" stroke="#2563eb" stroke-width="1.2"/>
+<line x1="124" y1="300" x2="214" y2="300" stroke="#2563eb" stroke-width="1.2"/>
+<text x="132" y="317" font-size="12.5" font-weight="700" fill="#0f172a">IAM.API</text>
+<text x="132" y="334" font-size="11" fill="#334155">Controllers, Authorization, Security,</text>
+<text x="132" y="349" font-size="11" fill="#334155">OpenApi, Errors</text>
+<path d="M124 405 h136.4 v18 h111.6 v75 h-248 Z" fill="#ffedd5" stroke="#ea580c" stroke-width="1.2"/>
+<line x1="124" y1="423" x2="260.4" y2="423" stroke="#ea580c" stroke-width="1.2"/>
+<text x="132" y="440" font-size="12.5" font-weight="700" fill="#0f172a">IAM.Infrastructure</text>
+<text x="132" y="457" font-size="11" fill="#334155">Persistence (IamDbContext, stores),</text>
+<text x="132" y="472" font-size="11" fill="#334155">Security (JWT, BCrypt, OTP, Email,</text>
+<text x="132" y="487" font-size="11" fill="#334155">SMS, workers)</text>
+<path d="M124 528 h125 v18 h123 v90 h-248 Z" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<line x1="124" y1="546" x2="249" y2="546" stroke="#16a34a" stroke-width="1.2"/>
+<text x="132" y="563" font-size="12.5" font-weight="700" fill="#0f172a">IAM.Application</text>
+<text x="132" y="580" font-size="11" fill="#334155">Accounts, Commands, Queries, Profiles,</text>
+<text x="132" y="595" font-size="11" fill="#334155">Rbac, Validation, DTOs, Interfaces</text>
+<path d="M124 666 h90 v18 h158 v90 h-248 Z" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+<line x1="124" y1="684" x2="214" y2="684" stroke="#7c3aed" stroke-width="1.2"/>
+<text x="132" y="701" font-size="12.5" font-weight="700" fill="#0f172a">IAM.Domain</text>
+<text x="132" y="718" font-size="11" fill="#334155">Entities (User, UserProfile, Role,</text>
+<text x="132" y="733" font-size="11" fill="#334155">Permission, UserRole, RolePermission,</text>
+<text x="132" y="748" font-size="11" fill="#334155">Ward, UserOtp, RefreshToken,</text>
+<text x="132" y="763" font-size="11" fill="#334155">RbacAuditLog)</text>
+<path d="M460 282 h136.4 v18 h111.6 v75 h-248 Z" fill="#dbeafe" stroke="#2563eb" stroke-width="1.2"/>
+<line x1="460" y1="300" x2="596.4" y2="300" stroke="#2563eb" stroke-width="1.2"/>
+<text x="468" y="317" font-size="12.5" font-weight="700" fill="#0f172a">ProcedureCatalog.API</text>
+<text x="468" y="334" font-size="11" fill="#334155">Controllers, Security</text>
+<path d="M460 405 h136.4 v18 h111.6 v75 h-248 Z" fill="#ffedd5" stroke="#ea580c" stroke-width="1.2"/>
+<line x1="460" y1="423" x2="596.4" y2="423" stroke="#ea580c" stroke-width="1.2"/>
+<text x="468" y="440" font-size="12.5" font-weight="700" fill="#0f172a">ProcedureCatalog.Infrastructure</text>
+<text x="468" y="457" font-size="11" fill="#334155">Persistence, Drafts (AiOcrClient,</text>
+<text x="468" y="472" font-size="11" fill="#334155">DraftExtractionWorker)</text>
+<path d="M460 528 h136.4 v18 h111.6 v90 h-248 Z" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<line x1="460" y1="546" x2="596.4" y2="546" stroke="#16a34a" stroke-width="1.2"/>
+<text x="468" y="563" font-size="12.5" font-weight="700" fill="#0f172a">ProcedureCatalog.Application</text>
+<text x="468" y="580" font-size="11" fill="#334155">Management, Drafts, Queries, DTOs,</text>
+<text x="468" y="595" font-size="11" fill="#334155">Interfaces</text>
+<path d="M460 666 h136.4 v18 h111.6 v90 h-248 Z" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+<line x1="460" y1="684" x2="596.4" y2="684" stroke="#7c3aed" stroke-width="1.2"/>
+<text x="468" y="701" font-size="12.5" font-weight="700" fill="#0f172a">ProcedureCatalog.Domain</text>
+<text x="468" y="718" font-size="11" fill="#334155">Entities, JsonModels</text>
+<path d="M796 282 h132 v18 h116 v75 h-248 Z" fill="#dbeafe" stroke="#2563eb" stroke-width="1.2"/>
+<line x1="796" y1="300" x2="928" y2="300" stroke="#2563eb" stroke-width="1.2"/>
+<text x="804" y="317" font-size="12.5" font-weight="700" fill="#0f172a">DocumentForm.API</text>
+<text x="804" y="334" font-size="11" fill="#334155">Controllers, Security</text>
+<text x="804" y="349" font-size="11" fill="#334155">(ApplicationAccess)</text>
+<path d="M796 405 h136.4 v18 h111.6 v75 h-248 Z" fill="#ffedd5" stroke="#ea580c" stroke-width="1.2"/>
+<line x1="796" y1="423" x2="932.4" y2="423" stroke="#ea580c" stroke-width="1.2"/>
+<text x="804" y="440" font-size="12.5" font-weight="700" fill="#0f172a">DocumentForm.Infrastructure</text>
+<text x="804" y="457" font-size="11" fill="#334155">Persistence, OpenXml (DOCX), Pdf,</text>
+<text x="804" y="472" font-size="11" fill="#334155">QrCode</text>
+<path d="M796 528 h136.4 v18 h111.6 v90 h-248 Z" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<line x1="796" y1="546" x2="932.4" y2="546" stroke="#16a34a" stroke-width="1.2"/>
+<text x="804" y="563" font-size="12.5" font-weight="700" fill="#0f172a">DocumentForm.Application</text>
+<text x="804" y="580" font-size="11" fill="#334155">Commands, Queries, Services, DTOs,</text>
+<text x="804" y="595" font-size="11" fill="#334155">Models, Interfaces</text>
+<path d="M796 666 h136.4 v18 h111.6 v90 h-248 Z" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+<line x1="796" y1="684" x2="932.4" y2="684" stroke="#7c3aed" stroke-width="1.2"/>
+<text x="804" y="701" font-size="12.5" font-weight="700" fill="#0f172a">DocumentForm.Domain</text>
+<text x="804" y="718" font-size="11" fill="#334155">Entities, Models, Errors</text>
+<path d="M1132 282 h90 v18 h158 v75 h-248 Z" fill="#dbeafe" stroke="#2563eb" stroke-width="1.2"/>
+<line x1="1132" y1="300" x2="1222" y2="300" stroke="#2563eb" stroke-width="1.2"/>
+<text x="1140" y="317" font-size="12.5" font-weight="700" fill="#0f172a">AIOCR.API</text>
+<text x="1140" y="334" font-size="11" fill="#334155">Controllers (Assistant, Knowledge,</text>
+<text x="1140" y="349" font-size="11" fill="#334155">ProcedureExtractions), KnowledgeAccess</text>
+<path d="M1132 405 h136.4 v18 h111.6 v75 h-248 Z" fill="#ffedd5" stroke="#ea580c" stroke-width="1.2"/>
+<line x1="1132" y1="423" x2="1268.4" y2="423" stroke="#ea580c" stroke-width="1.2"/>
+<text x="1140" y="440" font-size="12.5" font-weight="700" fill="#0f172a">AIOCR.Infrastructure</text>
+<text x="1140" y="457" font-size="11" fill="#334155">Extraction, Knowledge (Gemini</text>
+<text x="1140" y="472" font-size="11" fill="#334155">embedding, PDF reader, retriever,</text>
+<text x="1140" y="487" font-size="11" fill="#334155">indexing worker)</text>
+<path d="M1132 528 h136.4 v18 h111.6 v90 h-248 Z" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<line x1="1132" y1="546" x2="1268.4" y2="546" stroke="#16a34a" stroke-width="1.2"/>
+<text x="1140" y="563" font-size="12.5" font-weight="700" fill="#0f172a">AIOCR.Application</text>
+<text x="1140" y="580" font-size="11" fill="#334155">Extraction, AssistantContracts,</text>
+<text x="1140" y="595" font-size="11" fill="#334155">KnowledgeChunker,</text>
+<text x="1140" y="610" font-size="11" fill="#334155">KnowledgeRetrievalContracts</text>
+<path d="M1132 666 h104 v18 h144 v90 h-248 Z" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+<line x1="1132" y1="684" x2="1236" y2="684" stroke="#7c3aed" stroke-width="1.2"/>
+<text x="1140" y="701" font-size="12.5" font-weight="700" fill="#0f172a">AIOCR.Domain</text>
+<text x="1140" y="718" font-size="11" fill="#334155">ChatSession, KnowledgeDocument</text>
+<path d="M1468 282 h136.4 v18 h111.6 v75 h-248 Z" fill="#dbeafe" stroke="#2563eb" stroke-width="1.2"/>
+<line x1="1468" y1="300" x2="1604.4" y2="300" stroke="#2563eb" stroke-width="1.2"/>
+<text x="1476" y="317" font-size="12.5" font-weight="700" fill="#0f172a">ApplicationWorkflow.API</text>
+<text x="1476" y="334" font-size="11" fill="#334155">Controllers (Applications,</text>
+<text x="1476" y="349" font-size="11" fill="#334155">ApplicationReview, ManagerAssignment,</text>
+<text x="1476" y="364" font-size="11" fill="#334155">AnalyticsSource)</text>
+<path d="M1468 405 h136.4 v18 h111.6 v75 h-248 Z" fill="#ffedd5" stroke="#ea580c" stroke-width="1.2"/>
+<line x1="1468" y1="423" x2="1604.4" y2="423" stroke="#ea580c" stroke-width="1.2"/>
+<text x="1476" y="440" font-size="12.5" font-weight="700" fill="#0f172a">ApplicationWorkflow.Infrastructure</text>
+<text x="1476" y="457" font-size="11" fill="#334155">WorkflowDbContext, ApplicationStore,</text>
+<text x="1476" y="472" font-size="11" fill="#334155">ApplicationReviewStore,</text>
+<text x="1476" y="487" font-size="11" fill="#334155">WorkflowOutbox, ProcedureCatalogClient</text>
+<path d="M1468 528 h136.4 v18 h111.6 v90 h-248 Z" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<line x1="1468" y1="546" x2="1604.4" y2="546" stroke="#16a34a" stroke-width="1.2"/>
+<text x="1476" y="563" font-size="12.5" font-weight="700" fill="#0f172a">ApplicationWorkflow.Application</text>
+<text x="1476" y="580" font-size="11" fill="#334155">WorkflowRequests, ReviewHandlers,</text>
+<text x="1476" y="595" font-size="11" fill="#334155">AssignmentRequests,</text>
+<text x="1476" y="610" font-size="11" fill="#334155">DocumentReadinessRequests,</text>
+<text x="1476" y="625" font-size="11" fill="#334155">CounterReceiptRequests, DeadlineFacts</text>
+<path d="M1468 666 h136.4 v18 h111.6 v90 h-248 Z" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+<line x1="1468" y1="684" x2="1604.4" y2="684" stroke="#7c3aed" stroke-width="1.2"/>
+<text x="1476" y="701" font-size="12.5" font-weight="700" fill="#0f172a">ApplicationWorkflow.Domain</text>
+<text x="1476" y="718" font-size="11" fill="#334155">ApplicationRecord, ApplicationReview,</text>
+<text x="1476" y="733" font-size="11" fill="#334155">ApplicationAssignmentHistory,</text>
+<text x="1476" y="748" font-size="11" fill="#334155">ReviewDeadline</text>
+<path d="M1804 282 h136.4 v18 h111.6 v75 h-248 Z" fill="#dbeafe" stroke="#2563eb" stroke-width="1.2"/>
+<line x1="1804" y1="300" x2="1940.4" y2="300" stroke="#2563eb" stroke-width="1.2"/>
+<text x="1812" y="317" font-size="12.5" font-weight="700" fill="#0f172a">AnalyticsSystem.API</text>
+<text x="1812" y="334" font-size="11" fill="#334155">Controllers (Analytics,</text>
+<text x="1812" y="349" font-size="11" fill="#334155">CitizenFeedback,</text>
+<text x="1812" y="364" font-size="11" fill="#334155">NotificationDeliveryAdmin)</text>
+<path d="M1804 405 h136.4 v18 h111.6 v75 h-248 Z" fill="#ffedd5" stroke="#ea580c" stroke-width="1.2"/>
+<line x1="1804" y1="423" x2="1940.4" y2="423" stroke="#ea580c" stroke-width="1.2"/>
+<text x="1812" y="440" font-size="12.5" font-weight="700" fill="#0f172a">AnalyticsSystem.Infrastructure</text>
+<text x="1812" y="457" font-size="11" fill="#334155">Analytics/NotificationDbContext, Inbox</text>
+<text x="1812" y="472" font-size="11" fill="#334155">&amp; Delivery workers, NotificationHub</text>
+<text x="1812" y="487" font-size="11" fill="#334155">(SignalR), Email, eSMS</text>
+<path d="M1804 528 h136.4 v18 h111.6 v90 h-248 Z" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<line x1="1804" y1="546" x2="1940.4" y2="546" stroke="#16a34a" stroke-width="1.2"/>
+<text x="1812" y="563" font-size="12.5" font-weight="700" fill="#0f172a">AnalyticsSystem.Application</text>
+<text x="1812" y="580" font-size="11" fill="#334155">Notifications, DeliveryAdministration,</text>
+<text x="1812" y="595" font-size="11" fill="#334155">DeadlineStatistics, AnalyticsContracts</text>
+<path d="M1804 666 h136.4 v18 h111.6 v90 h-248 Z" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+<line x1="1804" y1="684" x2="1940.4" y2="684" stroke="#7c3aed" stroke-width="1.2"/>
+<text x="1812" y="701" font-size="12.5" font-weight="700" fill="#0f172a">AnalyticsSystem.Domain</text>
+<text x="1812" y="718" font-size="11" fill="#334155">Notification, AnalyticsModels</text>
+<polyline points="228.16,375 228.16,405" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="228.16,498 228.16,528" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="228.16,636 228.16,666" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="372,333.15 392,333.15 392,576.6 372,576.6" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="564.16,375 564.16,405" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="564.16,498 564.16,528" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="564.16,636 564.16,666" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="708,333.15 728,333.15 728,576.6 708,576.6" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="900.16,375 900.16,405" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="900.16,498 900.16,528" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="900.16,636 900.16,666" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1044,333.15 1064,333.15 1064,576.6 1044,576.6" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1236.16,375 1236.16,405" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1236.16,498 1236.16,528" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1236.16,636 1236.16,666" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1380,333.15 1400,333.15 1400,576.6 1380,576.6" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1572.16,375 1572.16,405" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1572.16,498 1572.16,528" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1572.16,636 1572.16,666" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1716,333.15 1736,333.15 1736,576.6 1716,576.6" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1908.16,375 1908.16,405" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1908.16,498 1908.16,528" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1908.16,636 1908.16,666" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="2052,333.15 2072,333.15 2072,576.6 2052,576.6" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="260,794 260,890" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="596,794 596,890" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="932,794 932,890" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1268,794 1268,890" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1554,794 1554,890" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1714,794 1714,936 1810,936" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="1960,794 1960,890" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="2090,764 2106,764 2106,1018 1604,1018 1604,982" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<polyline points="870,133 60,133 60,936 110,936" fill="none" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<rect x="217.2" y="833" width="85.6" height="18" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="260" y="846" font-size="11" text-anchor="middle" fill="#334155">«import» API</text>
+<rect x="502.8" y="833" width="186.4" height="18" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="596" y="846" font-size="11" text-anchor="middle" fill="#334155">«import» API, Infrastructure</text>
+<rect x="772.65" y="833" width="318.7" height="18" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="932" y="846" font-size="11" text-anchor="middle" fill="#334155">«import» API, Application, Domain, Infrastructure</text>
+<rect x="1225.2" y="833" width="85.6" height="18" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="1268" y="846" font-size="11" text-anchor="middle" fill="#334155">«import» API</text>
+<rect x="1511.2" y="833" width="85.6" height="18" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="1554" y="846" font-size="11" text-anchor="middle" fill="#334155">«import» API</text>
+<rect x="1636.55" y="856" width="154.9" height="18" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="1714" y="869" font-size="11" text-anchor="middle" fill="#334155">«import» Infrastructure</text>
+<rect x="1882.55" y="833" width="154.9" height="18" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="1960" y="846" font-size="11" text-anchor="middle" fill="#334155">«import» Infrastructure</text>
+<rect x="1812.2" y="1009" width="85.6" height="18" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="1855" y="1022" font-size="11" text-anchor="middle" fill="#334155">«import» API</text>
+<rect x="4.600000000000001" y="506" width="110.8" height="18" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="60" y="519" font-size="11" text-anchor="middle" fill="#334155">«import» Program</text>
+<rect x="110" y="1056" width="16" height="12" fill="#dbeafe" stroke="#2563eb"/><text x="132" y="1066" font-size="12" fill="#334155">API layer</text>
+<rect x="219" y="1056" width="16" height="12" fill="#ffedd5" stroke="#ea580c"/><text x="241" y="1066" font-size="12" fill="#334155">Infrastructure layer</text>
+<rect x="405" y="1056" width="16" height="12" fill="#dcfce7" stroke="#16a34a"/><text x="427" y="1066" font-size="12" fill="#334155">Application layer</text>
+<rect x="570" y="1056" width="16" height="12" fill="#ede9fe" stroke="#7c3aed"/><text x="592" y="1066" font-size="12" fill="#334155">Domain layer</text>
+<rect x="700" y="1056" width="16" height="12" fill="#fef9c3" stroke="#a16207"/><text x="722" y="1066" font-size="12" fill="#334155">Building block</text>
+<rect x="844" y="1056" width="16" height="12" fill="#e0f2fe" stroke="#0369a1"/><text x="866" y="1066" font-size="12" fill="#334155">Gateway</text>
+<line x1="939" y1="1062" x2="985" y2="1062" stroke="#334155" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#open)"/><text x="993" y="1066" font-size="12" fill="#334155">«import» dependency (ProjectReference); labels on building-block arrows name the layers that reference it</text>
+</svg>

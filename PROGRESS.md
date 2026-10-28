@@ -3440,3 +3440,40 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Render lại conceptual-preview.png (2000×2683), logical-preview.png (2000×3387), physical-preview.png (2000×3077) từ các SVG đã sinh 24/10; đã xem ảnh Conceptual.
 - File sửa: docs/diagrams/erd/conceptual-preview.png, logical-preview.png, physical-preview.png; docs/CLAUDE_HANDOFF.md; PROGRESS.md. Không đổi nội dung .drawio (đã đúng). Không build backend, không Git.
 - Commit gợi ý (thêm vào lượt ERD): docs(erd): re-render ERD preview images for 24/10 schema.
+
+
+## DOC-MAIN-FLOWS — Tài liệu các luồng chính của hệ thống — 2026-10-28 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: viết các main flow của hệ thống để báo cáo.
+- File mới: docs/system-main-flows.md — tác nhân; sơ đồ tổng quan luồng hồ sơ và state diagram (Mermaid); 11 luồng MF-01..MF-11 (tài khoản và bảo mật, danh mục thủ tục, tạo/nộp hồ sơ, phân công, kiểm tra/bổ sung/nộp lại, sẵn sàng + PDF/QR, tiếp nhận tại quầy, thông báo, trợ lý AI + Knowledge Base, thống kê + đánh giá, quản trị tài khoản); mỗi luồng có tác nhân, service, các bước có route API, ngoại lệ; bảng đối chiếu luồng–service.
+- Đối chiếu: route lấy từ controller hiện tại (ProcedureDrafts, Applications, ApplicationReview, ManagerAssignment, CitizenSubmissions, SupportingDocuments, GeneratedDocuments, StaffAdministration, Knowledge, NotificationDeliveryAdmin) và các mục PROGRESS/api-guide; giữ quyết định nghiệp vụ: không approve/reject hành chính, DOCUMENTS_READY/OFFICIALLY_RECEIVED, hạn là hạn kiểm tra giấy tờ, embedding/RAG mặc định tắt.
+- Chỉ tài liệu; không build, không đổi API/DTO/ràng buộc, không Git. Không khẳng định trạng thái deploy/Azure.
+- Commit gợi ý: docs: add system main flows.
+
+
+## ERD-REPORT — Bản ERD dùng cho báo cáo, vẽ bảng dự kiến như bảng thường — 2026-10-28 (Asia/Saigon, UTC+07:00)
+- Yêu cầu chủ dự án (26/10/2026): kiểm tra lại ERD và có bản để báo cáo trong đó 6 bảng FUTURE vẽ như bảng thường.
+- Kiểm tra lại schema: xuất lại DDL 7 DbContext bằng `dotnet ef dbcontext script --configuration Release --no-build`, giống hệt docs/diagrams/erd/schema/*.sql ngày 24/10 (41 bảng, 410 cột, 22 FK, 46 REF); không sửa inventory.
+- Đã triển khai: bản build riêng của trang ERD tương tác (cờ REPORT) gộp ai_request_logs, ocr_scan_logs (AIOCR) và audit_logs, system_settings, service_health_logs, system_backup_logs (Analytics) vào dữ liệu chính; F1 chat_sessions→ai_request_logs thành FK cùng service, 3 quan hệ còn lại thành REF; bỏ nhãn FUTURE, viền nét đứt, đường chấm, "+N FUTURE" và ghi chú FUTURE. Kết quả: 47 bảng, 454 cột, 23 FK, 49 REF; Conceptual 35 khái niệm/44 quan hệ, Logical/Physical 47 bảng/72 quan hệ.
+- File mới: docs/diagrams/erd/wardmate-erd-report-en.drawio (3 trang tiếng Anh); docs/diagrams/erd/report/conceptual.png (2457×2095), logical.png (3737×3720), physical.png (5145×3720), nền sáng; docs/diagrams/erd/report/README.md (giải thích bản báo cáo và lưu ý 6 bảng chưa có trong code/DB).
+- File sửa: docs/CLAUDE_HANDOFF.md; PROGRESS.md. Không đổi bản chính xác: wardmate-erd-en.drawio, wardmate-erd-interactive.html, erd-drawing-guide.txt, ảnh preview vẫn đánh dấu FUTURE.
+- Kiểm tra: trang báo cáo trên trình duyệt local — 0 node/cạnh FUTURE, không chữ FUTURE trên hình, danh mục quan hệ không còn dòng F. Mở wardmate-erd-report-en.drawio bằng viewer-static của diagrams.net: 3 trang, 42/508/508 đỉnh, 44/72/72 cạnh, 0 cạnh thiếu đầu, 0 ô viền nét đứt, 0 đường chấm, 0 nhãn lộ HTML, có đủ 6 bảng dự kiến. Đã xem ảnh conceptual.png và logical.png.
+- Lưu ý: bản báo cáo trình bày thiết kế đầy đủ; 6 bảng dự kiến chưa có entity/migration/bảng trong code hay database, kiểu dữ liệu và NOT NULL là đề xuất. Nguồn dựng (template, cờ REPORT) nằm trong scratchpad phiên Claude, ngoài repo.
+- Chỉ tài liệu; không build backend, không đổi API/DTO/ràng buộc. Không chạy Git.
+- Commit gợi ý (mỗi file mới một commit): docs(erd): add report version with planned tables drawn as regular tables — wardmate-erd-report-en.drawio; docs(erd): add report conceptual image; docs(erd): add report logical image; docs(erd): add report physical image; docs(erd): explain report ERD version; docs: record ERD report version in handoff and progress.
+
+## PKG-DIAGRAM — Package diagram backend — 2026-10-28 (Asia/Saigon, UTC+07:00)
+- Yêu cầu chủ dự án: vẽ package diagram của hệ thống.
+- Nguồn: ProjectReference trong 27 file src/**/*.csproj và thư mục/lớp chính của từng project (đọc ngày 28/10/2026).
+- Nội dung: 6 package service («service»), mỗi service 4 package lớp API / Infrastructure / Application / Domain với phụ thuộc API→Infrastructure, API→Application, Infrastructure→Application, Application→Domain; WardMate.YarpGateway («gateway»); WardMate.SharedKernel và WardMate.EventBus («building block»). Nhãn mũi tên tới building block ghi đúng lớp tham chiếu: DocumentForm dùng SharedKernel ở cả 4 lớp, ProcedureCatalog ở API và Infrastructure, các service còn lại ở API; ApplicationWorkflow.Infrastructure và AnalyticsSystem.Infrastructure dùng EventBus.
+- File mới: docs/diagrams/package/wardmate-package-diagram.drawio (1 trang, sửa được), wardmate-package-diagram.svg, wardmate-package-diagram.png (4400×2204).
+- Kiểm tra: xem ảnh PNG; file draw.io có 35 đỉnh, 33 cạnh, 0 cạnh thiếu đầu. Chưa mở file .drawio trong draw.io để soát bố cục.
+- Giới hạn: sơ đồ chỉ thể hiện phụ thuộc biên dịch; phụ thuộc lúc chạy (HTTP giữa service, RabbitMQ, PostgreSQL, Gemini/Azure, SMTP, eSMS) chưa vẽ. Script dựng nằm trong scratchpad phiên Claude, ngoài repo.
+- Chỉ tài liệu; không build backend, không đổi API/DTO/ràng buộc. Không chạy Git.
+- Commit gợi ý (mỗi file mới một commit): docs(diagrams): add package diagram drawio; docs(diagrams): add package diagram svg; docs(diagrams): add package diagram png; docs: record package diagram in progress.
+
+## ERD-EXPLAINED — Bản giải thích ERD dễ hiểu — 2026-10-28 (Asia/Saigon, UTC+07:00)
+- Yêu cầu chủ dự án: viết bản mô tả và giải thích ERD theo cách dễ hiểu nhất.
+- File mới: docs/diagrams/erd/erd-explained.md — cách đọc ký hiệu (PK, FK nét liền, REF nét đứt, bản số); 6 service/7 DbContext và lý do không có FK xuyên service; đi theo một hồ sơ qua các bảng; bảng giải thích từng nhóm; khác nhau Conceptual/Logical/Physical; bản chính xác (41 bảng, 22 FK, 46 REF) và bản báo cáo (47 bảng, 6 bảng dự kiến chưa triển khai); câu hỏi thường gặp.
+- Kiểm tra: số bảng, cột, FK, REF, hành vi xóa và tên cột đối chiếu docs/diagrams/erd/model-inventory.json và schema/*.sql.
+- Chỉ tài liệu; không build backend, không đổi API/DTO/ràng buộc. Không chạy Git.
+- Commit gợi ý: docs(erd): add plain-language ERD explanation; docs: record ERD explanation in progress.
