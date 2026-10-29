@@ -4252,3 +4252,70 @@ Lỗi mới của chat khi bật RAG: 503 `knowledge.embedding_disabled` (bật 
 1. Đã chạy xong phần triển khai TASK-28.
 2. Chạy `docs/sql/aiocr-knowledge-retrieval.sql` trên DB AIOCR (thêm cột vector `real[]`, trạng thái tạo vector, `chat_messages.citations`). **Không cần pgvector.**
 3. Deploy AIOCR với hai công tắc để `false`, rồi bật theo thứ tự ở trên.
+
+
+
+## Yêu cầu FE 26/10/2026 — danh sách, thống kê phân công, lịch sử thao tác (WORKFLOW-FE-1026)
+
+Phần này làm mục 2, 3, 4, 5 trong bản yêu cầu FE ngày 26/10. Không đổi route/body/status code cũ; chỉ thêm trường cuối DTO và hai endpoint mới. Cần chạy `docs/sql/workflow-applicant-name-activity.sql` (migration `20261029005650_ApplicantNameAndActivity`) và deploy Gateway kèm Workflow.
+
+### Danh sách cán bộ/Manager không còn bản nháp (mục 3)
+
+GET `/api/v1/officer/applications` nay chỉ trả hồ sơ **đã từng nộp**: bỏ `DRAFT` và bỏ hồ sơ có `submittedAt = null` (gồm bản nháp công dân tự hủy thành `CANCELLED`). Áp dụng cả khi FE không gửi `status`. Gửi `status=DRAFT` trả trang rỗng (200, `total: 0`), không báo lỗi. Hồ sơ đã nộp rồi mới hủy vẫn hiện như cũ. `/pending` không đổi (vốn chỉ lấy SUBMITTED/UNDER_REVIEW). FE có thể bỏ workaround tự gửi `Status=…`.
+
+### `applicantName` (mục 2)
+
+- Thêm `applicantName` (string, có thể `null`) ở **cuối** `items[]` của GET `/api/v1/officer/applications`, `/pending` và GET `/api/v1/applications`; chi tiết `ApplicationDto` (cán bộ và công dân) cũng có trường này ở cuối.
+- Giá trị là **snapshot họ tên hồ sơ cá nhân IAM** (`fullName` của access-context) lúc công dân nộp và mỗi lần nộp lại. Nếu IAM chưa có họ tên thì giữ giá trị cũ (hoặc `null`). Không lấy từ body FE, không chứa CCCD hay số điện thoại.
+- Hồ sơ cũ giữ `null` đến lần nộp lại tiếp theo; FE hiển thị "Công dân". Workflow không đọc DB IAM nên không tự backfill.
+- FE bỏ được vòng gọi chi tiết từng dòng để lấy tên.
+
+```json
+{ "id": "…", "applicationCode": "HS-20261024-00000037", "status": "SUBMITTED", "resubmitCount": 0, "assignmentVersion": 1, "applicantName": "Nguyễn Đức Anh" }
+```
+
+### GET `/api/v1/manager/applications/assignment-summary` (mục 4)
+
+- **Mục đích:** một request cho màn "Giám sát hồ sơ" thay cho 2 + N request `pageSize=1`.
+- **Ai dùng:** Bearer role MANAGER + `workflow.assign.manage`. Phường lấy từ IAM access-context, không nhận ward từ FE. Loại hồ sơ do chính Manager nộp.
+- **Kết quả 200:**
+
+```json
+{ "unassignedSubmitted": 4, "overdue": 2, "officers": [ { "officerId": "…", "activeCount": 3, "overdueCount": 1 } ] }
+```
+
+- `unassignedSubmitted`: hồ sơ `SUBMITTED` chưa có người phụ trách.
+- `overdue`: cùng quy tắc với bộ lọc `overdue=true` (dùng chung một hàm trong code).
+- `officers[]`: chỉ cán bộ đang có hồ sơ, sắp `activeCount` giảm dần. `activeCount` đếm hồ sơ có `assignedOfficerId` ở `UNDER_REVIEW`, `NEED_REVISION`, `DOCUMENTS_READY` **và `SUBMITTED`** (hồ sơ công dân nộp lại quay về SUBMITTED nhưng vẫn giữ cán bộ cũ, nên vẫn là việc của cán bộ đó). `overdueCount` là số hồ sơ quá hạn trong nhóm đó. Cán bộ không có trong mảng = 0.
+- **Lỗi:** 401 token sai; 403 thiếu role/quyền hoặc tài khoản không có phường; 503 `application.iam_unavailable` khi IAM lỗi (mã do middleware hiện có trả, không phải `workflow.iam_unavailable`). Gọi lại sau khi IAM phục hồi.
+- **Gateway:** dùng route sẵn có `/api/v1/manager/applications/{**catch-all}`.
+
+### GET `/api/v1/officer/activity` (mục 5)
+
+- **Mục đích:** màn "Lịch sử xử lý" của cán bộ lấy dữ liệu thật từ server thay cho lưu tạm trên trình duyệt.
+- **Ai dùng:** Bearer có `workflow.queue.read` (FRONT_DESK_OFFICER hoặc MANAGER). Mặc định trả thao tác của **chính người gọi**. Manager truyền `officerId` để xem cán bộ khác; cán bộ thường truyền `officerId` khác mình → 403 `workflow.forbidden`.
+- **Query:** `page` (≥1, mặc định 1), `pageSize` (1–100, mặc định 20), `from`, `to` (ISO 8601, lọc theo `createdAt`), `action`, `officerId`.
+  - `action`: `CLAIM`, `RELEASE`, `ASSIGN`, `TRANSFER` (lọc lịch sử phân công) hoặc một trạng thái đích `SUBMITTED`, `UNDER_REVIEW`, `NEED_REVISION`, `DOCUMENTS_READY`, `OFFICIALLY_RECEIVED`, `CANCELLED` (lọc lịch sử trạng thái). Không phân biệt hoa thường.
+  - `page × pageSize` tối đa 5000. Muốn xem cũ hơn thì thu hẹp `from`/`to`.
+- **Phạm vi:** chỉ hồ sơ thuộc **phường hiện tại** của người gọi, không gồm hồ sơ cán bộ đó tự nộp. Manager chỉ xem được thao tác trên hồ sơ trong phường mình; truyền `officerId` của cán bộ phường khác thì trả rỗng.
+- **Kết quả 200** (sắp `createdAt` giảm dần):
+
+```json
+{
+  "items": [
+    { "id": "…", "source": "STATUS", "action": "NEED_REVISION", "applicationId": "…", "applicationCode": "HS-20261024-00000035",
+      "procedureTitle": "Thủ tục đăng ký khai tử", "applicantName": "Nguyễn Đức Anh", "reason": "Thiếu chữ ký", "createdAt": "2026-10-24T11:29:00Z" }
+  ],
+  "page": 1, "pageSize": 20, "total": 37
+}
+```
+
+- `source`: `STATUS` (lịch sử trạng thái, `action` = trạng thái đích) hoặc `ASSIGNMENT` (lịch sử phân công, `action` = CLAIM/RELEASE/ASSIGN/TRANSFER). `id` là id của dòng lịch sử nguồn.
+- Một thao tác có thể sinh **hai dòng**: cán bộ tự nhận ghi cả `ASSIGNMENT/CLAIM` và `STATUS/UNDER_REVIEW`; Manager giao mới ghi `ASSIGNMENT/ASSIGN` và `STATUS/UNDER_REVIEW`. FE có thể gộp theo `applicationId` + thời gian nếu muốn.
+- `reason` là lý do nội bộ (yêu cầu bổ sung, trả/giao/chuyển). Thao tác giao/trả mới không có lý do ở dòng STATUS (lý do nằm ở dòng ASSIGNMENT). API này chỉ dành cho cán bộ/Manager.
+- **Lỗi:** 400 `workflow.validation` (page/pageSize sai, from > to, action sai, `officerId` là GUID rỗng); 401; 403 `workflow.forbidden` hoặc thiếu quyền/phường; 503 `application.iam_unavailable`.
+- **Gateway:** route mới `officer-activity-v1` `/api/v1/officer/activity` → ApplicationWorkflow (cả `appsettings.json` và `appsettings.Production.json`).
+
+### Chưa làm trong lượt này
+
+Mục 1 (bật RabbitMQ/worker trên Azure), mục 6 (minReplicas, cache access-context, cache quyền DocumentForm, Application Insights) và mục 7 (xác nhận image/migration đang chạy trên Azure) cần Antigravity/hạ tầng. Cache access-context trái quy tắc hiện tại "không cache, fail closed" nên chờ chủ dự án quyết.

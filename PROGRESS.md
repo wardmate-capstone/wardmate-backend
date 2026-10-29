@@ -3477,3 +3477,34 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Kiểm tra: số bảng, cột, FK, REF, hành vi xóa và tên cột đối chiếu docs/diagrams/erd/model-inventory.json và schema/*.sql.
 - Chỉ tài liệu; không build backend, không đổi API/DTO/ràng buộc. Không chạy Git.
 - Commit gợi ý: docs(erd): add plain-language ERD explanation; docs: record ERD explanation in progress.
+
+
+## DOC-ERD-RELATIONSHIPS — Mô tả các liên kết giữa các bảng trong ERD — 2026-10-28 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: viết mô tả thêm cho tất cả liên kết giữa các bảng trong ERD để báo cáo.
+- File mới: docs/erd-relationships.md. Gồm cách đọc (FK vs REF, bản số, ON DELETE); 22 FK chia theo service (IAM 9, Catalog 2, Workflow 6, DocumentForm 2, AIOCR 2, Analytics 1); 10 REF trong cùng service; 36 REF giữa các service chia theo cặp service; 4 liên kết dự kiến F1–F4 của 6 bảng thiết kế; ghi chú (bảng nối nhiều–nhiều, bảng không liên kết metric_refreshes, mã phường, lĩnh vực, applications là trung tâm). Mỗi liên kết có mã FKxx/REFxx, bảng cha → con, cột, bản số, ON DELETE (với FK) và ý nghĩa nghiệp vụ.
+- Cột, bản số, ON DELETE sinh tự động từ docs/diagrams/erd/model-inventory.json (24/10, khớp schema xuất lại ngày 26/10); ý nghĩa viết tay theo source. Bản số phía cha của REF nhiều vai trò (ví dụ UserId/AssignedOfficerId) lấy 0..1 khi có cột vai trò được phép rỗng.
+- Chỉ tài liệu; không build, không đổi API/DB, không Git.
+- Commit gợi ý: docs(erd): describe every table relationship.
+
+
+
+## WORKFLOW-FE-1026 — Yêu cầu FE 26/10: bỏ bản nháp, applicantName, assignment-summary, officer activity — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: làm mục 3 → 2 → 4 → 5 của bản "Yêu cầu Backend còn tồn đọng" (FE, 26/10). Mục 1, 6, 7 là hạ tầng/Azure/quyết định cache, chưa làm.
+- Mục 3: ApplicationReviewStore.ListAll luôn loại DRAFT và hồ sơ submitted_at NULL (nháp tự hủy). GET /api/v1/officer/applications status=DRAFT → 200 rỗng. Pending không đổi.
+- Mục 2: cột applications.applicant_name varchar(255) NULL; snapshot fullName IAM access-context (claim officer_name do WorkflowAccessMiddleware gắn) lúc submit và resubmit qua ApplicationRecord.SnapshotApplicantName. ApplicantName thêm cuối ApplicationSummaryDto và ApplicationDto; map ở Pending, ListAll, ApplicationStore.List, ApplicationDto.From. Hồ sơ cũ NULL, không backfill.
+- Mục 4: GET /api/v1/manager/applications/assignment-summary (MANAGER + workflow.assign.manage) → 200 {unassignedSubmitted, overdue, officers[{officerId, activeCount, overdueCount}]}; 401/403/503 application.iam_unavailable. activeCount gồm cả SUBMITTED có người phụ trách (nộp lại). Overdue dùng chung hàm Overdue với bộ lọc overdue=true (refactor 2 bản sao cũ).
+- Mục 5: GET /api/v1/officer/activity?page&pageSize&from&to&action&officerId (workflow.queue.read) → 200 {items[{id, source STATUS|ASSIGNMENT, action, applicationId, applicationCode, procedureTitle, applicantName, reason, createdAt}], page, pageSize, total}; 400 workflow.validation, 403 workflow.forbidden (officerId khác khi không phải Manager), 503. Chỉ phường hiện tại, loại hồ sơ tự nộp; page × pageSize ≤ 5000.
+- File sửa: Workflow Domain/ApplicationRecord.cs; Application/WorkflowContracts.cs, ReviewContracts.cs, WorkflowRequests.cs, ReviewHandlers.cs; Infrastructure/ApplicationReviewStore.cs, ApplicationStore.cs, WorkflowDbContext.cs, Migrations/WorkflowDbContextModelSnapshot.cs; API/Controllers/ApplicationsController.cs, ApplicationReviewController.cs, ManagerAssignmentController.cs; Gateway appsettings.json, appsettings.Production.json (route officer-activity-v1); docs/api-guide.md, docs/system-constraints.md (WORKFLOW-FE-1026), docs/CLAUDE_HANDOFF.md.
+- File mới: Workflow API/Controllers/OfficerActivityController.cs; Infrastructure/Migrations/20261029005650_ApplicantNameAndActivity.cs (+ Designer); docs/sql/workflow-applicant-name-activity.sql (idempotent, kiểm tra CategoryAssignment đã chạy).
+- Kiểm tra: dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error. Kiểm tra dịch LINQ của summary/activity/ListAll bằng console tạm (EF dịch xong, chỉ lỗi kết nối DB giả); chưa chạy với DB thật, chưa có test tự động. FE nghiệm thu giao diện.
+- DTO FE: applicantName (nullable) ở cuối summary/detail; hai endpoint mới như trên; ProblemDetails giữ dạng {status,title,code,traceId}. Token không đổi.
+- Chưa làm: apply migration/SQL lên DB, deploy Workflow + Gateway; mục 1/6/7 cho Antigravity; cache access-context chờ chủ dự án quyết (trái quy tắc fail closed hiện tại).
+- Commit gợi ý (mỗi file mới một commit, sửa theo chức năng):
+  - feat(workflow): hide never-submitted drafts from officer list
+  - feat(workflow): snapshot applicant name on submit and resubmit
+  - feat(workflow): add applicant name and activity index migration
+  - docs(sql): add workflow applicant name and activity script
+  - feat(workflow): add manager assignment summary endpoint
+  - feat(workflow): add officer activity endpoint
+  - feat(gateway): route officer activity to workflow
+  - docs: document FE 26/10 workflow requests

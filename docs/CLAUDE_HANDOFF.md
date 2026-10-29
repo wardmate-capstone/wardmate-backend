@@ -155,6 +155,7 @@ Bộ EF model kiểm kê ngày 24/10: 41 bảng ứng dụng, 410 cột, 22 FK t
 
 | Ưu tiên | Việc | Trạng thái và bước tiếp theo |
 |---|---|---|
+| Gần nhất | Yêu cầu FE 26/10 (WORKFLOW-FE-1026) | Mục 2–5 có trong source 29/10 (applicantName, bỏ bản nháp ở danh sách cán bộ, assignment-summary, officer/activity); build pass, chưa chạy DB thật. Cần chạy `docs/sql/workflow-applicant-name-activity.sql`, deploy Workflow + Gateway. Mục 1 (RabbitMQ/worker Azure), 6 (minReplicas, cache, App Insights), 7 (xác nhận image/migration Azure) cho Antigravity; cache access-context chờ chủ dự án quyết vì trái quy tắc fail closed. |
 | Gần nhất | AIOCR JWT rollout | Code/build đã có theo nhật ký; chưa Docker/Azure cho patch mới. Xác minh issuer/audience IAM đang dùng, bàn giao env secret đúng; không tự in key. Cập nhật ví dụ cũ trong docs/azure-deployment.md sau khi có căn cứ. |
 | Gần nhất | DocumentForm auth.session_unavailable | Diagnostics/image/config đã được rollout theo nhật ký. Còn thiếu tái hiện authenticated request gốc để kết luận lỗi503 đã hết. Không đổi quyền để né lỗi kết nối. |
 | Gần nhất | Analytics authenticated FE | Migration, IAM URL, worker/backfill đã xử lý theo nhật ký; FE/HTTP theo đúng role/ward chưa xác nhận đầy đủ. Không coi health200 là dashboard đúng. |
