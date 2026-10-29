@@ -31,9 +31,11 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         assignment.Property(x => x.Action).HasMaxLength(20);
         assignment.Property(x => x.Reason).HasMaxLength(500);
         assignment.HasIndex(x => new { x.ApplicationId, x.CreatedAt });
+        assignment.HasIndex(x => new { x.ActorId, x.CreatedAt });
         var a = b.Entity<ApplicationRecord>();
         a.Property(x => x.CategoryName).HasMaxLength(255);
         a.Property(x => x.AssignedOfficerName).HasMaxLength(255);
+        a.Property(x => x.ApplicantName).HasMaxLength(255);
         a.Property(x => x.AssignmentVersion).HasDefaultValue(0L);
         a.HasIndex(x => new { x.WardCode, x.CategoryId, x.Status });
         a.HasMany(x => x.AssignmentHistory).WithOne().HasForeignKey(x => x.ApplicationId).OnDelete(DeleteBehavior.Cascade);
@@ -110,6 +112,7 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         h.ToTable("application_status_history");
         h.HasKey(x => x.Id);
         h.HasIndex(x => new { x.ApplicationId, x.CreatedAt });
+        h.HasIndex(x => new { x.ChangedBy, x.CreatedAt });
         h.Property(x => x.FromStatus).HasMaxLength(50);
         h.Property(x => x.ToStatus).HasMaxLength(50).IsRequired();
         h.Property(x => x.Reason).HasColumnType("text");

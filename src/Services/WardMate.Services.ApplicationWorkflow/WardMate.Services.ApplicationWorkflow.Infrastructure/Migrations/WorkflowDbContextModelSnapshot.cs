@@ -65,6 +65,9 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_application_assignment_history");
 
+                    b.HasIndex("ActorId", "CreatedAt")
+                        .HasDatabaseName("ix_application_assignment_history_actor_id_created_at");
+
                     b.HasIndex("ApplicationId", "CreatedAt")
                         .HasDatabaseName("ix_application_assignment_history_application_id_created_at");
 
@@ -247,6 +250,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("ApplicantName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("applicant_name");
 
                     b.Property<string>("ApplicationCode")
                         .IsRequired()
@@ -491,6 +499,9 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.HasIndex("ApplicationId", "CreatedAt")
                         .HasDatabaseName("ix_application_status_history_application_id_created_at");
+
+                    b.HasIndex("ChangedBy", "CreatedAt")
+                        .HasDatabaseName("ix_application_status_history_changed_by_created_at");
 
                     b.ToTable("application_status_history", (string)null);
                 });
