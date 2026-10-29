@@ -926,3 +926,38 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - `ai-ocr` mặc định dùng aiocr-db (`AIOCR_DATABASE_CONNECTION_STRING` để trống) và `AIOCR_AUTO_MIGRATE=true`; chờ aiocr-db healthy. Đặt connection string khác thì không còn dùng aiocr-db.
 - Gateway ghi đè cluster ai-ocr → `http://ai-ocr:8080/`; depends_on ai-ocr `required: false` (cần Docker Compose ≥ 2.20). Không chạy profile ai thì gateway vẫn khởi động, chỉ route AI lỗi.
 - Chỉ áp dụng Docker local, không thay cấu hình Azure. Nguồn: docker/docker-compose.yml, docker/.env.example. Lịch sử 29/10/2026: thay ghi chú cũ "không tự tạo PostgreSQL AIOCR trong Compose".
+
+
+### STAFFING-01 — Điều phối hồ sơ, Lịch làm/Nghỉ phép và Tham vấn chuyên môn (29/10/2026)
+
+- **Hợp nhất cơ chế phân công:** Sử dụng duy nhất bảng `application_assignment_history` và cột `applications.assignment_version` (bigint) của remote đã triển khai trên Azure. Không tạo bảng `staffing_assignment_history` riêng biệt. Tất cả thao tác CLAIM (cán bộ tự nhận), ASSIGN (giao mới), TRANSFER (chuyển giao), RELEASE (trả lại) đều ghi nhận vào cùng một bảng và tăng `AssignmentVersion`.
+- **Lĩnh vực hồ sơ:** Sử dụng cột chuẩn `applications.category_id` (integer) và `category_name` (varchar 255) thay vì `procedure_category_id`.
+- **Kiểm tra cán bộ đủ điều kiện (Eligibility):** Cán bộ phải (1) hoạt động (`isActive = true`), (2) thuộc đúng phường của Manager (`wardCode == actor.WardCode`), (3) có vai trò `FRONT_DESK_OFFICER` và không kiêm `MANAGER`, (4) thuộc lĩnh vực của thủ tục (`assignedCategories.Contains(categoryId)`), (5) có quyền `workflow.assign`, (6) không phải là người nộp hồ sơ (`officerId != application.UserId`), (7) có ca làm việc bao trùm thời điểm phân công và (8) không có khoảng nghỉ phép đã duyệt (`APPROVED`) tại thời điểm phân công.
+- **Khóa và chống xung đột:**
+  - Khóa phân tán cấp phường bằng PostgreSQL transaction advisory lock: `SELECT pg_advisory_xact_lock(hashtext('ward:' || wardCode))`.
+  - Khóa dòng hồ sơ bằng `SELECT * FROM applications WHERE id = {id} FOR UPDATE`.
+  - Kiểm tra `ExpectedAssignmentVersion` chống ghi đè đồng thời. Nếu phiên bản phân công đã thay đổi, từ chối với lỗi 409 `dispatch.version_conflict`.
+- **Ràng buộc ca làm (OfficerShift):**
+  - Thời gian bắt đầu ở tương lai: `starts_at_utc > now`.
+  - Thời lượng: `ends_at_utc > starts_at_utc` và không vượt quá 24 giờ.
+  - CHECK constraint: `ck_shift_range: ends_at_utc > starts_at_utc`.
+  - Chống trùng lặp ca làm việc và khoảng nghỉ của cùng cán bộ.
+- **Ràng buộc nghỉ phép (OfficerLeave):**
+  - Thời gian kết thúc ở tương lai: `ends_at_utc > now`.
+  - Khoảng nghỉ tối đa 93 ngày. CHECK constraint: `ck_leave_range: ends_at_utc > starts_at_utc` và `ck_leave_status: status IN ('PENDING','APPROVED','REJECTED','CANCELLED')`.
+  - Cán bộ chỉ được hủy yêu cầu `PENDING` của mình, không được tự phê duyệt/từ chối. Manager được duyệt/từ chối yêu cầu `PENDING` hoặc hủy yêu cầu `APPROVED`.
+  - Ghi nhận đầy đủ lịch sử quyết định trong `officer_leave_decisions`.
+- **Ràng buộc tham vấn (ApplicationConsultation):**
+  - Hồ sơ phải ở trạng thái `UNDER_REVIEW` và đã được phân công cho cán bộ chính.
+  - Chuyên viên được tham vấn phải khác cán bộ chính, cùng phường, phụ trách cùng lĩnh vực, có quyền `workflow.consultation.respond`, có ca làm và không nghỉ phép.
+  - Mỗi cặp hồ sơ - chuyên viên chỉ có tối đa một tham vấn chưa đóng (`UNIQUE (application_id, specialist_id) WHERE status <> 'CLOSED'`).
+  - Chuyên viên chỉ có quyền xem nội dung/tài liệu hồ sơ khi tham vấn còn mở và cả phiên bản hồ sơ (`application_version`) lẫn phiên bản phân công (`assignment_version`) đều khớp. Nếu Manager chuyển hồ sơ cho cán bộ khác hoặc người dân nộp lại bản mới, quyền đọc tham vấn tự động hết hiệu lực.
+- **Nguồn:**
+  - Domain: `ApplicationRecord.cs`, `ApplicationConsultation.cs`, `OfficerAvailability.cs`, `AssignmentRecord.cs`.
+  - Application: `DispatchContracts.cs`, `StaffingContracts.cs`, `ConsultationContracts.cs`.
+  - Infrastructure: `DispatchService.cs`, `StaffingService.cs`, `ConsultationService.cs`, `DispatchDirectory.cs`, `WorkflowDbContext.cs`, Migration `20261029161554_AddStaffingTablesOnly.cs`.
+  - API: `ManagerDispatchController.cs`, `StaffingController.cs`, `ConsultationsController.cs`, `WorkflowSecurity.cs`.
+  - IAM Migration: `20261029120000_ManagerStaffingPermissions.cs`.
+  - Gateway: `appsettings.json` (routes `workflow-manager-applications-v1`, `workflow-manager-applications-root-v1`, `workflow-staffing-v1`, `workflow-staffing-root-v1`).
+- **Lịch sử 29/10/2026:** Thêm quy tắc STAFFING-01 hợp nhất staffing vào ApplicationWorkflow và remote.
+
