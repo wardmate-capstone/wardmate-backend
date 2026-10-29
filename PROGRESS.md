@@ -3,7 +3,7 @@
 
 # WardMate — Nhật ký phát triển
 
-**Trạng thái TASK-STAFFING-WORKFLOW-MERGE (Bảo toàn local và hợp nhất chức năng staffing vào ApplicationWorkflow): HOÀN THÀNH** — Hợp nhất thành công 18 API điều phối hồ sơ, lịch làm, nghỉ phép và tham vấn chuyên môn từ local với phiên bản mới nhất của remote trên nhánh `kha`:
+**Trạng thái TASK-STAFFING-WORKFLOW-MERGE (Bảo toàn local, hợp nhất chức năng staffing vào ApplicationWorkflow, Docker & Azure Deployment): HOÀN THÀNH** — Hợp nhất thành công 18 API điều phối hồ sơ, lịch làm, nghỉ phép và tham vấn chuyên môn từ local với phiên bản mới nhất của remote trên nhánh `kha`, `main` và `deploy`:
 1. **Bảo toàn dữ liệu & kiến trúc phân công:** Đồng bộ cơ chế phân công sang bảng chuẩn `application_assignment_history` và cột version `assignment_version` (bigint) của remote (đã deploy trên Azure). Loại bỏ bảng trùng lặp `staffing_assignment_history` và cột `procedure_category_id` (chuyển sang `category_id`).
 2. **18 API mới:**
    - `ManagerDispatchController` (4 API): `GET /api/v1/manager/applications`, `GET /api/v1/manager/applications/{id}/assignment-candidates`, `POST /api/v1/manager/applications/{id}/assignments`, `GET /api/v1/manager/applications/{id}/assignments`.
@@ -11,8 +11,19 @@
    - `ConsultationsController` (6 API): `GET /api/v1/staffing/consultations`, `GET /api/v1/applications/{id}/consultations`, `POST /api/v1/applications/{id}/consultations`, `POST /api/v1/applications/{id}/consultations/{consultationId}/answer`, `POST /api/v1/applications/{id}/consultations/{consultationId}/close`, `GET /api/v1/applications/{id}/consultations/document-access`.
 3. **Database Migration:** Tạo migration sạch `20261029161554_AddStaffingTablesOnly` (tạo `officer_shifts`, `officer_leaves`, `officer_leave_decisions`, `application_consultations`), kế thừa trực tiếp từ migration `20261029010912_CommentWithdrawal` của remote. Migration IAM `20261029120000_ManagerStaffingPermissions` cấp các quyền `workflow.dispatch.*`, `workflow.staffing.*`, `workflow.leave.*`, `workflow.consultation.*`.
 4. **Gateway:** Bổ sung các routes `workflow-manager-applications-v1`, `workflow-manager-applications-root-v1` (Order -20) và `workflow-staffing-v1`, `workflow-staffing-root-v1` trong YARP Gateway `appsettings.json`.
-5. **Nghiệm thu:** Solution-wide Release build: **0 errors, 0 warnings**.
-Thời gian hoàn thành: 2026-10-29T23:20:00+07:00 (Asia/Saigon, UTC+07:00).
+5. **Nghiệm thu Build:** Solution-wide Release build: **0 errors, 0 warnings**.
+6. **Docker Images & Azure ACR:** Build và push 3 container images lên `acrwardmate2026.azurecr.io`:
+   - `acrwardmate2026.azurecr.io/wardmate-application-workflow:workflow-20261029-02`
+   - `acrwardmate2026.azurecr.io/wardmate-documentform:staffing-20261029-02`
+   - `acrwardmate2026.azurecr.io/wardmate-gateway:gateway-20261029-02`
+7. **Azure Container Apps Deployment:** Cập nhật 3 container apps trong `rg-wardmate-prod` lên image `-02`. Cả 3 revision đều `Healthy`, `Provisioned` (100% traffic weight).
+8. **End-to-End Verification:**
+   - Gateway health: `200 OK Healthy` (`https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/health`)
+   - Workflow health: `200 OK Healthy` (`https://wardmate-application-workflow.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/health`)
+   - Swagger verification: 18 API mới hiển thị đầy đủ trong Swagger definition.
+   - Gateway routing: Thử nghiệm định tuyến qua gateway tới `/api/v1/manager/applications`, `/api/v1/staffing/shifts`, `/api/v1/staffing/consultations` thành công (trả về `401 Unauthorized` kèm ProblemDetails tiêu chuẩn của Workflow thay vì lỗi định tuyến 404/502).
+9. **Git branches:** Đã đồng bộ nhánh `kha`, `main`, và `deploy` lên commit `00cd1d9`.
+Thời gian hoàn thành: 2026-10-29T23:55:00+07:00 (Asia/Saigon, UTC+07:00).
 
 **Paths thay đổi:**
 - `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Domain/ApplicationConsultation.cs` (mới)
