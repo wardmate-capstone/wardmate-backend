@@ -230,6 +230,19 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<string>("WithdrawReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("withdraw_reason");
+
+                    b.Property<DateTime?>("WithdrawnAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("withdrawn_at");
+
+                    b.Property<Guid?>("WithdrawnBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("withdrawn_by");
+
                     b.HasKey("Id")
                         .HasName("pk_application_comments");
 
@@ -238,9 +251,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.ToTable("application_comments", null, t =>
                         {
-                            t.HasCheckConstraint("ck_application_comments_status", "status IN ('OPEN','RESOLVED')");
+                            t.HasCheckConstraint("ck_application_comments_status", "status IN ('OPEN','RESOLVED','WITHDRAWN')");
 
                             t.HasCheckConstraint("ck_application_comments_target", "target_type IN ('FORM_FIELD','CHECKLIST_ITEM')");
+
+                            t.HasCheckConstraint("ck_application_comments_withdrawal", "(status = 'WITHDRAWN' AND withdrawn_by IS NOT NULL AND withdrawn_at IS NOT NULL AND withdraw_reason IS NOT NULL) OR (status <> 'WITHDRAWN' AND withdrawn_by IS NULL AND withdrawn_at IS NULL AND withdraw_reason IS NULL)");
                         });
                 });
 

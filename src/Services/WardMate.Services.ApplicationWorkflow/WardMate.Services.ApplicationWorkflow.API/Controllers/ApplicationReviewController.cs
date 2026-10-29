@@ -82,6 +82,16 @@ public sealed class OfficerApplicationController(ISender sender) : ReviewControl
     public async Task<IActionResult> Comment(Guid id, AddCommentInput input, CancellationToken ct) =>
         Respond(await sender.Send(new AddApplicationCommentCommand(Actor, id, input), ct));
 
+    /// <summary>Cán bộ đang thụ lý rút một nhận xét OPEN của phiên bản hiện tại (kể cả của cán bộ trước), bắt buộc lý do.</summary>
+    [HttpPost("{id:guid}/comments/{commentId:guid}/withdraw"), RequestSizeLimit(4096), ProducesResponseType<ReviewResultDto>(200)]
+    [Authorize(Policy = "workflow.comments.write")]
+    public async Task<IActionResult> WithdrawComment(Guid id, Guid commentId, WithdrawCommentInput input, CancellationToken ct)
+    {
+        if (!AssignmentHandlers.ValidReason(input.Reason))
+            return Respond(WorkflowResult<ReviewResultDto>.Fail(400, "workflow.validation", "Cần lý do rút nhận xét 5–500 ký tự."));
+        return Respond(await sender.Send(new WithdrawCommentCommand(Actor, id, commentId, input), ct));
+    }
+
     /// <summary>Xác nhận giấy tờ sẵn sàng để mang đến phường; không phê duyệt thủ tục hành chính.</summary>
     [HttpPost("{id:guid}/confirm-readiness"), Authorize(Policy = "workflow.readiness.confirm"), ProducesResponseType<ReviewResultDto>(200)]
     [ProducesResponseType<ProblemDetails>(422), ProducesResponseType<ProblemDetails>(503)]

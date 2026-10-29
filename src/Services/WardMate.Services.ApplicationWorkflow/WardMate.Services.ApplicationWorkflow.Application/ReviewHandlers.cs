@@ -8,6 +8,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
     IRequestHandler<AssignOfficerCommand, WorkflowResult<ReviewResultDto>>,
     IRequestHandler<AddApplicationCommentCommand, WorkflowResult<ReviewResultDto>>,
     IRequestHandler<RequestRevisionCommand, WorkflowResult<ReviewResultDto>>,
+    IRequestHandler<WithdrawCommentCommand, WorkflowResult<ReviewResultDto>>,
     IRequestHandler<ResubmitApplicationCommand, WorkflowResult<ReviewResultDto>>,
     IRequestHandler<GetOfficerPendingApplicationsPagedQuery, ApplicationPage>,
     IRequestHandler<GetOfficerApplicationsPagedQuery, ApplicationPage>,
@@ -16,6 +17,9 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
     IRequestHandler<CompareApplicationVersionsQuery, WorkflowResult<FieldDiffDto[]>>
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
+    // A withdrawn comment never became a revision request; the applicant does not see it or its internal reason.
+    private static IEnumerable<ApplicationComment> Visible(ApplicationRecord a, ReviewActor actor) =>
+        a.UserId == actor.Id ? a.Comments.Where(x => x.Status != "WITHDRAWN") : a.Comments;
     private static WorkflowResult<ReviewResultDto> Ok(ApplicationRecord a) => WorkflowResult<ReviewResultDto>.Ok(
         new(ApplicationDto.From(a), a.AssignedOfficerId, a.ResubmitCount, a.Versions.Max(x => x.VersionNumber)));
     private static WorkflowResult<ReviewResultDto> Fail(int status, string code, string message) =>
@@ -52,6 +56,23 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         a.Comments.Add(new() { ApplicationId = a.Id, ApplicationVersionId = version.Id, OfficerId = r.Actor.Id,
             TargetType = r.Input.TargetType, TargetId = r.Input.TargetType == "CHECKLIST_ITEM" ? Guid.Parse(r.Input.TargetId).ToString() : r.Input.TargetId,
             FieldLabel = r.Input.FieldLabel.Trim(), CommentText = r.Input.CommentText.Trim(), CreatedAt = now, UpdatedAt = now });
+        a.UpdatedAt = now;
+        return Ok(a);
+    }, ct);
+
+    // The current assignee may withdraw any OPEN comment of the current version, including one left by a previous officer
+    // before TRANSFER/RELEASE, so readiness is not blocked by findings nobody owns any more. Text and author stay as evidence.
+    public Task<WorkflowResult<ReviewResultDto>> Handle(WithdrawCommentCommand r, CancellationToken ct) => store.Mutate(r.Id, a =>
+    {
+        if (!Assigned(a, r.Actor)) return Fail(403, "forbidden", "Chỉ cán bộ đang thụ lý được rút nhận xét.");
+        if (a.Status != ApplicationStates.UnderReview) return Fail(409, "invalid_status", "Chỉ rút nhận xét khi hồ sơ đang UNDER_REVIEW.");
+        var comment = a.Comments.SingleOrDefault(x => x.Id == r.CommentId);
+        if (comment is null) return Fail(404, "comment_not_found", "Không tìm thấy nhận xét của hồ sơ.");
+        var version = a.Versions.MaxBy(x => x.VersionNumber)!;
+        if (comment.ApplicationVersionId != version.Id || comment.Status != "OPEN")
+            return Fail(409, "comment_not_open", "Chỉ rút được nhận xét OPEN của phiên bản hiện tại. Tải lại danh sách nhận xét.");
+        var now = Now;
+        comment.Withdraw(r.Actor.Id, r.Input.Reason, now);
         a.UpdatedAt = now;
         return Ok(a);
     }, ct);
@@ -107,7 +128,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         if (a is null) return WorkflowResult<CommentDto[]>.Fail(404, "application.not_found", "Không tìm thấy hồ sơ trong phạm vi truy cập.");
         if (r.VersionNumber is not null && !a.Versions.Any(x => x.VersionNumber == r.VersionNumber))
             return WorkflowResult<CommentDto[]>.Fail(404, "application.version_not_found", "Không tìm thấy phiên bản.");
-        return WorkflowResult<CommentDto[]>.Ok(a.Comments.Select(x => ApplicationSnapshots.ToDto(x, a.Versions))
+        return WorkflowResult<CommentDto[]>.Ok(Visible(a, r.Actor).Select(x => ApplicationSnapshots.ToDto(x, a.Versions))
             .Where(x => (r.VersionNumber is null || x.VersionNumber == r.VersionNumber) && (r.Status is null || x.Status == r.Status))
             .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).ToArray());
     }
@@ -125,7 +146,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         var from = a.Versions.SingleOrDefault(x => x.VersionNumber == r.FromVersionNumber);
         var to = a.Versions.SingleOrDefault(x => x.VersionNumber == r.ToVersionNumber);
         if (from is null || to is null) return WorkflowResult<FieldDiffDto[]>.Fail(404, "application.version_not_found", "Không tìm thấy phiên bản của hồ sơ.");
-        var comments = a.Comments.Where(x => x.ApplicationVersionId == from.Id || x.ApplicationVersionId == to.Id)
+        var comments = Visible(a, r.Actor).Where(x => x.ApplicationVersionId == from.Id || x.ApplicationVersionId == to.Id)
             .Select(x => ApplicationSnapshots.ToDto(x, a.Versions)).ToArray();
         return WorkflowResult<FieldDiffDto[]>.Ok(ApplicationSnapshots.Compare(from, to, comments));
     }

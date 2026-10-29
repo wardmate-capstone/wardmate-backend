@@ -23,4 +23,14 @@ public sealed class ApplicationComment
     public string Status { get; set; } = "OPEN";
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    // Set together only when the current assignee withdraws an OPEN comment; the text is kept as evidence.
+    public Guid? WithdrawnBy { get; set; }
+    public DateTime? WithdrawnAt { get; set; }
+    public string? WithdrawReason { get; set; }
+
+    public void Withdraw(Guid actor, string reason, DateTime now)
+    {
+        if (Status != "OPEN") throw new InvalidOperationException("Chỉ rút được nhận xét OPEN.");
+        Status = "WITHDRAWN"; WithdrawnBy = actor; WithdrawnAt = UpdatedAt = now; WithdrawReason = reason.Trim();
+    }
 }

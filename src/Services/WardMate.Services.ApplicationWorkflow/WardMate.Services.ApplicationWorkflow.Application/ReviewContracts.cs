@@ -12,12 +12,14 @@ public sealed record ReviewActor(Guid Id, bool IsOfficer, string? WardCode = nul
 }
 public sealed record AddCommentInput(int VersionNumber, string TargetType, string TargetId, string FieldLabel, string CommentText);
 public sealed record RequestRevisionInput(string Reason);
+public sealed record WithdrawCommentInput(string Reason);
 public sealed record ResubmitChecklistInput(Guid Id, string Status, string? FileUrl, string? Note);
 public sealed record ResubmitInput(int ExpectedVersionNumber, JsonElement FormData, ResubmitChecklistInput[] Checklists);
 public sealed record ReviewResultDto(ApplicationDto Application, Guid? AssignedOfficerId, int ResubmitCount, int CurrentVersionNumber);
 public sealed record VersionDto(Guid Id, int VersionNumber, Guid SubmittedBy, DateTime SubmittedAt, JsonElement SnapshotData);
 public sealed record CommentDto(Guid Id, Guid ApplicationVersionId, int VersionNumber, Guid OfficerId,
-    string TargetType, string TargetId, string FieldLabel, string CommentText, string Status, DateTime CreatedAt, DateTime UpdatedAt);
+    string TargetType, string TargetId, string FieldLabel, string CommentText, string Status, DateTime CreatedAt, DateTime UpdatedAt,
+    Guid? WithdrawnBy = null, DateTime? WithdrawnAt = null, string? WithdrawReason = null);
 public sealed record FieldDiffDto(string FieldKey, string FieldLabel, JsonNode? OldValue, JsonNode? NewValue,
     bool HasChanged, CommentDto[] AssociatedComments, bool OldExists, bool NewExists);
 public sealed record OfficerPendingInput(string? Status = null, Guid? ProcedureId = null,
@@ -44,6 +46,7 @@ public sealed record OfficerActivityPage(OfficerActivityDto[] Items, int Page, i
 
 public sealed record AssignOfficerCommand(ReviewActor Actor, Guid Id) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record AddApplicationCommentCommand(ReviewActor Actor, Guid Id, AddCommentInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
+public sealed record WithdrawCommentCommand(ReviewActor Actor, Guid Id, Guid CommentId, WithdrawCommentInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record RequestRevisionCommand(ReviewActor Actor, Guid Id, RequestRevisionInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record ResubmitApplicationCommand(Guid UserId, Guid Id, ResubmitInput Input, string? ApplicantName = null) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record GetOfficerPendingApplicationsPagedQuery(ReviewActor Actor, OfficerPendingInput Input) : IRequest<ApplicationPage>;
@@ -106,7 +109,7 @@ public static class ApplicationSnapshots
     }
     public static CommentDto ToDto(ApplicationComment c, IEnumerable<ApplicationVersion> versions) => new(c.Id,
         c.ApplicationVersionId, versions.Single(x => x.Id == c.ApplicationVersionId).VersionNumber, c.OfficerId,
-        c.TargetType, c.TargetId, c.FieldLabel, c.CommentText, c.Status, c.CreatedAt, c.UpdatedAt);
+        c.TargetType, c.TargetId, c.FieldLabel, c.CommentText, c.Status, c.CreatedAt, c.UpdatedAt, c.WithdrawnBy, c.WithdrawnAt, c.WithdrawReason);
     public static FieldDiffDto[] Compare(ApplicationVersion from, ApplicationVersion to, CommentDto[] comments)
     {
         var oldFields = Fields(from.SnapshotData); var newFields = Fields(to.SnapshotData);

@@ -83,7 +83,7 @@ public sealed class CommentsQueryValidator : AbstractValidator<GetApplicationCom
     public CommentsQueryValidator()
     {
         RuleFor(x => x.VersionNumber).Must(x => x is null or > 0).WithMessage("Phiên bản phải lớn hơn 0.");
-        RuleFor(x => x.Status).Must(x => x is null or "OPEN" or "RESOLVED").WithMessage("Trạng thái nhận xét phải là OPEN hoặc RESOLVED.");
+        RuleFor(x => x.Status).Must(x => x is null or "OPEN" or "RESOLVED" or "WITHDRAWN").WithMessage("Trạng thái nhận xét phải là OPEN, RESOLVED hoặc WITHDRAWN.");
     }
 }
 public sealed class DiffQueryValidator : AbstractValidator<CompareApplicationVersionsQuery>

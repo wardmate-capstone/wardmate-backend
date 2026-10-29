@@ -80,7 +80,8 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         var comment = b.Entity<ApplicationComment>();
         comment.ToTable("application_comments", t =>
         {
-            t.HasCheckConstraint("ck_application_comments_status", "status IN ('OPEN','RESOLVED')");
+            t.HasCheckConstraint("ck_application_comments_status", "status IN ('OPEN','RESOLVED','WITHDRAWN')");
+            t.HasCheckConstraint("ck_application_comments_withdrawal", "(status = 'WITHDRAWN' AND withdrawn_by IS NOT NULL AND withdrawn_at IS NOT NULL AND withdraw_reason IS NOT NULL) OR (status <> 'WITHDRAWN' AND withdrawn_by IS NULL AND withdrawn_at IS NULL AND withdraw_reason IS NULL)");
             t.HasCheckConstraint("ck_application_comments_target", "target_type IN ('FORM_FIELD','CHECKLIST_ITEM')");
         });
         comment.HasKey(x => x.Id);
@@ -89,6 +90,7 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         comment.Property(x => x.FieldLabel).HasMaxLength(255).IsRequired();
         comment.Property(x => x.CommentText).HasColumnType("text").IsRequired();
         comment.Property(x => x.Status).HasMaxLength(20).HasDefaultValue("OPEN");
+        comment.Property(x => x.WithdrawReason).HasMaxLength(500);
         comment.HasIndex(x => new { x.ApplicationId, x.ApplicationVersionId, x.Status });
         comment.HasOne<ApplicationVersion>().WithMany().HasForeignKey(x => new { x.ApplicationId, x.ApplicationVersionId })
             .HasPrincipalKey(x => new { x.ApplicationId, x.Id }).OnDelete(DeleteBehavior.Restrict);
