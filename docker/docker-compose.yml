@@ -265,11 +265,18 @@ services:
       ReverseProxy__Clusters__document-form__Destinations__primary__Address: http://document-form:8080/
       ReverseProxy__Clusters__application-workflow__Destinations__primary__Address: http://application-workflow:8080/
       ReverseProxy__Clusters__analytics-system__Destinations__primary__Address: http://analytics-system:8080/
+      # ai-ocr chỉ chạy với --profile ai; không có thì /api/v1/ai/... trả 502/503 từ gateway, các route khác không ảnh hưởng.
+      ReverseProxy__Clusters__ai-ocr__Destinations__primary__Address: http://ai-ocr:8080/
     ports:
       - "5000:8080"
     depends_on:
-      - iam-api
-      - procedure-catalog
+      iam-api:
+        condition: service_started
+      procedure-catalog:
+        condition: service_started
+      ai-ocr:
+        condition: service_started
+        required: false
 
   # pgAdmin 4 - Quản lý giao diện Web PostgreSQL (port 5050)
   pgadmin:
@@ -329,8 +336,29 @@ services:
       - "5672:5672"   # Cổng kết nối AMQP
       - "15672:15672" # Cổng Dashboard Web (user/pass: wardmate_admin / wardmate_secret)
 
+  # Database riêng của AIOCR (chat, Knowledge Base). Chỉ chạy với --profile ai.
+  aiocr-db:
+    profiles: ["ai"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: wardmate_aiocr_db
+      POSTGRES_USER: wardmate_aiocr
+      POSTGRES_PASSWORD: ${AIOCR_DB_PASSWORD:-}
+    ports:
+      - "127.0.0.1:5437:5432"
+    volumes:
+      - aiocr-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wardmate_aiocr -d wardmate_aiocr_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   ai-ocr:
     profiles: ["ai"]
+    depends_on:
+      aiocr-db:
+        condition: service_healthy
     build:
       context: ..
       dockerfile: src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/Dockerfile
@@ -343,8 +371,9 @@ services:
       Jwt__Issuer: wardmate
       Jwt__Audience: wardmate-client
       Assistant__Enabled: ${AIOCR_ASSISTANT_ENABLED:-false}
-      ConnectionStrings__AiOcrDatabase: ${AIOCR_DATABASE_CONNECTION_STRING:-}
-      Database__AutoMigrate: ${AIOCR_AUTO_MIGRATE:-false}
+      # Mặc định dùng aiocr-db ở trên; đặt AIOCR_DATABASE_CONNECTION_STRING để trỏ DB khác (ví dụ Supabase).
+      ConnectionStrings__AiOcrDatabase: ${AIOCR_DATABASE_CONNECTION_STRING:-Host=aiocr-db;Port=5432;Database=wardmate_aiocr_db;Username=wardmate_aiocr;Password=${AIOCR_DB_PASSWORD:-}}
+      Database__AutoMigrate: ${AIOCR_AUTO_MIGRATE:-true}
       Services__ApplicationWorkflow__BaseUrl: http://application-workflow:8080/
       Services__DocumentForm__BaseUrl: http://document-form:8080/
       Services__ProcedureCatalog__BaseUrl: http://procedure-catalog:8080/
@@ -371,6 +400,7 @@ volumes:
   workflow-data:
   procedure-data:
   iam-data:
+  aiocr-data:
   postgres_data:
   redis_data:
 
