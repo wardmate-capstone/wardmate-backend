@@ -3530,3 +3530,24 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
   - feat(workflow): add comment withdrawal migration
   - docs(sql): add workflow comment withdrawal script
   - docs: document comment withdrawal API and rule
+
+
+## AI-TEST-LOCAL — Test AIOCR qua HTTP với Postgres thật, IAM và Gemini giả; sửa mã lỗi DB (AIOCR-ERR-01) — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: test phần AI theo báo cáo rà soát AIOCR 29/10 (P1–P5).
+- Cách test: chương trình tạm (scratchpad, không phải test project của repo) chạy AIOCR API thật trong WebApplicationFactory; Postgres 16 tạm (đã xóa) với AutoMigrate; IAM giả qua HTTP local (access-context, 401/500); Gemini giả bằng HttpMessageHandler (generateContent, batchEmbedContents, embedContent). Không gọi Google, không tốn phí, không dùng key thật.
+- Kết quả: 42/42 ca đạt sau khi sửa. Gồm: thiếu Jwt:Key → dừng khởi động (khớp P1); health 200; không token 401; IAM thu hồi 401 auth.session_revoked; IAM lỗi 503 auth.session_unavailable; DB mất kết nối 503 chat/knowledge.database_unavailable; chat 2 lượt cùng phiên, lịch sử 4 tin, phiên người khác 404, đổi phường 409, wardCode sai 400; finishReason MAX_TOKENS → 502 và rollback lượt (khớp P4); bỏ phần thought; Gemini 500 → 503; gửi chen cùng phiên 409 chat.busy; rate limit 429 ở request thứ 11/phút; CCCD 200 và file không phải ảnh 415; verify hạ isValid khi confidence 0.6; công dân 403 knowledge.forbidden; tạo 2 tài liệu, worker embed đủ, search đúng tài liệu ≥ 0.55; RAG grounded + citation đúng, lưu citations vào lịch sử; câu hỏi không có nguồn → câu cố định, không gọi Gemini; tắt tài liệu → không còn nguồn.
+- Lỗi tìm thấy và đã sửa (AIOCR-ERR-01): gửi chen cùng phiên trả 502 thay vì 409 chat.busy; mất DB trả 502 thay vì 503. AssistantExceptionHandler nay bóc InvalidOperationException bọc NpgsqlException.
+- File sửa: src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/AssistantRegistration.cs; docs/api-guide.md; docs/system-constraints.md (AIOCR-ERR-01). Không file mới trong repo, không migration.
+- Build: dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error.
+- Chưa làm / ngoài phạm vi: P1 Azure (Container App wardmate-aiocr thiếu Jwt__Key hoặc config khác — cần Antigravity xem log, không phải lỗi code; kiểm tra fail-fast được thêm có chủ đích ở AIOCR-JWT-01); P3 docker-compose (gateway thiếu override cluster ai-ocr, không có DB AIOCR, .env.example thiếu biến) chưa sửa; P4 maxOutputTokens 4096 xác nhận gây 502 khi model trả MAX_TOKENS, chưa đổi vì cần biết model gemini-3.1-flash-lite có tính token thinking hay không; chưa gọi Gemini thật; verify tài liệu chỉ test phần kiểm tra kết quả model, chưa test tải file qua DocumentForm/Workflow.
+- Commit gợi ý: fix(aiocr): map wrapped Npgsql errors to chat.busy and database_unavailable
+
+
+## AIOCR-DOCKER-01 — Sửa Docker local cho AIOCR (P3 báo cáo rà soát AI) — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- docker/docker-compose.yml: thêm service `aiocr-db` (profile ai, postgres:16-alpine, 127.0.0.1:5437, volume aiocr-data, healthcheck); `ai-ocr` depends_on aiocr-db healthy, connection string mặc định trỏ aiocr-db (vẫn ghi đè được bằng AIOCR_DATABASE_CONNECTION_STRING), AIOCR_AUTO_MIGRATE mặc định true; gateway thêm `ReverseProxy__Clusters__ai-ocr__Destinations__primary__Address: http://ai-ocr:8080/` và depends_on ai-ocr `required: false`; khai báo volume aiocr-data.
+- docker/.env.example: thêm AIOCR_ASSISTANT_ENABLED, AIOCR_DB_PASSWORD, AIOCR_DATABASE_CONNECTION_STRING, AIOCR_AUTO_MIGRATE.
+- Docs: docs/api-guide.md (mục cấu hình AIOCR, thay ghi chú "không tự tạo PostgreSQL AIOCR"), docs/system-constraints.md (AIOCR-DOCKER-01).
+- Kiểm tra: `docker compose config` với file env giả (không in secret): hợp lệ có/không profile ai; danh sách service mặc định giống hệt bản cũ (13 service). Chạy thật `--profile ai` aiocr-db + ai-ocr + gateway: aiocr-db healthy, AIOCR tự migrate 3 migration (ChatSessions, KnowledgeBase, KnowledgeRetrieval), `GET http://localhost:5000/api/v1/ai/chat/sessions` và `/api/v1/ai/knowledge/index-status` không token → 401 từ AIOCR (trước đây gateway trỏ localhost:5005 nên không tới được). Mật khẩu DB tạo ngẫu nhiên trong shell, không sửa docker/.env. Đã xóa container ai-ocr/aiocr-db và volume test, dừng lại gateway.
+- Chưa test: chat thật qua Docker (cần AIOCR_ASSISTANT_ENABLED=true và Gemini key; không gọi Gemini trong lượt này); IAM/procedure-catalog không chạy trong lần thử này.
+- Bỏ qua dịch vụ cũ `postgres` (pgvector, wardmate_db) trong compose: không phải DB của AIOCR, không đụng tới.
+- Commit gợi ý: fix(docker): add AIOCR database and gateway route to compose; docs: document AIOCR docker profile

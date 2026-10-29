@@ -911,3 +911,18 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - Migration 20261029010912_CommentWithdrawal; Down bị chặn khi đã có dòng WITHDRAWN. SQL idempotent: docs/sql/workflow-comment-withdrawal.sql, yêu cầu ApplicantNameAndActivity trước.
 - Nguồn: Workflow Domain/ApplicationReview.cs (ApplicationComment.Withdraw); Application/ReviewContracts.cs (WithdrawCommentCommand/Input, CommentDto), ReviewHandlers.cs (Handle WithdrawCommentCommand, Visible), ReviewValidation.cs; Infrastructure/WorkflowDbContext.cs, Migrations/20261029010912_CommentWithdrawal.cs; API/Controllers/ApplicationReviewController.cs.
 - Lịch sử 29/10/2026: chủ dự án duyệt hướng rút nhận xét có lý do; thay giới hạn "nhận xét OPEN của cán bộ trước chặn cán bộ mới". Chưa apply DB cloud, chưa deploy, không Git.
+
+
+### AIOCR-ERR-01 — Phân loại lỗi database của API AI (29/10/2026)
+
+- AssistantExceptionHandler bóc `InvalidOperationException` có `InnerException` là `NpgsqlException` (EF Core bọc lỗi tạm thời kể cả khi không cấu hình retry) rồi mới phân loại. Kết quả: khóa phiên `55P03` → 409 chat.busy; lỗi kết nối/DB → 503 chat.database_unavailable (route /api/v1/ai/knowledge → 503 knowledge.database_unavailable). InvalidOperationException không do DB vẫn → 502 ai.invalid_response như cũ.
+- Thay giới hạn ngầm trước đây: 409 chat.busy và 503 database đã ghi trong tài liệu nhưng không xảy ra (đều thành 502).
+- Nguồn: AIOCR API/AssistantRegistration.cs (AssistantExceptionHandler). Lịch sử 29/10/2026: phát hiện khi test HTTP local; chưa deploy.
+
+
+### AIOCR-DOCKER-01 — Cấu hình Docker local cho AIOCR (29/10/2026)
+
+- Profile ai có thêm `aiocr-db` (PostgreSQL 16, 127.0.0.1:5437, volume aiocr-data). Bắt buộc đặt `AIOCR_DB_PASSWORD` khi chạy profile ai; thiếu thì container DB không khởi động. Không bật profile thì biến này không cần.
+- `ai-ocr` mặc định dùng aiocr-db (`AIOCR_DATABASE_CONNECTION_STRING` để trống) và `AIOCR_AUTO_MIGRATE=true`; chờ aiocr-db healthy. Đặt connection string khác thì không còn dùng aiocr-db.
+- Gateway ghi đè cluster ai-ocr → `http://ai-ocr:8080/`; depends_on ai-ocr `required: false` (cần Docker Compose ≥ 2.20). Không chạy profile ai thì gateway vẫn khởi động, chỉ route AI lỗi.
+- Chỉ áp dụng Docker local, không thay cấu hình Azure. Nguồn: docker/docker-compose.yml, docker/.env.example. Lịch sử 29/10/2026: thay ghi chú cũ "không tự tạo PostgreSQL AIOCR trong Compose".

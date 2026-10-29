@@ -3631,7 +3631,7 @@ Sai IDs/body400; thiếu token401; bị DocumentForm từ chối403/404; file kh
 - ConnectionStrings__AiOcrDatabase: PostgreSQL riêng AIOCR; không dùng database/schema của service khác. Cần migration 20261021080951_ChatSessions trước dùng chat.
 - Database__AutoMigrate mặc địnhfalse; chỉ bậttrue nếu muốn service tự apply migration lúc startup và đã cấu hình đúng database. Khi thiếu connection và bật migration, startup dừng.
 - Services__DocumentForm__BaseUrl: URL cố định DocumentForm; dùng HTTPS trên Azure. Không có URL tùy ý trong request.
-- Docker Compose profile ai thêm AIOCR_ASSISTANT_ENABLED, AIOCR_DATABASE_CONNECTION_STRING, AIOCR_AUTO_MIGRATE; dùng JWT_KEY hiện có. Không tự tạo PostgreSQL AIOCR trong Compose: phải cung cấp database riêng.
+- Docker Compose profile ai (cập nhật 29/10/2026): chạy `docker compose --profile ai up -d --build` sẽ có thêm `aiocr-db` (PostgreSQL 16 riêng, cổng 127.0.0.1:5437, volume aiocr-data) và `ai-ocr`. Cần đặt `AIOCR_DB_PASSWORD` trong docker/.env. Mặc định AIOCR dùng aiocr-db và `AIOCR_AUTO_MIGRATE=true`; đặt `AIOCR_DATABASE_CONNECTION_STRING` để trỏ DB khác. Gateway đã trỏ cluster ai-ocr tới `http://ai-ocr:8080/` và phụ thuộc ai-ocr dạng không bắt buộc: không bật profile ai thì gateway vẫn chạy, chỉ route `/api/v1/ai/...` và `/api/v1/ai-ocr/...` lỗi. Chat/CCCD/verify còn cần `AIOCR_ASSISTANT_ENABLED=true`, `GEMINI_API_KEY`, `GEMINI_MODEL`; dùng JWT_KEY hiện có.
 - Mỗi user tối đa10 request/phút cho nhóm endpoint mới (kể cả đọc lịch sử), vượt trả429. Bộ đếm ở từng replica, chưa là quota phân tán. HTTP Gemini timeout90giây; không tự retry để tránh nhân chi phí. Health hiện là liveness, Healthy không chứng minh DB/Gemini hoạt động.
 - Gemini adapter dùng generateContent + inlineData + JSON Schema. Tham khảo hợp đồng: https://ai.google.dev/api/generate-content .
 
@@ -4357,3 +4357,17 @@ Lý do trim, 5–500 ký tự.
 ### Triển khai
 
 Chạy `docs/sql/workflow-comment-withdrawal.sql` (migration `20261029010912_CommentWithdrawal`) **sau** `workflow-applicant-name-activity.sql`, rồi deploy Workflow. Không cần route gateway mới (dùng `/api/v1/officer/applications/{**catch-all}`). Rollback migration bị chặn khi đã có nhận xét WITHDRAWN, để không mất dấu vết rút.
+
+
+## Đính chính mã lỗi AIOCR khi DB bận/mất kết nối — 29/10/2026 (AIOCR-ERR-01)
+
+Trước bản sửa này, hai trường hợp đã ghi trong hướng dẫn **không trả đúng mã**:
+
+- Gửi tin thứ hai vào cùng phiên khi lượt trước chưa xong: tài liệu ghi 409 `chat.busy`, thực tế trả **502 `ai.invalid_response`**.
+- Database AIOCR mất kết nối: tài liệu ghi 503 `chat.database_unavailable` / `knowledge.database_unavailable`, thực tế trả **502 `ai.invalid_response`**.
+
+Nguyên nhân: EF Core bọc lỗi Postgres tạm thời (khóa dòng `55P03`, mất kết nối) trong `InvalidOperationException`, nên bộ xử lý lỗi xếp nhầm vào nhóm "AI trả dữ liệu sai". Nay trả đúng như mô tả ở trên. Không đổi route, body hay DTO.
+
+FE nên xử lý:
+- `409 chat.busy`: giữ nút gửi ở trạng thái chờ, gửi lại khi lượt trước trả về; không coi là lỗi AI.
+- `503 chat.database_unavailable`: báo hệ thống bận, thử lại sau; không hiện "AI trả lời sai".
