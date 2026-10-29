@@ -31,25 +31,21 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
         if (input.Assignee == "me") q = q.Where(x => x.AssignedOfficerId == actor.Id);
         else if (input.Assignee == "unassigned") q = q.Where(x => x.AssignedOfficerId == null);
         else if (Guid.TryParse(input.Assignee, out var target)) q = q.Where(x => x.AssignedOfficerId == target);
-        if (input.Overdue == true)
-        {
-            var now = DateTime.UtcNow;
-            // Same rule as Analytics openOverdue: a pause started after the due time stays overdue.
-            q = q.Where(x => x.DeadlineStatus == "KNOWN" && x.DueAtUtc != null && x.DueAtUtc < (x.DeadlinePausedAtUtc ?? now)
-                && x.DocumentsReadyAt == null && (x.Status == "SUBMITTED" || x.Status == "UNDER_REVIEW" || x.Status == "NEED_REVISION"));
-        }
+        if (input.Overdue == true) q = Overdue(q, DateTime.UtcNow);
         var total = await q.CountAsync(ct);
         var items = await Order(q, actor, input.Sort, true).Skip((input.Page - 1) * input.PageSize).Take(input.PageSize)
-            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc, x.CategoryId, x.CategoryName, x.AssignedOfficerName, x.AssignedAt, x.ResubmitCount, x.AssignmentVersion)).ToArrayAsync(ct);
+            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc, x.CategoryId, x.CategoryName, x.AssignedOfficerName, x.AssignedAt, x.ResubmitCount, x.AssignmentVersion, x.ApplicantName)).ToArrayAsync(ct);
         return new(items, input.Page, input.PageSize, total);
     }
 
     public async Task<ApplicationPage> ListAll(ReviewActor actor, OfficerListInput input, CancellationToken ct)
     {
         if (!actor.CanReadWard || string.IsNullOrEmpty(actor.WardCode)) return new([], input.Page, input.PageSize, 0);
-        // Trả toàn bộ hồ sơ thuộc phường — trừ hồ sơ của chính cán bộ đó (tránh lộ dữ liệu/xung đột)
+        // Trả hồ sơ đã từng nộp thuộc phường — trừ hồ sơ của chính cán bộ đó (tránh lộ dữ liệu/xung đột).
+        // Bản nháp và nháp công dân tự hủy (chưa từng nộp) không bao giờ xuất hiện, kể cả khi FE gửi Status=DRAFT.
         var q = db.Applications.AsNoTracking()
-            .Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id);
+            .Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id
+                && x.Status != ApplicationStates.Draft && x.SubmittedAt != null);
         if (!string.IsNullOrWhiteSpace(input.Status))
         {
             var rawStatuses = input.Status.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -84,21 +80,72 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
         if (input.Assignee == "me") q = q.Where(x => x.AssignedOfficerId == actor.Id);
         else if (input.Assignee == "unassigned") q = q.Where(x => x.AssignedOfficerId == null);
         else if (Guid.TryParse(input.Assignee, out var target)) q = q.Where(x => x.AssignedOfficerId == target);
-        if (input.Overdue == true)
-        {
-            var now = DateTime.UtcNow;
-            // Same rule as Analytics openOverdue: a pause started after the due time stays overdue.
-            q = q.Where(x => x.DeadlineStatus == "KNOWN" && x.DueAtUtc != null && x.DueAtUtc < (x.DeadlinePausedAtUtc ?? now)
-                && x.DocumentsReadyAt == null && (x.Status == "SUBMITTED" || x.Status == "UNDER_REVIEW" || x.Status == "NEED_REVISION"));
-        }
+        if (input.Overdue == true) q = Overdue(q, DateTime.UtcNow);
         var total = await q.CountAsync(ct);
         var page = Math.Max(1, input.Page);
         var pageSize = Math.Clamp(input.PageSize, 1, 100);
         var items = await Order(q, actor, input.Sort, false)
             .Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc, x.CategoryId, x.CategoryName, x.AssignedOfficerName, x.AssignedAt, x.ResubmitCount, x.AssignmentVersion))
+            .Select(x => new ApplicationSummaryDto(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.CreatedAt, x.SubmittedAt, x.WardCode, x.AssignedOfficerId, x.FirstSubmittedAtUtc, x.DueAtUtc, x.DocumentsReadyAt, x.DeadlineStatus, x.DeadlinePausedAtUtc, x.CategoryId, x.CategoryName, x.AssignedOfficerName, x.AssignedAt, x.ResubmitCount, x.AssignmentVersion, x.ApplicantName))
             .ToArrayAsync(ct);
         return new(items, page, pageSize, total);
+    }
+
+    // Same rule as Analytics openOverdue: a pause started after the due time stays overdue.
+    private static IQueryable<ApplicationRecord> Overdue(IQueryable<ApplicationRecord> q, DateTime now) =>
+        q.Where(x => x.DeadlineStatus == "KNOWN" && x.DueAtUtc != null && x.DueAtUtc < (x.DeadlinePausedAtUtc ?? now)
+            && x.DocumentsReadyAt == null && (x.Status == "SUBMITTED" || x.Status == "UNDER_REVIEW" || x.Status == "NEED_REVISION"));
+
+    public async Task<AssignmentSummaryDto> AssignmentSummary(ReviewActor actor, CancellationToken ct)
+    {
+        if (!actor.IsManager || string.IsNullOrEmpty(actor.WardCode)) return new(0, 0, []);
+        var now = DateTime.UtcNow;
+        var ward = db.Applications.AsNoTracking().Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id);
+        var unassigned = await ward.CountAsync(x => x.Status == ApplicationStates.Submitted && x.AssignedOfficerId == null, ct);
+        var overdue = await Overdue(ward, now).CountAsync(ct);
+        // A resubmitted file returns to SUBMITTED but stays with its officer, so it still counts as that officer's work.
+        var active = ward.Where(x => x.AssignedOfficerId != null && (x.Status == ApplicationStates.Submitted || x.Status == ApplicationStates.UnderReview
+            || x.Status == ApplicationStates.NeedRevision || x.Status == ApplicationStates.DocumentsReady));
+        var counts = await active.GroupBy(x => x.AssignedOfficerId!.Value).Select(g => new { OfficerId = g.Key, Count = g.Count() }).ToListAsync(ct);
+        var late = await Overdue(active, now).GroupBy(x => x.AssignedOfficerId!.Value).Select(g => new { OfficerId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.OfficerId, x => x.Count, ct);
+        return new(unassigned, overdue, counts.OrderByDescending(x => x.Count).ThenBy(x => x.OfficerId)
+            .Select(x => new OfficerWorkloadDto(x.OfficerId, x.Count, late.GetValueOrDefault(x.OfficerId))).ToArray());
+    }
+
+    public async Task<OfficerActivityPage> Activity(ReviewActor actor, Guid officerId, OfficerActivityInput input, CancellationToken ct)
+    {
+        if (!actor.CanReadWard || string.IsNullOrEmpty(actor.WardCode)) return new([], input.Page, input.PageSize, 0);
+        // Only files of the caller's current ward, and never the officer's own citizen applications.
+        var apps = db.Applications.AsNoTracking().Where(a => a.WardCode == actor.WardCode && a.UserId != officerId);
+        var statuses = db.StatusHistory.AsNoTracking().Where(h => h.ChangedBy == officerId);
+        var assignments = db.Set<ApplicationAssignmentHistory>().AsNoTracking().Where(h => h.ActorId == officerId);
+        if (input.From is not null)
+        {
+            var from = input.From.Value.UtcDateTime;
+            statuses = statuses.Where(h => h.CreatedAt >= from); assignments = assignments.Where(h => h.CreatedAt >= from);
+        }
+        if (input.To is not null)
+        {
+            var to = input.To.Value.UtcDateTime;
+            statuses = statuses.Where(h => h.CreatedAt <= to); assignments = assignments.Where(h => h.CreatedAt <= to);
+        }
+        var action = input.Action;
+        var assignmentAction = action is "CLAIM" or "RELEASE" or "ASSIGN" or "TRANSFER";
+        if (action is not null) { statuses = statuses.Where(h => h.ToStatus == action); assignments = assignments.Where(h => h.Action == action); }
+        var statusRows = statuses.Join(apps, h => h.ApplicationId, a => a.Id, (h, a) => new { h, a });
+        var assignmentRows = assignments.Join(apps, h => h.ApplicationId, a => a.Id, (h, a) => new { h, a });
+        var includeStatus = action is null || !assignmentAction;
+        var includeAssignment = action is null || assignmentAction;
+        var total = (includeStatus ? await statusRows.CountAsync(ct) : 0) + (includeAssignment ? await assignmentRows.CountAsync(ct) : 0);
+        // Both sources are already newest-first; take enough of each to fill the page, then merge (stable sort keeps DB tie order).
+        var take = input.Page * input.PageSize;
+        var items = new List<OfficerActivityDto>();
+        if (includeStatus) items.AddRange(await statusRows.OrderByDescending(x => x.h.CreatedAt).ThenBy(x => x.h.Id).Take(take)
+            .Select(x => new OfficerActivityDto(x.h.Id, "STATUS", x.h.ToStatus, x.a.Id, x.a.ApplicationCode, x.a.ProcedureTitle, x.a.ApplicantName, x.h.Reason, x.h.CreatedAt)).ToListAsync(ct));
+        if (includeAssignment) items.AddRange(await assignmentRows.OrderByDescending(x => x.h.CreatedAt).ThenBy(x => x.h.Id).Take(take)
+            .Select(x => new OfficerActivityDto(x.h.Id, "ASSIGNMENT", x.h.Action, x.a.Id, x.a.ApplicationCode, x.a.ProcedureTitle, x.a.ApplicantName, x.h.Reason, x.h.CreatedAt)).ToListAsync(ct));
+        return new(items.OrderByDescending(x => x.CreatedAt).Skip((input.Page - 1) * input.PageSize).Take(input.PageSize).ToArray(), input.Page, input.PageSize, total);
     }
 
     private static IOrderedQueryable<ApplicationRecord> Order(IQueryable<ApplicationRecord> q, ReviewActor actor, string? sort, bool pending)

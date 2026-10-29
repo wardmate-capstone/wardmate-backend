@@ -33,10 +33,19 @@ public sealed record OfficerListInput(
     int Page = 1,
     int PageSize = 20, string? CategoryIds = null, string? Scope = null, string? Assignee = null, bool? Overdue = null, string? Sort = null);
 
+// Manager workload board: officers absent from Officers have no active file.
+public sealed record OfficerWorkloadDto(Guid OfficerId, int ActiveCount, int OverdueCount);
+public sealed record AssignmentSummaryDto(int UnassignedSubmitted, int Overdue, OfficerWorkloadDto[] Officers);
+// One officer action from status history (STATUS) or assignment history (ASSIGNMENT).
+public sealed record OfficerActivityInput(int Page = 1, int PageSize = 20, DateTimeOffset? From = null, DateTimeOffset? To = null, string? Action = null, Guid? OfficerId = null);
+public sealed record OfficerActivityDto(Guid Id, string Source, string Action, Guid ApplicationId, string? ApplicationCode,
+    string ProcedureTitle, string? ApplicantName, string? Reason, DateTime CreatedAt);
+public sealed record OfficerActivityPage(OfficerActivityDto[] Items, int Page, int PageSize, int Total);
+
 public sealed record AssignOfficerCommand(ReviewActor Actor, Guid Id) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record AddApplicationCommentCommand(ReviewActor Actor, Guid Id, AddCommentInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record RequestRevisionCommand(ReviewActor Actor, Guid Id, RequestRevisionInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
-public sealed record ResubmitApplicationCommand(Guid UserId, Guid Id, ResubmitInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
+public sealed record ResubmitApplicationCommand(Guid UserId, Guid Id, ResubmitInput Input, string? ApplicantName = null) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record GetOfficerPendingApplicationsPagedQuery(ReviewActor Actor, OfficerPendingInput Input) : IRequest<ApplicationPage>;
 public sealed record GetOfficerApplicationsPagedQuery(ReviewActor Actor, OfficerListInput Input) : IRequest<ApplicationPage>;
 public sealed record GetApplicationCommentsQuery(ReviewActor Actor, Guid Id, int? VersionNumber = null, string? Status = null) : IRequest<WorkflowResult<CommentDto[]>>;
@@ -49,6 +58,8 @@ public interface IApplicationReviewStore
     Task<ApplicationRecord?> Read(ReviewActor actor, Guid id, CancellationToken ct);
     Task<ApplicationPage> ListAll(ReviewActor actor, OfficerListInput input, CancellationToken ct);
     Task<ApplicationPage> Pending(ReviewActor actor, OfficerPendingInput input, CancellationToken ct);
+    Task<AssignmentSummaryDto> AssignmentSummary(ReviewActor actor, CancellationToken ct);
+    Task<OfficerActivityPage> Activity(ReviewActor actor, Guid officerId, OfficerActivityInput input, CancellationToken ct);
 
 }
 
