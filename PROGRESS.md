@@ -3508,3 +3508,25 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
   - feat(workflow): add officer activity endpoint
   - feat(gateway): route officer activity to workflow
   - docs: document FE 26/10 workflow requests
+
+## WORKFLOW-FE-1026-LOCAL — Chạy thử local mục 2–5 với Postgres thật — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Container Postgres 16 tạm (cổng 127.0.0.1:55435, mật khẩu ngẫu nhiên, đã xóa sau khi chạy); không dùng volume/.env dự án.
+- dotnet ef database update đến 20261023173500_CategoryAssignment, rồi chạy docs/sql/workflow-applicant-name-activity.sql 2 lần: lần 2 không lỗi (idempotent); EF migrations list nhận 20261029005650_ApplicantNameAndActivity đã apply; có cột applicant_name varchar(255) và 2 index changed_by/actor_id.
+- Nạp dữ liệu mẫu 2 phường (Manager, 2 cán bộ, công dân; DRAFT, nháp tự hủy, hủy sau nộp, SUBMITTED có/không người phụ trách, quá hạn, hồ sơ cán bộ tự nộp, hồ sơ phường khác) và gọi trực tiếp ApplicationReviewStore/ApplicationStore: 35/35 kiểm tra đạt — ListAll bỏ nháp, status=DRAFT rỗng, overdue dùng hàm chung; applicantName ở pending/list/citizen list/detail, snapshot trim/cắt 255/giữ giá trị cũ; summary đếm chưa phân công, quá hạn, khối lượng từng cán bộ, loại phường khác; activity gộp 2 nguồn đúng thứ tự, lọc action/from/to, phân trang, phạm vi phường, loại hồ sơ tự nộp.
+- Giới hạn: chưa chạy qua HTTP (controller, policy, IAM access-context middleware, gateway); phần validate query của OfficerActivityController chỉ được build kiểm tra. FE nghiệm thu giao diện.
+- Không sửa source trong lượt này; không Git.
+
+
+## WORKFLOW-COMMENT-01 — Cán bộ đang phụ trách rút nhận xét OPEN có lý do — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Vấn đề: sau TRANSFER/RELEASE, nhận xét OPEN của cán bộ trước chặn cán bộ mới xác nhận sẵn sàng (409 application.open_comments). Chủ dự án duyệt hướng rút có lý do.
+- Endpoint mới: POST /api/v1/officer/applications/{id}/comments/{commentId}/withdraw, body {"reason": "5–500 ký tự"}, policy workflow.comments.write, chỉ cán bộ đang phụ trách, hồ sơ UNDER_REVIEW, nhận xét OPEN của phiên bản hiện tại → 200 ReviewResultDto; 400 workflow.validation; 403 application.forbidden; 404 application.not_found/comment_not_found; 409 application.invalid_status/comment_not_open.
+- DTO FE: CommentDto thêm cuối withdrawnBy, withdrawnAt, withdrawReason; status có WITHDRAWN; GET comments nhận status=WITHDRAWN. Công dân không thấy nhận xét WITHDRAWN trong comments/diff.
+- File sửa: Workflow Domain/ApplicationReview.cs; Application/ReviewContracts.cs, ReviewHandlers.cs, ReviewValidation.cs; Infrastructure/WorkflowDbContext.cs, Migrations/WorkflowDbContextModelSnapshot.cs; API/Controllers/ApplicationReviewController.cs; docs/api-guide.md, docs/system-constraints.md (WORKFLOW-COMMENT-01), docs/CLAUDE_HANDOFF.md.
+- File mới: Infrastructure/Migrations/20261029010912_CommentWithdrawal.cs (+ Designer; Down chặn khi có WITHDRAWN); docs/sql/workflow-comment-withdrawal.sql (idempotent, yêu cầu ApplicantNameAndActivity trước).
+- Kiểm tra: dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error (lần đầu lỗi khóa file do node MSBuild cũ của chính phiên; build lại sạch). Postgres 16 tạm (đã xóa): SQL chạy 2 lần không lỗi; 17/18 kiểm tra handler đạt ngay, 1 kiểm tra outbox sai do dữ liệu seed tự tạo 2 sự kiện COMMENT — đã đối chiếu outbox: rút không tạo sự kiện. Kịch bản: trước khi rút confirm bị 409 open_comments; cán bộ cũ 403; id lạ 404; NEED_REVISION 409; rút OK, giữ nội dung/tác giả, lý do được trim; rút lặp 409 comment_not_open; cán bộ thấy WITHDRAWN + lý do, công dân không thấy; sau khi rút confirm OK; DB chặn WITHDRAWN thiếu cột audit; rollback migration bị chặn khi có WITHDRAWN. Chưa chạy qua HTTP/IAM/gateway.
+- Chưa làm: apply SQL lên DB thật, deploy Workflow; FE thêm nút "Rút nhận xét" (chỉ hiện cho cán bộ đang phụ trách, hồ sơ UNDER_REVIEW, nhận xét OPEN).
+- Commit gợi ý:
+  - feat(workflow): let current assignee withdraw open comments with a reason
+  - feat(workflow): add comment withdrawal migration
+  - docs(sql): add workflow comment withdrawal script
+  - docs: document comment withdrawal API and rule

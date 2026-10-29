@@ -4319,3 +4319,41 @@ GET `/api/v1/officer/applications` nay chỉ trả hồ sơ **đã từng nộp*
 ### Chưa làm trong lượt này
 
 Mục 1 (bật RabbitMQ/worker trên Azure), mục 6 (minReplicas, cache access-context, cache quyền DocumentForm, Application Insights) và mục 7 (xác nhận image/migration đang chạy trên Azure) cần Antigravity/hạ tầng. Cache access-context trái quy tắc hiện tại "không cache, fail closed" nên chờ chủ dự án quyết.
+
+
+## Rút nhận xét OPEN của cán bộ trước — 29/10/2026 (WORKFLOW-COMMENT-01)
+
+### Vấn đề được sửa
+
+Xác nhận giấy tờ sẵn sàng bị chặn (409 `application.open_comments`) khi phiên bản hiện tại còn nhận xét OPEN. Sau khi Manager chuyển hồ sơ (TRANSFER) hoặc cán bộ trả lại rồi người khác nhận (RELEASE → CLAIM), các nhận xét OPEN của cán bộ trước vẫn còn. Cán bộ mới chỉ còn cách yêu cầu công dân bổ sung, kể cả khi đã kiểm tra và thấy lỗi đó không còn đúng. Nay cán bộ đang phụ trách được rút nhận xét đó, bắt buộc ghi lý do.
+
+### POST `/api/v1/officer/applications/{id}/comments/{commentId}/withdraw`
+
+- **Ai dùng:** Bearer FRONT_DESK_OFFICER có `workflow.comments.write`, không kiêm MANAGER, là **người đang phụ trách** hồ sơ, cùng phường, không phải người nộp. Manager không được rút thay.
+- **Khi nào:** hồ sơ đang `UNDER_REVIEW`; nhận xét phải `OPEN` và thuộc **phiên bản hiện tại**. Rút được cả nhận xét do cán bộ trước hay do chính mình tạo nhầm.
+- **Body:**
+
+```json
+{ "reason": "Đã đối chiếu bản gốc, họ tên khớp CCCD" }
+```
+
+Lý do trim, 5–500 ký tự.
+
+- **Kết quả 200:** `ReviewResultDto` như POST comments. Nhận xét chuyển `status: "WITHDRAWN"`, giữ nguyên nội dung, người tạo và thời điểm tạo; thêm `withdrawnBy`, `withdrawnAt`, `withdrawReason`. Không đổi trạng thái hồ sơ, deadline hay người phụ trách. Không tạo thông báo.
+- **Sau khi rút hết** nhận xét OPEN của phiên bản hiện tại, gọi lại `confirm-readiness`. Nếu vẫn còn lỗi thật thì để OPEN và dùng `request-revision` như cũ.
+- **Lỗi:**
+  - 400 `workflow.validation`: thiếu lý do hoặc lý do sai độ dài.
+  - 403 `application.forbidden`: không phải cán bộ đang phụ trách, khác phường, là Manager, hoặc là người nộp.
+  - 404 `application.not_found` / `application.comment_not_found`: hồ sơ không có, hoặc nhận xét không thuộc hồ sơ này.
+  - 409 `application.invalid_status`: hồ sơ không ở UNDER_REVIEW.
+  - 409 `application.comment_not_open`: nhận xét đã RESOLVED/WITHDRAWN hoặc thuộc phiên bản cũ. Tải lại danh sách nhận xét; không gọi lặp.
+
+### Thay đổi ở API đọc nhận xét
+
+- `CommentDto` (GET `/api/v1/applications/{id}/comments`, `associatedComments` của GET `/diff`) thêm ở cuối: `withdrawnBy`, `withdrawnAt`, `withdrawReason` (null nếu chưa rút). `status` có thêm giá trị `WITHDRAWN`; query `status=WITHDRAWN` hợp lệ.
+- **Công dân chủ hồ sơ không thấy** nhận xét đã rút ở cả hai API (nhận xét đó chưa bao giờ thành yêu cầu bổ sung, lý do là nội bộ). Cán bộ/Manager trong phường vẫn thấy đủ kèm lý do.
+- `request-revision` vẫn cần ít nhất một nhận xét OPEN; nhận xét đã rút không được tính. Nộp lại chỉ chuyển OPEN → RESOLVED, không đụng nhận xét WITHDRAWN.
+
+### Triển khai
+
+Chạy `docs/sql/workflow-comment-withdrawal.sql` (migration `20261029010912_CommentWithdrawal`) **sau** `workflow-applicant-name-activity.sql`, rồi deploy Workflow. Không cần route gateway mới (dùng `/api/v1/officer/applications/{**catch-all}`). Rollback migration bị chặn khi đã có nhận xét WITHDRAWN, để không mất dấu vết rút.

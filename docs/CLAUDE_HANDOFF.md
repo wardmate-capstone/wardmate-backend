@@ -12,7 +12,7 @@ Cần cấu hình AIOCR `Services__ProcedureCatalog__BaseUrl`. Chưa apply DB, c
 
 **Yêu cầu chủ dự án 24/10/2026:** Antigravity commit cả TASK-28 và TASK-29 trong phiên tiếp theo theo kế hoạch commit ở mục TASK-29 cuối PROGRESS.md; báo số commit/loại/message cho chủ dự án và chờ xác nhận trước khi push `kha` (AGENTS.md). Claude không chạy Git.
 
-Còn mở sau TASK-29: ai_request_logs/thống kê chi phí AI, lọc nguồn theo phường, reranker, chuyển pgvector khi vượt 20.000 đoạn, việc rút nhận xét OPEN (chờ duyệt).
+Còn mở sau TASK-29: ai_request_logs/thống kê chi phí AI, lọc nguồn theo phường, reranker, chuyển pgvector khi vượt 20.000 đoạn. Rút nhận xét OPEN đã làm 29/10 (WORKFLOW-COMMENT-01).
 
 ## Cập nhật 24/10/2026 — Quản trị delivery lỗi và đối soát SMS (NOTIFY-ADMIN-01)
 
@@ -20,7 +20,7 @@ Codex bắt đầu rồi dừng giữa chừng (lỗi model); Claude hoàn tất
 
 **Bắt buộc chạy SQL Notifications trước khi deploy AnalyticsSystem mới**: code mới ghi `revision`/`updated_at` mỗi lần lưu delivery, thiếu cột thì toàn bộ luồng thông báo lỗi. Chưa apply DB, chưa deploy, không gửi SMS. Chưa có quota chi phí SMS toàn hệ thống, gửi lại hàng loạt hay DLR webhook.
 
-Việc còn mở đã thảo luận, chưa làm: cho cán bộ đang phụ trách rút nhận xét OPEN (có lý do, có audit) để cán bộ mới sau TRANSFER/RELEASE không bị chặn xác nhận sẵn sàng bởi nhận xét của người trước (`DocumentReadinessRequests.cs` lỗi `application.open_comments`). Chờ chủ dự án duyệt.
+Đã làm 29/10/2026 (WORKFLOW-COMMENT-01): cán bộ đang phụ trách rút nhận xét OPEN có lý do qua POST `/api/v1/officer/applications/{id}/comments/{commentId}/withdraw`; cần chạy `docs/sql/workflow-comment-withdrawal.sql` rồi deploy Workflow.
 
 ## Cập nhật 24/10/2026 — IAM lĩnh vực cán bộ
 
@@ -155,7 +155,7 @@ Bộ EF model kiểm kê ngày 24/10: 41 bảng ứng dụng, 410 cột, 22 FK t
 
 | Ưu tiên | Việc | Trạng thái và bước tiếp theo |
 |---|---|---|
-| Gần nhất | Yêu cầu FE 26/10 (WORKFLOW-FE-1026) | Mục 2–5 có trong source 29/10 (applicantName, bỏ bản nháp ở danh sách cán bộ, assignment-summary, officer/activity); build pass, chưa chạy DB thật. Cần chạy `docs/sql/workflow-applicant-name-activity.sql`, deploy Workflow + Gateway. Mục 1 (RabbitMQ/worker Azure), 6 (minReplicas, cache, App Insights), 7 (xác nhận image/migration Azure) cho Antigravity; cache access-context chờ chủ dự án quyết vì trái quy tắc fail closed. |
+| Gần nhất | Yêu cầu FE 26/10 (WORKFLOW-FE-1026) | Mục 2–5 có trong source 29/10 (applicantName, bỏ bản nháp ở danh sách cán bộ, assignment-summary, officer/activity) và rút nhận xét OPEN (WORKFLOW-COMMENT-01); build pass, đã thử store/handler trên Postgres tạm, chưa qua HTTP. Cần chạy `docs/sql/workflow-applicant-name-activity.sql` rồi `docs/sql/workflow-comment-withdrawal.sql`, deploy Workflow + Gateway. Mục 1 (RabbitMQ/worker Azure), 6 (minReplicas, cache, App Insights), 7 (xác nhận image/migration Azure) cho Antigravity; cache access-context chờ chủ dự án quyết vì trái quy tắc fail closed. |
 | Gần nhất | AIOCR JWT rollout | Code/build đã có theo nhật ký; chưa Docker/Azure cho patch mới. Xác minh issuer/audience IAM đang dùng, bàn giao env secret đúng; không tự in key. Cập nhật ví dụ cũ trong docs/azure-deployment.md sau khi có căn cứ. |
 | Gần nhất | DocumentForm auth.session_unavailable | Diagnostics/image/config đã được rollout theo nhật ký. Còn thiếu tái hiện authenticated request gốc để kết luận lỗi503 đã hết. Không đổi quyền để né lỗi kết nối. |
 | Gần nhất | Analytics authenticated FE | Migration, IAM URL, worker/backfill đã xử lý theo nhật ký; FE/HTTP theo đúng role/ward chưa xác nhận đầy đủ. Không coi health200 là dashboard đúng. |
