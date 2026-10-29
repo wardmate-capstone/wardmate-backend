@@ -72,7 +72,7 @@ public sealed class ApplicationsController(ISender sender, IDocumentContentsClie
         var error = await documents.Validate(id, application.Value!.Checklists
             .Where(x => x.IsRequired || x.Status == "COMPLETED"), ct);
         if (error is not null) return error;
-        return Respond(await sender.Send(new SubmitApplicationCommand(Actor, id), ct));
+        return Respond(await sender.Send(new SubmitApplicationCommand(Actor, id, User.FindFirstValue("officer_name")), ct));
     }
 
     private IActionResult Respond(WorkflowResult<ApplicationDto> result)

@@ -7,7 +7,7 @@ public sealed record CreateApplicationCommand(Guid UserId, CreateApplicationInpu
 public sealed record GetApplicationQuery(Guid UserId, Guid Id) : IRequest<WorkflowResult<ApplicationDto>>;
 public sealed record ListApplicationsQuery(Guid UserId, int Page = 1, int PageSize = 20) : IRequest<ApplicationPage>;
 public sealed record UpdateChecklistCommand(Guid UserId, Guid Id, Guid ChecklistId, UpdateChecklistInput Input) : IRequest<WorkflowResult<ApplicationDto>>;
-public sealed record SubmitApplicationCommand(Guid UserId, Guid Id) : IRequest<WorkflowResult<ApplicationDto>>;
+public sealed record SubmitApplicationCommand(Guid UserId, Guid Id, string? ApplicantName = null) : IRequest<WorkflowResult<ApplicationDto>>;
 
 public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogClient catalog, TimeProvider clock, IWorkflowDirectory directory, ReviewDeadlinePolicy deadlinePolicy) :
     IRequestHandler<CreateApplicationCommand, WorkflowResult<ApplicationDto>>,
@@ -112,6 +112,7 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
             var now = clock.GetUtcNow().UtcDateTime;
             var code = string.IsNullOrWhiteSpace(application.ApplicationCode) ? await store.NextCode(now, ct) : application.ApplicationCode;
             application.Submit(code, r.UserId, now);
+            application.SnapshotApplicantName(r.ApplicantName);
             ReviewDeadline.Start(application, now, deadlinePolicy);
             application.Versions.Add(ApplicationSnapshots.Capture(application, r.UserId, now));
             return WorkflowResult<ApplicationDto>.Ok(ApplicationDto.ForApplicant(application));

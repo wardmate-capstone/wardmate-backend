@@ -90,6 +90,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         }
         a.ResubmitCount++;
         a.SubmittedAt = now;
+        a.SnapshotApplicantName(r.ApplicantName);
         ReviewDeadline.Resume(a, now, r.UserId);
         a.Versions.Add(ApplicationSnapshots.Capture(a, r.UserId, now));
         foreach (var comment in a.Comments.Where(x => x.Status == "OPEN" && x.ApplicationVersionId == version.Id))

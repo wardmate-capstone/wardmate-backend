@@ -29,6 +29,8 @@ public sealed class ApplicationRecord
     public int? CategoryId { get; set; }
     public string? CategoryName { get; set; }
     public string? AssignedOfficerName { get; set; }
+    // Snapshot of the applicant profile name at (re)submission; never CCCD or phone.
+    public string? ApplicantName { get; set; }
     public DateTime? AssignedAt { get; set; }
     public long AssignmentVersion { get; set; }
     public List<ApplicationAssignmentHistory> AssignmentHistory { get; set; } = [];
@@ -61,6 +63,12 @@ public sealed class ApplicationRecord
     public List<ApplicationVersion> Versions { get; set; } = [];
     public List<ApplicationChecklist> Checklists { get; set; } = [];
     public List<ApplicationStatusHistory> History { get; set; } = [];
+
+    public void SnapshotApplicantName(string? name)
+    {
+        var value = name?.Trim();
+        if (!string.IsNullOrEmpty(value)) ApplicantName = value.Length > 255 ? value[..255] : value;
+    }
 
     public void Submit(string code, Guid actorId, DateTime now)
     {

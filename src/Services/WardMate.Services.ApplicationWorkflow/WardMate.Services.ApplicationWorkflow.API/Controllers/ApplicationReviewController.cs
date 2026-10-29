@@ -114,7 +114,8 @@ public sealed class ApplicationReviewController(ISender sender, IDocumentContent
     public async Task<IActionResult> Resubmit(Guid id, ResubmitInput input, CancellationToken ct)
     {
         // Validate before reading the array or calling dependent services.
-        var command = new ResubmitApplicationCommand(Actor.Id, id, input);
+        var actor = Actor;
+        var command = new ResubmitApplicationCommand(actor.Id, id, input, actor.FullName);
         await resubmitValidator.ValidateAndThrowAsync(command, ct);
         var application = await sender.Send(new GetApplicationQuery(Actor.Id, id), ct);
         if (application.Error is not null) return Respond(application);
