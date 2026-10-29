@@ -4371,3 +4371,133 @@ Nguyên nhân: EF Core bọc lỗi Postgres tạm thời (khóa dòng `55P03`, m
 FE nên xử lý:
 - `409 chat.busy`: giữ nút gửi ở trạng thái chờ, gửi lại khi lượt trước trả về; không coi là lỗi AI.
 - `503 chat.database_unavailable`: báo hệ thống bận, thử lại sau; không hiện "AI trả lời sai".
+
+
+## 18 API Điều phối hồ sơ, Lịch làm/Nghỉ phép và Tham vấn chuyên môn — 29/10/2026 (STAFFING-WORKFLOW-01)
+
+### A. Nhóm ManagerDispatchController — Điều phối hồ sơ (/api/v1/manager/applications)
+
+Manager cần quyền `workflow.dispatch.read`, thao tác ghi cần `workflow.dispatch.write`. Tất cả hồ sơ được lọc theo `WardCode` của Manager từ IAM access-context.
+
+#### 1. Danh sách hồ sơ điều phối
+- **Method & Route:** `GET /api/v1/manager/applications?page=1&pageSize=20`
+- **Mục đích:** Manager xem toàn bộ hồ sơ trong phường (bao gồm chưa phân công và đã phân công) để điều phối.
+- **Query params:** `page` (1–1000000), `pageSize` (1–100).
+- **Kết quả 200:** Object `{ items: DispatchApplication[], page, pageSize, total }`. Mỗi item gồm: `id, applicationCode, procedureId, procedureTitle, status, assignedOfficerId, assignmentVersion, procedureCategoryId`.
+- **Lỗi & Khắc phục:** 400 (page/pageSize sai), 403 (không phải Manager có phường), 503 (IAM không khả dụng).
+
+#### 2. Danh sách cán bộ phù hợp để phân công
+- **Method & Route:** `GET /api/v1/manager/applications/{id}/assignment-candidates`
+- **Mục đích:** Lấy danh sách cán bộ một cửa trong phường kèm trạng thái đủ điều kiện (`eligible`) và lý do chặn (`blockingReasons`).
+- **Kiểm tra nghiệp vụ:** Cán bộ hoạt động, đúng phường, vai trò `FRONT_DESK_OFFICER`, đúng lĩnh vực (`categoryId`), có quyền `workflow.assign`, không phải người nộp, có ca làm hiện tại và không có nghỉ phép đã duyệt.
+- **Kết quả 200:** Mảng `DispatchCandidate[]`: `{ officerId, fullName, eligible, activeApplicationCount, blockingReasons }`.
+- **Lỗi & Khắc phục:** 404 (hồ sơ ngoài phạm vi), 503 (Catalog/IAM không khả dụng).
+
+#### 3. Giao hoặc chuyển cán bộ thụ lý
+- **Method & Route:** `POST /api/v1/manager/applications/{id}/assignments`
+- **Body:** `{ officerId: Guid, expectedAssignmentVersion: long, reasonCode: string, reason: string }`.
+- **Mục đích:** Manager giao hồ sơ mới nộp hoặc chuyển giao hồ sơ sang cán bộ khác.
+- **Kiểm tra nghiệp vụ:** Hồ sơ ở trạng thái `SUBMITTED`, `UNDER_REVIEW`, `NEED_REVISION`, `DOCUMENTS_READY`; snapshot nộp tồn tại; `expectedAssignmentVersion` khớp version hiện tại; cán bộ đích thỏa mãn toàn bộ điều kiện như API 2. Transaction sử dụng advisory lock theo phường và `SELECT FOR UPDATE` trên hồ sơ. Lưu lịch sử vào bảng chuẩn `application_assignment_history` và cập nhật `AssignmentVersion`.
+- **Kết quả 200:** `AssignmentRecord` `{ id, applicationId, fromOfficerId, toOfficerId, actorId, version, reasonCode, reason, createdAt, action }`.
+- **Lỗi & Khắc phục:** 400 (dữ liệu sai), 404 (không tìm thấy), 409 (xung đột version hoặc trạng thái không hợp lệ), 422 (cán bộ không đủ điều kiện/đang nghỉ/không có ca), 503 (lỗi IAM/Catalog).
+
+#### 4. Lịch sử phân công của hồ sơ
+- **Method & Route:** `GET /api/v1/manager/applications/{id}/assignments`
+- **Mục đích:** Xem toàn bộ lịch sử phân công/chuyển giao của hồ sơ theo thứ tự tăng dần.
+- **Kết quả 200:** Mảng `AssignmentRecord[]`.
+
+---
+
+### B. Nhóm StaffingController — Lịch làm và Nghỉ phép (/api/v1/staffing)
+
+Quyền đọc chung: `workflow.staffing.read`. Quyền quản lý: `workflow.staffing.manage`. Quyền xin nghỉ: `workflow.leave.request`.
+
+#### 5. Danh sách ca làm việc
+- **Method & Route:** `GET /api/v1/staffing/shifts?from={ISO8601}&to={ISO8601}`
+- **Mục đích:** Xem lịch ca làm việc trong khoảng thời gian (tối đa 93 ngày). Manager xem toàn phường; cán bộ chỉ xem ca của mình.
+- **Kết quả 200:** Mảng `OfficerShift[]` `{ id, officerId, wardCode, startsAtUtc, endsAtUtc, createdBy, createdAtUtc, cancelledBy, cancelledAtUtc, cancellationReason }`.
+
+#### 6. Tạo ca làm việc mới
+- **Method & Route:** `POST /api/v1/staffing/shifts`
+- **Ai dùng:** Manager có `workflow.staffing.manage`.
+- **Body:** `{ officerId: Guid, startsAt: ISO8601, endsAt: ISO8601 }`.
+- **Kiểm tra nghiệp vụ:** Thời gian bắt đầu ở tương lai; thời lượng ca từ 1 phút đến 24 giờ; không trùng ca làm việc khác hoặc khoảng nghỉ đã duyệt của cùng cán bộ; cán bộ thuộc phường quản lý.
+- **Kết quả 200:** `OfficerShift` đã tạo.
+
+#### 7. Hủy ca làm việc
+- **Method & Route:** `POST /api/v1/staffing/shifts/{id}/cancel`
+- **Ai dùng:** Manager có `workflow.staffing.manage`.
+- **Body:** `{ reason: string }` (1–2000 ký tự).
+- **Kết quả 200:** `OfficerShift` đã cập nhật `cancelledBy, cancelledAtUtc, cancellationReason`.
+
+#### 8. Danh sách yêu cầu nghỉ phép
+- **Method & Route:** `GET /api/v1/staffing/leaves?from={ISO8601}&to={ISO8601}`
+- **Mục đích:** Xem danh sách yêu cầu nghỉ phép trong khoảng thời gian (tối đa 93 ngày). Manager xem của toàn phường; cán bộ chỉ xem của mình.
+- **Kết quả 200:** Mảng `OfficerLeave[]` `{ id, officerId, wardCode, startsAtUtc, endsAtUtc, reason, status, version, createdAtUtc, decidedBy, decidedAtUtc, decisionReason }`.
+
+#### 9. Gửi yêu cầu nghỉ phép
+- **Method & Route:** `POST /api/v1/staffing/leaves`
+- **Ai dùng:** Cán bộ có `workflow.leave.request` (lấy danh tính từ token).
+- **Body:** `{ startsAt: ISO8601, endsAt: ISO8601, reason: string }`.
+- **Kiểm tra nghiệp vụ:** Thời gian chưa kết thúc; khoảng thời gian dương và tối đa 93 ngày; không trùng khoảng nghỉ `PENDING` hoặc `APPROVED` đã có. Trạng thái khởi tạo: `PENDING`, version = 0.
+- **Kết quả 200:** `OfficerLeave` vừa tạo.
+
+#### 10. Quyết định phê duyệt / từ chối / hủy yêu cầu nghỉ phép
+- **Method & Route:** `POST /api/v1/staffing/leaves/{id}/decision`
+- **Body:** `{ expectedVersion: int, decision: "APPROVED" | "REJECTED" | "CANCELLED", reason: string }`.
+- **Kiểm tra nghiệp vụ:** Cán bộ chỉ được hủy (`CANCELLED`) yêu cầu `PENDING` của chính mình (không được tự duyệt/từ chối). Manager được duyệt/từ chối yêu cầu `PENDING`, hoặc hủy yêu cầu `APPROVED` khi cán bộ quay lại làm sớm. Kiểm tra `expectedVersion` chống ghi đè đồng thời.
+- **Kết quả 200:** `OfficerLeave` cập nhật.
+
+#### 11. Xem hồ sơ bị ảnh hưởng khi cán bộ nghỉ
+- **Method & Route:** `GET /api/v1/staffing/leaves/{id}/impact`
+- **Ai dùng:** Manager có `workflow.staffing.manage`.
+- **Mục đích:** Liệt kê các hồ sơ đang được giao cho cán bộ xin nghỉ ở các trạng thái đang xử lý (`SUBMITTED`, `UNDER_REVIEW`, `NEED_REVISION`, `DOCUMENTS_READY`) để Manager phân công bàn giao trước khi duyệt.
+- **Kết quả 200:** Mảng `DispatchApplication[]`.
+
+#### 12. Lịch sử quyết định nghỉ phép
+- **Method & Route:** `GET /api/v1/staffing/leaves/{id}/history`
+- **Mục đích:** Xem các bước phê duyệt/thay đổi trạng thái của yêu cầu nghỉ phép.
+- **Kết quả 200:** Mảng `OfficerLeaveDecision[]` `{ id, leaveId, actorId, version, fromStatus, toStatus, reason, createdAtUtc }`.
+
+---
+
+### C. Nhóm ConsultationsController — Tham vấn chuyên môn (/api/v1/staffing/consultations & /api/v1/applications/{id}/consultations)
+
+Quyền đọc: `workflow.consultation.read`. Quyền tạo/đóng: Manager có `workflow.dispatch.write`. Quyền trả lời: chuyên viên có `workflow.consultation.respond`.
+
+#### 13. Hộp thư tham vấn
+- **Method & Route:** `GET /api/v1/staffing/consultations?page=1&pageSize=20`
+- **Mục đích:** Manager xem toàn bộ tham vấn trong phường; chuyên viên xem các tham vấn được giao cho mình.
+- **Kết quả 200:** `{ items: ApplicationConsultation[], page, pageSize, total }`.
+
+#### 14. Danh sách tham vấn của hồ sơ cụ thể
+- **Method & Route:** `GET /api/v1/applications/{id}/consultations`
+- **Mục đích:** Xem các tham vấn của hồ sơ. Cán bộ thụ lý chính và Manager xem được toàn bộ; chuyên viên chỉ xem tham vấn của mình.
+- **Kết quả 200:** Mảng `ApplicationConsultation[]`.
+
+#### 15. Tạo yêu cầu tham vấn
+- **Method & Route:** `POST /api/v1/applications/{id}/consultations`
+- **Ai dùng:** Manager có `workflow.dispatch.write`.
+- **Body:** `{ specialistId: Guid, expectedAssignmentVersion: long, question: string }`.
+- **Kiểm tra nghiệp vụ:** Hồ sơ ở trạng thái `UNDER_REVIEW`, có cán bộ thụ lý chính; `specialistId` phải là cán bộ khác người thụ lý chính và khác người nộp, hoạt động, cùng phường, phụ trách cùng lĩnh vực (`categoryId`), có quyền `workflow.consultation.respond`, có ca làm việc và không trong thời gian nghỉ; không có tham vấn chưa đóng cho cùng chuyên viên trên hồ sơ này; `expectedAssignmentVersion` khớp.
+- **Kết quả 200:** `ApplicationConsultation` `{ id, applicationId, specialistId, requestedBy, applicationVersion, assignmentVersion, question, status: "OPEN", version: 0, createdAtUtc }`.
+
+#### 16. Trả lời tham vấn
+- **Method & Route:** `POST /api/v1/applications/{id}/consultations/{consultationId}/answer`
+- **Ai dùng:** Chuyên viên được chỉ định (`specialistId == actor.Id`), có quyền `workflow.consultation.respond`.
+- **Body:** `{ expectedVersion: int, text: string }`.
+- **Kiểm tra nghiệp vụ:** Tham vấn đang `OPEN`; hồ sơ vẫn đang `UNDER_REVIEW` với đúng phiên bản nộp và phiên bản phân công như lúc tạo tham vấn (nếu hồ sơ đã chuyển cán bộ khác hoặc nộp lại bản mới, tham vấn trở nên lỗi thời).
+- **Kết quả 200:** `ApplicationConsultation` chuyển trạng thái `ANSWERED`.
+
+#### 17. Đóng tham vấn
+- **Method & Route:** `POST /api/v1/applications/{id}/consultations/{consultationId}/close`
+- **Ai dùng:** Manager có `workflow.dispatch.write`.
+- **Body:** `{ expectedVersion: int, text: string }`.
+- **Kết quả 200:** `ApplicationConsultation` chuyển trạng thái `CLOSED`, ghi nhận `closedBy, closedAtUtc, closeReason`.
+
+#### 18. Xác thực quyền đọc tài liệu tham vấn
+- **Method & Route:** `GET /api/v1/applications/{id}/consultations/document-access`
+- **Ai dùng:** Chuyên viên có `workflow.consultation.respond` để hệ thống `DocumentForm` xác thực quyền đọc hồ sơ/tài liệu đính kèm khi tham vấn.
+- **Kiểm tra nghiệp vụ:** Tồn tại tham vấn chưa đóng (`status != 'CLOSED'`), đúng chuyên viên, đúng version phân công và phiên bản hồ sơ.
+- **Kết quả 200:** `{ allowed: true, applicationId, version }`.
+
