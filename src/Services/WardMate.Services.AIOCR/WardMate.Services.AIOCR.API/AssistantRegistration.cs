@@ -88,6 +88,9 @@ public sealed class AssistantExceptionHandler : IExceptionHandler
     public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception error, CancellationToken ct)
     {
         if (!context.Request.Path.StartsWithSegments("/api/v1/ai") && !context.Request.Path.StartsWithSegments("/api/v1/ai-ocr")) return false;
+        // EF Core wraps transient Npgsql errors (lock_not_available 55P03, lost connections) in InvalidOperationException
+        // even without a retry strategy; classify the database error itself, not the generic wrapper.
+        if (error is InvalidOperationException { InnerException: NpgsqlException inner }) error = inner;
         var failure = error switch
         {
             AiFailure e => e,
