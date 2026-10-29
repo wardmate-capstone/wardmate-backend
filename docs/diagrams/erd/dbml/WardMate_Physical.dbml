@@ -1,0 +1,777 @@
+// ============================================================
+// WardMate – Physical ERD (PostgreSQL 16)
+// Nguồn: EF Core ModelSnapshot của 7 DbContext (migration mới nhất 24/10/2026). 41 bảng, 410 cột, 22 FOREIGN KEY, 56 REF.
+// Ref màu đen = FOREIGN KEY thật. Ref màu xám (#AAAAAA) = REF: cột chỉ lưu ID, không có FK (khác database / JSON / mảng).
+// TableGroup = database của từng service (database-per-service).
+// Ký hiệu dbdiagram: > nhiều-một, - một-một, <> nhiều-nhiều.
+// ============================================================
+
+Project WardMate {
+  database_type: 'PostgreSQL'
+  Note: 'WardMate – Physical ERD. Sinh tự động từ EF Core model, 27/10/2026.'
+}
+
+// ---------------- IAM_DB ----------------
+Table permissions {
+  id integer [pk, increment]
+  module varchar(50) [not null]
+  permission_code varchar(100) [not null, unique]
+  permission_name varchar(255) [not null]
+  Note: 'Quyền chi tiết (ví dụ workflow.assign.manage, knowledge.manage), nhóm theo module.'
+}
+
+Table rbac_audit_logs {
+  id uuid [pk]
+  action varchar(100) [not null]
+  actor_user_id uuid [not null, note: 'REF → users.id, không có FK']
+  created_at timestamptz [not null]
+  details jsonb [not null]
+  permission_id integer [note: 'REF → permissions.id, không có FK']
+  role_id integer [note: 'REF → roles.id, không có FK']
+  target_user_id uuid [note: 'REF → users.id, không có FK']
+  Note: 'Nhật ký thay đổi phân quyền (ai đổi, đổi cho ai, role/permission nào).'
+}
+
+Table refresh_tokens {
+  id uuid [pk]
+  created_at timestamptz [not null]
+  expires_at timestamptz [not null]
+  is_revoked boolean [not null, default: false]
+  token varchar(500) [not null, unique]
+  user_id uuid [not null]
+  Note: 'Refresh token đăng nhập (rotation/revoke).'
+}
+
+Table roles {
+  id integer [pk, increment]
+  description text
+  role_name varchar(50) [not null, unique]
+  Note: 'Vai trò RBAC: REGISTERED_CITIZEN, FRONT_DESK_OFFICER, MANAGER, PROCEDURE_MANAGER, IT_ADMIN.'
+}
+
+Table role_permissions {
+  role_id integer [not null]
+  permission_id integer [not null]
+  indexes {
+    (role_id, permission_id) [pk]
+  }
+  Note: 'Bảng trung gian N–N giữa roles và permissions.'
+}
+
+Table users {
+  id uuid [pk]
+  assigned_categories "integer[]" [not null, default: `ARRAY[]::integer[]`, note: 'REF → procedure_categories.id (mảng ID), không có FK']
+  created_at timestamptz [not null]
+  email varchar(255) [not null, unique]
+  is_active boolean [not null, default: true]
+  password_hash varchar(255) [not null]
+  security_stamp uuid [not null]
+  updated_at timestamptz [not null]
+  username varchar(100) [not null, unique]
+  verified_phone_number text
+  ward_id uuid
+  Note: 'Tài khoản đăng nhập của mọi vai trò. ward_id = phường trực thuộc; assigned_categories = các lĩnh vực cán bộ phụ trách (mảng rỗng = mọi lĩnh vực).'
+}
+
+Table iam.user_otps {
+  id uuid [pk]
+  attempts integer [not null]
+  channel varchar(10) [not null]
+  created_at_utc timestamptz [not null]
+  expires_at_utc timestamptz [not null]
+  is_used boolean [not null]
+  otp_hash varchar(64) [not null]
+  purpose varchar(30) [not null]
+  target_phone_number varchar(20)
+  user_id uuid [not null]
+  Note: 'OTP đổi mật khẩu/quên mật khẩu/xác minh số điện thoại (lưu hash, tối đa 5 lần sai).\\n\\nCHECK:\\n- ck_user_otps_attempts: attempts BETWEEN 0 AND 5\\n- ck_user_otps_channel: channel IN (\'EMAIL\',\'SMS\')\\n- ck_user_otps_purpose: purpose IN (\'CHANGE_PASSWORD\',\'FORGOT_PASSWORD\',\'VERIFY_PHONE\')'
+}
+
+Table user_profiles {
+  user_id uuid [pk]
+  date_of_birth date
+  full_name varchar(255) [not null]
+  gender varchar(10)
+  identity_number varchar(20) [unique]
+  permanent_address text
+  phone_number varchar(20)
+  temporary_address text
+  updated_at timestamptz [not null]
+  Note: 'Thông tin cá nhân, quan hệ 1–1 với users (PK cũng là FK user_id).'
+}
+
+Table user_roles {
+  user_id uuid [not null]
+  role_id integer [not null]
+  indexes {
+    (user_id, role_id) [pk]
+  }
+  Note: 'Bảng trung gian N–N giữa users và roles.'
+}
+
+Table wards {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(255) [not null]
+  Note: 'Danh mục phường/xã. Các service khác tham chiếu bằng code (không phải id).'
+}
+
+Table iam.welcome_emails {
+  id uuid [pk]
+  attempts integer [not null]
+  next_attempt_at_utc timestamptz [not null]
+  sent_at_utc timestamptz
+  user_id uuid [not null, unique]
+  Note: 'Hàng đợi gửi email chào mừng, tối đa 1 bản ghi mỗi user.'
+}
+
+// ---------------- Catalog_DB ----------------
+Table procedures {
+  id uuid [pk, default: `gen_random_uuid()`]
+  category_id integer [not null]
+  checklist_schema jsonb
+  content_payload jsonb [not null]
+  created_at timestamptz [not null, default: `now()`]
+  executing_agency text
+  fee_summary varchar(255) [not null, default: 'Miễn phí']
+  form_definitions jsonb [note: 'REF → document.form_templates.id (ID trong JSON), không có FK']
+  is_active boolean [not null, default: true]
+  issuing_authority varchar(255)
+  level_of_implementation varchar(50) [not null, default: 'Cấp Xã']
+  original_pdf_url varchar(500)
+  pdf_file_name varchar(255)
+  procedure_code varchar(50) [not null, unique]
+  processing_time_summary varchar(255) [not null, default: '1 ngày']
+  status_change_reason text
+  target_audience varchar(255) [not null, default: 'Công dân Việt Nam']
+  title varchar(500) [not null]
+  updated_at timestamptz [not null, default: `now()`]
+  Note: 'Thủ tục hành chính đang công bố; nội dung, checklist giấy tờ và biểu mẫu lưu JSONB.'
+}
+
+Table procedure_categories {
+  id integer [pk, increment]
+  category_name varchar(255) [not null]
+  description text
+  Note: 'Lĩnh vực thủ tục (ví dụ Hộ tịch, Chứng thực).'
+}
+
+Table procedure_drafts {
+  id uuid [pk]
+  attempts integer [not null]
+  blob_name varchar(255) [not null]
+  created_at timestamptz [not null]
+  created_by varchar(255) [not null, note: 'REF → users.id, không có FK']
+  extracted_text text [not null]
+  failure_code varchar(100)
+  lease_id uuid
+  lease_until timestamptz
+  original_pdf_url varchar(500) [not null]
+  payload_json jsonb [not null]
+  pdf_file_name varchar(255) [not null]
+  published_procedure_id uuid [note: 'REF → procedures.id, không có FK']
+  reviewed_by varchar(255) [note: 'REF → users.id, không có FK']
+  revision uuid [not null]
+  status varchar(30) [not null]
+  updated_at timestamptz [not null]
+  warnings_json jsonb [not null]
+  Note: 'Bản nháp thủ tục tạo từ PDF + AI bóc tách; khi publish thì ghi published_procedure_id.'
+}
+
+Table procedure_versions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  created_at timestamptz [not null, default: `now()`]
+  decision_number varchar(100)
+  effective_date date [not null]
+  original_pdf_url varchar(500)
+  pdf_file_name varchar(255)
+  procedure_id uuid [not null]
+  snapshot_data jsonb [not null]
+  version_number integer [not null]
+  indexes {
+    (procedure_id, version_number) [unique]
+  }
+  Note: 'Lịch sử phiên bản thủ tục (snapshot JSON, số quyết định, ngày hiệu lực).'
+}
+
+// ---------------- Workflow_DB ----------------
+Table application_assignment_history {
+  id uuid [pk]
+  action varchar(20) [not null]
+  actor_id uuid [not null, note: 'REF → users.id, không có FK']
+  application_id uuid [not null]
+  created_at timestamptz [not null]
+  from_officer_id uuid [note: 'REF → users.id, không có FK']
+  reason varchar(500)
+  to_officer_id uuid [note: 'REF → users.id, không có FK']
+  Note: 'Lịch sử phân công: CLAIM/ASSIGN/TRANSFER/RELEASE, từ cán bộ nào sang cán bộ nào.'
+}
+
+Table application_checklists {
+  id uuid [pk]
+  application_id uuid [not null]
+  case_code text
+  code varchar(255) [not null]
+  condition_note text
+  created_at timestamptz [not null]
+  document_copy_type varchar(30)
+  file_url varchar(500)
+  form_template_id uuid [note: 'REF → document.form_templates.id, không có FK']
+  is_required boolean [not null]
+  note varchar(4000)
+  quantity integer [not null, default: 1]
+  sort_order integer [not null]
+  status varchar(30) [not null, default: 'PENDING']
+  submission_type varchar(30)
+  title varchar(255) [not null]
+  updated_at timestamptz [not null]
+  indexes {
+    (application_id, code) [unique]
+  }
+  Note: 'Danh sách giấy tờ cần nộp, sao chép (snapshot) từ checklist thủ tục lúc tạo hồ sơ.\\n\\nCHECK:\\n- ck_checklists_status: status IN (\'PENDING\',\'COMPLETED\',\'REJECTED\')'
+}
+
+Table application_comments {
+  id uuid [pk]
+  application_id uuid [not null]
+  application_version_id uuid [not null]
+  comment_text text [not null]
+  created_at timestamptz [not null]
+  field_label varchar(255) [not null]
+  officer_id uuid [not null, note: 'REF → users.id, không có FK']
+  status varchar(20) [not null, default: 'OPEN']
+  target_id varchar(100) [not null]
+  target_type varchar(30) [not null]
+  updated_at timestamptz [not null]
+  Note: 'Nhận xét in-line của cán bộ trên một trường form hoặc một mục checklist của một phiên bản.\\n\\nCHECK:\\n- ck_application_comments_status: status IN (\'OPEN\',\'RESOLVED\')\\n- ck_application_comments_target: target_type IN (\'FORM_FIELD\',\'CHECKLIST_ITEM\')'
+}
+
+Table applications {
+  id uuid [pk]
+  application_code varchar(50) [not null, unique]
+  appointment_date timestamptz
+  approved_at timestamptz
+  assigned_at timestamptz
+  assigned_officer_id uuid [note: 'REF → users.id, không có FK']
+  assigned_officer_name varchar(255)
+  assignment_version bigint [not null, default: 0]
+  case_code varchar(100)
+  category_id integer [note: 'REF → procedure_categories.id, không có FK']
+  category_name varchar(255)
+  created_at timestamptz [not null]
+  deadline_calendar_code varchar(100)
+  deadline_calendar_version varchar(100)
+  deadline_history jsonb [not null, default: '[]']
+  deadline_paused_at_utc timestamptz
+  deadline_policy_code varchar(100)
+  deadline_policy_snapshot jsonb
+  deadline_policy_version varchar(100)
+  deadline_status varchar(20) [not null, default: 'UNKNOWN']
+  documents_ready_at timestamptz
+  due_at_utc timestamptz
+  first_submitted_at_utc timestamptz
+  form_data jsonb [not null]
+  notes text
+  procedure_id uuid [not null, note: 'REF → procedures.id, không có FK']
+  procedure_title varchar(500) [not null]
+  receipt_number varchar(64) [unique]
+  received_at timestamptz
+  resubmit_count integer [not null, default: 0]
+  status varchar(50) [not null, default: 'DRAFT']
+  submitted_at timestamptz
+  updated_at timestamptz [not null]
+  user_id uuid [not null, note: 'REF → users.id, không có FK']
+  ward_code varchar(50) [note: 'REF → wards.code, không có FK']
+  Note: 'Hồ sơ tiền kiểm của công dân: trạng thái, phường, thủ tục, cán bộ phụ trách, hạn xử lý 45 giờ làm việc, biên nhận tại quầy.\\n\\nCHECK:\\n- ck_applications_deadline: (deadline_status = \'KNOWN\' AND due_at_utc IS NOT NULL AND first_submitted_at_utc IS NOT NULL AND deadline_policy_snapshot IS NOT NULL AND deadline_policy_code IS NOT NULL AND deadline_policy_version IS NOT NULL AND deadline_calendar_code IS NOT NULL AND deadline_calendar_version IS NOT NULL) OR (deadline_status IN (\'UNKNOWN\',\'NOT_APPLICABLE\') AND due_at_utc IS NULL AND deadline_paused_at_utc IS NULL)\\n- ck_applications_status: status IN (\'DRAFT\',\'SUBMITTED\',\'UNDER_REVIEW\',\'NEED_REVISION\',\'DOCUMENTS_READY\',\'OFFICIALLY_RECEIVED\',\'APPROVED\',\'CANCELLED\',\'REJECTED\')'
+}
+
+Table application_status_history {
+  id uuid [pk]
+  application_id uuid [not null]
+  changed_by uuid [not null, note: 'REF → users.id, không có FK']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  from_status varchar(50)
+  reason text
+  to_status varchar(50) [not null]
+  Note: 'Lịch sử chuyển trạng thái hồ sơ.'
+}
+
+Table application_versions {
+  id uuid [pk]
+  application_id uuid [not null]
+  snapshot_data jsonb [not null]
+  submitted_at timestamptz [not null]
+  submitted_by uuid [not null, note: 'REF → users.id, không có FK']
+  version_number integer [not null]
+  indexes {
+    (application_id, version_number) [unique]
+    (application_id, id) [unique, note: 'alternate key cho FK kép từ application_comments']
+  }
+  Note: 'Snapshot mỗi lần công dân nộp/nộp lại hồ sơ (version 1, 2, …).\\n\\nCHECK:\\n- ck_application_versions_number: version_number > 0'
+}
+
+Table workflow_outbox {
+  id uuid [pk]
+  attempts integer [not null]
+  created_at timestamptz [not null]
+  last_error varchar(100)
+  next_attempt_at timestamptz [not null]
+  payload jsonb [not null, note: 'REF → applications.id (ID trong JSON), không có FK']
+  published_at timestamptz
+  Note: 'Outbox sự kiện chờ đẩy sang RabbitMQ (cùng transaction với thay đổi hồ sơ).'
+}
+
+// ---------------- DocumentForm_DB ----------------
+Table document.application_forms {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  application_id uuid [not null, note: 'REF → applications.id, không có FK']
+  created_at timestamptz [not null]
+  created_by varchar(100)
+  deleted_at timestamptz
+  form_data jsonb [not null]
+  is_deleted boolean [not null, default: false]
+  updated_at timestamptz
+  updated_by varchar(100)
+  Note: 'Dữ liệu form JSON của hồ sơ (lưu riêng ở DocumentForm).'
+}
+
+Table document.approved_qrs {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  application_id uuid [not null, unique, note: 'REF → applications.id, không có FK']
+  generated_at timestamptz [not null]
+  qr_code_value varchar(2048) [not null]
+  qr_image_png bytea [not null]
+  submission_id uuid [not null, note: 'REF → document.user_submissions.id, không có FK']
+  Note: 'Mã QR tra cứu nhanh, tối đa 1 mã mỗi hồ sơ (sinh khi hồ sơ sẵn sàng).'
+}
+
+Table document.form_templates {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  created_at timestamptz [not null]
+  created_by varchar(100)
+  deleted_at timestamptz
+  file_docx_url text
+  is_active boolean [not null, default: true]
+  is_deleted boolean [not null, default: false]
+  title varchar(255) [not null]
+  updated_at timestamptz
+  updated_by varchar(100)
+  Note: 'Mẫu tờ khai DOCX (mã, tiêu đề).'
+}
+
+Table document.form_template_versions {
+  id uuid [pk]
+  created_at_utc timestamptz [not null]
+  created_by text
+  deleted_at_utc timestamptz
+  is_deleted boolean [not null]
+  mapping_definition jsonb [not null]
+  original_blob_url varchar(2048) [not null]
+  original_sha256 varchar(64) [not null]
+  schema_definition jsonb [not null]
+  template_id uuid [not null]
+  updated_at_utc timestamptz
+  updated_by text
+  version_number integer [not null]
+  indexes {
+    (template_id, version_number) [unique]
+  }
+  Note: 'Phiên bản của mẫu: file gốc, JSON schema các trường, mapping placeholder.'
+}
+
+Table document.generated_documents {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  application_id uuid [not null, note: 'REF → applications.id, không có FK']
+  created_at timestamptz [not null]
+  created_by varchar(100)
+  deleted_at timestamptz
+  document_type varchar(50) [not null]
+  is_deleted boolean [not null, default: false]
+  pdf_blob_url text [not null]
+  submission_id uuid [note: 'REF → document.user_submissions.id, không có FK']
+  updated_at timestamptz
+  updated_by varchar(100)
+  Note: 'File PDF hệ thống sinh ra từ hồ sơ/tờ khai.'
+}
+
+Table document.supporting_documents {
+  id uuid [pk]
+  application_id uuid [not null, note: 'REF → applications.id, không có FK']
+  blob_url text [not null]
+  checklist_id uuid [note: 'REF → application_checklists.id, không có FK']
+  content_type varchar(100)
+  created_at timestamptz [not null]
+  created_by varchar(100)
+  deleted_at timestamptz
+  document_copy_type varchar(30)
+  file_name varchar(255) [not null]
+  file_size_bytes bigint
+  is_deleted boolean [not null, default: false]
+  quantity integer [not null, default: 1]
+  submission_type varchar(30)
+  updated_at timestamptz
+  updated_by varchar(100)
+  Note: 'Giấy tờ minh chứng công dân upload (Blob), gắn với hồ sơ và mục checklist.'
+}
+
+Table document.user_submissions {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  applicant_id uuid [not null, note: 'REF → users.id, không có FK']
+  application_id uuid [note: 'REF → applications.id, không có FK']
+  blob_url varchar(2048) [not null]
+  checklist_id uuid [note: 'REF → application_checklists.id, không có FK']
+  created_at timestamptz [not null]
+  created_by varchar(100)
+  deleted_at timestamptz
+  file_name varchar(512) [not null]
+  file_size_bytes bigint [not null]
+  form_data jsonb
+  is_deleted boolean [not null, default: false]
+  officer_comment varchar(2000)
+  reviewed_at timestamptz
+  reviewed_by_officer_id uuid [note: 'REF → users.id, không có FK']
+  status varchar(50) [not null]
+  submitted_at timestamptz
+  template_id uuid [not null, note: 'REF → document.form_templates.id, không có FK']
+  template_version_id uuid
+  updated_at timestamptz
+  updated_by varchar(100)
+  indexes {
+    (application_id, checklist_id) [unique, note: 'WHERE application_id IS NOT NULL AND is_deleted = false']
+  }
+  Note: 'Tờ khai công dân đã điền (online hoặc upload DOCX), gắn với hồ sơ và mục checklist.'
+}
+
+// ---------------- AIOCR_DB ----------------
+Table chat_messages {
+  id uuid [pk, default: `gen_random_uuid()`]
+  citations jsonb [note: 'REF → knowledge_chunks.id (ID trong JSON), không có FK']
+  content varchar(20000) [not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  role varchar(20) [not null]
+  session_id uuid [not null]
+  Note: 'Tin nhắn trong phiên chat; citations (JSON) lưu các đoạn kiến thức được trích dẫn.\\n\\nCHECK:\\n- ck_chat_message_role: role IN (\'User\',\'Assistant\')'
+}
+
+Table chat_sessions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  user_id uuid [not null, note: 'REF → users.id, không có FK']
+  ward_code varchar(50) [not null, note: 'REF → wards.code, không có FK']
+  Note: 'Phiên chat của người dùng với trợ lý AI.'
+}
+
+Table knowledge_chunks {
+  id uuid [pk]
+  char_count integer [not null]
+  chunk_index integer [not null]
+  content text [not null]
+  content_sha256 varchar(64) [not null]
+  created_at timestamptz [not null]
+  document_id uuid [not null]
+  embedded_at timestamptz
+  embedding "real[]"
+  embedding_model varchar(120)
+  heading varchar(500)
+  indexes {
+    (document_id, chunk_index) [unique]
+  }
+  Note: 'Đoạn đã chia nhỏ của tài liệu kiến thức, kèm vector embedding.'
+}
+
+Table knowledge_documents {
+  id uuid [pk]
+  chunk_count integer [not null]
+  chunked_at timestamptz
+  chunking_version varchar(50) [not null]
+  content text [not null]
+  content_sha256 varchar(64) [not null]
+  created_at timestamptz [not null]
+  created_by uuid [not null, note: 'REF → users.id, không có FK']
+  embedded_at timestamptz
+  embedding_attempts integer [not null]
+  embedding_error varchar(100)
+  embedding_model varchar(120)
+  is_active boolean [not null]
+  next_embedding_at timestamptz
+  procedure_id uuid [note: 'REF → procedures.id, không có FK']
+  revision uuid [not null]
+  source_reference varchar(500)
+  source_type varchar(20) [not null]
+  source_version varchar(100)
+  status varchar(20) [not null]
+  title varchar(500) [not null]
+  updated_at timestamptz [not null]
+  updated_by uuid [not null, note: 'REF → users.id, không có FK']
+  indexes {
+    procedure_id [unique, note: 'WHERE source_type = \'PROCEDURE\'']
+  }
+  Note: 'Tài liệu kiến thức cho RAG (từ thủ tục, văn bản tay, FAQ, PDF).\\n\\nCHECK:\\n- ck_knowledge_documents_procedure: source_type <> \'PROCEDURE\' OR procedure_id IS NOT NULL\\n- ck_knowledge_documents_source_type: source_type IN (\'PROCEDURE\',\'MANUAL_TEXT\',\'FAQ\',\'PDF_FILE\')\\n- ck_knowledge_documents_status: status IN (\'CHUNKED\',\'EMBEDDED\',\'EMBEDDING_FAILED\')'
+}
+
+// ---------------- Notification_DB ----------------
+Table notifications {
+  id uuid [pk, default: `gen_random_uuid()`]
+  action_url varchar(500)
+  application_id uuid [note: 'REF → applications.id, không có FK']
+  channel varchar(30) [not null, default: 'IN_APP']
+  content text [not null]
+  created_at timestamptz [not null, default: `now()`]
+  is_read boolean [not null, default: false]
+  read_at timestamptz
+  recipient_user_id uuid [not null, note: 'REF → users.id, không có FK']
+  recipient_ward_code varchar(50) [note: 'REF → wards.code, không có FK']
+  source_event_id uuid [note: 'REF → notification_inbox.Id, không có FK']
+  title varchar(255) [not null]
+  type varchar(50) [not null]
+  indexes {
+    (source_event_id, recipient_user_id, channel) [unique]
+  }
+  Note: 'Thông báo cho từng người nhận theo kênh IN_APP/EMAIL/SMS.\\n\\nCHECK:\\n- ck_notifications_channel: channel IN (\'IN_APP\',\'SMS\',\'EMAIL\')\\n- ck_notifications_read: (is_read AND read_at IS NOT NULL) OR (NOT is_read AND read_at IS NULL)\\n- ck_notifications_type: type IN (\'APPLICATION_STATUS_CHANGED\',\'INLINE_COMMENT_ADDED\',\'ASSIGNED_OFFICER\',\'SYSTEM_ALERT\')'
+}
+
+Table notification_delivery_audits {
+  Id uuid [pk]
+  Action varchar(40) [not null]
+  ActorId uuid [not null, note: 'REF → users.id, không có FK']
+  AfterMessageId varchar(100)
+  AfterRevision uuid [not null]
+  AfterState varchar(30) [not null]
+  BeforeAttempts integer [not null]
+  BeforeMessageId varchar(100)
+  BeforeRevision uuid [not null]
+  BeforeState varchar(30) [not null]
+  CreatedAt timestamptz [not null]
+  DeliveryId uuid [not null, note: 'REF → notification_deliveries.Id, không có FK']
+  Reason varchar(500) [not null]
+  Reference varchar(200)
+  Note: 'Nhật ký thao tác quản trị trên delivery (replay, đối soát SMS).'
+}
+
+Table notification_deliveries {
+  Id uuid [pk]
+  Attempts integer [not null]
+  Channel varchar(30) [not null]
+  ErrorCode varchar(100)
+  external_message_id varchar(100)
+  is_sandbox boolean
+  NextAttemptAt timestamptz [not null]
+  NotificationId uuid [not null]
+  provider varchar(30)
+  revision uuid [not null, default: `gen_random_uuid()`]
+  SentAt timestamptz
+  State varchar(30) [not null]
+  updated_at timestamptz [not null, default: `now()`]
+  indexes {
+    (NotificationId, Channel) [unique]
+  }
+  Note: 'Trạng thái gửi từng kênh của thông báo (số lần thử, provider, lỗi).'
+}
+
+Table notification_inbox {
+  Id uuid [pk, note: 'REF → workflow_outbox.id, không có FK']
+  Attempts integer [not null]
+  CreatedAt timestamptz [not null]
+  ErrorCode varchar(100)
+  NextAttemptAt timestamptz [not null]
+  Payload jsonb [not null]
+  State varchar(30) [not null]
+  Note: 'Sự kiện nhận từ RabbitMQ (Id = EventId của outbox) để chống xử lý trùng.'
+}
+
+// ---------------- Analytics_DB ----------------
+Table analytics.citizen_feedback {
+  Id uuid [pk]
+  ApplicationId uuid [not null, unique, note: 'REF → applications.id, không có FK']
+  CitizenId uuid [not null, note: 'REF → users.id, không có FK']
+  Comment varchar(2000)
+  CreatedAtUtc timestamptz [not null]
+  ProcedureId uuid [not null, note: 'REF → procedures.id, không có FK']
+  Rating integer [not null]
+  WardCode varchar(50) [not null, note: 'REF → wards.code, không có FK']
+  Note: 'Đánh giá 1–5 sao của công dân, tối đa 1 đánh giá mỗi hồ sơ.\\n\\nCHECK:\\n- ck_feedback_rating: "Rating" BETWEEN 1 AND 5'
+}
+
+Table analytics.metric_refreshes {
+  MetricDate date [pk]
+  RefreshedAtUtc timestamptz [not null]
+  SourceAtUtc timestamptz [not null]
+  Note: 'Mốc làm mới số liệu thống kê theo ngày (watermark).'
+}
+
+Table analytics.daily_performance_metrics {
+  MetricDate date [not null]
+  WardCode varchar(50) [not null, note: 'REF → wards.code, không có FK']
+  OfficerId uuid [not null, note: 'REF → users.id, không có FK']
+  ProcedureId uuid [not null, note: 'REF → procedures.id, không có FK']
+  DurationSampleCount integer [not null]
+  ReadyCount integer [not null]
+  RevisionRequestedCount integer [not null]
+  TotalProcessingMinutes float8 [not null]
+  indexes {
+    (MetricDate, WardCode, OfficerId, ProcedureId) [pk]
+  }
+  Note: 'Thống kê hiệu suất theo ngày × phường × cán bộ × thủ tục.'
+}
+
+Table analytics.application_procedure_metrics {
+  MetricDate date [not null]
+  WardCode varchar(50) [not null, note: 'REF → wards.code, không có FK']
+  ProcedureId uuid [not null, note: 'REF → procedures.id, không có FK']
+  CancelledCount integer [not null]
+  LegacyApprovedCount integer [not null]
+  LegacyRejectedCount integer [not null]
+  ReadyCount integer [not null]
+  ReceivedCount integer [not null]
+  ResubmittedCount integer [not null]
+  RevisionRequestedCount integer [not null]
+  indexes {
+    (MetricDate, WardCode, ProcedureId) [pk]
+  }
+  Note: 'Thống kê theo ngày × phường × thủ tục (số hồ sơ sẵn sàng, tiếp nhận, nộp lại…).'
+}
+
+// ---------------- FOREIGN KEY thật ----------------
+Ref: chat_messages.session_id > chat_sessions.id [delete: cascade]
+Ref: knowledge_chunks.document_id > knowledge_documents.id [delete: cascade]
+Ref: notification_deliveries.NotificationId > notifications.id [delete: cascade]
+Ref: application_assignment_history.application_id > applications.id [delete: cascade]
+Ref: application_checklists.application_id > applications.id [delete: cascade]
+Ref: application_comments.application_id > applications.id [delete: cascade]
+Ref: application_comments.(application_id, application_version_id) > application_versions.(application_id, id) [delete: restrict]
+Ref: application_status_history.application_id > applications.id [delete: cascade]
+Ref: application_versions.application_id > applications.id [delete: cascade]
+Ref: document.form_template_versions.template_id > document.form_templates.id [delete: restrict]
+Ref: document.user_submissions.template_version_id > document.form_template_versions.id [delete: restrict]
+Ref: refresh_tokens.user_id > users.id [delete: cascade]
+Ref: role_permissions.permission_id > permissions.id [delete: cascade]
+Ref: role_permissions.role_id > roles.id [delete: cascade]
+Ref: users.ward_id > wards.id [delete: restrict]
+Ref: iam.user_otps.user_id > users.id [delete: cascade]
+Ref: user_profiles.user_id - users.id [delete: cascade]
+Ref: user_roles.role_id > roles.id [delete: cascade]
+Ref: user_roles.user_id > users.id [delete: cascade]
+Ref: iam.welcome_emails.user_id - users.id [delete: cascade]
+Ref: procedures.category_id > procedure_categories.id [delete: restrict]
+Ref: procedure_versions.procedure_id > procedures.id [delete: restrict]
+
+// ---------------- REF (không có FOREIGN KEY) – màu xám ----------------
+Ref: rbac_audit_logs.actor_user_id > users.id [color: #AAAAAA]
+Ref: rbac_audit_logs.target_user_id > users.id [color: #AAAAAA]
+Ref: rbac_audit_logs.role_id > roles.id [color: #AAAAAA]
+Ref: rbac_audit_logs.permission_id > permissions.id [color: #AAAAAA]
+Ref: users.assigned_categories <> procedure_categories.id [color: #AAAAAA]
+Ref: procedure_drafts.created_by > users.id [color: #AAAAAA]
+Ref: procedure_drafts.reviewed_by > users.id [color: #AAAAAA]
+Ref: procedure_drafts.published_procedure_id > procedures.id [color: #AAAAAA]
+Ref: procedures.form_definitions <> document.form_templates.id [color: #AAAAAA]
+Ref: applications.user_id > users.id [color: #AAAAAA]
+Ref: applications.assigned_officer_id > users.id [color: #AAAAAA]
+Ref: applications.ward_code > wards.code [color: #AAAAAA]
+Ref: applications.procedure_id > procedures.id [color: #AAAAAA]
+Ref: applications.category_id > procedure_categories.id [color: #AAAAAA]
+Ref: application_versions.submitted_by > users.id [color: #AAAAAA]
+Ref: application_comments.officer_id > users.id [color: #AAAAAA]
+Ref: application_status_history.changed_by > users.id [color: #AAAAAA]
+Ref: application_assignment_history.actor_id > users.id [color: #AAAAAA]
+Ref: application_assignment_history.from_officer_id > users.id [color: #AAAAAA]
+Ref: application_assignment_history.to_officer_id > users.id [color: #AAAAAA]
+Ref: application_checklists.form_template_id > document.form_templates.id [color: #AAAAAA]
+Ref: workflow_outbox.payload > applications.id [color: #AAAAAA]
+Ref: document.user_submissions.applicant_id > users.id [color: #AAAAAA]
+Ref: document.user_submissions.reviewed_by_officer_id > users.id [color: #AAAAAA]
+Ref: document.user_submissions.template_id > document.form_templates.id [color: #AAAAAA]
+Ref: document.user_submissions.application_id > applications.id [color: #AAAAAA]
+Ref: document.user_submissions.checklist_id > application_checklists.id [color: #AAAAAA]
+Ref: document.application_forms.application_id > applications.id [color: #AAAAAA]
+Ref: document.supporting_documents.application_id > applications.id [color: #AAAAAA]
+Ref: document.supporting_documents.checklist_id > application_checklists.id [color: #AAAAAA]
+Ref: document.generated_documents.application_id > applications.id [color: #AAAAAA]
+Ref: document.generated_documents.submission_id > document.user_submissions.id [color: #AAAAAA]
+Ref: document.approved_qrs.application_id - applications.id [color: #AAAAAA]
+Ref: document.approved_qrs.submission_id > document.user_submissions.id [color: #AAAAAA]
+Ref: chat_sessions.user_id > users.id [color: #AAAAAA]
+Ref: chat_sessions.ward_code > wards.code [color: #AAAAAA]
+Ref: knowledge_documents.created_by > users.id [color: #AAAAAA]
+Ref: knowledge_documents.updated_by > users.id [color: #AAAAAA]
+Ref: knowledge_documents.procedure_id - procedures.id [color: #AAAAAA]
+Ref: chat_messages.citations <> knowledge_chunks.id [color: #AAAAAA]
+Ref: notifications.recipient_user_id > users.id [color: #AAAAAA]
+Ref: notifications.recipient_ward_code > wards.code [color: #AAAAAA]
+Ref: notifications.application_id > applications.id [color: #AAAAAA]
+Ref: notifications.source_event_id > notification_inbox.Id [color: #AAAAAA]
+Ref: notification_inbox.Id - workflow_outbox.id [color: #AAAAAA]
+Ref: notification_delivery_audits.DeliveryId > notification_deliveries.Id [color: #AAAAAA]
+Ref: notification_delivery_audits.ActorId > users.id [color: #AAAAAA]
+Ref: analytics.citizen_feedback.ApplicationId - applications.id [color: #AAAAAA]
+Ref: analytics.citizen_feedback.CitizenId > users.id [color: #AAAAAA]
+Ref: analytics.citizen_feedback.ProcedureId > procedures.id [color: #AAAAAA]
+Ref: analytics.citizen_feedback.WardCode > wards.code [color: #AAAAAA]
+Ref: analytics.daily_performance_metrics.OfficerId > users.id [color: #AAAAAA]
+Ref: analytics.daily_performance_metrics.ProcedureId > procedures.id [color: #AAAAAA]
+Ref: analytics.daily_performance_metrics.WardCode > wards.code [color: #AAAAAA]
+Ref: analytics.application_procedure_metrics.ProcedureId > procedures.id [color: #AAAAAA]
+Ref: analytics.application_procedure_metrics.WardCode > wards.code [color: #AAAAAA]
+
+TableGroup IAM_DB {
+  permissions
+  rbac_audit_logs
+  refresh_tokens
+  roles
+  role_permissions
+  users
+  iam.user_otps
+  user_profiles
+  user_roles
+  wards
+  iam.welcome_emails
+}
+
+TableGroup Catalog_DB {
+  procedures
+  procedure_categories
+  procedure_drafts
+  procedure_versions
+}
+
+TableGroup Workflow_DB {
+  application_assignment_history
+  application_checklists
+  application_comments
+  applications
+  application_status_history
+  application_versions
+  workflow_outbox
+}
+
+TableGroup DocumentForm_DB {
+  document.application_forms
+  document.approved_qrs
+  document.form_templates
+  document.form_template_versions
+  document.generated_documents
+  document.supporting_documents
+  document.user_submissions
+}
+
+TableGroup AIOCR_DB {
+  chat_messages
+  chat_sessions
+  knowledge_chunks
+  knowledge_documents
+}
+
+TableGroup Notification_DB {
+  notifications
+  notification_delivery_audits
+  notification_deliveries
+  notification_inbox
+}
+
+TableGroup Analytics_DB {
+  analytics.citizen_feedback
+  analytics.metric_refreshes
+  analytics.daily_performance_metrics
+  analytics.application_procedure_metrics
+}

@@ -16,3 +16,6 @@ appsettings.Development.json
 
 # graphify
 graphify-out/
+
+# draw.io local backups
+*_backup_*.drawio
