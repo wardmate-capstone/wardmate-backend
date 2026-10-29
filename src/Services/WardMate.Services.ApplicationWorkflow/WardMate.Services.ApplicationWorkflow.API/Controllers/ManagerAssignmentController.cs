@@ -8,6 +8,15 @@ namespace WardMate.Services.ApplicationWorkflow.API.Controllers;
 [Route("api/v1/manager/applications")]
 public sealed class ManagerAssignmentController(ISender sender, IWorkflowDirectory directory, IApplicationReviewStore store) : ReviewControllerBase
 {
+    /// <summary>Số hồ sơ chưa phân công, quá hạn và khối lượng từng cán bộ trong phường của Manager.</summary>
+    [HttpGet("assignment-summary"), Authorize(Policy = "workflow.assign.manage"), ProducesResponseType<AssignmentSummaryDto>(200)]
+    public async Task<IActionResult> Summary(CancellationToken ct)
+    {
+        var actor = Actor;
+        if (string.IsNullOrWhiteSpace(actor.WardCode)) return Forbid();
+        return Ok(await store.AssignmentSummary(actor, ct));
+    }
+
     [HttpPut("{id:guid}/assignee"), Authorize(Policy = "workflow.assign.manage"), RequestSizeLimit(4096)]
     public async Task<IActionResult> Assign(Guid id, ManageAssigneeInput input, CancellationToken ct)
     {
