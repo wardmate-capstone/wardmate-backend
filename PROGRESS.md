@@ -3714,3 +3714,20 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Triển khai: Chủ dự án chạy `az containerapp update --name wardmate-iam --set-env-vars Email__Enabled=true Email__Host=smtp.gmail.com Email__Port=587 Email__Username=nhkha452@gmail.com Email__From=nhkha452@gmail.com Email__DisplayName="WardMate System" Email__Password=gebxibibcyizockp`.
 - Kiểm tra live: Gọi `POST /api/v1/auth/password-otp/request` qua Gateway `https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/auth/password-otp/request` trả về `200 OK` ("Nếu tài khoản hợp lệ và đủ thời gian gửi lại, mã OTP sẽ được gửi qua kênh đã chọn..."). Dịch vụ Email đã sẵn sàng, mã OTP đã gửi qua SMTP Gmail thành công.
 
+
+## DOC-CALENDAR-SPEC-01 — Đặc tả ngày nghỉ phường và lễ toàn quốc cho deadline 45 giờ — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án muốn Manager khai báo ngày nghỉ của phường và IT_ADMIN khai báo ngày lễ toàn quốc để dừng deadline 45 giờ, thay danh sách Holidays cố định (đang rỗng). Quyết định: Claude không triển khai; viết đặc tả để BE phụ trách lịch làm/lịch nghỉ (STAFFING-01) làm.
+- File mới: docs/be-calendar-closures-spec.md (bảng calendar_closures, quyền IAM workflow.calendar.manage cho IT_ADMIN, 4 API dưới /api/v1/staffing/closures, quy tắc, thuật toán lùi/tính lại hạn cho hồ sơ đang chạy và đang tạm dừng, giới hạn, mã lỗi, checklist, 9 ca nghiệm thu).
+- Đã đối chiếu code: ReviewDeadline.cs (snapshot policy), chỗ gọi Start (WorkflowRequests.cs:116) và Resume (ReviewHandlers.cs:115, trong Mutate sync), StaffingService/StaffingController, WorkflowSecurity, gateway route /api/v1/staffing/** đã có, Analytics đọc DueAtUtc trực tiếp từ Workflow nên không cần sửa.
+- Không đổi code, không build, không Git. Commit gợi ý: docs: add calendar closure spec for review deadline
+
+
+## AIOCR-CHATBOT-01 — Bật Chatbot AI và kết nối DB Supabase cho AIOCR — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Bối cảnh: AIOCR trên Azure trước đó trả lỗi 503 do thiếu ConnectionStrings__AiOcrDatabase và cờ Assistant__Enabled=false.
+- Triển khai: Lấy chuỗi kết nối PostgreSQL Supabase (wardmate-db) từ `wardmate-application-workflow` và cấu hình cho `wardmate-aiocr`, đồng thời đặt `Assistant__Enabled=true`.
+- Kiểm tra: Gọi `GET /api/v1/ai/chat/sessions` qua Gateway đánh thức container thành công, trả về `401 Unauthorized` (đòi hỏi Bearer token theo đúng chuẩn API).
+
+## JWT-SECRET-01 — Đổi JWT Key bảo mật 256-bit và lưu dạng Secret cho cả 6 service — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Bối cảnh: Key JWT cũ trước đây lưu dạng biến môi trường thường và đã bị lộ. Cần tạo key bảo mật mới và lưu dạng Secret trên Azure Container Apps.
+- Triển khai: Sinh khóa mới 256-bit (50513530445017C08E745A25F52B7E1DAE9F15BC64AF73F643D0ABDF68EFF574). Lưu vào Secret `jwt-key` trên cả 6 service (`wardmate-iam`, `wardmate-procedure-catalog`, `wardmate-application-workflow`, `wardmate-documentform`, `wardmate-aiocr`, `wardmate-analytics-system`) và đặt biến `Jwt__Key=secretref:jwt-key`.
+- Hệ quả bảo mật: Khóa không còn hiển thị dạng plaintext; toàn bộ Access Token cũ bị vô hiệu hóa an toàn, người dùng/tester chỉ cần đăng nhập lại để nhận token mới.
