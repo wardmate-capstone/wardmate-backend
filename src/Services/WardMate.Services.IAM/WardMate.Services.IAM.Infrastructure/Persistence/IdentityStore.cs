@@ -58,9 +58,6 @@ public sealed class IdentityStore(IamDbContext db) : IIdentityStore
             foreach (var profile in db.ChangeTracker.Entries<UserProfile>().Where(x => x.State == EntityState.Deleted || (x.State == EntityState.Modified && x.Property(p => p.PhoneNumber).IsModified)))
             {
                 await db.Users.Where(x => x.Id == profile.Entity.UserId).ExecuteUpdateAsync(s => s.SetProperty(x => x.VerifiedPhoneNumber, (string?)null), ct);
-                var invalidatedAt = DateTime.UtcNow;
-                await db.UserOtps.Where(x => x.UserId == profile.Entity.UserId && x.Channel == "SMS" && !x.IsUsed && x.ExpiresAtUtc > invalidatedAt)
-                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresAtUtc, invalidatedAt), ct);
             }
             await db.SaveChangesAsync(ct);
             if (transaction is not null) await transaction.CommitAsync(ct);

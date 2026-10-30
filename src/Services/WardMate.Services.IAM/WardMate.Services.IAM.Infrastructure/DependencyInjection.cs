@@ -29,13 +29,10 @@ public static class DependencyInjection
             client.MaxResponseContentBufferSize = 1024 * 1024;
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddHostedService<CategoryReconciliationWorker>();
-        services.AddHttpClient<IIamSmsSender, IamSmsSender>(client => client.Timeout = TimeSpan.FromSeconds(10))
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<WardMate.Services.IAM.Application.Commands.IIamEmailSender, IamEmailSender>();
         services.AddScoped<WardMate.Services.IAM.Application.Commands.IPasswordOtpService, PasswordOtpService>();
         services.AddHostedService<WelcomeEmailWorker>();
         services.AddHostedService<AccountSecurityCleanupWorker>();
-        services.AddScoped<WardMate.Services.IAM.Application.Interfaces.IPhoneVerificationService, PhoneVerificationService>();
         services.AddScoped<IIdentityStore, IdentityStore>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.INotificationRecipients, NotificationRecipients>();
         services.AddScoped<IProfileStore, ProfileStore>();
