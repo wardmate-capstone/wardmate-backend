@@ -255,12 +255,14 @@ Kết quả kiểm tra Option A: `dotnet build WardMate.sln -c Release -warnaser
 1. **Deploy các service Azure Container Apps:**
    - `wardmate-application-workflow`: image `workflow-20261030-01` (chứa tính năng Staffing, Tham vấn, Phân công, Cache access-context).
    - `wardmate-analytics-system`: image `analytics-20261030-01` (gỡ kênh SMS, Cache access-context).
-   - `wardmate-aiocr`: image `aiocr-20261030-01` (Cache access-context).
+   - `wardmate-aiocr`: image `aiocr-20261030-02` (Hạn mức Gemini, ai_request_logs, Chatbot, /health/ready, Cache access-context).
    - `wardmate-gateway`: image `gateway-20261030-01` (định tuyến Staffing, Tham vấn, fix thứ tự route manager applications).
+   - `wardmate-iam`: image `iam-20261030-01` (Cung cấp tài khoản Manager/ProcedureManager Option A, gỡ bỏ SMS, email SMTP, /health/ready).
 
 2. **Cơ sở dữ liệu Supabase (đã chạy thành công):**
    - Workflow DB: Chạy `docs/sql/workflow-staffing-tables.sql` (migration `20261029161554_AddStaffingTablesOnly`) tạo 4 bảng `application_consultations`, `officer_leaves`, `officer_shifts`, `officer_leave_decisions`, các index và check constraint.
    - IAM DB: Chạy `docs/sql/iam-staffing-permissions.sql` (migration `20261029120000_ManagerStaffingPermissions`) seed quyền Staffing, Phân công và Tham vấn cho MANAGER và FRONT_DESK_OFFICER.
+   - AIOCR DB: Chạy `docs/sql/aiocr-ai-request-logs.sql` (migration `20261030083635_AiRequestLogs`) tạo bảng `ai_request_logs`.
 
 3. **Kiểm tra Live Gateway trên Azure:**
    - Health: `GET /health` → 200 OK (`Healthy`).
@@ -270,5 +272,8 @@ Kết quả kiểm tra Option A: `dotnet build WardMate.sln -c Release -warnaser
    - Manager Applications: `GET /api/v1/manager/applications` → 401 Unauthorized (định tuyến thành công sang Workflow).
    - AI Usage Report: `GET /api/v1/ai/knowledge/usage` → 401 Unauthorized (định tuyến thành công sang AIOCR với image mới `aiocr-20261030-02`).
    - AI Chat Sessions: `GET /api/v1/ai/chat/sessions` → 401 Unauthorized (định tuyến thành công sang AIOCR).
+   - IAM Staff Provisioning: `POST /api/v1/accounts/manager` và `POST /api/v1/accounts/procedure-manager` → 401 Unauthorized (hết lỗi 405, route hoạt động chuẩn xác).
+   - IAM Removed SMS Routes: `POST /api/v1/users/me/phone-verification/request` → 404 Not Found (đã gỡ bỏ sạch sẽ).
+
 
 
