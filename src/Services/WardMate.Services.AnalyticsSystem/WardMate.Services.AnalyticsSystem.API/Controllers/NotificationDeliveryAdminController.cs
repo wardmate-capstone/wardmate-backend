@@ -29,7 +29,4 @@ public sealed class NotificationDeliveryAdminController(IDeliveryAdministration 
     [HttpPost("{id:guid}/replay"), RequestSizeLimit(4096), ProducesResponseType<DeliveryAdminDto>(202)]
     public async Task<IActionResult> Replay(Guid id,DeliveryReplayInput input,CancellationToken ct)
     { var row=await service.Replay(Actor(true),id,input,ct); return Accepted($"/api/v1/admin/notification-deliveries/{id}",row); }
-    [HttpPost("{id:guid}/sms-reconciliation"), RequestSizeLimit(4096), ProducesResponseType<DeliveryAdminDto>(200)]
-    public async Task<IActionResult> Reconcile(Guid id,SmsReconcileInput input,CancellationToken ct)
-    { return Ok(await service.Reconcile(Actor(true),id,input,ct)); }
 }

@@ -45,33 +45,12 @@ public sealed class DeliveryAdministration(NotificationDbContext db, IConfigurat
         Check(Text(input.Reason,5,500) && input.AcknowledgeDuplicateRisk,400,"validation","Cần lý do 5–500 ký tự và xác nhận rủi ro gửi trùng.");
         return Mutate(actor,id,input.ExpectedRevision,"REPLAY",input.Reason,null,row=>
         {
-            Check(row.State is "Dead" or "Blocked",409,"invalid_state","Chỉ gửi lại Dead/Blocked; SMS không rõ kết quả phải đối soát trước.");
-            if(row.Channel=="SMS")
-            {
-                Check(row.State == "Blocked",409,"reconciliation_required","SMS Dead cần đối soát trước khi gửi lại."); Check(config.GetValue<bool>("Sms:Enabled"),409,"channel_disabled","SMS đang tắt.");
-                Check(config["Sms:Sandbox"] != "0" || input.AcknowledgeSmsCost,400,"sms_cost_ack_required","Cần xác nhận chi phí SMS thật.");
-            }
+            Check(row.State is "Dead" or "Blocked",409,"invalid_state","Chỉ gửi lại Dead/Blocked.");
+            Check(row.Channel!="SMS",409,"channel_removed","Kênh SMS đã bị gỡ khỏi hệ thống; không gửi lại được.");
             if(row.Channel=="EMAIL") Check(config.GetValue<bool>("Email:Enabled"),409,"channel_disabled","Email đang tắt.");
             // Attempts restart so the retry budget applies again; the audit keeps the previous count.
             row.State="Pending"; row.Attempts=0; row.NextAttemptAt=clock.GetUtcNow().UtcDateTime;
             row.ErrorCode=null; row.SentAt=null; row.ExternalMessageId=null;
-        },ct);
-    }
-    public Task<DeliveryAdminDto> Reconcile(Guid actor,Guid id,SmsReconcileInput input,CancellationToken ct)
-    {
-        Check(Text(input.Reason,5,500) && Text(input.Reference,5,200) && MessageId(input.ProviderMessageId) && input.Outcome is "ACCEPTED" or "NOT_ACCEPTED" or "UNRESOLVED",400,"validation","Cần kết quả, tham chiếu đối soát, lý do và mã nhà cung cấp hợp lệ.");
-        return Mutate(actor,id,input.ExpectedRevision,"SMS_"+input.Outcome,input.Reason,input.Reference,row=>
-        {
-            Check(row.Channel=="SMS" && row.State is "Unknown" or "Dispatching" or "Dead",409,"invalid_state","Chỉ đối soát SMS Unknown, Dispatching hoặc Dead.");
-            Check(row.State!="Dispatching" || row.UpdatedAt <= clock.GetUtcNow().UtcDateTime.AddMinutes(-15),409,"dispatch_active","Dispatching chưa đủ 15 phút; chưa được can thiệp.");
-            if(input.Outcome=="ACCEPTED")
-            {
-                Check(input.ProviderMessageId is not null && row.IsSandbox is not null,400,"validation","Cần mã nhà cung cấp và chế độ gửi đã biết.");
-                row.State=row.IsSandbox==true?"Sandbox":"Sent"; row.ExternalMessageId=input.ProviderMessageId;
-                row.SentAt=row.IsSandbox==true?null:clock.GetUtcNow().UtcDateTime; row.ErrorCode="sms.manually_reconciled";
-            }
-            else if(input.Outcome=="NOT_ACCEPTED") { row.State="Blocked"; row.ErrorCode="sms.confirmed_not_accepted"; }
-            else { row.State="Unknown"; row.ErrorCode="sms.reconciliation_unresolved"; }
         },ct);
     }
     private async Task<DeliveryAdminDto> Mutate(Guid actor,Guid id,Guid revision,string action,string reason,string? reference,Action<NotificationDelivery> change,CancellationToken ct)

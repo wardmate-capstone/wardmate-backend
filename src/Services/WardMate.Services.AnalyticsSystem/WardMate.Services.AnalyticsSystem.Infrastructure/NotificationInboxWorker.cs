@@ -79,7 +79,6 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
                 db.Notifications.Add(notification);
                 db.Deliveries.Add(new() { NotificationId = notification.Id });
                 if (configuration.GetValue<bool>("Email:Enabled")) db.Deliveries.Add(new() { NotificationId = notification.Id, Channel = "EMAIL" });
-                if (configuration.GetValue<bool>("Sms:Enabled")) db.Deliveries.Add(new() { NotificationId = notification.Id, Channel = "SMS" });
             }
             row.State = "Processed"; row.ErrorCode = null;
             await db.SaveChangesAsync(ct);
