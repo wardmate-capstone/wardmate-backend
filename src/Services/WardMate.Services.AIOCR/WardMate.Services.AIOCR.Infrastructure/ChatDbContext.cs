@@ -10,8 +10,23 @@ public sealed class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbC
     public DbSet<ChatMessage> Messages => Set<ChatMessage>();
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
     public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
+    public DbSet<AiRequestLog> AiRequestLogs => Set<AiRequestLog>();
     protected override void OnModelCreating(ModelBuilder b)
     {
+        var l = b.Entity<AiRequestLog>();
+        l.ToTable("ai_request_logs", t =>
+        {
+            t.HasCheckConstraint("ck_ai_request_logs_outcome", "outcome IN ('SUCCESS','FAILED','REJECTED')");
+            t.HasCheckConstraint("ck_ai_request_logs_counts", "duration_ms >= 0 AND item_count >= 1");
+        });
+        l.HasKey(x => x.Id);
+        l.Property(x => x.Operation).HasMaxLength(40).IsRequired();
+        l.Property(x => x.Model).HasMaxLength(120).IsRequired();
+        l.Property(x => x.Outcome).HasMaxLength(20).IsRequired();
+        l.Property(x => x.ErrorCode).HasMaxLength(100);
+        l.HasIndex(x => x.CreatedAt);
+        l.HasIndex(x => new { x.UserId, x.CreatedAt });
+
         var d = b.Entity<KnowledgeDocument>();
         d.ToTable("knowledge_documents", t =>
         {
