@@ -123,9 +123,7 @@ Không có cross-service FK, không coi job chạy là xác nhận dữ liệu �
    AnalyticsSystem hiện có; không khởi chạy lại service khác ngoài nhu cầu tích hợp.
 4. Process Hangfire phải chạy liên tục để thực hiện cron; môi trường scale-to-zero không bảo đảm lịch.
    Xem [tài liệu Hangfire](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html).
-5. Local: build Release toàn solution, chạy `python scripts/verify-analytics-local.py` với Docker khả dụng.
-   Script mới của TASK-31–33 dùng DB/container/cổng tạm, dữ liệu giả và IAM mô phỏng; không khôi phục
-   các test project cũ. Workflow, Analytics, PostgreSQL, Hangfire và Gateway đều chạy thật.
+5. Local: build Release toàn solution. Script smoke test `scripts/verify-analytics-local.py` đã gỡ ngày 29/10/2026 (CLEANUP-01) vì chỉ phục vụ test, không phục vụ vận hành.
    Kiểm tra thêm trên IAM thật trước bàn giao production; test mô phỏng không thay thế bước này.
 
 FE kiểm tra theo thứ tự: IT_ADMIN chạy rebuild → đợi job Succeeded → Manager mở overview/trends/bảng
@@ -3808,6 +3806,8 @@ Xác nhận đủ ba migration mới trong public."__EFMigrationsHistory" và ha
 
 ### IAM — OTP qua eSMS (22/10/2026)
 
+> ⚠️ **Đã gỡ ngày 29/10/2026 (SMS-REMOVE-01).** Mục này chỉ còn giá trị lịch sử; xem mục SMS-REMOVE-01 ở cuối tài liệu.
+
 Dùng POST /api/v1/auth/password-otp/request với body {"emailOrUsername":"ten-dang-nhap","channel":"SMS","purpose":"FORGOT_PASSWORD"}. API dùng số di động đã lưu trong UserProfile, không nhận số tùy ý từ client. CHANGE_PASSWORD cần Bearer của chính tài khoản. Browser tiếp tục cần Origin được phép và X-CSRF-Protection: 1; giới hạn 10 request/IP/phút hiện hữu không đổi.
 
 202 trả message chứa số đã che khi eSMS chấp nhận yêu cầu gửi thật. CodeResult=100 là nhà cung cấp chấp nhận, không phải xác nhận điện thoại đã nhận. Sandbox=1 trả message thử nghiệm không gửi SMS. Tài khoản không khả dụng hoặc đang cooldown vẫn trả 202 chung. Thiếu số:400 iam.phone_not_configured; sai định dạng:400 iam.phone_invalid; tắt/thiếu cấu hình:400 iam.sms_unavailable; eSMS lỗi/timeout:503 iam.sms_delivery_failed. Cập nhật số hoặc chọn EMAIL; đợi tối thiểu60s khi gửi lại. Không tự retry SMS để tránh gửi trùng/tính phí trùng.
@@ -3820,6 +3820,8 @@ Tài liệu nhà cung cấp: https://developers.esms.vn/esms-api/ham-gui-tin/tin
 
 
 ### Bảo mật tài khoản — xác minh số, hạn mức OTP, thu hồi phiên (23/10/2026)
+
+> ⚠️ **Đã gỡ ngày 29/10/2026 (SMS-REMOVE-01).** Mục này chỉ còn giá trị lịch sử; xem mục SMS-REMOVE-01 ở cuối tài liệu.
 
 **Xác minh số điện thoại (chính chủ, Bearer bắt buộc):**
 - GET /api/v1/users/me/phone-verification trả200 {verified,maskedPhoneNumber}. Chỉ dùng cho tài khoản đang đăng nhập; số cũ chưa tự được công nhận là đã xác minh.
@@ -3927,6 +3929,8 @@ Tạo người quản lý danh mục thủ tục. Body cùng các trường như
 - Không cần migration/cấu hình mới. Cần deploy IAM mới để Swagger/routes xuất hiện; build local không chứng minh đã deploy.
 ## TASK-26 — SMS thông báo hồ sơ qua eSMS (23/10/2026)
 
+> ⚠️ **Đã gỡ ngày 29/10/2026 (SMS-REMOVE-01).** Mục này chỉ còn giá trị lịch sử; xem mục SMS-REMOVE-01 ở cuối tài liệu.
+
 Đã thay stub SMS Analytics bằng adapter eSMS; phần SMS OTP IAM không thay đổi. Workflow phát sự kiện qua TASK-27, inbox tạo delivery SMS khi `Sms:Enabled=true`, worker lấy liên hệ hiện tại từ IAM và gửi nền. FE không gọi API gửi SMS trực tiếp; routes, body, response HTTP, DTO và token của API hồ sơ/thông báo giữ nguyên. Việc gửi thất bại không đổi kết quả tạo/nộp hồ sơ. Không dùng trạng thái hồ sơ hoặc HTTP 200 để kết luận SMS đã đến điện thoại.
 
 Hướng dẫn cấu hình, migration, truy vấn đối soát và phục hồi: [SMS operations](notification-sms-operations.md). Mẫu cấu hình mặc định tắt, Sandbox=1, secret và template để trống. Mẫu CSKH cần được nhà mạng duyệt; không tái sử dụng mẫu OTP. Missing template/phone/config trả trạng thái delivery Blocked, không phải ProblemDetails của API hồ sơ. Timeout/kết quả không rõ là Unknown; crash có thể giữ Dispatching; operator phải đối soát trước khi gửi lại. Không áp dụng hướng dẫn replay tổng quát cho Unknown/Dispatching.
@@ -4025,6 +4029,8 @@ Cấu hình mới **trên IAM**: `ProcedureCatalog__BaseUrl` trỏ đúng Catalo
 
 ## Quản trị thông báo lỗi và đối soát SMS — 24/10/2026
 
+> ⚠️ Từ 29/10/2026 (SMS-REMOVE-01) phần SMS (đối soát, `acknowledgeSmsCost`, trạng thái Dispatching/Unknown của SMS) đã gỡ; các phần IN_APP/EMAIL vẫn đúng.
+
 Dành cho **IT_ADMIN** để xem các lượt gửi thông báo (delivery) bị lỗi, đối soát SMS chưa rõ kết quả với eSMS và gửi lại có kiểm soát. Không dành cho FE công dân, cán bộ hay Manager. Mọi API cần Bearer, role IT_ADMIN (IAM xác minh lại mỗi request) và quyền:
 
 - `notifications.deliveries.read`: xem danh sách, chi tiết, lịch sử thao tác.
@@ -4070,6 +4076,8 @@ Chi tiết trả 200 cùng DTO trên, 404 `notifications.delivery_not_found`. `/
 202 kèm DTO mới (revision mới). API không gửi ngay; xem kết quả bằng GET chi tiết sau đó. Lỗi: 400 `notifications.validation`, `notifications.sms_cost_ack_required`; 404; 409 `notifications.revision_conflict` (người khác vừa thao tác, tải lại), `notifications.delivery_busy` (worker đang xử lý, thử lại sau), `notifications.invalid_state`, `notifications.reconciliation_required`, `notifications.channel_disabled`.
 
 ### POST `/api/v1/admin/notification-deliveries/{id}/sms-reconciliation`
+
+> ⚠️ **Đã gỡ ngày 29/10/2026 (SMS-REMOVE-01).** Mục này chỉ còn giá trị lịch sử; xem mục SMS-REMOVE-01 ở cuối tài liệu.
 
 ```json
 { "expectedRevision": "GUID", "outcome": "ACCEPTED", "reference": "eSMS portal 24/10 09:30", "reason": "Đã đối chiếu SMSID trên eSMS", "providerMessageId": "abc123" }
@@ -4371,3 +4379,33 @@ Nguyên nhân: EF Core bọc lỗi Postgres tạm thời (khóa dòng `55P03`, m
 FE nên xử lý:
 - `409 chat.busy`: giữ nút gửi ở trạng thái chờ, gửi lại khi lượt trước trả về; không coi là lỗi AI.
 - `503 chat.database_unavailable`: báo hệ thống bận, thử lại sau; không hiện "AI trả lời sai".
+
+
+## Gỡ bỏ SMS khỏi hệ thống — 29/10/2026 (SMS-REMOVE-01)
+
+**Lý do:** gửi SMS thật (eSMS, brandname) cần giấy phép kinh doanh; hệ thống chỉ dùng dịch vụ miễn phí. Mọi mục SMS ở trên (IAM OTP qua eSMS 22/10, xác minh số điện thoại 23/10, SMS thông báo hồ sơ 23/10, đối soát SMS 24/10) **không còn hiệu lực**.
+
+### API đã gỡ (gọi sẽ nhận 404)
+
+| API | Trước đây |
+|---|---|
+| GET `/api/v1/users/me/phone-verification` | Trạng thái xác minh số điện thoại |
+| POST `/api/v1/users/me/phone-verification/request` | Gửi OTP SMS xác minh số |
+| POST `/api/v1/users/me/phone-verification/confirm` | Xác nhận OTP SMS |
+| POST `/api/v1/admin/notification-deliveries/{id}/sms-reconciliation` | Đối soát SMS với eSMS |
+
+FE cần bỏ màn/nút xác minh số điện thoại và nút đối soát SMS nếu có.
+
+### API thay đổi
+
+- POST `/api/v1/auth/password-otp/request`: OTP **chỉ gửi qua Email**. `channel` có thể bỏ (mặc định `EMAIL`); gửi `"SMS"` → 400 lỗi validation "OTP chỉ gửi qua Email.". Message 202 chung đổi thành "...mã OTP sẽ được gửi qua Email...". Các phần khác (cooldown 60 giây, tối đa 10 OTP/24 giờ, 5 phút hết hạn, tối đa 5 lần thử) giữ nguyên. Bỏ hạn mức riêng 5 SMS/24 giờ.
+- POST `/api/v1/admin/notification-deliveries/{id}/replay`: bỏ trường `acknowledgeSmsCost` (gửi kèm cũng bị bỏ qua). Delivery kênh SMS cũ không gửi lại được: 409 `notifications.channel_removed`.
+- GET `/api/v1/admin/notification-deliveries`: vẫn lọc được `channel=SMS` để xem các dòng cũ.
+- Thông báo hồ sơ chỉ còn kênh **IN_APP** (SignalR) và **EMAIL** (khi `Email:Enabled=true`). Inbox không tạo delivery SMS nữa; delivery SMS còn `Pending` từ trước được đóng thành `Suppressed` với `errorCode: "sms.removed"`, không gửi.
+
+### Dữ liệu và cấu hình
+
+- **Không xóa bảng/cột** trong DB: `users.verified_phone_number`, cột `external_message_id`, `provider`, `is_sandbox` của `notification_deliveries`, ràng buộc channel cho phép `SMS` vẫn giữ để đọc được dữ liệu cũ. Không cần migration.
+- Số điện thoại vẫn là thông tin hồ sơ cá nhân bình thường (không xác minh). IAM không còn gửi số điện thoại sang Analytics trong API danh sách người nhận thông báo nội bộ.
+- Bỏ khỏi cấu hình: mục `Sms` trong appsettings IAM và Analytics, `PasswordOtp:MaxSmsPer24Hours`, biến `Sms__*` và `NOTIFICATION_SMS_*` trong docker-compose và `.env.example`. Biến môi trường SMS còn đặt trên Azure không gây lỗi nhưng nên xóa.
+- Tài liệu vận hành SMS [notification-sms-operations.md](notification-sms-operations.md) chỉ còn giá trị lịch sử.

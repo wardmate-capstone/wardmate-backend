@@ -29,7 +29,7 @@
 - Quyền xem khác quyền sửa: MANAGER giám sát trong phường, không tự có quyền chuyển trạng thái cán bộ.
 - Checklist hồ sơ là snapshot; không tự đồng bộ thay đổi thủ tục vào hồ sơ cũ.
 - Deadline tiền kiểm: 45 giờ làm việc, thứ Hai–thứ Sáu 07:30–16:30 UTC+07; pause khi chờ bổ sung. Dữ liệu cũ thiếu căn cứ giữ UNKNOWN.
-- SMS OTP IAM đã có eSMS; SMS thông báo hồ sơ Analytics vẫn là stub. Chat Gemini chưa phải RAG đầy đủ.
+- SMS đã bị gỡ khỏi hệ thống (29/10/2026, cần giấy phép kinh doanh): OTP và thông báo chỉ qua Email/IN_APP. Chỉ dùng dịch vụ miễn phí. Chat có RAG (TASK-29) nhưng mặc định tắt.
 
 ## Kết thúc / bàn giao lại
 
