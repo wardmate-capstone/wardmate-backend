@@ -3687,3 +3687,17 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Docs: docs/system-constraints.md (ACCESS-CACHE-01, cập nhật IAM-SEC-02 và WORKFLOW-FE-1026, nhật ký), docs/api-guide.md (mục cache + sửa ghi chú cũ), docs/CLAUDE_HANDOFF.md.
 - Còn lại: deploy lại 5 service (Workflow, DocumentForm, ProcedureCatalog, Analytics, AIOCR) — Antigravity. Tùy chọn đặt `Iam__AccessContextCacheSeconds` trên Azure; không đặt thì dùng 30.
 - Không chạy Git. Commit gợi ý: feat(sharedkernel): cache IAM access-context responses briefly (file mới AccessContextCacheHandler.cs + AccountSessionMiddleware); feat(services): enable access-context cache for workflow, analytics and aiocr clients; docs: document access-context cache
+
+## STAFFING-SQL-01 — Script SQL an toàn cho migration staffing (rà báo cáo Antigravity) — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Bối cảnh: Antigravity báo 2 migration staffing chưa chạy trên Supabase và gửi script tay. Đối chiếu với migration thấy: (1) Workflow thiếu tên ràng buộc/khóa theo EF (pk_*, fk_*, ck_consultation_status, ck_leave_status), không kiểm tra đúng DB/thứ tự; (2) IAM thiếu `setval` sequence permissions (có thể lỗi trùng khóa chính nếu từng thêm quyền bằng tay), thiếu advisory lock và không ghi `__EFMigrationsHistory`.
+- File mới: docs/sql/workflow-staffing-tables.sql (20261029161554_AddStaffingTablesOnly; yêu cầu đã có 20261029010912_CommentWithdrawal), docs/sql/iam-staffing-permissions.sql (20261029120000_ManagerStaffingPermissions; nội dung theo đúng migration + ghi history). Cả hai idempotent, chạy trong transaction, dừng nếu chọn nhầm DB.
+- Kiểm tra: DDL Workflow khớp `dotnet ef migrations script 20261029010912_CommentWithdrawal 20261029161554_AddStaffingTablesOnly` (tên bảng, cột, ràng buộc, index, history). Chưa chạy thử trên PostgreSQL (Docker local không chạy). Chưa chạy trên Supabase.
+- Thứ tự chạy: Workflow DB → workflow-staffing-tables.sql; IAM DB → iam-staffing-permissions.sql. Nếu đã chạy script tay của Antigravity rồi: báo lại để đối chiếu tên ràng buộc, không chạy chồng.
+- Không đổi code, không Git. Commit gợi ý: docs(sql): add idempotent staffing migration scripts (2 file mới → 2 commit riêng).
+
+## GATEWAY-ROUTE-01 — Đồng bộ route staffing và manager applications vào YarpGateway Production — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Bối cảnh: Gateway Production thiếu route `workflow-staffing-v1` (/api/v1/staffing/{**catch-all}), `workflow-staffing-root-v1` (/api/v1/staffing), `workflow-manager-applications-root-v1` (/api/v1/manager/applications) và Order -20 cho `workflow-manager-applications-v1` (bị route /api/v1/manager/{**catch-all} của IAM bắt nhầm nếu không có Order).
+- File sửa: src/Gateways/WardMate.YarpGateway/appsettings.Production.json (đồng bộ đầy đủ route ứng với appsettings.json).
+- Kiểm tra: `dotnet build WardMate.sln -c Release -warnaserror -m:1` đạt 0 warning, 0 error.
+- Còn lại: Build image Gateway mới `gateway-20261030-01` và update container `wardmate-gateway` trên Azure Container Apps.
+
