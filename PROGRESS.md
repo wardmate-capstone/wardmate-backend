@@ -3789,3 +3789,18 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
   2. feat(aiocr): allow anonymous chat with guest limits — AssistantController.cs, AssistantRegistration.cs, appsettings.json, AssistantContracts.cs, AiUsageContracts.cs, AiUsageService.cs
   3. fix(gateway): forward real client address to services — YarpGateway/Program.cs
   4. docs: document public chatbot and guest limits
+
+## AI-LIVE-01 — Nghiệm thu Chatbot Public & Khởi tạo Schema AIOCR Production — 2026-10-30T23:55:00+07:00 (Asia/Saigon, UTC+07:00)
+- Trạng thái: HOÀN THÀNH — Chatbot công dân phục vụ hỏi đáp thủ tục hành chính công khai không cần đăng nhập đã chạy live thành công 100% trên Azure Container Apps và Gateway.
+- Database Production (Supabase):
+  - File mới: `docs/sql/aiocr-full-setup.sql` (script tổng hợp toàn bộ 4 migration AIOCR: `ChatSessions`, `KnowledgeBase`, `KnowledgeRetrieval`, `AiRequestLogs`).
+  - Đã thực thi an toàn và xác nhận trên database `tdqmyzscflmlslfftxpe` (PostgreSQL Supabase): khởi tạo `chat_sessions`, `chat_messages` (kèm `citations jsonb`), `knowledge_documents`, `knowledge_chunks` (kèm `embedding real[]`), `ai_request_logs` và ghi nhận đủ 4 migration vào `__EFMigrationsHistory`.
+- Cấu hình Azure (`wardmate-aiocr`):
+  - `Assistant__Enabled`: `true`
+  - `Gemini__Model`: `gemini-3.1-flash-lite`
+  - `Gemini__Key`: key từ cấu hình dự án đã hoạt động tốt với Google Gemini API.
+- Nghiệm thu thực tế qua Gateway (`https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io`):
+  - Lượt 1 (Khởi tạo phiên ẩn danh): `POST /api/v1/ai/chat/completions` không token -> trả về `200 OK`, `conversationId: 7b184764-0958-4b74-9ec4-859af50ae933`, hướng dẫn đầy đủ hồ sơ khai sinh (1114 ký tự).
+  - Lượt 2 (Tiếp tục hội thoại): `POST /api/v1/ai/chat/completions` gửi kèm `conversationId` không token -> trả về `200 OK`, ghi nhớ ngữ cảnh câu hỏi trước, trả lời chính xác thời hạn 60 ngày.
+  - Logging & Rate Limit: Ghi nhận 2 dòng vào bảng `ai_request_logs` (operation `CHAT`, model `gemini-3.1-flash-lite`, outcome `SUCCESS`, latency 980ms - 2022ms, prompt tokens 148-487, output tokens 100-326, `user_id` null đúng chuẩn khách ẩn danh). Bảng `chat_sessions` lưu `user_id = 00000000-0000-0000-0000-000000000000`.
+- Build Release: Solution-wide `0 warnings, 0 errors`.
