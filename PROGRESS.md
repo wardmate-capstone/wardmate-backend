@@ -3676,3 +3676,14 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Kiểm tra: `docker compose --env-file docker/.env -f docker/docker-compose.yml config --quiet` → hợp lệ, có service azurite và postgres. Không đổi code nên không build lại. Chưa khởi động container.
 - Còn lại (ngoài phạm vi): pgAdmin trong docker/docker-compose.yml vẫn ghi cứng mật khẩu local, trong khi docs/docker-local.md nói lấy từ docker/.env.
 - Không chạy Git. Commit gợi ý: chore(docker): remove legacy root compose and move azurite into docker compose
+
+## ACCESS-CACHE-01 — Cache ngắn hạn access-context của IAM — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án quyết định làm cache quyền truy cập (trước đây giữ "không cache, fail closed").
+- File mới: src/BuildingBlocks/WardMate.SharedKernel/Web/AccessContextCacheHandler.cs (DelegatingHandler + extension `AddAccessContextCache`).
+- File sửa: SharedKernel/Web/AccountSessionMiddleware.cs (HttpClient đi qua handler cache); Program.cs của ApplicationWorkflow.API, AnalyticsSystem.API, AIOCR.API (`builder.Services.AddAccessContextCache()` áp cho mọi HttpClient từ IHttpClientFactory; chỉ tác động GET .../api/v1/users/access-context).
+- Hành vi: chỉ cache 200; khóa SHA-256(URL + Authorization), không lưu token thô; body ≤ 64 KiB; tối đa 10.000 mục/tiến trình; TTL `Iam:AccessContextCacheSeconds` mặc định 30, clamp 0–60, 0 = tắt. 401/403/5xx/timeout không cache. Workflow trước gọi IAM 2 lần/request, nay lần 2 trúng cache.
+- API: không đổi route/body/status. Hệ quả: đổi mật khẩu/khóa/thu hồi phiên/đổi quyền/phường trễ tối đa ~30 giây ở service ngoài IAM (SignalR ~45 giây).
+- Kiểm tra: dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error. Chương trình tạm trong scratchpad (không thuộc repo): 7/7 PASS (cache cùng token, khác token tách, path khác không cache, 401 không cache, hết hạn sau TTL, TTL=0 tắt, clamp 60) + PASS qua IHttpClientFactory. Chưa chạy HTTP end-to-end với IAM thật, chưa deploy.
+- Docs: docs/system-constraints.md (ACCESS-CACHE-01, cập nhật IAM-SEC-02 và WORKFLOW-FE-1026, nhật ký), docs/api-guide.md (mục cache + sửa ghi chú cũ), docs/CLAUDE_HANDOFF.md.
+- Còn lại: deploy lại 5 service (Workflow, DocumentForm, ProcedureCatalog, Analytics, AIOCR) — Antigravity. Tùy chọn đặt `Iam__AccessContextCacheSeconds` trên Azure; không đặt thì dùng 30.
+- Không chạy Git. Commit gợi ý: feat(sharedkernel): cache IAM access-context responses briefly (file mới AccessContextCacheHandler.cs + AccountSessionMiddleware); feat(services): enable access-context cache for workflow, analytics and aiocr clients; docs: document access-context cache

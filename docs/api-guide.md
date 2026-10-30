@@ -4326,7 +4326,7 @@ GET `/api/v1/officer/applications` nay chỉ trả hồ sơ **đã từng nộp*
 
 ### Chưa làm trong lượt này
 
-Mục 1 (bật RabbitMQ/worker trên Azure), mục 6 (minReplicas, cache access-context, cache quyền DocumentForm, Application Insights) và mục 7 (xác nhận image/migration đang chạy trên Azure) cần Antigravity/hạ tầng. Cache access-context trái quy tắc hiện tại "không cache, fail closed" nên chờ chủ dự án quyết.
+Mục 1 (bật RabbitMQ/worker trên Azure), mục 6 (minReplicas, cache access-context, cache quyền DocumentForm, Application Insights) và mục 7 (xác nhận image/migration đang chạy trên Azure) cần Antigravity/hạ tầng. Cache access-context: đã làm ngày 30/10/2026, xem mục ACCESS-CACHE-01 ở cuối tài liệu.
 
 
 ## Rút nhận xét OPEN của cán bộ trước — 29/10/2026 (WORKFLOW-COMMENT-01)
@@ -4538,3 +4538,11 @@ Quyền đọc: `workflow.consultation.read`. Quyền tạo/đóng: Manager có 
 - **Kiểm tra nghiệp vụ:** Tồn tại tham vấn chưa đóng (`status != 'CLOSED'`), đúng chuyên viên, đúng version phân công và phiên bản hồ sơ.
 - **Kết quả 200:** `{ allowed: true, applicationId, version }`.
 
+## Cache quyền truy cập (access-context) — 30/10/2026 (ACCESS-CACHE-01)
+
+**Không đổi API, request hay response.** Chỉ đổi cách các service hỏi IAM phía sau.
+
+- Trước đây mỗi request có token tới Workflow, DocumentForm, ProcedureCatalog, Analytics, AIOCR đều gọi IAM `GET /api/v1/users/access-context`; riêng Workflow gọi 2 lần mỗi request. Nay kết quả thành công được nhớ 30 giây (mặc định) theo từng token, nên trong 30 giây đó request sau không hỏi lại IAM.
+- **FE cần biết:** sau khi người dùng đổi mật khẩu, bị khóa, bị thu hồi phiên hoặc admin đổi vai trò/quyền/phường, các service ngoài IAM có thể vẫn nhận token cũ hoặc quyền cũ tối đa khoảng 30 giây (SignalR có thể tới ~45 giây). Sau đó trả 401 `auth.session_revoked` như trước. Khi test đổi quyền, chờ ~30 giây hoặc đăng nhập lại để lấy token mới (token mới có mục cache mới).
+- Mã lỗi không đổi: 401 `auth.session_revoked`, 503 `auth.session_unavailable` / `application.iam_unavailable` / `knowledge.iam_unavailable`. Lỗi không được cache.
+- Cấu hình: `Iam__AccessContextCacheSeconds` (0–60, mặc định 30; đặt 0 để tắt và quay về hỏi IAM mỗi request). Không cần Redis hay dịch vụ trả phí.
