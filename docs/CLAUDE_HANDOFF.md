@@ -268,4 +268,7 @@ Kết quả kiểm tra Option A: `dotnet build WardMate.sln -c Release -warnaser
    - Staffing Leaves: `GET /api/v1/staffing/leaves` → 401 Unauthorized (định tuyến thành công sang Workflow).
    - Staffing Consultations: `GET /api/v1/staffing/consultations` → 401 Unauthorized (định tuyến thành công sang Workflow).
    - Manager Applications: `GET /api/v1/manager/applications` → 401 Unauthorized (định tuyến thành công sang Workflow).
+   - AI Usage Report: `GET /api/v1/ai/knowledge/usage` → 401 Unauthorized (định tuyến thành công sang AIOCR với image mới `aiocr-20261030-02`).
+   - AI Chat Sessions: `GET /api/v1/ai/chat/sessions` → 401 Unauthorized (định tuyến thành công sang AIOCR).
+
 
