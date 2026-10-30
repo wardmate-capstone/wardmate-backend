@@ -52,6 +52,9 @@ public static class AssistantRegistration
         services.AddDbContext<ChatDbContext>(o => o.UseNpgsql(config.GetConnectionString("AiOcrDatabase")
             ?? "Host=localhost;Database=wardmate_aiocr_db;Username=wardmate_aiocr").UseSnakeCaseNamingConvention());
         services.AddScoped<IChatService, ChatService>();
+        // Daily Gemini limits and ai_request_logs (no prompt/answer content is stored).
+        services.AddHttpContextAccessor();
+        services.AddScoped<IAiUsage, AiUsageService>();
         services.AddHttpClient<GeminiAssistant>(h => { h.Timeout = TimeSpan.FromSeconds(90); h.MaxResponseContentBufferSize = 1024 * 1024; })
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<ICccdExtractionService>(s => s.GetRequiredService<GeminiAssistant>());
