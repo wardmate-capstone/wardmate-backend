@@ -140,20 +140,21 @@ Swagger: https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainera
 
 ## Local environment
 
-Run from the repository root. Existing PostgreSQL, pgAdmin and Azurite volumes must be preserved.
+Run from the repository root. The old root `docker-compose.yml` was removed on 30/10/2026 (CLEANUP-02); PostgreSQL (pgvector), pgAdmin and Azurite now come from `docker/docker-compose.yml`.
 
 ```powershell
-docker start wardmate_postgres wardmate_pgadmin wardmate_azurite wardmate_documentform
+docker compose --env-file docker/.env -f docker/docker-compose.yml up -d postgres azurite pgadmin document-form
 ```
 
-- pgAdmin: http://localhost:5050 (existing root Compose login: `admin@admin.com`; password is the local value in root `docker-compose.yml`).
-- Register PostgreSQL in pgAdmin with host `postgres`, port `5432`, username `wardmate_admin`, and the existing local PostgreSQL password. Use database `wardmate_documentform_db`.
+- If containers created by the old root Compose (`wardmate_postgres`, `wardmate_pgadmin`, `wardmate_azurite`) still exist, stop/remove them first to free ports 5432, 5050 and 10000–10002. Removing a container does not delete its volume; the new Compose uses its own volumes (`postgres_data`, `azurite_data` under the `docker` project), so old local data is not carried over automatically.
+- pgAdmin: http://localhost:5050 (login configured in `docker/docker-compose.yml`).
+- Register PostgreSQL in pgAdmin with host `postgres`, port `5432`, username `wardmate_admin`, and the local PostgreSQL password. Use database `wardmate_documentform_db`.
 - From Windows/Visual Studio, use host `localhost`; from the API container, use `postgres`.
 - The recovered API uses a new, separate `wardmate_documentform_db`. Old `wardmate_db` remains intact; its records have not been copied.
 - For Visual Studio, override `ConnectionStrings__DocumentDb` to select the new database. The checked-in appsettings still selects the old `wardmate_db`.
 - Stop the API container before running Visual Studio on the same port 5004.
 - API: http://localhost:5004/health. Swagger is disabled in this Production container.
-- API Blob configuration uses `UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite`. Bare `UseDevelopmentStorage=true` would address the API container's own loopback.
+- API Blob configuration defaults to `UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://host.docker.internal` (Azurite ports published on the host). Bare `UseDevelopmentStorage=true` would address the API container's own loopback.
 
 Build the image with repository-root context:
 

@@ -51,25 +51,6 @@ services:
       Email__From: ${NOTIFICATION_EMAIL_FROM:-}
       Email__Username: ${NOTIFICATION_EMAIL_USERNAME:-}
       Email__Password: ${NOTIFICATION_EMAIL_PASSWORD:-}
-      Sms__Provider: eSMS
-      Sms__SmsType: "2"
-      Sms__Enabled: ${NOTIFICATION_SMS_ENABLED:-false}
-      Sms__ApiKey: ${NOTIFICATION_SMS_API_KEY:-}
-      Sms__SecretKey: ${NOTIFICATION_SMS_SECRET_KEY:-}
-      Sms__Brandname: ${NOTIFICATION_SMS_BRANDNAME:-}
-      Sms__Sandbox: ${NOTIFICATION_SMS_SANDBOX:-1}
-      Sms__TemplatesApproved: ${NOTIFICATION_SMS_TEMPLATES_APPROVED:-false}
-      Sms__Templates__SUBMITTED: ${NOTIFICATION_SMS_TEMPLATE_SUBMITTED:-}
-      Sms__Templates__UNDER_REVIEW: ${NOTIFICATION_SMS_TEMPLATE_UNDER_REVIEW:-}
-      Sms__Templates__NEED_REVISION: ${NOTIFICATION_SMS_TEMPLATE_NEED_REVISION:-}
-      Sms__Templates__DOCUMENTS_READY: ${NOTIFICATION_SMS_TEMPLATE_DOCUMENTS_READY:-}
-      Sms__Templates__OFFICIALLY_RECEIVED: ${NOTIFICATION_SMS_TEMPLATE_OFFICIALLY_RECEIVED:-}
-      Sms__Templates__CANCELLED: ${NOTIFICATION_SMS_TEMPLATE_CANCELLED:-}
-      Sms__Templates__INLINE_COMMENT_ADDED: ${NOTIFICATION_SMS_TEMPLATE_INLINE_COMMENT_ADDED:-}
-      Sms__Templates__OFFICER_ASSIGNED: ${NOTIFICATION_SMS_TEMPLATE_OFFICER_ASSIGNED:-}
-      Sms__Templates__OFFICER_UNASSIGNED: ${NOTIFICATION_SMS_TEMPLATE_OFFICER_UNASSIGNED:-}
-      Sms__Templates__OFFICER_SUBMITTED: ${NOTIFICATION_SMS_TEMPLATE_OFFICER_SUBMITTED:-}
-      Sms__Templates__OFFICER_UNDER_REVIEW: ${NOTIFICATION_SMS_TEMPLATE_OFFICER_UNDER_REVIEW:-}
     ports:
       - "5006:8080"
     depends_on:
@@ -229,13 +210,6 @@ services:
       ConnectionStrings__Database: Host=iam-db;Port=5432;Database=wardmate_iam_db;Username=wardmate;Password=${IAM_DB_PASSWORD:-wardmate_secret}
       Notifications__ServiceKey: ${NOTIFICATIONS_SERVICE_KEY:-}
       Database__AutoMigrate: "true"
-      Sms__Enabled: ${Sms__Enabled:-false}
-      Sms__Provider: eSMS
-      Sms__ApiKey: ${Sms__ApiKey:-}
-      Sms__SecretKey: ${Sms__SecretKey:-}
-      Sms__Brandname: ${Sms__Brandname:-Baotrixemay}
-      Sms__SmsType: ${Sms__SmsType:-2}
-      Sms__Sandbox: ${Sms__Sandbox:-1}
       Email__Enabled: ${NOTIFICATION_EMAIL_ENABLED:-false}
       Email__Host: ${NOTIFICATION_EMAIL_HOST:-smtp.gmail.com}
       Email__Port: ${NOTIFICATION_EMAIL_PORT:-587}
@@ -312,15 +286,18 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Redis 7 Caching (port 6379)
-  redis:
-    image: redis:7-alpine
-    container_name: wardmate_redis
+
+  # 2. Azurite - giả lập Azure Blob cho DocumentForm local (port 10000-10002)
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
     volumes:
-      - redis_data:/data
+      - azurite_data:/data
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --loose
 
   # 3. RabbitMQ Message Broker (kèm Management Dashboard - port 5672, 15672)
   rabbitmq:
@@ -402,6 +379,6 @@ volumes:
   iam-data:
   aiocr-data:
   postgres_data:
-  redis_data:
+  azurite_data:
 
 
