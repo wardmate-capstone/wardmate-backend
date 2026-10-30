@@ -248,3 +248,23 @@ Không đính kèm nguyên lịch sử chat hoặc .env: hội thoại cũ có s
 Source chính: IAM Application/Accounts/ProvisionStaffRequests.cs (mới), IManagementScope.cs; Infrastructure/Persistence/StaffAdministration.cs; API/Controllers/StaffAdministrationController.cs. Kết quả build và phần còn chờ xem mục IAM-STAFF-PROVISION-01 mới nhất trong PROGRESS.md. Chưa deploy/FE nghiệm thu hai API; không tự triển khai cloud hoặc đổi RBAC để tiếp tục. Mục 4 của bản bàn giao trước đó không tự cập nhật trạng thái production vì bổ sung này.
 
 Kết quả kiểm tra Option A: `dotnet build WardMate.sln -c Release -warnaserror -m:1` thành công 0 warnings/0 errors, 00:05:53.88. Không test project/runtime HTTP/DB/deploy/Git. Đã triển khai source, phần còn chờ là rollout IAM và FE nghiệm thu. Không cần migration hoặc cấu hình mới.
+
+## Cập nhật 30/10/2026 — Triển khai Staffing, Cache AccessContext và Đồng bộ Gateway Production
+
+1. **Deploy các service Azure Container Apps:**
+   - `wardmate-application-workflow`: image `workflow-20261030-01` (chứa tính năng Staffing, Tham vấn, Phân công, Cache access-context).
+   - `wardmate-analytics-system`: image `analytics-20261030-01` (gỡ kênh SMS, Cache access-context).
+   - `wardmate-aiocr`: image `aiocr-20261030-01` (Cache access-context).
+   - `wardmate-gateway`: image `gateway-20261030-01` (định tuyến Staffing, Tham vấn, fix thứ tự route manager applications).
+
+2. **Cơ sở dữ liệu Supabase (đã chạy thành công):**
+   - Workflow DB: Chạy `docs/sql/workflow-staffing-tables.sql` (migration `20261029161554_AddStaffingTablesOnly`) tạo 4 bảng `application_consultations`, `officer_leaves`, `officer_shifts`, `officer_leave_decisions`, các index và check constraint.
+   - IAM DB: Chạy `docs/sql/iam-staffing-permissions.sql` (migration `20261029120000_ManagerStaffingPermissions`) seed quyền Staffing, Phân công và Tham vấn cho MANAGER và FRONT_DESK_OFFICER.
+
+3. **Kiểm tra Live Gateway trên Azure:**
+   - Health: `GET /health` → 200 OK (`Healthy`).
+   - Staffing Shifts: `GET /api/v1/staffing/shifts` → 401 Unauthorized (`auth.unauthorized`, định tuyến thành công sang Workflow).
+   - Staffing Leaves: `GET /api/v1/staffing/leaves` → 401 Unauthorized (định tuyến thành công sang Workflow).
+   - Staffing Consultations: `GET /api/v1/staffing/consultations` → 401 Unauthorized (định tuyến thành công sang Workflow).
+   - Manager Applications: `GET /api/v1/manager/applications` → 401 Unauthorized (định tuyến thành công sang Workflow).
+
