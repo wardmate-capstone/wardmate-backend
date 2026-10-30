@@ -7,12 +7,18 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> options) : DbContext(options)
 {
     public DbSet<WorkflowOutbox> Outbox => Set<WorkflowOutbox>();
+    // Staffing tables (local feature)
+    public DbSet<OfficerShift> Shifts => Set<OfficerShift>();
+    public DbSet<OfficerLeave> Leaves => Set<OfficerLeave>();
+    public DbSet<OfficerLeaveDecision> LeaveDecisions => Set<OfficerLeaveDecision>();
+    public DbSet<ApplicationConsultation> Consultations => Set<ApplicationConsultation>();
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         WorkflowOutboxCapture.Capture(this);
         return base.SaveChangesAsync(cancellationToken);
     }
     public DbSet<ApplicationRecord> Applications => Set<ApplicationRecord>();
+    public DbSet<ApplicationAssignmentHistory> AssignmentHistory => Set<ApplicationAssignmentHistory>();
     public DbSet<ApplicationChecklist> Checklists => Set<ApplicationChecklist>();
     public DbSet<ApplicationStatusHistory> StatusHistory => Set<ApplicationStatusHistory>();
     public DbSet<ApplicationVersion> Versions => Set<ApplicationVersion>();
@@ -119,6 +125,42 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         h.Property(x => x.ToStatus).HasMaxLength(50).IsRequired();
         h.Property(x => x.Reason).HasColumnType("text");
         h.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+        // --- Staffing tables (added by local staffing feature) ---
+        var shift = b.Entity<OfficerShift>();
+        shift.ToTable("officer_shifts", t => t.HasCheckConstraint("ck_shift_range", "ends_at_utc > starts_at_utc"));
+        shift.HasKey(x => x.Id);
+        shift.Property(x => x.WardCode).HasMaxLength(50);
+        shift.Property(x => x.CancellationReason).HasMaxLength(2000);
+        shift.HasIndex(x => new { x.WardCode, x.OfficerId, x.StartsAtUtc });
+
+        var lv = b.Entity<OfficerLeave>();
+        lv.ToTable("officer_leaves", t => { t.HasCheckConstraint("ck_leave_range", "ends_at_utc > starts_at_utc"); t.HasCheckConstraint("ck_leave_status", "status IN ('PENDING','APPROVED','REJECTED','CANCELLED')"); });
+        lv.HasKey(x => x.Id);
+        lv.Property(x => x.WardCode).HasMaxLength(50);
+        lv.Property(x => x.Reason).HasMaxLength(2000);
+        lv.Property(x => x.DecisionReason).HasMaxLength(2000);
+        lv.Property(x => x.Status).HasMaxLength(20);
+        lv.HasIndex(x => new { x.WardCode, x.OfficerId, x.StartsAtUtc });
+
+        var decision = b.Entity<OfficerLeaveDecision>();
+        decision.ToTable("officer_leave_decisions");
+        decision.HasKey(x => x.Id);
+        decision.HasIndex(x => new { x.LeaveId, x.Version }).IsUnique();
+        decision.HasOne<OfficerLeave>().WithMany().HasForeignKey(x => x.LeaveId).OnDelete(DeleteBehavior.Restrict);
+        decision.Property(x => x.FromStatus).HasMaxLength(20);
+        decision.Property(x => x.ToStatus).HasMaxLength(20);
+        decision.Property(x => x.Reason).HasMaxLength(2000);
+
+        var consultation = b.Entity<ApplicationConsultation>();
+        consultation.ToTable("application_consultations", t => t.HasCheckConstraint("ck_consultation_status", "status IN ('OPEN','ANSWERED','CLOSED')"));
+        consultation.HasKey(x => x.Id);
+        consultation.Property(x => x.Status).HasMaxLength(20);
+        consultation.Property(x => x.Question).HasMaxLength(4000);
+        consultation.Property(x => x.Answer).HasMaxLength(4000);
+        consultation.Property(x => x.CloseReason).HasMaxLength(4000);
+        consultation.HasOne<ApplicationRecord>().WithMany().HasForeignKey(x => x.ApplicationId).OnDelete(DeleteBehavior.Restrict);
+        consultation.HasIndex(x => new { x.ApplicationId, x.SpecialistId }).IsUnique().HasFilter("status <> 'CLOSED'");
     }
 }
 public sealed class WorkflowDbContextFactory : IDesignTimeDbContextFactory<WorkflowDbContext>

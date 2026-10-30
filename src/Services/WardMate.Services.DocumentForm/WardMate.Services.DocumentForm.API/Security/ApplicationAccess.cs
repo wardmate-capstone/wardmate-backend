@@ -16,9 +16,34 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
     public async Task<ObjectResult?> Read(Guid applicationId, Guid? checklistId, CancellationToken ct, bool requireReady = false)
     {
         var result = await Check(applicationId, checklistId, false, ct, requireReady: requireReady);
-        if (result?.StatusCode == 404 && context.HttpContext!.User.IsInRole("FRONT_DESK_OFFICER"))
-            return await Check(applicationId, checklistId, false, ct, officer: true, requireReady: requireReady);
+        if (result?.StatusCode is 404 or 403 && context.HttpContext!.User.IsInRole("FRONT_DESK_OFFICER"))
+        {
+            var officerResult = await Check(applicationId, checklistId, false, ct, officer: true, requireReady: requireReady);
+            if (officerResult is null) return null;
+            if (officerResult.StatusCode is 404 or 403)
+            {
+                var root = config["Services:ApplicationWorkflow:BaseUrl"];
+                if (Uri.TryCreate(root, UriKind.Absolute, out var baseUri) && await CheckConsultationAccess(applicationId, baseUri, ct))
+                    return null;
+            }
+            return officerResult;
+        }
         return result;
+    }
+
+    private async Task<bool> CheckConsultationAccess(Guid applicationId, Uri baseUri, CancellationToken ct)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                new Uri(baseUri.AbsoluteUri.TrimEnd('/') + $"/api/v1/applications/{applicationId}/consultations/document-access"));
+            request.Headers.TryAddWithoutValidation("Authorization", context.HttpContext!.Request.Headers.Authorization.ToString());
+            using var response = await http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) return false;
+            var doc = await response.Content.ReadFromJsonAsync<ConsultationDocAccess>(cancellationToken: ct);
+            return doc?.Allowed == true;
+        }
+        catch { return false; }
     }
 
     public async Task<ObjectResult?> Check(Guid applicationId, Guid? checklistId, bool write, CancellationToken ct,
@@ -146,4 +171,5 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
 
     private sealed record WorkflowApplication(Guid Id, Guid UserId, string Status, WorkflowChecklist[] Checklists, Guid? AssignedOfficerId);
     private sealed record WorkflowChecklist(Guid Id, Guid? FormTemplateId);
+    private sealed record ConsultationDocAccess(bool Allowed, Guid ApplicationId, int? Version);
 }

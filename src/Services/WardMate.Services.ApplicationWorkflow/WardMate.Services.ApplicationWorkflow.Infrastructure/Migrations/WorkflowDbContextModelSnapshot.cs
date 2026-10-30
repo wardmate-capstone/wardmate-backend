@@ -259,6 +259,89 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationConsultation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Answer")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("answer");
+
+                    b.Property<DateTime?>("AnsweredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("answered_at_utc");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<int>("ApplicationVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("application_version");
+
+                    b.Property<long>("AssignmentVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("assignment_version");
+
+                    b.Property<string>("CloseReason")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("close_reason");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at_utc");
+
+                    b.Property<Guid?>("ClosedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("closed_by");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("question");
+
+                    b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by");
+
+                    b.Property<Guid>("SpecialistId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("specialist_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_application_consultations");
+
+                    b.HasIndex("ApplicationId", "SpecialistId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_application_consultations_application_id_specialist_id")
+                        .HasFilter("status <> 'CLOSED'");
+
+                    b.ToTable("application_consultations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_consultation_status", "status IN ('OPEN','ANSWERED','CLOSED')");
+                        });
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -565,6 +648,187 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.OfficerLeave", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<DateTime>("EndsAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at_utc");
+
+                    b.Property<Guid>("OfficerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("officer_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<string>("WardCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("ward_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_officer_leaves");
+
+                    b.HasIndex("WardCode", "OfficerId", "StartsAtUtc")
+                        .HasDatabaseName("ix_officer_leaves_ward_code_officer_id_starts_at_utc");
+
+                    b.ToTable("officer_leaves", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_leave_range", "ends_at_utc > starts_at_utc");
+
+                            t.HasCheckConstraint("ck_leave_status", "status IN ('PENDING','APPROVED','REJECTED','CANCELLED')");
+                        });
+                });
+
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.OfficerLeaveDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("from_status");
+
+                    b.Property<Guid>("LeaveId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("leave_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("to_status");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_officer_leave_decisions");
+
+                    b.HasIndex("LeaveId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_officer_leave_decisions_leave_id_version");
+
+                    b.ToTable("officer_leave_decisions", (string)null);
+                });
+
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.OfficerShift", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at_utc");
+
+                    b.Property<Guid?>("CancelledBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cancelled_by");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime>("EndsAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at_utc");
+
+                    b.Property<Guid>("OfficerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("officer_id");
+
+                    b.Property<DateTime>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at_utc");
+
+                    b.Property<string>("WardCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("ward_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_officer_shifts");
+
+                    b.HasIndex("WardCode", "OfficerId", "StartsAtUtc")
+                        .HasDatabaseName("ix_officer_shifts_ward_code_officer_id_starts_at_utc");
+
+                    b.ToTable("officer_shifts", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_shift_range", "ends_at_utc > starts_at_utc");
+                        });
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Infrastructure.WorkflowOutbox", b =>
                 {
                     b.Property<Guid>("Id")
@@ -645,6 +909,16 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasConstraintName("fk_application_comments_application_versions_application_id_ap");
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationConsultation", b =>
+                {
+                    b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_application_consultations_applications_application_id");
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationStatusHistory", b =>
                 {
                     b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", null)
@@ -663,6 +937,16 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_application_versions_applications_application_id");
+                });
+
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.OfficerLeaveDecision", b =>
+                {
+                    b.HasOne("WardMate.Services.ApplicationWorkflow.Domain.OfficerLeave", null)
+                        .WithMany()
+                        .HasForeignKey("LeaveId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_officer_leave_decisions_officer_leaves_leave_id");
                 });
 
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord", b =>

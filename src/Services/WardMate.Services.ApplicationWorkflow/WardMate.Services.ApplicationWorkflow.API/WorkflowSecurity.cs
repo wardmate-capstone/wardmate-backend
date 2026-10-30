@@ -54,7 +54,24 @@ public static class WorkflowSecurity
         WardMate.SharedKernel.Web.FeaturePermissions.AddClaimPermissions(services, WardMate.SharedKernel.Web.FeaturePermissions.Workflow);
         services.AddAuthorization(options =>
         {
-            options.AddPolicy("workflow.assign.manage", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.assign.manage").RequireRole("MANAGER")); options.AddPolicy("workflow.queue.read", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.queue.read")
+            // Assignment management (remote: ManagerAssignmentController)
+            options.AddPolicy("workflow.assign.manage", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.assign.manage").RequireRole("MANAGER"));
+            // Dispatch policies (local: ManagerDispatchController)
+            foreach (var permission in new[] { "workflow.dispatch.read", "workflow.dispatch.write" })
+                options.AddPolicy(permission, p => p.RequireAuthenticatedUser().RequireRole("MANAGER").RequireClaim("permissions", permission));
+            // Staffing policies (local: StaffingController)
+            options.AddPolicy("workflow.staffing.manage", p => p.RequireAuthenticatedUser().RequireRole("MANAGER").RequireClaim("permissions", "workflow.staffing.manage"));
+            options.AddPolicy("workflow.staffing.read", p => p.RequireAuthenticatedUser().RequireRole("MANAGER", "FRONT_DESK_OFFICER").RequireClaim("permissions", "workflow.staffing.read"));
+            options.AddPolicy("workflow.leave.request", p => p.RequireAuthenticatedUser().RequireRole("FRONT_DESK_OFFICER").RequireClaim("permissions", "workflow.leave.request").RequireAssertion(c => !c.User.IsInRole("MANAGER")));
+            // workflow.staffing.decide: Manager duyệt/từ chối/hủy; cán bộ chỉ được hủy yêu cầu PENDING của mình
+            options.AddPolicy("workflow.staffing.decide", p => p.RequireAuthenticatedUser().RequireAssertion(c =>
+                c.User.IsInRole("MANAGER") && c.User.HasClaim("permissions", "workflow.staffing.manage") ||
+                c.User.IsInRole("FRONT_DESK_OFFICER") && !c.User.IsInRole("MANAGER") && c.User.HasClaim("permissions", "workflow.leave.request")));
+            // Consultation policies (local: ConsultationsController)
+            options.AddPolicy("workflow.consultation.read", p => p.RequireAuthenticatedUser().RequireRole("MANAGER", "FRONT_DESK_OFFICER").RequireClaim("permissions", "workflow.consultation.read"));
+            options.AddPolicy("workflow.consultation.respond", p => p.RequireAuthenticatedUser().RequireRole("FRONT_DESK_OFFICER").RequireClaim("permissions", "workflow.consultation.respond").RequireAssertion(c => !c.User.IsInRole("MANAGER")));
+            // Queue and officer review policies
+            options.AddPolicy("workflow.queue.read", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.queue.read")
                 .RequireRole("FRONT_DESK_OFFICER", "MANAGER"));
             foreach (var permission in new[] { "workflow.receipt.confirm", "workflow.assign", "workflow.comments.write", "workflow.revision.request", "workflow.readiness.confirm" })
                 options.AddPolicy(permission, p => p.RequireAuthenticatedUser().RequireClaim("permissions", permission)
