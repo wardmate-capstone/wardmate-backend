@@ -6,6 +6,8 @@ using WardMate.Services.ApplicationWorkflow.Infrastructure;
 using WardMate.Services.ApplicationWorkflow.API;
 
 var builder = WebApplication.CreateBuilder(args);
+// Short-lived cache of IAM access-context answers shared by every IAM HttpClient in this service.
+builder.Services.AddAccessContextCache();
 
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = context =>
     new BadRequestObjectResult(new ValidationProblemDetails(context.ModelState.Where(x => x.Value?.Errors.Count > 0)

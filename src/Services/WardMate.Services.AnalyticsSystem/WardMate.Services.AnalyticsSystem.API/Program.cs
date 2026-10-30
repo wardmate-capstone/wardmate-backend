@@ -6,6 +6,8 @@ using Hangfire;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+// Short-lived cache of IAM access-context answers shared by every IAM HttpClient in this service.
+builder.Services.AddAccessContextCache();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

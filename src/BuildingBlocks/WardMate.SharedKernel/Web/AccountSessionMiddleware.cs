@@ -6,10 +6,12 @@ using Microsoft.Extensions.Logging;
 
 namespace WardMate.SharedKernel.Web;
 
-// Runs after JWT authentication. No cache: password changes invalidate the next protected request.
-public sealed class AccountSessionMiddleware(RequestDelegate next)
+// Runs after JWT authentication. Successful IAM answers are cached briefly (AccessContextCacheHandler),
+// so a password change or revoked session blocks protected requests after at most Iam:AccessContextCacheSeconds.
+public sealed class AccountSessionMiddleware(RequestDelegate next, IConfiguration configuration)
 {
-    private static readonly HttpClient Client = new(new HttpClientHandler { AllowAutoRedirect = false })
+    private readonly HttpClient Client = new(new AccessContextCacheHandler(configuration)
+        { InnerHandler = new HttpClientHandler { AllowAutoRedirect = false } })
         { Timeout = TimeSpan.FromSeconds(5) };
 
     public async Task InvokeAsync(HttpContext context, IConfiguration config, ILogger<AccountSessionMiddleware> logger)
