@@ -7,7 +7,7 @@ using WardMate.EventBus;
 
 namespace WardMate.Services.AnalyticsSystem.Infrastructure;
 
-public sealed class WorkflowNotificationConsumer(IServiceScopeFactory scopes, RabbitOptions options,
+public sealed class WorkflowNotificationConsumer(IServiceScopeFactory scopes, RabbitOptions options, RabbitStatus status,
     ILogger<WorkflowNotificationConsumer> logger) : BackgroundService
 {
     public static bool Valid(WorkflowEvent? e)
@@ -39,8 +39,10 @@ public sealed class WorkflowNotificationConsumer(IServiceScopeFactory scopes, Ra
             {
                 await using var connection = await new RabbitTransport(options).Connect(ct);
                 await using var channel = await RabbitTransport.Open(connection, ct);
+                status.Connected(connection);
                 while (!ct.IsCancellationRequested)
                 {
+                    if (!connection.IsOpen) { status.Disconnected(); break; }
                     var delivery = await channel.BasicGetAsync(RabbitTransport.Queue, false, ct);
                     if (delivery is null) { await Task.Delay(250, ct); continue; }
                     WorkflowEvent? message = null;
@@ -60,7 +62,7 @@ public sealed class WorkflowNotificationConsumer(IServiceScopeFactory scopes, Ra
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
-            catch (Exception) { logger.LogWarning("Consumer RabbitMQ tạm lỗi; message chưa ACK sẽ được giao lại."); await Task.Delay(5000, ct); }
+            catch (Exception) { status.Disconnected(); logger.LogWarning("Consumer RabbitMQ tạm lỗi; message chưa ACK sẽ được giao lại."); await Task.Delay(5000, ct); }
         }
     }
 }

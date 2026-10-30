@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddDbContext<NotificationDbContext>(options => options.UseNpgsql(connection));
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(configuration.GetSection("RabbitMq").Get<WardMate.EventBus.RabbitOptions>() ?? new());
+        services.AddSingleton<WardMate.EventBus.RabbitStatus>();
         services.AddHostedService<WorkflowNotificationConsumer>();
         services.AddHostedService<NotificationInboxWorker>();
         services.AddHostedService<NotificationDeliveryWorker>();

@@ -43,7 +43,7 @@ public static class WorkflowOutboxCapture
     }
 }
 
-public sealed class WorkflowOutboxWorker(IServiceScopeFactory scopes, RabbitOptions options, ILogger<WorkflowOutboxWorker> logger) : BackgroundService
+public sealed class WorkflowOutboxWorker(IServiceScopeFactory scopes, RabbitOptions options, RabbitStatus status, ILogger<WorkflowOutboxWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -54,8 +54,11 @@ public sealed class WorkflowOutboxWorker(IServiceScopeFactory scopes, RabbitOpti
             {
                 await using var connection = await new RabbitTransport(options).Connect(stoppingToken);
                 await using var channel = await RabbitTransport.Open(connection, stoppingToken);
+                status.Connected(connection);
                 while (!stoppingToken.IsCancellationRequested)
                 {
+                    // No automatic recovery: reconnect as soon as the broker drops the connection, even while idle.
+                    if (!connection.IsOpen) { status.Disconnected(); break; }
                     await using var scope = scopes.CreateAsyncScope();
                     var db = scope.ServiceProvider.GetRequiredService<WorkflowDbContext>();
                     await using var transaction = await db.Database.BeginTransactionAsync(stoppingToken);
@@ -76,7 +79,7 @@ public sealed class WorkflowOutboxWorker(IServiceScopeFactory scopes, RabbitOpti
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception) { logger.LogWarning("Outbox chưa kết nối/gửi được RabbitMQ; dữ liệu giữ lại để thử lại."); await Task.Delay(5000, stoppingToken); }
+            catch (Exception) { status.Disconnected(); logger.LogWarning("Outbox chưa kết nối/gửi được RabbitMQ; dữ liệu giữ lại để thử lại."); await Task.Delay(5000, stoppingToken); }
         }
     }
 }

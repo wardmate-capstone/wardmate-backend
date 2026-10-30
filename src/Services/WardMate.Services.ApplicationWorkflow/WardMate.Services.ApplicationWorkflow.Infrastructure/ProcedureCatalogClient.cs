@@ -44,6 +44,7 @@ public static class WorkflowInfrastructureRegistration
         services.AddScoped<IApplicationReviewStore, ApplicationReviewStore>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(config.GetSection("RabbitMq").Get<WardMate.EventBus.RabbitOptions>() ?? new());
+        services.AddSingleton<WardMate.EventBus.RabbitStatus>();
         services.AddHostedService<WorkflowOutboxWorker>();
         services.AddHttpClient<IWorkflowDirectory, WorkflowDirectory>(http =>
         {
