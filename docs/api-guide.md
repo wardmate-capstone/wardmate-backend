@@ -3572,7 +3572,7 @@ Thành công201 trả DTO chứa `submissionId`, trạng thái và thông tin fi
 
 ## Chặng 3 P2 — AI/OCR cho công dân (21/10/2026)
 
-Các API dưới đây nằm trong AIOCR, yêu cầu Bearer JWT IAM hợp lệ, không yêu cầu role quản trị riêng. Gateway có route giữ nguyên /api/v1/ai-ocr/... và /api/v1/ai/chat/... . Quyền đọc giấy tờ vẫn do DocumentForm/Workflow kiểm tra; đăng nhập không có nghĩa được đọc giấy tờ người khác.
+Các API dưới đây nằm trong AIOCR, yêu cầu Bearer JWT IAM hợp lệ, không yêu cầu role quản trị riêng. **Từ 30/10/2026, riêng `POST /api/v1/ai/chat/completions` không cần đăng nhập (xem mục AI-GUEST-01).** Gateway có route giữ nguyên /api/v1/ai-ocr/... và /api/v1/ai/chat/... . Quyền đọc giấy tờ vẫn do DocumentForm/Workflow kiểm tra; đăng nhập không có nghĩa được đọc giấy tờ người khác.
 
 ### POST /api/v1/ai-ocr/cccd/extract
 
@@ -4596,3 +4596,29 @@ Ví dụ `/health/ready`:
 - `description` chỉ là chữ cố định hoặc tên loại lỗi, không chứa host, mật khẩu hay connection string.
 - **Lưu ý:** gọi `/health/ready` cũng đánh thức app đang `minReplicas=0`. **Không** đặt `/health/ready` làm liveness probe: DB hoặc broker lỗi sẽ khiến Azure khởi động lại container liên tục.
 - Gateway chưa có route tới `/health/ready` của từng service; gọi thẳng URL của service hoặc qua console Azure.
+
+## Chatbot công khai cho người dân — 30/10/2026 (AI-GUEST-01)
+
+**Mục đích:** người dân hỏi chatbot mà **không cần đăng nhập**. Chỉ `POST /api/v1/ai/chat/completions` được mở; đọc CCCD, tiền kiểm giấy tờ, danh sách phiên và lịch sử chat vẫn yêu cầu đăng nhập (401 khi thiếu token).
+
+### POST `/api/v1/ai/chat/completions` (không cần token)
+
+- Body giữ nguyên: `{ "message": "...", "conversationId": null, "wardCode": "WARD_001" }`. Response giữ nguyên: `{ conversationId, answer, relatedProcedures, citations, grounded }`.
+- **Có token hợp lệ:** chạy như cũ, phiên gắn với tài khoản, xem lại được qua `GET /api/v1/ai/chat/sessions`.
+- **Không có token (khách):** phiên thuộc "khách". Muốn hỏi tiếp, FE gửi lại `conversationId` vừa nhận. Khách **không** có API lịch sử: FE tự giữ các tin nhắn trên màn hình (ví dụ trong sessionStorage). Mất `conversationId` thì bắt đầu phiên mới.
+- **Token hết hạn hoặc sai** trên API này không trả 401 mà được coi là khách. FE nên refresh token trước khi chat nếu muốn lưu vào lịch sử tài khoản.
+- Khách không dùng được phiên của tài khoản và ngược lại: 404 `chat.not_found`.
+
+### Hạn mức cho khách
+
+| Giới hạn | Cấu hình (biến môi trường) | Mặc định | Vượt |
+|---|---|---|---|
+| Lượt/phút mỗi IP | `Assistant__GuestRequestsPerMinute` (1–60) | 5 | 429 không có `code`, chờ 1 phút |
+| Lượt/ngày mỗi IP | `Assistant__DailyGuestRequestsPerIp` (0 = tắt) | 10 | 429 `ai.guest_quota_exceeded` |
+| Lượt/ngày của tất cả khách | `Assistant__DailyGuestRequestsTotal` (0 = tắt) | 200 | 429 `ai.guest_limit_reached` |
+
+- Lượt của khách vẫn tính vào hạn mức toàn hệ thống `Assistant__DailyRequestsTotal` (500). Phần khách tối đa 200, nên người đã đăng nhập luôn còn ít nhất 300 lượt.
+- FE khi nhận `ai.guest_quota_exceeded` / `ai.guest_limit_reached`: hiện thông báo và nút **Đăng nhập để hỏi tiếp**.
+- `GET /api/v1/ai/knowledge/usage` có thêm `dailyGuestRequestsTotal`, `dailyGuestRequestsPerIp`, `guestUsedToday`.
+
+**Triển khai:** deploy lại AIOCR **và Gateway**. Gateway giờ đọc IP thật của người dùng từ ingress và chuyển xuống AIOCR. Nếu chỉ deploy AIOCR thì mọi khách có chung một IP (IP của gateway) và cùng chia 5 lượt/phút. Không cần migration hay SQL mới.

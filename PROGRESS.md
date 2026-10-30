@@ -3770,3 +3770,22 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
   10. fix(notifications): reconnect rabbitmq workers when broker drops — WorkflowOutbox.cs, WorkflowNotificationConsumer.cs, ProcedureCatalogClient.cs, Analytics DependencyInjection.cs
   11. feat(services): expose /health/ready with database and broker checks — Program.cs × 6
   12. docs: document ai usage limits and readiness checks
+
+## AI-GUEST-01 — Chatbot không cần đăng nhập — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án quyết định chatbot công khai để người dân hỏi không cần đăng nhập.
+- File mới: src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/ClientAddress.cs.
+- File sửa: AIOCR API/Controllers/AssistantController.cs (AllowAnonymous cho chat completions, khách dùng ChatOwners.Guest), API/AssistantRegistration.cs (rate limit khách theo IP, mặc định 5/phút), API/appsettings.json (Assistant:DailyGuestRequestsTotal 200, DailyGuestRequestsPerIp 10, GuestRequestsPerMinute 5), Application/AssistantContracts.cs (ChatOwners), Application/AiUsageContracts.cs (AiUsageReport thêm 3 trường khách), Infrastructure/AiUsageService.cs (hạn mức khách); src/Gateways/WardMate.YarpGateway/Program.cs (UseForwardedHeaders X-Forwarded-For).
+- API: POST /api/v1/ai/chat/completions không cần token (body/response giữ nguyên); thêm 429 ai.guest_quota_exceeded, 429 ai.guest_limit_reached cho khách; token sai/hết hạn trên API này được coi là khách. GET /api/v1/ai/chat/sessions[/{id}/messages], CCCD, verify, Knowledge vẫn 401 khi thiếu token. GET /api/v1/ai/knowledge/usage thêm dailyGuestRequestsTotal, dailyGuestRequestsPerIp, guestUsedToday.
+- Kiểm tra:
+  - dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error.
+  - Harness HTTP AIOCR trong scratchpad (Postgres 16 Docker, IAM/Gemini giả) 23/23 PASS: khách chat/tiếp tục phiên, tách phiên khách và tài khoản, lịch sử vẫn 401, hạn mức IP/ngày, pool khách, người đăng nhập không bị ảnh hưởng, token hỏng = khách, báo cáo usage, CCCD/verify vẫn 401, giới hạn phút theo mục đầu của X-Forwarded-For.
+  - Gateway Release thật + server echo: không header → 127.0.0.1; "203.0.113.7" → 203.0.113.7; "6.6.6.6, 203.0.113.7" → 203.0.113.7.
+  - Chưa chạy: Gemini thật, Azure.
+- Docs: docs/api-guide.md (mục AI-GUEST-01, ghi chú ở mục Chặng 3 P2), docs/system-constraints.md (AI-GUEST-01, ghi chú AI-P2-01, Nhật ký), docs/CLAUDE_HANDOFF.md.
+- Triển khai (Antigravity): deploy lại AIOCR và Gateway cùng đợt; không có migration/SQL. Biến tùy chọn: Assistant__GuestRequestsPerMinute, Assistant__DailyGuestRequestsPerIp, Assistant__DailyGuestRequestsTotal. Nên để ingress AIOCR ở chế độ internal (chỉ gateway gọi).
+- FE: cho mở chatbot khi chưa đăng nhập; khách tự giữ lịch sử trên client và gửi lại conversationId; 429 ai.guest_quota_exceeded / ai.guest_limit_reached → hiện nút đăng nhập.
+- Không chạy Git. Commit gợi ý:
+  1. feat(aiocr): add client address helper — Infrastructure/ClientAddress.cs
+  2. feat(aiocr): allow anonymous chat with guest limits — AssistantController.cs, AssistantRegistration.cs, appsettings.json, AssistantContracts.cs, AiUsageContracts.cs, AiUsageService.cs
+  3. fix(gateway): forward real client address to services — YarpGateway/Program.cs
+  4. docs: document public chatbot and guest limits

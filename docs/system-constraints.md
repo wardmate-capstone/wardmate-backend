@@ -609,6 +609,8 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 
 ## Nhật ký tài liệu
 
+- 30/10/2026 — AI-GUEST-01: chatbot không cần đăng nhập, hạn mức riêng cho khách theo IP; gateway chuyển IP thật.
+
 - 30/10/2026 — AI-USAGE-01, HEALTH-01: hạn mức/nhật ký lượt gọi Gemini; /health/ready kiểm tra DB và RabbitMQ.
 
 - 30/10/2026 — ACCESS-CACHE-01: cache 200 của IAM access-context tối đa 30 giây (cấu hình 0–60), thay quy tắc không cache trong IAM-SEC-02 và WORKFLOW-FE-1026.
@@ -670,7 +672,7 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 ### AI-P2-01 — CCCD, tiền kiểm và chat (21/10/2026)
 
 - Nguồn: AIOCR.Application/AssistantContracts.cs; AIOCR.Infrastructure/GeminiAssistant.cs, AuthorizedDocumentSource.cs, ChatService.cs, ChatDbContext.cs; AIOCR.API/Controllers/AssistantController.cs, AssistantRegistration.cs.
-- Bearer bắt buộc, kiểm tra chữ ký HS256/issuer/audience/expiry/sub GUID; chưa truy vấn access-context để thu hồi JWT tức thì. Không tự thêm role/permission mới; tất cả user có JWT hợp lệ được dùng AI, DocumentForm bảo vệ đọc giấy tờ.
+- (30/10/2026: API chat completions đã mở cho khách, xem AI-GUEST-01.) Bearer bắt buộc, kiểm tra chữ ký HS256/issuer/audience/expiry/sub GUID; chưa truy vấn access-context để thu hồi JWT tức thì. Không tự thêm role/permission mới; tất cả user có JWT hợp lệ được dùng AI, DocumentForm bảo vệ đọc giấy tờ.
 - CCCD frontImage bắt buộc, backImage optional, PNG/JPEG kiểm tra magic bytes,<=8MiB/file,request17MiB. Không lưu CCCD vào DB/log; nội dung gửi Gemini. Chưa giải mã ảnh cục bộ để xác minh toàn vẹn; file hỏng có thể bị provider từ chối. JSON bắt buộc đủ fields, không trùng key; giá trị thiếu null; CCCD12số, ngàyISO, confidence hữu hạn0..1. Output sai502, không bịa kết quả.
 - Verify yêu cầu IDs không rỗng, expectedType tùy chọn<=255 và bị bỏ qua; caller token được gửi tới DocumentForm, xác minh tài liệu nằm trong danh sách hồ sơ trước download. Giữ phân quyền owner/officer của service đó, không privileged bypass. Chỉ URL cấu hình, không redirect, response file giới hạn8MiB. PDF/PNG/JPEG; không xử lý DOCX. expectedType lấy từ Title của checklist hồ sơ Workflow qua ChecklistId của giấy tờ DocumentForm, không lấy từ client. Thiếu liên kết/mục không hợp lệ trả409, chưa cấu hình Workflow trả503; không gọi AI khi không có căn cứ. isValid chỉ gợi ý, không ghi checklist, không chứng nhận pháp lý; hạ false khi confidence<0.7/qualityIssues/loại rỗng.
 - Chat message1..4000ký tự, wardCode1..50 chữ/số/_/-, không đổi ward giữa phiên. Ward chỉ là ngữ cảnh, chưa xác minh phường. Queries luôn lọc UserId, foreign session404. Lưu cặp User/Assistant trong transaction; lỗi AI rollback, cùng phiên khóa NOWAIT trả409 khi cạnh tranh. Không có idempotency, timeout sau commit cần đọc lại lịch sử. Giữ khóa DB trong tối đa thời gian gọi model; cần cân nhắc pool khi tăng tải.
@@ -1008,3 +1010,14 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - RabbitMQ (Workflow, Analytics): `RabbitStatus` giữ kết nối hiện tại của worker; health đọc `IsOpen`, không mở kết nối mới (CloudAMQP Free giới hạn số kết nối). Worker outbox và consumer kiểm tra `IsOpen` mỗi vòng và kết nối lại khi broker rớt, kể cả lúc rảnh (trước đây outbox rảnh chỉ phát hiện khi publish).
 - Nguồn: SharedKernel/Web/DependencyHealth.cs; EventBus/RabbitStatus.cs; Workflow Infrastructure/WorkflowOutbox.cs, ProcedureCatalogClient.cs; Analytics Infrastructure/WorkflowNotificationConsumer.cs, DependencyInjection.cs; Program.cs của 6 service.
 - Lịch sử 30/10/2026: thay mô tả "/health chỉ là health cơ bản" (TASK-35). Đã chạy thử Workflow local: disabled, connected, broker tắt → 503 disconnected, broker bật lại → connected. Analytics chưa chạy thử runtime. Chưa có lịch sử sức khỏe, cảnh báo tự động, backup/restore drill.
+
+### AI-GUEST-01 — Chatbot không cần đăng nhập (30/10/2026)
+
+- Chủ dự án quyết định chatbot công khai để người dân hỏi mà không cần tài khoản. Chỉ `POST /api/v1/ai/chat/completions` có `[AllowAnonymous]`; CCCD, tiền kiểm, `GET /api/v1/ai/chat/sessions[/{id}/messages]` và Knowledge Base vẫn bắt buộc đăng nhập. Thay câu "Bearer bắt buộc" của AI-P2-01 cho riêng API chat.
+- Phiên của khách lưu `chat_sessions.user_id = 00000000-0000-0000-0000-000000000000` (`ChatOwners.Guest`), không cần migration. JWT hợp lệ không thể mang sub rỗng (OnTokenValidated chặn), nên tài khoản không đọc hoặc tiếp tục được phiên khách và khách không dùng được phiên của tài khoản (404 `chat.not_found`). Phiên khách chỉ tiếp tục được bằng `conversationId` (GUID ngẫu nhiên), ai biết ID này đều hỏi tiếp được trong phiên đó; không có API đọc lịch sử phiên khách.
+- Token sai hoặc hết hạn trên API chat bị coi là khách (không 401).
+- Hạn mức khách: `Assistant:GuestRequestsPerMinute` (mặc định 5, 1–60) theo IP; `Assistant:DailyGuestRequestsPerIp` (mặc định 10, 0–10000, 0 = tắt) theo IP, đếm trong bộ nhớ, không lưu IP vào DB; `Assistant:DailyGuestRequestsTotal` (mặc định 200, 0–1.000.000, 0 = tắt) đếm trong `ai_request_logs` các lượt có `user_id` null. Vượt → 429 không code / `ai.guest_quota_exceeded` / `ai.guest_limit_reached`, Gemini không được gọi. Vẫn chịu `Assistant:DailyRequestsTotal`.
+- IP khách = mục đầu tiên của `X-Forwarded-For`, nếu không có thì địa chỉ kết nối. Gateway dùng `UseForwardedHeaders` (chỉ X-Forwarded-For, tin một hop ingress) nên YARP ghi đè header bằng IP thật và bỏ giá trị client tự gửi.
+- Giới hạn đã biết: gọi thẳng AIOCR không qua gateway thì giả được IP (ingress AIOCR nên để internal); bộ đếm theo IP mất khi replica khởi động lại và tính riêng cho từng replica; nhiều người dùng chung một IP (NAT, wifi công cộng) chung hạn mức IP. Khi RAG bật, embedding câu hỏi chạy trước bước kiểm tra hạn mức nên lượt bị từ chối vẫn có thể tốn một embedding. Tin nhắn của khách lưu trong DB AIOCR như chat thường, chưa có job tự xóa.
+- Nguồn: AIOCR API/Controllers/AssistantController.cs, AssistantRegistration.cs, appsettings.json; Application/AssistantContracts.cs (`ChatOwners`), AiUsageContracts.cs; Infrastructure/AiUsageService.cs, ClientAddress.cs; Gateways/WardMate.YarpGateway/Program.cs.
+- Lịch sử 30/10/2026: thêm quy tắc. Kiểm tra local: harness HTTP AIOCR (Postgres thật, IAM/Gemini giả) 23/23; gateway thật + server echo: không header → 127.0.0.1, một hop → IP đó, header giả "6.6.6.6, IP" → chỉ còn IP. Chưa deploy.
