@@ -3701,3 +3701,10 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Kiểm tra: `dotnet build WardMate.sln -c Release -warnaserror -m:1` đạt 0 warning, 0 error.
 - Còn lại: Build image Gateway mới `gateway-20261030-01` và update container `wardmate-gateway` trên Azure Container Apps.
 
+
+## AZURE-SCALE-01 — Hạ minReplicas về 0 (chi phí) — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Chủ dự án tự chạy Azure CLI; Claude không chạy lệnh Azure, chỉ ghi nhận kết quả người dùng gửi.
+- Kết quả: minReplicas=0 cho wardmate-iam, gateway, procedure-catalog, documentform, aiocr, application-workflow, analytics-system (thay quyết định minReplicas=1 của WORKFLOW-DEPLOY-AND-LATENCY-01). Còn wardmate-gotenberg minReplicas=1 (vẫn trừ credit).
+- Hệ quả: request đầu sau thời gian rảnh khởi động lạnh vài giây mỗi service trên đường đi. DocumentForm gọi Gotenberg bằng HttpClient timeout mặc định 100 giây (GotenbergPdfRenderEngine, không đặt timeout riêng), nên Gotenberg về 0 chỉ làm lần xuất PDF đầu chậm, không lỗi do timeout trong code.
+- Bổ sung cùng ngày: wardmate-gotenberg đã về minReplicas=0 (provisioningState Succeeded; 0.5 vCPU/1 GiB, image gotenberg/gotenberg:8). Cả 8 app đều minReplicas=0.
+- Rủi ro phát hiện từ output: ingress Gotenberg `external: true`, công khai trên internet, không xác thực. Ai biết URL cũng gọi được (tốn credit khi bị lạm dụng; Chromium route có thể bị dùng để tải URL tùy ý). Khuyến nghị Antigravity chuyển ingress sang nội bộ và cập nhật `Gotenberg__Url` của DocumentForm sang FQDN nội bộ cùng lúc; chưa làm.
