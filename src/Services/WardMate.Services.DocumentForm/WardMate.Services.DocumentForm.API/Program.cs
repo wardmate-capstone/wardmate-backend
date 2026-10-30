@@ -35,7 +35,7 @@ try
 
     // ── Health / Exception handling ──────────────────────────────────────────
     builder.Services.AddDocumentAuthentication(builder.Configuration);
-    builder.Services.AddHealthChecks();
+    builder.Services.AddHealthChecks().AddReadyProbe<DocumentDbContext>("database", (db, ct) => db.Database.CanConnectAsync(ct));
     builder.Services.AddWardMateBrowserCors(builder.Configuration, builder.Environment);
     builder.Services.AddGlobalExceptionHandling();
     builder.Services.Configure<ProblemDetailsOptions>(options =>
@@ -102,7 +102,7 @@ try
     app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
     app.UseAuthorization();
     app.MapControllers();
-    app.MapHealthChecks("/health");
+    app.MapWardMateHealth();
     app.MapGet("/", () => Results.Ok(new
     {
         service = "WardMate.Services.DocumentForm",

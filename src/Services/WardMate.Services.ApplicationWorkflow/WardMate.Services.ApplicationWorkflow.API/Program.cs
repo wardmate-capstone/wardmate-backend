@@ -24,7 +24,8 @@ builder.Services.AddWorkflowInfrastructure(builder.Configuration);
 builder.Services.AddWorkflowSecurity(builder.Configuration);
 builder.Services.AddWardMateBrowserCors(builder.Configuration, builder.Environment);
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks().AddReadyProbe<WorkflowDbContext>("database", (db, ct) => db.Database.CanConnectAsync(ct))
+    .AddCheck<WardMate.EventBus.RabbitHealthCheck>("rabbitmq", tags: [DependencyHealth.ReadyTag]);
 builder.Services.AddExceptionHandler<WorkflowValidationExceptionHandler>();
 builder.Services.AddGlobalExceptionHandling();
 
@@ -44,7 +45,7 @@ app.UseAuthentication();
 app.UseMiddleware<WorkflowAccessMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapWardMateHealth();
 app.MapGet("/", () => Results.Ok(new { service = "WardMate.Services.ApplicationWorkflow" }));
 
 app.Run();

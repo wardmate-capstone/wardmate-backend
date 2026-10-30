@@ -58,7 +58,7 @@ try
     });
 
     // ── Health / Exception handling ──────────────────────────────────────────
-    builder.Services.AddHealthChecks();
+    builder.Services.AddHealthChecks().AddReadyProbe<IamDbContext>("database", (db, ct) => db.Database.CanConnectAsync(ct));
     builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
     builder.Services.AddGlobalExceptionHandling();
     builder.Services.Configure<Microsoft.AspNetCore.Http.ProblemDetailsOptions>(options =>
@@ -146,7 +146,7 @@ try
     app.UseRateLimiter();
     app.UseAuthorization();
     app.MapControllers();
-    app.MapHealthChecks("/health");
+    app.MapWardMateHealth();
     app.MapGet("/", () => Results.Ok(new { service = "WardMate.Services.IAM" }));
 
     app.Run();

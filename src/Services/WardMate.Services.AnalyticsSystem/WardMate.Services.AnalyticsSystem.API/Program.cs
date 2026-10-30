@@ -17,7 +17,10 @@ builder.Services.AddSwaggerGen(o =>
     o.AddSecurityDefinition("Bearer", new() { Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT" });
     o.AddSecurityRequirement(new() { [new OpenApiSecurityScheme { Reference = new() { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }] = [] });
 });
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddReadyProbe<NotificationDbContext>("notifications-database", (db, ct) => db.Database.CanConnectAsync(ct))
+    .AddReadyProbe<AnalyticsDbContext>("analytics-database", (db, ct) => db.Database.CanConnectAsync(ct))
+    .AddCheck<WardMate.EventBus.RabbitHealthCheck>("rabbitmq", tags: [DependencyHealth.ReadyTag]);
 builder.Services.AddExceptionHandler<AnalyticsExceptionHandler>();
 builder.Services.AddGlobalExceptionHandling();
 builder.Services.AddNotifications(builder.Configuration);
@@ -50,7 +53,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapHub<NotificationHub>("/hubs/notifications", options => options.CloseOnAuthenticationExpiration = true).RequireAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapWardMateHealth();
 app.MapGet("/", () => Results.Ok(new { service = "WardMate.Services.AnalyticsSystem" }));
 
 app.Run();

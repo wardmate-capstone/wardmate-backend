@@ -29,7 +29,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options => options.InvalidModelSt
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks().AddReadyProbe<ProcedureDbContext>("database", (db, ct) => db.Database.CanConnectAsync(ct));
 builder.Services.AddGlobalExceptionHandling();
 
 var app = builder.Build();
@@ -47,7 +47,7 @@ app.UseAuthentication();
     app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapWardMateHealth();
 app.MapGet("/", () => Results.Ok(new { service = "WardMate.Services.ProcedureCatalog" }));
 
 app.Run();
