@@ -3731,3 +3731,42 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Bối cảnh: Key JWT cũ trước đây lưu dạng biến môi trường thường và đã bị lộ. Cần tạo key bảo mật mới và lưu dạng Secret trên Azure Container Apps.
 - Triển khai: Sinh khóa mới 256-bit (50513530445017C08E745A25F52B7E1DAE9F15BC64AF73F643D0ABDF68EFF574). Lưu vào Secret `jwt-key` trên cả 6 service (`wardmate-iam`, `wardmate-procedure-catalog`, `wardmate-application-workflow`, `wardmate-documentform`, `wardmate-aiocr`, `wardmate-analytics-system`) và đặt biến `Jwt__Key=secretref:jwt-key`.
 - Hệ quả bảo mật: Khóa không còn hiển thị dạng plaintext; toàn bộ Access Token cũ bị vô hiệu hóa an toàn, người dùng/tester chỉ cần đăng nhập lại để nhận token mới.
+
+## RABBITMQ-CLOUDAMQP-01 — Bật RabbitMQ qua CloudAMQP Free — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Chủ dự án tự làm trên CloudAMQP và Azure Portal; Claude chỉ hướng dẫn tên biến và giá trị không bí mật, không chạy lệnh Azure.
+- CloudAMQP: instance `wardmate`, gói Little Lemur (Free), AWS ap-northeast-1 (Tokyo), host `cougar.rmq.cloudamqp.com`, TLS 5671. Password đã rotate, không ghi vào tài liệu.
+- Azure (theo người dùng báo "đã xong"): wardmate-analytics-system và wardmate-application-workflow đặt RabbitMq__Enabled=true, Host, Port=5671, UseTls=true, User, VirtualHost, Password = secret `rabbitmq-password`; xóa RabbitMq__Username và Password dạng manual cũ (trỏ wardmate-rabbitmq không tồn tại).
+- Chưa xác minh: kết nối thật (Connections/Exchanges/Queues trên RabbitMQ Manager), thông báo khi nộp hồ sơ, queue .dead = 0. Sự kiện tồn trong workflow_outbox từ 29/10 sẽ được gửi bù.
+- Còn cho Antigravity: scale rule RabbitMQ (KEDA) cho Analytics để thức dậy khi queue wardmate.notifications.workflow.v1 có tin (đang minReplicas=0); maxReplicas=1 cho Analytics (SignalR chưa có backplane); chuyển Notifications__ServiceKey, Analytics__ServiceKey, ConnectionStrings__NotificationsDatabase sang secret và đổi Analytics__ServiceKey (đã lộ trong ảnh chụp 30/10) đồng thời ở Workflow và Analytics.
+
+## AI-USAGE-01 + HEALTH-01 — Giới hạn lượt gọi Gemini và kiểm tra sức khỏe DB/RabbitMQ — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án giao làm việc 8 (ai_request_logs + maxOutputTokens, giữ Gemini trong hạn mức miễn phí) và việc 9 (health DB/RabbitMQ, TASK-35).
+- AI-USAGE-01 (AIOCR):
+  - File mới: Domain/AiRequestLog.cs; Application/AiUsageContracts.cs; Infrastructure/AiUsageService.cs; Infrastructure/Migrations/20261030083635_AiRequestLogs.cs (+ Designer); docs/sql/aiocr-ai-request-logs.sql.
+  - File sửa: Infrastructure/GeminiAssistant.cs (kiểm tra hạn mức trước khi gọi, ghi log token/thời gian/lỗi, maxOutputTokens theo cấu hình, MAX_TOKENS → 502 ai.output_truncated), Knowledge/GeminiEmbeddingProvider.cs (ghi log embedding), ChatDbContext.cs + ModelSnapshot, API/AssistantRegistration.cs, Controllers/KnowledgeController.cs (GET /api/v1/ai/knowledge/usage), appsettings.json (Assistant:DailyRequestsPerUser 30, DailyRequestsTotal 500, Gemini:MaxOutputTokens 4096).
+  - API: GET /api/v1/ai/knowledge/usage?from&to → 200 AiUsageReport; 400 ai.invalid_range; 403 knowledge.forbidden. Chat/CCCD/verify có thêm 429 ai.quota_exceeded, 429 ai.daily_limit_reached; 502 ai.output_truncated thay ai.invalid_response khi bị cắt.
+- HEALTH-01 (6 service):
+  - File mới: src/BuildingBlocks/WardMate.SharedKernel/Web/DependencyHealth.cs; src/BuildingBlocks/WardMate.EventBus/RabbitStatus.cs.
+  - File sửa: Program.cs của IAM, ProcedureCatalog, ApplicationWorkflow, DocumentForm, AnalyticsSystem, AIOCR (`/health` liveness không đổi, thêm `/health/ready`); Workflow Infrastructure/WorkflowOutbox.cs, ProcedureCatalogClient.cs; Analytics Infrastructure/WorkflowNotificationConsumer.cs, DependencyInjection.cs (worker báo trạng thái kết nối và tự kết nối lại khi broker rớt lúc rảnh).
+- Kiểm tra:
+  - dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error.
+  - Harness HTTP AIOCR trong scratchpad (không thuộc repo; Postgres 16 Docker, IAM và Gemini giả) 58/58 PASS: 44 ca cũ + hạn mức người dùng/toàn hệ thống, log SUCCESS/FAILED/REJECTED + token, log embedding, MaxOutputTokens, API usage (200/403/400), /health và /health/ready (DB sống/chết).
+  - docs/sql/aiocr-ai-request-logs.sql chạy 2 lần trên DB sạch (đã có đến KnowledgeRetrieval): tạo đúng bảng, 3 ràng buộc, 2 index; `ef migrations list` không còn pending. DDL khớp `dotnet ef migrations script`.
+  - Workflow API local + RabbitMQ 3 Docker: /health/ready disabled → Healthy; connected → Healthy; tắt broker → 503 disconnected; bật lại → connected. Lần thử đầu phát hiện outbox rảnh không biết broker đã rớt, đã sửa.
+  - Chưa chạy: Analytics runtime, Gemini thật, Azure.
+- Docs: docs/api-guide.md (2 mục mới), docs/system-constraints.md (AI-USAGE-01, HEALTH-01), docs/CLAUDE_HANDOFF.md.
+- Triển khai (Antigravity): chạy docs/sql/aiocr-ai-request-logs.sql trên wardmate-db trước khi deploy AIOCR (hoặc AutoMigrate=true); deploy lại AIOCR, Workflow, Analytics và 3 service còn lại để có /health/ready. Không đổi liveness probe. Biến tùy chọn: Assistant__DailyRequestsPerUser, Assistant__DailyRequestsTotal, Gemini__MaxOutputTokens.
+- FE: xử lý 429 có `code` ai.quota_exceeded / ai.daily_limit_reached (hết lượt trong ngày) khác 429 không có code (giới hạn tốc độ); 502 ai.output_truncated.
+- Không chạy Git. Commit gợi ý (mỗi file mới một commit, rồi từng thay đổi chức năng):
+  1. feat(aiocr): add ai request log entity — Domain/AiRequestLog.cs
+  2. feat(aiocr): add ai usage contracts — Application/AiUsageContracts.cs
+  3. feat(aiocr): add ai usage service with daily limits — Infrastructure/AiUsageService.cs
+  4. feat(aiocr): add AiRequestLogs migration — Migrations/20261030083635_AiRequestLogs*.cs + ChatDbContext.cs + snapshot
+  5. feat(aiocr): enforce daily limits and log gemini calls — GeminiAssistant.cs, GeminiEmbeddingProvider.cs, AssistantRegistration.cs, appsettings.json
+  6. feat(aiocr): add ai usage report endpoint — KnowledgeController.cs
+  7. docs(sql): add ai request logs script — docs/sql/aiocr-ai-request-logs.sql
+  8. feat(sharedkernel): add readiness health endpoint — SharedKernel/Web/DependencyHealth.cs
+  9. feat(eventbus): track rabbitmq connection health — EventBus/RabbitStatus.cs
+  10. fix(notifications): reconnect rabbitmq workers when broker drops — WorkflowOutbox.cs, WorkflowNotificationConsumer.cs, ProcedureCatalogClient.cs, Analytics DependencyInjection.cs
+  11. feat(services): expose /health/ready with database and broker checks — Program.cs × 6
+  12. docs: document ai usage limits and readiness checks

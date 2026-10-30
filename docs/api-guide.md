@@ -4546,3 +4546,53 @@ Quyền đọc: `workflow.consultation.read`. Quyền tạo/đóng: Manager có 
 - **FE cần biết:** sau khi người dùng đổi mật khẩu, bị khóa, bị thu hồi phiên hoặc admin đổi vai trò/quyền/phường, các service ngoài IAM có thể vẫn nhận token cũ hoặc quyền cũ tối đa khoảng 30 giây (SignalR có thể tới ~45 giây). Sau đó trả 401 `auth.session_revoked` như trước. Khi test đổi quyền, chờ ~30 giây hoặc đăng nhập lại để lấy token mới (token mới có mục cache mới).
 - Mã lỗi không đổi: 401 `auth.session_revoked`, 503 `auth.session_unavailable` / `application.iam_unavailable` / `knowledge.iam_unavailable`. Lỗi không được cache.
 - Cấu hình: `Iam__AccessContextCacheSeconds` (0–60, mặc định 30; đặt 0 để tắt và quay về hỏi IAM mỗi request). Không cần Redis hay dịch vụ trả phí.
+
+## Giới hạn và nhật ký lượt gọi AI — 30/10/2026 (AI-USAGE-01)
+
+**Mục đích:** giữ Gemini trong hạn mức miễn phí và biết AI đã được dùng bao nhiêu. Mỗi lần AIOCR gọi Gemini (chat, chat có nguồn, đọc CCCD, tiền kiểm giấy tờ, embedding) được ghi một dòng vào bảng `ai_request_logs`: ai gọi, loại thao tác, model, thành công hay lỗi, số token, thời gian. **Không lưu câu hỏi, câu trả lời, file hay số CCCD.**
+
+### Hạn mức mỗi ngày (theo ngày giờ Việt Nam)
+
+- Mỗi người: tối đa `Assistant:DailyRequestsPerUser` lượt (mặc định **30**), tính chung chat, đọc CCCD và tiền kiểm giấy tờ.
+- Toàn hệ thống: tối đa `Assistant:DailyRequestsTotal` lượt (mặc định **500**).
+- Đặt 0 để bỏ giới hạn tương ứng. Embedding không bị tính vào hạn mức (chỉ ghi log).
+- Câu hỏi RAG không có nguồn phù hợp (trả câu cố định, không gọi Gemini) không tốn lượt.
+- Vượt hạn mức → **429**, ProblemDetails `code`:
+  - `ai.quota_exceeded`: người dùng đã hết lượt hôm nay. FE hiện thông báo và cho thử lại ngày mai.
+  - `ai.daily_limit_reached`: cả hệ thống hết lượt hôm nay.
+  - Khác với 429 của giới hạn tốc độ (10 request/phút/người, không có `code`): chờ 1 phút rồi thử lại.
+- Độ dài câu trả lời: `Gemini:MaxOutputTokens` (mặc định 4096, giới hạn 256–8192). Câu trả lời bị cắt → **502** `ai.output_truncated` (trước đây là `ai.invalid_response`); FE gợi ý người dùng hỏi ngắn hơn.
+
+### GET `/api/v1/ai/knowledge/usage?from=YYYY-MM-DD&to=YYYY-MM-DD`
+
+- **Ai dùng:** PROCEDURE_MANAGER hoặc IT_ADMIN có quyền `knowledge.manage` (giống các API Knowledge Base).
+- **Khi nào:** xem AI đã dùng bao nhiêu, còn bao nhiêu lượt hôm nay, có lỗi nhiều không.
+- `from`/`to` là ngày giờ Việt Nam, mặc định 7 ngày gần nhất, tối đa 93 ngày.
+- **200:** `{ from, to, dailyRequestsPerUser, dailyRequestsTotal, maxOutputTokens, usedToday, days: [{ date, operation, success, failed, rejected, promptTokens, outputTokens, totalTokens }] }`. `operation`: CHAT, CHAT_RAG, CCCD_EXTRACT, DOCUMENT_VERIFY, EMBED_QUERY, EMBED_DOCUMENTS. `usedToday` là số lượt đã tính vào hạn mức toàn hệ thống hôm nay.
+- **Lỗi:** 400 `ai.invalid_range` (to < from hoặc quá 93 ngày); 401; 403 `knowledge.forbidden`; 503 `chat.not_configured` (chưa có DB AIOCR).
+- **Gateway:** dùng route `/api/v1/ai/knowledge/**` có sẵn, không cần route mới.
+
+**Triển khai:** chạy `docs/sql/aiocr-ai-request-logs.sql` trên DB AIOCR (`wardmate-db`) trước khi deploy AIOCR, hoặc để `Database__AutoMigrate=true`. Biến môi trường tùy chọn: `Assistant__DailyRequestsPerUser`, `Assistant__DailyRequestsTotal`, `Gemini__MaxOutputTokens`.
+
+## Kiểm tra sức khỏe service — 30/10/2026 (HEALTH-01)
+
+Mỗi service IAM, ProcedureCatalog, ApplicationWorkflow, DocumentForm, AnalyticsSystem, AIOCR có 2 đường dẫn, không cần đăng nhập:
+
+| Đường dẫn | Ý nghĩa | Dùng cho |
+|---|---|---|
+| `GET /health` | Tiến trình còn chạy. **Không** kiểm tra DB hay RabbitMQ, luôn 200 `Healthy` khi app sống | Liveness probe Azure/Docker (giữ như cũ) |
+| `GET /health/ready` | Kiểm tra DB và RabbitMQ. 200 khi ổn (Healthy hoặc Degraded), **503** khi có phần Unhealthy | Người vận hành, readiness probe, kiểm tra sau deploy |
+
+Ví dụ `/health/ready`:
+
+```json
+{ "status": "Healthy", "durationMs": 31, "checks": [
+  { "name": "database", "status": "Healthy", "description": "reachable", "durationMs": 29 },
+  { "name": "rabbitmq", "status": "Healthy", "description": "connected", "durationMs": 0 } ] }
+```
+
+- **database:** mở kết nối tới DB của service (tối đa 5 giây). Analytics có `notifications-database` và `analytics-database`. AIOCR chỉ kiểm tra khi có `ConnectionStrings__AiOcrDatabase`.
+- **rabbitmq** (Workflow, Analytics): đọc trạng thái kết nối của worker, **không mở kết nối mới**. `disabled` (Healthy) khi `RabbitMq__Enabled=false`; `connected`; `connecting` (Degraded, vài giây sau khi khởi động); `disconnected` (Unhealthy). Worker tự kết nối lại khi broker trở lại.
+- `description` chỉ là chữ cố định hoặc tên loại lỗi, không chứa host, mật khẩu hay connection string.
+- **Lưu ý:** gọi `/health/ready` cũng đánh thức app đang `minReplicas=0`. **Không** đặt `/health/ready` làm liveness probe: DB hoặc broker lỗi sẽ khiến Azure khởi động lại container liên tục.
+- Gateway chưa có route tới `/health/ready` của từng service; gọi thẳng URL của service hoặc qua console Azure.

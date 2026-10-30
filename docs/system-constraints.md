@@ -609,6 +609,8 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 
 ## Nhật ký tài liệu
 
+- 30/10/2026 — AI-USAGE-01, HEALTH-01: hạn mức/nhật ký lượt gọi Gemini; /health/ready kiểm tra DB và RabbitMQ.
+
 - 30/10/2026 — ACCESS-CACHE-01: cache 200 của IAM access-context tối đa 30 giây (cấu hình 0–60), thay quy tắc không cache trong IAM-SEC-02 và WORKFLOW-FE-1026.
 
 - 20/10/2026 — QR-BACKWARD-COMPAT-001: Bổ sung cơ chế tương thích ngược cho mã QR đã cấp trước đây: (1) Endpoint `GET /api/v1/applications/{id}` cho phép truy cập nặc danh (`[AllowAnonymous]`), nếu không có Bearer token sẽ tự động HTTP 302 Redirect về `GET /api/v1/public/qr-lookup?applicationId={id}`, đảm bảo người dân quét lại mã QR cũ trên PDF in trước đây vẫn xem được thông tin công khai hợp lệ mà không bị lỗi 401/403. (2) `GeneratePdfDocumentCommand` tự động cập nhật bản ghi `ApprovedQr` cũ sang URL tra cứu công khai mới và sinh lại hình ảnh QR khi xuất PDF mới.
@@ -988,3 +990,21 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - Thời gian: `Iam:AccessContextCacheSeconds` (biến môi trường `Iam__AccessContextCacheSeconds`), mặc định 30, giới hạn 0–60; 0 tắt cache.
 - **Hệ quả bảo mật đã chấp nhận:** sau khi đổi mật khẩu, thu hồi phiên, khóa tài khoản, đổi vai trò/quyền/phường/lĩnh vực phụ trách, token cũ vẫn được chấp nhận ở các service khác tối đa bằng thời gian cache (mặc định 30 giây). Với SignalR, thêm chu kỳ kiểm tra 15 giây. Tên người nộp (applicant_name) lấy từ access-context cũng có thể trễ tối đa bằng thời gian cache. IAM vẫn kiểm tra ngay với các API của chính IAM. Khi IAM down, request có mục cache còn hạn vẫn đi qua; hết hạn thì 503 như cũ.
 - Nguồn: SharedKernel/Web/AccessContextCacheHandler.cs, AccountSessionMiddleware.cs; Program.cs của ApplicationWorkflow.API, AnalyticsSystem.API, AIOCR.API (`AddAccessContextCache`). Lịch sử 30/10/2026: thêm quy tắc; kiểm tra handler bằng chương trình tạm (7/7 + factory), chưa chạy HTTP end-to-end, chưa deploy.
+
+### AI-USAGE-01 — Hạn mức và nhật ký lượt gọi Gemini (30/10/2026)
+
+- Bảng `ai_request_logs` (DB AIOCR): mỗi lần gọi Gemini một dòng gồm `user_id` (null với worker), `operation`, `model`, `outcome` ∈ SUCCESS/FAILED/REJECTED (check `ck_ai_request_logs_outcome`), `error_code`, token (prompt; output = candidates + thoughts; total), `duration_ms` ≥ 0, `item_count` ≥ 1 (check `ck_ai_request_logs_counts`). Không lưu nội dung câu hỏi, câu trả lời, file hay CCCD. Log ghi bằng DbContext riêng nên lượt chat lỗi bị rollback vẫn còn log. Lỗi ghi log chỉ ghi warning, không làm hỏng lượt gọi AI.
+- Hạn mức theo ngày UTC+07: mỗi người `Assistant:DailyRequestsPerUser` (mặc định 30, 0–10000, 0 = không giới hạn), toàn hệ thống `Assistant:DailyRequestsTotal` (mặc định 500, 0–1.000.000). Chỉ tính CHAT, CHAT_RAG, CCCD_EXTRACT, DOCUMENT_VERIFY có outcome khác REJECTED; embedding chỉ ghi log. Vượt → 429 `ai.quota_exceeded` / `ai.daily_limit_reached`, Gemini không được gọi, ghi một dòng REJECTED.
+- Giới hạn đã biết: đếm không khóa, nhiều request đồng thời sát ngưỡng có thể vượt vài lượt. Không có DB AIOCR thì CCCD/tiền kiểm chạy không giới hạn ngày (chỉ còn giới hạn tốc độ 10/phút). Chưa có job xóa log cũ. Hạn mức này không thay thế hạn mức thật của Google; vượt hạn mức Google vẫn trả 503 `ai.provider_unavailable`.
+- `Gemini:MaxOutputTokens` mặc định 4096, giới hạn 256–8192. `finishReason = MAX_TOKENS` → 502 `ai.output_truncated`.
+- Báo cáo: GET `/api/v1/ai/knowledge/usage`, quyền như KnowledgeAccess (PROCEDURE_MANAGER/IT_ADMIN + `knowledge.manage`), tối đa 93 ngày.
+- Nguồn: AIOCR Domain/AiRequestLog.cs; Application/AiUsageContracts.cs; Infrastructure/AiUsageService.cs, GeminiAssistant.cs, Knowledge/GeminiEmbeddingProvider.cs, ChatDbContext.cs, Migrations/20261030083635_AiRequestLogs.cs; API/AssistantRegistration.cs, Controllers/KnowledgeController.cs, appsettings.json; docs/sql/aiocr-ai-request-logs.sql.
+- Lịch sử 30/10/2026: thêm quy tắc; thay hằng số maxOutputTokens 4096 trong code bằng cấu hình. Kiểm tra local bằng harness HTTP (Postgres thật, IAM/Gemini giả) 58/58; chưa gọi Gemini thật, chưa deploy.
+
+### HEALTH-01 — Liveness và readiness (30/10/2026)
+
+- `/health` không kiểm tra phụ thuộc (liveness). `/health/ready` chạy các check gắn tag `ready`, timeout 5 giây mỗi check, trả 503 khi Unhealthy, Degraded vẫn 200. Không xác thực; mô tả không chứa thông tin kết nối.
+- DB: `Database.CanConnectAsync` trong scope riêng (IAM, ProcedureCatalog, Workflow, DocumentForm, Analytics hai DbContext, AIOCR khi có connection string).
+- RabbitMQ (Workflow, Analytics): `RabbitStatus` giữ kết nối hiện tại của worker; health đọc `IsOpen`, không mở kết nối mới (CloudAMQP Free giới hạn số kết nối). Worker outbox và consumer kiểm tra `IsOpen` mỗi vòng và kết nối lại khi broker rớt, kể cả lúc rảnh (trước đây outbox rảnh chỉ phát hiện khi publish).
+- Nguồn: SharedKernel/Web/DependencyHealth.cs; EventBus/RabbitStatus.cs; Workflow Infrastructure/WorkflowOutbox.cs, ProcedureCatalogClient.cs; Analytics Infrastructure/WorkflowNotificationConsumer.cs, DependencyInjection.cs; Program.cs của 6 service.
+- Lịch sử 30/10/2026: thay mô tả "/health chỉ là health cơ bản" (TASK-35). Đã chạy thử Workflow local: disabled, connected, broker tắt → 503 disconnected, broker bật lại → connected. Analytics chưa chạy thử runtime. Chưa có lịch sử sức khỏe, cảnh báo tự động, backup/restore drill.
