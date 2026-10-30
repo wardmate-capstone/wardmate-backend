@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using WardMate.Services.AIOCR.Application;
@@ -15,13 +16,21 @@ public sealed class AiUsageService(DbContextOptions<ChatDbContext> options, ICon
     public const int DefaultPerUser = 30;
     public const int DefaultTotal = 500;
     public const int DefaultMaxOutputTokens = 4096;
+    public const int DefaultGuestTotal = 200;
+    public const int DefaultGuestPerIp = 10;
+    // Per-address guest counts live in memory only (no IP is stored in the database). They reset when the replica restarts.
+    private static readonly MemoryCache GuestCounts = new(new MemoryCacheOptions { SizeLimit = 50_000 });
 
     public static int PerUser(IConfiguration c) => Math.Clamp(c.GetValue("Assistant:DailyRequestsPerUser", DefaultPerUser), 0, 10_000);
     public static int Total(IConfiguration c) => Math.Clamp(c.GetValue("Assistant:DailyRequestsTotal", DefaultTotal), 0, 1_000_000);
+    public static int GuestTotal(IConfiguration c) => Math.Clamp(c.GetValue("Assistant:DailyGuestRequestsTotal", DefaultGuestTotal), 0, 1_000_000);
+    public static int GuestPerIp(IConfiguration c) => Math.Clamp(c.GetValue("Assistant:DailyGuestRequestsPerIp", DefaultGuestPerIp), 0, 10_000);
     public static int MaxOutputTokens(IConfiguration c) => Math.Clamp(c.GetValue("Gemini:MaxOutputTokens", DefaultMaxOutputTokens), 256, 8192);
 
     private bool Configured => !string.IsNullOrWhiteSpace(config.GetConnectionString("AiOcrDatabase"));
     private Guid? Caller => Guid.TryParse(http.HttpContext?.User.FindFirst("sub")?.Value, out var id) ? id : null;
+    // A request without a valid token (anonymous chat). Background workers have no HttpContext and are not guests.
+    private bool IsGuest => http.HttpContext is { } c && c.User.Identity?.IsAuthenticated != true;
     private DateTime TodayStartUtc()
     {
         var local = clock.GetUtcNow().UtcDateTime.AddHours(7);
@@ -34,7 +43,8 @@ public sealed class AiUsageService(DbContextOptions<ChatDbContext> options, ICon
         // Without the AIOCR database there is nowhere to count; chat already requires it, CCCD/verify then run unlimited.
         if (!Configured || !AiOperations.Limited.Contains(operation)) return;
         var perUser = PerUser(config); var total = Total(config);
-        if (perUser == 0 && total == 0) return;
+        var guest = IsGuest; var guestTotal = guest ? GuestTotal(config) : 0; var guestPerIp = guest ? GuestPerIp(config) : 0;
+        if (perUser == 0 && total == 0 && guestTotal == 0 && guestPerIp == 0) return;
         var since = TodayStartUtc(); var user = Caller;
         await using var db = Open();
         var today = db.AiRequestLogs.AsNoTracking()
@@ -43,6 +53,16 @@ public sealed class AiUsageService(DbContextOptions<ChatDbContext> options, ICon
             await Reject(operation, "ai.daily_limit_reached", "Hệ thống đã dùng hết lượt AI miễn phí hôm nay. Vui lòng thử lại vào ngày mai.", ct);
         if (perUser > 0 && user is Guid id && await today.CountAsync(x => x.UserId == id, ct) >= perUser)
             await Reject(operation, "ai.quota_exceeded", $"Bạn đã dùng hết {perUser} lượt AI hôm nay. Vui lòng thử lại vào ngày mai.", ct);
+        if (!guest) return;
+        if (guestTotal > 0 && await today.CountAsync(x => x.UserId == null, ct) >= guestTotal)
+            await Reject(operation, "ai.guest_limit_reached", "Lượt hỏi đáp cho khách hôm nay đã hết. Vui lòng đăng nhập để tiếp tục hoặc thử lại vào ngày mai.", ct);
+        if (guestPerIp > 0)
+        {
+            var key = since.Ticks + "|" + ClientAddress.Of(http.HttpContext!);
+            var used = GuestCounts.GetOrCreate(key, e => { e.Size = 1; e.AbsoluteExpiration = since.AddDays(1); return new int[1]; })!;
+            if (Interlocked.Increment(ref used[0]) > guestPerIp)
+                await Reject(operation, "ai.guest_quota_exceeded", $"Bạn đã hỏi {guestPerIp} lượt hôm nay khi chưa đăng nhập. Vui lòng đăng nhập để hỏi tiếp hoặc thử lại vào ngày mai.", ct);
+        }
     }
 
     private async Task Reject(string operation, string code, string message, CancellationToken ct)
@@ -95,9 +115,11 @@ public sealed class AiUsageService(DbContextOptions<ChatDbContext> options, ICon
         var since = TodayStartUtc();
         var used = await db.AiRequestLogs.AsNoTracking()
             .CountAsync(x => x.CreatedAt >= since && x.Outcome != AiOutcomes.Rejected && AiOperations.Limited.Contains(x.Operation), ct);
+        var guestUsed = await db.AiRequestLogs.AsNoTracking().CountAsync(x => x.CreatedAt >= since && x.UserId == null
+            && x.Outcome != AiOutcomes.Rejected && AiOperations.Limited.Contains(x.Operation), ct);
         return new(from, to, PerUser(config), Total(config), MaxOutputTokens(config), used, rows
             .Select(r => new AiUsageDay(DateOnly.FromDateTime(r.Day), r.Operation, r.Success, r.Failed, r.Rejected, r.Prompt, r.Output, r.Total))
-            .OrderBy(x => x.Date).ThenBy(x => x.Operation).ToList());
+            .OrderBy(x => x.Date).ThenBy(x => x.Operation).ToList(), GuestTotal(config), GuestPerIp(config), guestUsed);
     }
 
     private static string Clip(string value, int max) => value.Length <= max ? value : value[..max];

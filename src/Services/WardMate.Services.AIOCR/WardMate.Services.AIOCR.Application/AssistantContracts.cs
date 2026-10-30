@@ -3,6 +3,8 @@ namespace WardMate.Services.AIOCR.Application;
 public sealed record CccdResult(string? CitizenId, string? FullName, string? DateOfBirth, string? Gender,
     string? Nationality, string? PlaceOfOrigin, string? PlaceOfResidence, string? DateOfExpiry, double ConfidenceScore);
 public sealed record VerificationResult(bool IsValid, string DocumentTypeDetected, string[] QualityIssues, double Confidence, Guid? ChecklistId = null, string? ExpectedType = null);
+// Owner of anonymous chat sessions. A signed-in token never carries this id (sub must be a non-empty GUID).
+public static class ChatOwners { public static readonly Guid Guest = Guid.Empty; }
 public sealed record ChatInput(string Message, Guid? ConversationId, string WardCode);
 // Grounded is true only when the answer was generated from Knowledge Base sources listed in Citations.
 public sealed record ChatResult(Guid ConversationId, string Answer, object[] RelatedProcedures, ChatCitation[]? Citations = null, bool Grounded = false);

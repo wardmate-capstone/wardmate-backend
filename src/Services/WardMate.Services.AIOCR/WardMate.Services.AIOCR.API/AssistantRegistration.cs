@@ -45,9 +45,13 @@ public static class AssistantRegistration
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = 429;
-            options.AddPolicy("assistant", context => RateLimitPartition.GetFixedWindowLimiter(
-                context.User.FindFirst("sub")?.Value ?? "anonymous", _ => new FixedWindowRateLimiterOptions
-                { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+            // Signed-in users are limited per account; anonymous chat per client address, with a lower limit.
+            var guestPerMinute = Math.Clamp(config.GetValue("Assistant:GuestRequestsPerMinute", 5), 1, 60);
+            options.AddPolicy("assistant", context => context.User.FindFirst("sub")?.Value is { } sub
+                ? RateLimitPartition.GetFixedWindowLimiter(sub, _ => new FixedWindowRateLimiterOptions
+                    { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true })
+                : RateLimitPartition.GetFixedWindowLimiter("guest:" + ClientAddress.Of(context), _ => new FixedWindowRateLimiterOptions
+                    { PermitLimit = guestPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
         });
         services.AddDbContext<ChatDbContext>(o => o.UseNpgsql(config.GetConnectionString("AiOcrDatabase")
             ?? "Host=localhost;Database=wardmate_aiocr_db;Username=wardmate_aiocr").UseSnakeCaseNamingConvention());

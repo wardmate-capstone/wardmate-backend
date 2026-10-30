@@ -15,4 +15,5 @@ public interface IAiUsage
 public sealed record AiUsageDay(DateOnly Date, string Operation, int Success, int Failed, int Rejected,
     long PromptTokens, long OutputTokens, long TotalTokens);
 public sealed record AiUsageReport(DateOnly From, DateOnly To, int DailyRequestsPerUser, int DailyRequestsTotal,
-    int MaxOutputTokens, int UsedToday, IReadOnlyList<AiUsageDay> Days);
+    int MaxOutputTokens, int UsedToday, IReadOnlyList<AiUsageDay> Days, int DailyGuestRequestsTotal = 0,
+    int DailyGuestRequestsPerIp = 0, int GuestUsedToday = 0);
