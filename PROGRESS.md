@@ -3924,3 +3924,70 @@ Changed docs/fe-staffing-18-apis.md deployment status and PROGRESS.md. Suggested
   5. fix(aiocr): return provider_busy with retry-after on gemini 429 and retry 5xx once — GeminiAssistant.cs, AssistantContracts.cs, AssistantRegistration.cs
   6. docs: document dossier assist and gemini busy handling
 - Bổ sung 01/11/2026: chủ dự án chấp nhận rủi ro gửi nội dung hồ sơ (kể cả số định danh) tới Gemini gói miễn phí cho AI-OFFICER-ASSIST-01. Đã ghi vào docs/system-constraints.md, docs/CLAUDE_HANDOFF.md và docs/fe-response-2026-11-01.md. Không đổi code.
+
+## AIOCR-DEPLOY-1101 — Deploy AI-OFFICER-ASSIST-01 lên Azure — 2026-11-01 (Asia/Saigon, UTC+07:00)
+- Chủ dự án tự chạy lệnh trên Azure Cloud Shell theo hướng dẫn của Claude. Claude không chạy lệnh Azure hay Git.
+- Image cũ: `acrwardmate2026.azurecr.io/wardmate-aiocr:aiocr-20261030-03` (dùng để quay lại nếu cần).
+- Build: clone nhánh `kha` (depth 1) trong Cloud Shell; kiểm tra bản clone có `dossier-assist` và DocumentFormat.OpenXml; `az acr build` → `wardmate-aiocr:aiocr-20261101-01`, digest `sha256:57b10b6701affa143c664b8a6ce591ffc861013d2e71da85169f90c44d2009cf`, thời gian 1m13s.
+- Deploy: `az containerapp update` chỉ đổi image → `Succeeded`. Không đổi biến môi trường hay secret; không có migration.
+- Kiểm tra live:
+  - Revision `wardmate-aiocr--latest`: Active, Healthy, Running. Image đang chạy = `aiocr-20261101-01`.
+  - `POST {gateway}/api/v1/ai-ocr/applications/{id}/dossier-assist` không token → 401 (image cũ không có route nên sẽ trả 404).
+  - `GET {gateway}/api/ai-ocr/health/ready` → Healthy, database reachable.
+  - Log: lệnh `az containerapp logs show` lỗi CLI `KeyError: 'eventStreamEndpoint'`, chưa đọc được log; xem trên Portal Log stream.
+- Chưa kiểm tra: gọi có token của cán bộ thụ lý hồ sơ `UNDER_REVIEW` với Gemini thật (FE nghiệm thu).
+
+## ANALYTICS-DEPLOY-1101 — Deploy lại AnalyticsSystem bản 01/11 — 2026-11-01 (Asia/Saigon, UTC+07:00)
+- Lý do: `GET {gateway}/api/analytics-system/health/ready` → 404, trong khi `/health` → 200. Image `analytics-20261030-01` chưa có HEALTH-01: thiếu `/health/ready` và thiếu cơ chế worker tự kết nối lại RabbitMQ khi rảnh. Image này cũng chưa có SMS-REMOVE-01 và ACCESS-CACHE-01.
+- Chủ dự án tự chạy lệnh trên Azure Cloud Shell theo hướng dẫn của Claude. Claude không chạy lệnh Azure hay Git.
+- Build: thực hiện trong cùng bản clone nhánh `kha` của AIOCR-DEPLOY-1101; `az acr build` → `wardmate-analyticssystem:analytics-20261101-01`, digest `sha256:5c0c29798ece025fc290bf6b99c876d28ecbcd113a8077aca7f257377339e9db`, 1m23s.
+- Deploy: chỉ đổi image (`Succeeded`). Giữ nguyên `minReplicas=1`, `Notifications__WorkersEnabled=true`, `RabbitMq__Enabled=true` và các secret. Không có migration (migration Analytics mới nhất 20261024 đã chạy từ trước).
+- Image cũ để quay lại: `wardmate-analyticssystem:analytics-20261030-01`.
+- Kiểm tra live:
+  - Revision `wardmate-analytics-system--latest`: Active, Healthy, Running.
+  - `/health/ready` → 200 Healthy: notifications-database reachable, analytics-database reachable, rabbitmq connected.
+- Chưa kiểm tra: FE nộp hồ sơ mới rồi xem trang Phát thông báo có dòng delivery IN_APP.
+- Hệ quả cho FE: replay delivery SMS cũ → 409 `notifications.channel_removed`, không còn API đối soát SMS. Nếu Azure có đặt `Iam__AccessContextCacheSeconds` thì cache quyền theo giá trị đó, không có thì mặc định 30 giây.
+
+## IMAGE-SYNC-1101 — Đồng bộ image Azure với nhánh kha — 2026-11-01 (Asia/Saigon, UTC+07:00)
+- Chủ dự án tự chạy lệnh trên Azure Cloud Shell theo hướng dẫn của Claude. Claude không chạy lệnh Azure hay Git.
+- Cách xác định image cũ:
+  - Đối chiếu tag image với PROGRESS/handoff.
+  - Gọi `/health/ready` qua gateway cho từng service. Endpoint này có từ HEALTH-01 (30/10), nên image build trước đó trả 404.
+  - Kết quả trước khi deploy: procedure-catalog 404, document-form 404, application-workflow 404. Workflow có lần trả 503, nhưng đó là do khởi động lạnh; gọi lại thì Kestrel trả 404.
+- Phát hiện: `calendar-20261101-01` (Codex deploy chiều 01/11) build từ code chưa có HEALTH-01, nên thiếu outbox tự kết nối lại RabbitMQ. Trước khi build lại đã kiểm tra bản clone `kha` có CalendarClosuresController, MapWardMateHealth và migration CalendarClosures.
+- Đã build từ bản clone `kha` trong Cloud Shell (`az acr build`) và đổi image. Không có migration mới, không đổi biến môi trường hay secret.
+
+  | App | Image mới | Digest | Bản cũ để quay lại |
+  |---|---|---|---|
+  | wardmate-application-workflow | workflow-20261101-01 | sha256:bf67cb119b5003dd282bec7cb45f0406dce83cad56b01776ffd8e8a0d260f6e8 | calendar-20261101-01 |
+  | wardmate-documentform | documentform-20261101-01 | sha256:b8f1e7ce90a721e123fbbe2f3e767810267248159d6c904dfe73ed31d301cbdd | staffing-20261029-02 |
+  | wardmate-procedure-catalog | catalog-20261101-01 | (không ghi) | catalog-20261022-01 |
+
+- Kiểm tra sau deploy: `/health/ready` cả 6 service → 200 (iam, procedure-catalog, application-workflow, document-form, ai-ocr, analytics-system). Workflow: database reachable, rabbitmq connected. DocumentForm: database reachable.
+- Không deploy lại:
+  - IAM `iam-20261030-01`: đã có gỡ SMS và `/health/ready`. Thay đổi 01/11 chỉ là migration quyền lịch nghỉ, Codex đã chạy.
+  - Gateway `gateway-20261030-02`: không có thay đổi code nào sau 30/10.
+  - Gotenberg: image bên ngoài.
+- Trạng thái image hiện tại:
+  - iam-20261030-01
+  - gateway-20261030-02
+  - catalog-20261101-01
+  - documentform-20261101-01
+  - aiocr-20261101-01
+  - workflow-20261101-01
+  - analytics-20261101-01
+- Chưa kiểm tra: luồng nghiệp vụ có token (FE nghiệm thu); Gateway chưa xác minh trực tiếp đã có UseForwardedHeaders.
+- Lưu ý: deploy bằng CLI, không qua CI/CD. Lần deploy sau phải build từ nhánh đã có tất cả các thay đổi này để không ghi đè lùi.
+
+## HANDOFF-DOCS-1101 — 3 tài liệu bàn giao: Antigravity, FE, BE lịch làm việc — 2026-11-01 (Asia/Saigon, UTC+07:00)
+- File mới:
+  - `docs/antigravity-azure-runbook.md`: hiện trạng image và migration; cách phát hiện image cũ; 8 bước deploy từng service bằng Cloud Shell; quay lại bản cũ; chạy migration; lỗi hay gặp; tên biến từng service; việc vận hành còn mở.
+  - `docs/fe-handoff-2026-11-01.md`: những gì đã có trên Azure; việc FE cần làm và cần kiểm thử (dossier-assist, `ai.provider_busy` + Retry-After, thông báo, lịch nghỉ, gỡ SMS).
+  - `docs/be-handoff-2026-11-01.md`: gửi BE lịch làm việc — sự cố image `calendar-20261101-01` thiếu HEALTH-01; các trường Workflow/DocumentForm mà AIOCR phụ thuộc; WorkflowEvent và thông báo; vùng file dùng chung; quy tắc dự án; việc còn mở.
+- Chỉ tài liệu, không đổi code nên không build lại. Không chạy Git hay Azure.
+- Commit gợi ý (mỗi file mới một commit):
+  1. docs: add azure deploy runbook for antigravity
+  2. docs: add frontend handoff for 2026-11-01
+  3. docs: add backend handoff for 2026-11-01
+  4. docs: record handoff documents in progress and claude handoff
