@@ -4501,3 +4501,32 @@ Quyền đọc: `workflow.consultation.read`. Quyền tạo/đóng: Manager có 
 - **Kiểm tra nghiệp vụ:** Tồn tại tham vấn chưa đóng (`status != 'CLOSED'`), đúng chuyên viên, đúng version phân công và phiên bản hồ sơ.
 - **Kết quả 200:** `{ allowed: true, applicationId, version }`.
 
+
+## WF-STAFFING-DI-01 — Khắc phục 500 khi khởi tạo controller (2026-11-01)
+Áp dụng cho 18 API ManagerDispatch, Staffing và Consultations. Nếu log ghi `Unable to resolve service ... IDispatchService` (hoặc IStaffingService/IConsultationService), backend chưa đăng ký đủ dependency; request chưa tới nghiệp vụ/database. Cần phát hành bản có đăng ký scoped ba service và typed HTTP client IDispatchDirectory. FE giữ nguyên route, body, query và token hiện tại; không đổi dữ liệu hồ sơ để xử lý lỗi này. Sau triển khai phải gọi lại bằng tài khoản đúng quyền; bản sửa DI không xác nhận database hoặc mọi luồng nghiệp vụ đã đạt.
+
+## DEADLINE-CLOSURE-01 — Ngày nghỉ phường và ngày lễ toàn quốc (2026-11-01)
+
+Controller mới: `CalendarClosuresController` trong ApplicationWorkflow.API. Giữ nguyên 18 API staffing/dispatch/consultation. Prefix bên dưới là route API; Gateway đã chuyển `/api/v1/staffing/**` vào Workflow.
+
+| API | Ai gọi và lúc nào | Dữ liệu gửi | Kết quả thành công |
+|---|---|---|---|
+| `GET /api/v1/staffing/closures?from=2026-11-01&to=2026-12-31` | MANAGER/FRONT_DESK_OFFICER có `workflow.staffing.read` xem lịch phường; IT_ADMIN có `workflow.calendar.manage` xem lịch toàn quốc | Hai ngày `yyyy-MM-dd`, gồm cả hai đầu, tối đa 400 ngày | 200, mảng ClosureDto. Manager/officer thấy toàn quốc và phường của mình; IT_ADMIN chỉ thấy toàn quốc. Có cả dòng đã hủy. |
+| `POST /api/v1/staffing/closures` | MANAGER có `workflow.staffing.manage` khai báo đóng cửa phường | `{"date":"2026-11-20","reason":"Quầy tạm đóng để bảo trì"}` | 200, `{closure, rescheduledApplications}`. Phường lấy từ IAM, không gửi wardCode. |
+| `POST /api/v1/staffing/closures/national` | IT_ADMIN có `workflow.calendar.manage` khai báo ngày lễ toàn quốc | Cùng body như trên | 200, `{closure, rescheduledApplications}`, `closure.wardCode = null`. |
+| `POST /api/v1/staffing/closures/{id}/cancel` | MANAGER hủy dòng phường mình; IT_ADMIN hủy dòng toàn quốc | `{"reason":"Quầy hoạt động theo lịch bình thường"}` | 200, closure được đánh dấu hủy; số hồ sơ có hạn thay đổi trả trong `rescheduledApplications`. Chỉ hủy ngày sau hôm nay. |
+
+`ClosureDto`: `id`, `wardCode`, `date`, `effectiveFromUtc`, `reason`, `createdBy`, `createdAtUtc`, `cancelled`, `cancelledBy`, `cancelledAtUtc`, `cancellationReason`. Ngày `date` dùng UTC+07, các timestamp dùng UTC. FE dùng `cancelled` để hiển thị trạng thái; sau tạo/hủy tải lại GET. Số `rescheduledApplications` chỉ đếm hồ sơ đổi hạn, không phải tổng số hồ sơ của phường. Giá trị 0 vẫn là thành công.
+
+Lỗi và cách xử lý:
+- 400 `staffing.invalid_date`: thiếu khoảng ngày, quá 400 ngày, ngày tạo đã qua hoặc vượt hôm nay + 366 ngày. Chọn lại ngày. Ngày/UUID/JSON sai định dạng có thể bị framework trả 400 `validation.failed` hoặc route không khớp trả 404.
+- 400 `staffing.reason_required`: lý do rỗng hoặc quá 500 ký tự sau trim. Điền lại lý do. Thiếu trường bắt buộc có thể trả `validation.failed`.
+- 401: đăng nhập/token không hợp lệ. 403: role/permission không đủ hoặc thao tác ngoài phường. Lỗi policy có thể không có ProblemDetails; lỗi service có `code=staffing.forbidden`.
+- 404 `staffing.not_found`: ID closure không tồn tại.
+- 409 `staffing.closure_exists`: đã có dòng hiệu lực cùng ngày trong cùng phạm vi. Tải lại lịch, dùng dòng có sẵn.
+- 409 `staffing.closure_started`: ngày đã bắt đầu, không được hủy. `staffing.closure_cancelled`: dòng đã hủy, tải lại lịch.
+- 503 `auth.session_unavailable` hoặc `application.iam_unavailable`: không xác minh được phiên/quyền với IAM. Kiểm tra IAM/BaseUrl; không đổi role hay bỏ xác thực để vượt lỗi.
+
+Token phải do IAM cấp. Quyền mới cần migration IAM `20261101060000_WorkflowCalendarPermission`; Workflow cần migration `20261101055515_CalendarClosures` trước khi gọi API. Migration thuộc hai database khác nhau. SQL hỗ trợ nằm tại `docs/sql/workflow-calendar-closures.sql` và `docs/sql/iam-calendar-permission.sql`, có kiểm tra database đích; không chạy nhầm DB hoặc tự đánh dấu migration khi schema chưa đúng.
+
+Đây là lịch điều chỉnh hạn tiền kiểm nội bộ. Không tự chặn tạo ca, claim/phân công hay chuyển cán bộ; không tự gửi thông báo. Lịch nghỉ riêng của một cán bộ vẫn dùng `staffing/leaves`.
