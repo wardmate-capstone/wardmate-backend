@@ -42,6 +42,7 @@ public static class WorkflowInfrastructureRegistration
         services.AddScoped<IApplicationStore, ApplicationStore>();
         services.AddScoped<IWorkflowAnalyticsSource, WorkflowAnalyticsSource>();
         services.AddScoped<IApplicationReviewStore, ApplicationReviewStore>();
+        services.AddScoped<ICalendarClosureService, CalendarClosureService>();
         services.AddScoped<IDispatchService, DispatchService>();
         services.AddScoped<IStaffingService, StaffingService>();
         services.AddScoped<IConsultationService, ConsultationService>();
