@@ -160,8 +160,10 @@ public sealed class ApplicationReviewStore(WorkflowDbContext db) : IApplicationR
     public async Task<WorkflowResult<ReviewResultDto>> Mutate(Guid id, Func<ApplicationRecord, WorkflowResult<ReviewResultDto>> action, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await CalendarLocks.Read(db, ct);
         var a = await db.Applications.FromSqlInterpolated($"SELECT * FROM applications WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
         if (a is null) return WorkflowResult<ReviewResultDto>.Fail(404, "application.not_found", "Không tìm thấy hồ sơ.");
+        await CalendarLocks.Load(db, a, ct);
         await db.Entry(a).Collection(x => x.Checklists).LoadAsync(ct);
         await db.Entry(a).Collection(x => x.History).LoadAsync(ct);
         await db.Entry(a).Collection(x => x.Versions).LoadAsync(ct);
