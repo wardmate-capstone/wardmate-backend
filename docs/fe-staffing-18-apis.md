@@ -1,6 +1,8 @@
-# Tài liệu Bàn giao 18 API Mới: Điều phối Hồ sơ, Ca làm, Nghỉ phép & Tham vấn Chuyên môn (Dành cho Frontend)
+# Tài liệu Bàn giao 22 API: Điều phối Hồ sơ, Ca làm, Nghỉ phép & Tham vấn Chuyên môn (Dành cho Frontend)
 
-Tài liệu này tổng hợp chi tiết kỹ thuật bàn giao 18 API mới thuộc hệ thống **Staffing & Workflow** đã hoàn tất kiểm thử và triển khai live trên môi trường Azure. Frontend (FE) sử dụng trực tiếp tài liệu này để tích hợp màn hình Quản lý điều phối, Quản lý lịch ca làm, Xin/Duyệt nghỉ phép và Tham vấn chuyên môn.
+Tài liệu này bàn giao **18 API điều phối/ca làm/nghỉ phép/tham vấn và 4 API lịch đóng cửa mới**. Giữ tên file để FE không mất liên kết cũ. Bốn API mới đã kiểm tra local Docker và **đã triển khai Azure ngày 2026-11-01**; Swagger/health và yêu cầu đăng nhập đã xác minh, nghiệp vụ bằng token production chưa xác minh. Không dùng trạng thái tài liệu làm bằng chứng bản production đã cập nhật.
+
+Bản bổ sung ngày 2026-11-01: API 19–22 nằm trong `CalendarClosuresController`; không thay thế API 1–18. Hợp đồng chung được duy trì trong `docs/api-guide.md`.
 
 ---
 
@@ -15,7 +17,7 @@ Tài liệu này tổng hợp chi tiết kỹ thuật bàn giao 18 API mới thu
     ```http
     Authorization: Bearer <accessToken>
     ```
-  - Access Token do IAM cấp (chứa `sub`, `ward_code`, `roles`, `permissions`, `assigned_categories`).
+  - Access Token do IAM cấp; backend xác minh lại quyền và phường từ IAM access-context. FE không tự gửi wardCode để mở rộng phạm vi.
 - **Định dạng dữ liệu:**
   - `Content-Type: application/json` cho các request POST/PUT.
   - Các API POST/GET trả về **HTTP 200 OK** khi thành công (trả về DTO JSON trực tiếp).
@@ -54,7 +56,7 @@ Tài liệu này tổng hợp chi tiết kỹ thuật bàn giao 18 API mới thu
 
 ---
 
-## 3. Chi tiết 18 API theo 3 Phân hệ Màn hình
+## 3. Chi tiết 18 API hiện có theo 3 Phân hệ Màn hình
 
 ### PHÂN HỆ 1: MÀN HÌNH ĐIỀU PHỐI HỒ SƠ (`ManagerDispatchController`)
 
@@ -473,3 +475,123 @@ Mọi phản hồi lỗi từ hệ thống đều tuân thủ RFC 7807 (ProblemD
 3. Manager xem câu trả lời tại tab Tham vấn của hồ sơ (API 14):
    - Khi đã nắm rõ thông tin, Manager bấm "Đóng tham vấn" -> Gọi API 17 (`POST .../close`).
    - Giao diện chuyển trạng thái sang `CLOSED`, kết thúc phiên tham vấn.
+
+## 6. PHÂN HỆ 4 — Lịch đóng cửa phường/ngày lễ (`CalendarClosuresController`)
+
+Phân biệt: `leaves` là nghỉ phép của một cán bộ; `closures` là đóng cửa phường hoặc ngày lễ toàn quốc, dùng điều chỉnh hạn tiền kiểm. Không tự hủy ca, chuyển cán bộ hoặc chặn phân công.
+
+### 19. Xem lịch ngày nghỉ
+
+`GET /api/v1/staffing/closures?from=2026-11-01&to=2026-12-31`
+
+- MANAGER/FRONT_DESK_OFFICER + `workflow.staffing.read`: thấy lịch toàn quốc và phường mình.
+- IT_ADMIN + `workflow.calendar.manage`: chỉ thấy lịch toàn quốc.
+- `from`, `to` bắt buộc, định dạng `yyyy-MM-dd`, gồm hai đầu, tối đa 400 ngày.
+- Thành công **200**, trả mảng (không có `items`/phân trang). Có cả dòng đã hủy. FE gọi khi mở lịch hoặc thay đổi khoảng ngày.
+
+Ví dụ một phần tử (dữ liệu minh họa):
+```json
+{
+  "id": "bb787a47-8cb1-4d8c-98a0-10b23e9385e9",
+  "wardCode": "W1",
+  "date": "2026-11-20",
+  "effectiveFromUtc": "2026-11-19T17:00:00Z",
+  "reason": "Bảo trì quầy",
+  "createdBy": "3b7f935c-0144-45e8-8582-1ceec9fd783b",
+  "createdAtUtc": "2026-11-01T11:00:00Z",
+  "cancelled": false,
+  "cancelledBy": null,
+  "cancelledAtUtc": null,
+  "cancellationReason": null
+}
+```
+`date` là ngày Việt Nam; timestamp là UTC. `wardCode=null` nghĩa là toàn quốc. `id` dùng để hủy. FE hiển thị `cancelled=true` là “Đã hủy”, không xóa khỏi lịch sử.
+
+### 20. Manager tạo ngày nghỉ phường
+
+`POST /api/v1/staffing/closures`
+
+Quyền MANAGER + `workflow.staffing.manage`. Nút FE: **Thêm ngày nghỉ phường**.
+```json
+{"date":"2026-11-20","reason":"Bảo trì quầy"}
+```
+Không gửi wardCode, createdBy hoặc deadline: backend tự lấy phạm vi và tính hạn.
+
+Kết quả **200**:
+```json
+{
+  "closure": {
+    "id": "bb787a47-8cb1-4d8c-98a0-10b23e9385e9",
+    "wardCode": "W1",
+    "date": "2026-11-20",
+    "effectiveFromUtc": "2026-11-19T17:00:00Z",
+    "reason": "Bảo trì quầy",
+    "createdBy": "3b7f935c-0144-45e8-8582-1ceec9fd783b",
+    "createdAtUtc": "2026-11-01T11:00:00Z",
+    "cancelled": false,
+    "cancelledBy": null,
+    "cancelledAtUtc": null,
+    "cancellationReason": null
+  },
+  "rescheduledApplications": 3
+}
+```
+FE thông báo “Đã thêm ngày nghỉ; 3 hồ sơ được cập nhật hạn”, sau đó tải lại API 19 và danh sách hồ sơ đang mở. Số 0 vẫn là thành công.
+
+### 21. IT_ADMIN tạo ngày lễ toàn quốc
+
+`POST /api/v1/staffing/closures/national`
+
+Quyền IT_ADMIN + `workflow.calendar.manage`. Nút FE: **Thêm ngày lễ toàn quốc**. Body giống API 20; kết quả 200 cùng cấu trúc, `closure.wardCode=null`. Có thể tác động nhiều phường; FE không tự nhân số giờ hay cập nhật dueAt dự đoán.
+
+### 22. Hủy ngày nghỉ chưa bắt đầu
+
+`POST /api/v1/staffing/closures/{id}/cancel`
+```json
+{"reason":"Quầy hoạt động trở lại theo lịch bình thường"}
+```
+- MANAGER + `workflow.staffing.manage` chỉ hủy dòng phường mình.
+- IT_ADMIN + `workflow.calendar.manage` hủy dòng toàn quốc.
+- Dùng ID trả từ API 19–21; không dùng applicationId hay leaveId.
+- Thành công 200, cùng envelope `{closure,rescheduledApplications}`; `cancelled=true`, các cột người/ngày/lý do hủy được điền. Hủy mềm, không xóa dữ liệu.
+- FE chỉ hiện nút khi dòng chưa hủy và `date` sau hôm nay theo UTC+07. Backend vẫn kiểm tra lại để tránh thao tác sai khi qua ngày.
+
+### Validation và xử lý lỗi của 4 API mới
+
+| Trường hợp | Kết quả | FE xử lý |
+|---|---|---|
+| Ngày tạo trước hôm nay hoặc quá +366 ngày; khoảng GET >400 ngày | 400 `staffing.invalid_date` | Chọn lại ngày |
+| Lý do rỗng hoặc quá 500 ký tự sau trim | 400 `staffing.reason_required` | Yêu cầu nhập lại |
+| Ngày/JSON sai kiểu hoặc thiếu trường bắt buộc | 400 `validation.failed` | Hiện lỗi trường; dùng đúng yyyy-MM-dd |
+| Chưa đăng nhập/token không hợp lệ | 401 | Đăng nhập lại |
+| Sai role/permission/phạm vi | 403; có thể có `staffing.forbidden` | Không retry ghi, kiểm tra quyền IAM |
+| Closure không tồn tại | 404 `staffing.not_found` | Tải lại lịch |
+| Trùng active trong cùng phạm vi | 409 `staffing.closure_exists` | Tải lại, không tự gửi liên tục |
+| Hủy ngày hôm nay/đã qua | 409 `staffing.closure_started` | Không cho hủy |
+| Dòng đã hủy | 409 `staffing.closure_cancelled` | Đồng bộ giao diện |
+| Không xác minh được IAM | 503 `auth.session_unavailable` hoặc `application.iam_unavailable` | Hiện lỗi tạm thời; không giả định thiếu quyền |
+
+Không phải mọi 403 có JSON body. FE xử lý HTTP status trước rồi đọc `code/title/traceId` nếu có. UUID sai dạng có thể không khớp route (404).
+
+### Quy tắc deadline để FE giải thích đúng
+
+- Khai báo hôm nay chỉ loại phần giờ làm việc còn lại từ lúc khai báo; không xóa quá hạn cũ.
+- Quốc gia và phường trùng ngày không làm lùi hạn hai lần.
+- Ngày ngoài lịch làm việc của hồ sơ vẫn lưu được nhưng có thể không đổi deadline.
+- Hồ sơ hoàn thành, chưa có deadline chuẩn hóa hoặc đã quá hạn theo mốc xử lý không được sửa hạn bởi API này.
+- Không hứa hủy luôn khôi phục chính xác hạn gốc nếu thời gian/trạng thái hồ sơ đã thay đổi.
+- Hạn đang nói đến là hạn tiền kiểm nội bộ, không phải quyết định/hạn hành chính.
+
+### Trạng thái và bàn giao triển khai
+
+Local: solution Release 0 lỗi/0 cảnh báo, 15 kiểm tra thuật toán/DI và 46 kiểm tra Docker đạt. Docker dùng IAM/Catalog giả lập; không phải xác minh token IAM production.
+
+Trước khi FE test Azure, người phụ trách phát hành cần:
+1. Đồng bộ source đã hợp nhất qua Antigravity, giữ sửa DI staffing và cả 4 API calendar.
+2. Áp dụng migration Workflow `20261101055515_CalendarClosures` vào đúng DB Workflow (các migration trước phải đủ).
+3. Áp dụng migration IAM `20261101060000_WorkflowCalendarPermission` vào DB IAM; xác nhận IT_ADMIN được cấp `workflow.calendar.manage`.
+4. Build/publish image Workflow từ source mới, cập nhật Container App; giữ nguyên secret JWT/IAM/DB. Không dùng image cũ chỉ vì tag giống nhau.
+5. Xác minh Swagger Workflow có 4 route mới và 18 route cũ; gọi qua Gateway bằng token thật. Gateway đã có route staffing, kiểm tra cấu hình đang chạy còn route đó.
+6. Test GET với Manager/Officer/IT_ADMIN; tạo/hủy một ngày tương lai được nhóm thống nhất; kiểm tra 400/403/409 và log không còn lỗi DI. Health 200 một mình không đủ chứng minh.
+
+SQL hỗ trợ: `docs/sql/workflow-calendar-closures.sql`, `docs/sql/iam-calendar-permission.sql`. Không đánh dấu migration hoàn thành khi schema chưa đối chiếu. Azure đã cập nhật image `calendar-20261101-01`, provisioning Succeeded; hai migration đã áp dụng. Gateway Swagger trả 200 và có đủ 4 operation closures; health 200; gọi không token trả 401. Cần FE kiểm tra tiếp bằng token Manager/IT_ADMIN thật. Bộ lọc staffing/manager/consultations có 24 operations vì ngoài 22 API bàn giao còn 2 API assignment-summary và PUT assignee đã có trước.
