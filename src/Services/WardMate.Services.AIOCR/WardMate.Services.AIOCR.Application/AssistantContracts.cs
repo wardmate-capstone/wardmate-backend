@@ -16,6 +16,8 @@ public sealed class AiFailure(int status, string code, string message) : Excepti
 {
     public int Status { get; } = status;
     public string Code { get; } = code;
+    // Sent to the client as Retry-After when set (e.g. the AI provider asked to slow down).
+    public int? RetryAfterSeconds { get; init; }
 }
 public interface ICccdExtractionService
 {
