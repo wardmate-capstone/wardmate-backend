@@ -245,3 +245,6 @@ Không đính kèm nguyên lịch sử chat hoặc .env: hội thoại cũ có s
 Source chính: IAM Application/Accounts/ProvisionStaffRequests.cs (mới), IManagementScope.cs; Infrastructure/Persistence/StaffAdministration.cs; API/Controllers/StaffAdministrationController.cs. Kết quả build và phần còn chờ xem mục IAM-STAFF-PROVISION-01 mới nhất trong PROGRESS.md. Chưa deploy/FE nghiệm thu hai API; không tự triển khai cloud hoặc đổi RBAC để tiếp tục. Mục 4 của bản bàn giao trước đó không tự cập nhật trạng thái production vì bổ sung này.
 
 Kết quả kiểm tra Option A: `dotnet build WardMate.sln -c Release -warnaserror -m:1` thành công 0 warnings/0 errors, 00:05:53.88. Không test project/runtime HTTP/DB/deploy/Git. Đã triển khai source, phần còn chờ là rollout IAM và FE nghiệm thu. Không cần migration hoặc cấu hình mới.
+
+### Bổ sung lịch ngày nghỉ — 2026-11-01
+Workflow có 4 API `/api/v1/staffing/closures` (GET/POST, POST national, POST id/cancel). `ReviewDeadline:Holidays` vẫn hỗ trợ nhưng lịch khai báo động nằm trong bảng calendar_closures; đọc cùng policy snapshot và bảo toàn ngân sách khi resume. Cần migration Workflow + IAM permission workflow.calendar.manage trước rollout. Không bỏ 18 API staffing/dispatch/consultation. Hợp đồng, giới hạn và kết quả kiểm tra xem api-guide.md, system-constraints.md, PROGRESS.md. Chưa xác minh production.
