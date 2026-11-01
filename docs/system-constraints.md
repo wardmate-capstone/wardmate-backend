@@ -961,3 +961,27 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
   - Gateway: `appsettings.json` (routes `workflow-manager-applications-v1`, `workflow-manager-applications-root-v1`, `workflow-staffing-v1`, `workflow-staffing-root-v1`).
 - **Lịch sử 29/10/2026:** Thêm quy tắc STAFFING-01 hợp nhất staffing vào ApplicationWorkflow và remote.
 
+
+## WF-STAFFING-DI-01 — Đăng ký runtime cho staffing (2026-11-01)
+- IDispatchService, IStaffingService, IConsultationService dùng Scoped cùng phạm vi DbContext; IDispatchDirectory dùng typed HttpClient.
+- IDispatchDirectory dùng Iam:BaseUrl như IWorkflowDirectory (mặc định local http://localhost:5001/), timeout 10 giây, buffer tối đa 2 MiB, không tự theo HTTP redirect. Token được DispatchDirectory gắn riêng từng request; không lưu token dùng chung giữa người dùng.
+- Không đổi role, ownership, ward scope hay lifecycle. Thiếu đăng ký gây 500 lúc tạo controller; khôi phục bằng bản build có đăng ký đầy đủ, không sửa dữ liệu DB.
+- Nguồn: ApplicationWorkflow.Infrastructure/ProcedureCatalogClient.cs, DispatchDirectory.cs.
+- Lịch sử: 2026-11-01 bổ sung quy tắc đăng ký dependency sau khi log Azure xác nhận lỗi tạo ManagerDispatchController.
+
+## DEADLINE-CLOSURE-01 — Lịch đóng cửa và hạn tiền kiểm
+
+Bổ sung ngày 2026-11-01 (Asia/Saigon), liên quan WF-05/ANA-DEADLINE-01:
+- MANAGER tạo ngày nghỉ phường từ ward đã xác minh với IAM; IT_ADMIN + `workflow.calendar.manage` tạo ngày toàn quốc. GET IT_ADMIN chỉ đọc toàn quốc. Không tin ward/role từ body. Policy và kiểm tra scope ở service cùng áp dụng.
+- Ngày theo UTC+07; tạo từ hôm nay đến hôm nay+366. Cùng ngày chỉ loại giờ từ `effective_from_utc` trở đi. Hủy mềm chỉ khi ngày chưa bắt đầu; lý do trim 1–500 ký tự. Trùng active cùng phạm vi trả 409. Quốc gia trùng phường được lưu, khoảng đóng cửa được hợp nhất trước tính hạn.
+- DB Workflow thêm `calendar_closures`; partial unique indexes cho phường/ngày và toàn quốc/ngày, check các cột hủy đồng thời null/non-null, check lý do. IAM thêm permission riêng bằng migration; không thêm FK xuyên database.
+- Policy snapshot cũ giữ nguyên. Lịch hiệu lực là snapshot + closure active toàn quốc/phường. Dùng WorkingDays/giờ làm trong snapshot, không mặc định tất cả hồ sơ cùng lịch. Không trừ giờ nghỉ trưa ngoài policy.
+- Chỉ tính lại hồ sơ KNOWN, có due, chưa documents_ready_at, trạng thái SUBMITTED/UNDER_REVIEW/NEED_REVISION. Mốc tính là now hoặc thời điểm pause. Due đã quá mốc giữ nguyên; UNKNOWN/NOT_APPLICABLE/hồ sơ kết thúc giữ nguyên.
+- Resume bảo toàn số giờ làm còn lại tại pause rồi tính lại từ lúc resume theo cùng lịch, tránh cộng ngày nghỉ hai lần. Sự kiện CLOSURE/CLOSURE_CANCEL ghi vào JSON `applications.deadline_history`, gồm closureId/actor/mốc trước-sau. Không có bảng deadline_history riêng.
+- Closure write lấy advisory lock exclusive 1464680778; ApplicationStore.WithLock và ApplicationReviewStore.Mutate lấy shared lock cùng key trước application row lock và đọc lịch trong transaction. Chặn submit/resubmit dùng lịch cũ khi khai báo đồng thời. Closure chỉ sửa deadline nên không lấy ward lock của staffing; các row lock vẫn bảo vệ cập nhật hồ sơ.
+- Quốc gia tính lại đồng bộ nhiều phường trong một transaction: có thể chờ khóa/lâu với dữ liệu lớn, chưa có batch/job riêng. Chưa stress-test quy mô lớn. Không tự chặn ca/phân công, không chuyển hồ sơ, không gửi thông báo; đây không phải hạn giải quyết hành chính.
+- Lỗi: 400 ngày/lý do; 403 scope; 404 không có ID; 409 trùng/đã hủy/ngày đã bắt đầu. Binding lỗi dùng validation.failed. IAM lỗi vẫn fail closed theo middleware hiện có. Thiếu migration hoặc DB hỏng vẫn có thể gây 500; phải chạy migration đúng DB trước rollout, không che lỗi bằng dữ liệu rỗng.
+
+Nguồn: Domain/CalendarClosure.cs, Domain/ReviewDeadline.cs, Application/CalendarContracts.cs, Infrastructure/CalendarClosureService.cs, ApplicationStore.cs, ApplicationReviewStore.cs, WorkflowDbContext.cs và migration CalendarClosures; API/Controllers/CalendarClosuresController.cs, API/WorkflowSecurity.cs (đều thuộc ApplicationWorkflow); IAM/Persistence/Migrations/20261101060000_WorkflowCalendarPermission.cs.
+
+Lịch sử: 2026-11-01 thêm DEADLINE-CLOSURE-01; giữ nguyên rule ID trước đó. Chưa xác minh rollout Azure/IAM thật.
