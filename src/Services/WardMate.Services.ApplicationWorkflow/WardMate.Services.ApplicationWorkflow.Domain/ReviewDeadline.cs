@@ -24,7 +24,7 @@ public sealed class ReviewDeadlinePolicy
             throw new InvalidOperationException("ReviewDeadline policy/calendar is invalid.");
     }
 }
-public sealed record DeadlineEvent(string Action, DateTime AtUtc, Guid ActorId, DateTime? DueBeforeUtc, DateTime? DueAfterUtc);
+public sealed record DeadlineEvent(string Action, DateTime AtUtc, Guid ActorId, DateTime? DueBeforeUtc, DateTime? DueAfterUtc, Guid? ClosureId = null);
 public static class ReviewDeadline
 {
     // Version 1 calendar is explicitly Vietnam UTC+07; no daylight saving interpretation.
@@ -32,7 +32,34 @@ public static class ReviewDeadline
         (DateTime.SpecifyKind(local.ToDateTime(TimeOnly.MinValue).AddMinutes(p.StartMinute - 420), DateTimeKind.Utc),
          DateTime.SpecifyKind(local.ToDateTime(TimeOnly.MinValue).AddMinutes(p.EndMinute - 420), DateTimeKind.Utc));
     private static bool Working(DateOnly d, ReviewDeadlinePolicy p) => p.WorkingDays.Contains(d.DayOfWeek) && !p.Holidays.Contains(d);
-    public static DateTime AddWorkingTicks(DateTime utc, long ticks, ReviewDeadlinePolicy p)
+    private static IEnumerable<(DateTime Start, DateTime End)> Segments(DateOnly day, ReviewDeadlinePolicy p, IReadOnlyList<ClosureInterval>? closed)
+    {
+        var (start, end) = Window(day, p);
+        var cursor = start;
+        foreach (var c in (closed ?? []).Where(x => x.StartsAtUtc < end && x.EndsAtUtc > start).OrderBy(x => x.StartsAtUtc))
+        {
+            if (c.StartsAtUtc > cursor) yield return (cursor, c.StartsAtUtc);
+            if (c.EndsAtUtc > cursor) cursor = c.EndsAtUtc;
+            if (cursor >= end) yield break;
+        }
+        if (cursor < end) yield return (cursor, end);
+    }
+    public static bool Recalculate(ApplicationRecord a, DateTime now, Guid actor, Guid closureId,
+        IReadOnlyList<ClosureInterval> oldCalendar, IReadOnlyList<ClosureInterval> newCalendar, bool cancelled)
+    {
+        var anchor = a.DeadlinePausedAtUtc ?? now;
+        if (a.DeadlineStatus != "KNOWN" || a.DueAtUtc is not DateTime due || due <= anchor) return false;
+        var policy = JsonSerializer.Deserialize<ReviewDeadlinePolicy>(a.DeadlinePolicySnapshot!)!;
+        var remaining = WorkingTicks(anchor, due, policy, oldCalendar);
+        var next = AddWorkingTicks(anchor, remaining, policy, newCalendar);
+        if (next == due) return false;
+        a.DueAtUtc = next;
+        var history = JsonSerializer.Deserialize<List<DeadlineEvent>>(a.DeadlineHistory) ?? [];
+        history.Add(new(cancelled ? "CLOSURE_CANCEL" : "CLOSURE", now, actor, due, next, closureId));
+        a.DeadlineHistory = JsonSerializer.Serialize(history);
+        return true;
+    }
+    public static DateTime AddWorkingTicks(DateTime utc, long ticks, ReviewDeadlinePolicy p, IReadOnlyList<ClosureInterval>? closed = null)
     {
         if (utc.Kind != DateTimeKind.Utc || ticks < 0) throw new InvalidOperationException("Invalid deadline UTC/ticks.");
         if (ticks == 0) return utc;
@@ -40,23 +67,30 @@ public static class ReviewDeadline
         for (var i = 0; i < 36600; i++, date = date.AddDays(1))
         {
             if (!Working(date, p)) continue;
-            var (start, end) = Window(date, p); var cursor = utc > start ? utc : start;
-            if (cursor >= end) continue;
-            var available = (end - cursor).Ticks;
-            if (ticks <= available) return cursor.AddTicks(ticks);
-            ticks -= available;
+            foreach (var (start, end) in Segments(date, p, closed))
+            {
+                var cursor = utc > start ? utc : start;
+                if (cursor >= end) continue;
+                var available = (end - cursor).Ticks;
+                if (ticks <= available) return cursor.AddTicks(ticks);
+                ticks -= available;
+            }
         }
         throw new InvalidOperationException("Deadline calendar exceeds supported horizon.");
     }
-    public static long WorkingTicks(DateTime from, DateTime to, ReviewDeadlinePolicy p)
+    public static long WorkingTicks(DateTime from, DateTime to, ReviewDeadlinePolicy p, IReadOnlyList<ClosureInterval>? closed = null)
     {
         if (to < from) throw new InvalidOperationException("Resume precedes pause.");
         var last = DateOnly.FromDateTime(to.AddHours(7)); long ticks = 0;
         for (var day = DateOnly.FromDateTime(from.AddHours(7)); day <= last; day = day.AddDays(1))
         {
             if (!Working(day, p)) continue;
-            var (start, end) = Window(day, p); start = start < from ? from : start; end = end > to ? to : end;
-            if (end > start) ticks += (end - start).Ticks;
+            foreach (var segment in Segments(day, p, closed))
+            {
+                var start = segment.Start < from ? from : segment.Start;
+                var end = segment.End > to ? to : segment.End;
+                if (end > start) ticks += (end - start).Ticks;
+            }
         }
         return ticks;
     }
@@ -70,7 +104,7 @@ public static class ReviewDeadline
         a.DeadlinePolicyCode = p.Code; a.DeadlinePolicyVersion = p.Version;
         a.DeadlineCalendarCode = p.CalendarCode; a.DeadlineCalendarVersion = p.CalendarVersion;
         a.DeadlineStatus = p.Applicable ? "KNOWN" : "NOT_APPLICABLE";
-        a.DueAtUtc = p.Applicable ? AddWorkingTicks(now, TimeSpan.FromMinutes(p.WorkingMinutes).Ticks, p) : null;
+        a.DueAtUtc = p.Applicable ? AddWorkingTicks(now, TimeSpan.FromMinutes(p.WorkingMinutes).Ticks, p, a.CalendarClosures) : null;
     }
     private static void Log(ApplicationRecord a, string action, DateTime now, Guid actor, DateTime? before)
     {
@@ -90,7 +124,9 @@ public static class ReviewDeadline
         if (a.DeadlinePausedAtUtc is not DateTime paused) return;
         var p = JsonSerializer.Deserialize<ReviewDeadlinePolicy>(a.DeadlinePolicySnapshot!)!;
         var before = a.DueAtUtc;
-        a.DueAtUtc = AddWorkingTicks(a.DueAtUtc!.Value, WorkingTicks(paused, now, p), p);
+        // Preserve the budget left at pause; closed intervals must not be counted twice.
+        if (a.DueAtUtc is DateTime due && due > paused)
+            a.DueAtUtc = AddWorkingTicks(now, WorkingTicks(paused, due, p, a.CalendarClosures), p, a.CalendarClosures);
         a.DeadlinePausedAtUtc = null; Log(a, "RESUME", now, actor, before);
     }
     public static void CancelPause(ApplicationRecord a, DateTime now, Guid actor)
