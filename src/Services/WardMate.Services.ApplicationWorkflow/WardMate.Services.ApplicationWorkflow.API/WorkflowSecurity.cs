@@ -54,6 +54,13 @@ public static class WorkflowSecurity
         WardMate.SharedKernel.Web.FeaturePermissions.AddClaimPermissions(services, WardMate.SharedKernel.Web.FeaturePermissions.Workflow);
         services.AddAuthorization(options =>
         {
+            options.AddPolicy("workflow.calendar.manage", p => p.RequireAuthenticatedUser().RequireRole("IT_ADMIN").RequireClaim("permissions", "workflow.calendar.manage"));
+            options.AddPolicy("workflow.calendar.read", p => p.RequireAuthenticatedUser().RequireAssertion(c =>
+                c.User.IsInRole("IT_ADMIN") && c.User.HasClaim("permissions", "workflow.calendar.manage") ||
+                (c.User.IsInRole("MANAGER") || c.User.IsInRole("FRONT_DESK_OFFICER")) && c.User.HasClaim("permissions", "workflow.staffing.read")));
+            options.AddPolicy("workflow.calendar.cancel", p => p.RequireAuthenticatedUser().RequireAssertion(c =>
+                c.User.IsInRole("IT_ADMIN") && c.User.HasClaim("permissions", "workflow.calendar.manage") ||
+                c.User.IsInRole("MANAGER") && c.User.HasClaim("permissions", "workflow.staffing.manage")));
             // Assignment management (remote: ManagerAssignmentController)
             options.AddPolicy("workflow.assign.manage", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.assign.manage").RequireRole("MANAGER"));
             // Dispatch policies (local: ManagerDispatchController)
