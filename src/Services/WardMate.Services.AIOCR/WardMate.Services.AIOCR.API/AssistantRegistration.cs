@@ -66,6 +66,10 @@ public static class AssistantRegistration
         services.AddScoped<IAssistantModel>(s => s.GetRequiredService<GeminiAssistant>());
         services.AddHttpClient<IAuthorizedDocumentSource, AuthorizedDocumentSource>(h => { h.Timeout = TimeSpan.FromSeconds(60); h.MaxResponseContentBufferSize = 2 * 1024 * 1024; })
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        // AI-OFFICER-ASSIST-01: dossier review for the assigned officer.
+        services.AddScoped<IDossierReviewer>(s => s.GetRequiredService<GeminiAssistant>());
+        services.AddHttpClient<IDossierSource, DossierSource>(h => { h.Timeout = TimeSpan.FromSeconds(90); h.MaxResponseContentBufferSize = 2 * 1024 * 1024; })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         // Knowledge base (TASK-28): sources, import and chunking; embeddings/vector search come with TASK-29.
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IKnowledgeBase, WardMate.Services.AIOCR.Infrastructure.Knowledge.KnowledgeBaseService>();
@@ -112,6 +116,7 @@ public sealed class AssistantExceptionHandler : IExceptionHandler
         };
         if (failure is null) return false;
         context.Response.StatusCode = failure.Status;
+        if (failure.RetryAfterSeconds is int retry) context.Response.Headers.RetryAfter = retry.ToString(System.Globalization.CultureInfo.InvariantCulture);
         await context.Response.WriteAsJsonAsync(new ProblemDetails { Status = failure.Status, Title = failure.Message,
             Instance = context.Request.Path, Extensions = { ["code"] = failure.Code, ["traceId"] = context.TraceIdentifier } },
             options: null, contentType: "application/problem+json", cancellationToken: ct);
