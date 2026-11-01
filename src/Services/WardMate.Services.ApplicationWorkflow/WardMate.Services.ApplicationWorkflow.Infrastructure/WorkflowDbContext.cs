@@ -6,6 +6,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 
 public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> options) : DbContext(options)
 {
+    public DbSet<CalendarClosure> CalendarClosures => Set<CalendarClosure>();
     public DbSet<WorkflowOutbox> Outbox => Set<WorkflowOutbox>();
     // Staffing tables (local feature)
     public DbSet<OfficerShift> Shifts => Set<OfficerShift>();
@@ -126,6 +127,18 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         h.Property(x => x.Reason).HasColumnType("text");
         h.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+        var closure = b.Entity<CalendarClosure>();
+        closure.ToTable("calendar_closures", t => {
+            t.HasCheckConstraint("ck_closure_cancellation", "(cancelled_by IS NULL AND cancelled_at_utc IS NULL AND cancellation_reason IS NULL) OR (cancelled_by IS NOT NULL AND cancelled_at_utc IS NOT NULL AND cancellation_reason IS NOT NULL)");
+            t.HasCheckConstraint("ck_closure_reason", "length(btrim(reason)) BETWEEN 1 AND 500");
+        });
+        closure.HasKey(x=>x.Id);
+        closure.Property(x=>x.WardCode).HasMaxLength(50);
+        closure.Property(x=>x.Reason).HasMaxLength(500).IsRequired();
+        closure.Property(x=>x.CancellationReason).HasMaxLength(500);
+        closure.HasIndex(x=>new { x.WardCode, x.ClosureDate }).IsUnique().HasFilter("cancelled_at_utc IS NULL AND ward_code IS NOT NULL");
+        closure.HasIndex(x=>x.ClosureDate).HasDatabaseName("ux_calendar_closures_national").IsUnique().HasFilter("cancelled_at_utc IS NULL AND ward_code IS NULL");
+        closure.HasIndex(x=>new { x.ClosureDate, x.Id });
         // --- Staffing tables (added by local staffing feature) ---
         var shift = b.Entity<OfficerShift>();
         shift.ToTable("officer_shifts", t => t.HasCheckConstraint("ck_shift_range", "ends_at_utc > starts_at_utc"));
