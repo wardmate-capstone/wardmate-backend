@@ -155,7 +155,12 @@ Bộ EF model kiểm kê ngày 24/10: 41 bảng ứng dụng, 410 cột, 22 FK t
 
 | Ưu tiên | Việc | Trạng thái và bước tiếp theo |
 |---|---|---|
-| Gần nhất | Yêu cầu FE 26/10 (WORKFLOW-FE-1026) | Mục 2–5 có trong source 29/10 (applicantName, bỏ bản nháp ở danh sách cán bộ, assignment-summary, officer/activity) và rút nhận xét OPEN (WORKFLOW-COMMENT-01); build pass, đã thử store/handler trên Postgres tạm, chưa qua HTTP. Cần chạy `docs/sql/workflow-applicant-name-activity.sql` rồi `docs/sql/workflow-comment-withdrawal.sql`, deploy Workflow + Gateway. Mục 1 (RabbitMQ/worker Azure), 6 (minReplicas, cache, App Insights), 7 (xác nhận image/migration Azure) cho Antigravity; cache access-context chờ chủ dự án quyết vì trái quy tắc fail closed. |
+| Gần nhất | Yêu cầu FE 29/10 (WORKFLOW-FE-1026) | **Đã deploy & cấu hình xong trên Azure:** (1) Workflow image `workflow-20261029-01` và Gateway image `gateway-20261029-01` đã live; (2) SQL migration gộp đã chạy trên Supabase Workflow (có `ApplicantName`, `application_activity_logs`, cột rút comment `WithdrawnAt`); (3) Đã set `minReplicas = 1` cho cả 5 service (`workflow`, `gateway`, `documentform`, `iam`, `analytics-system`), xóa cold-start; (4) RabbitMQ bị chặn bởi ACA Express TCP Ingress và ACI Subscription Policy, đã chọn Hướng 2 đặt `RabbitMq__Enabled=false` (outbox lưu bền trong Postgres, defer realtime SignalR chờ CloudAMQP); (5) Sẵn sàng cho FE test. |
+| Gần nhất | Chatbot công khai (AI-GUEST-01, 30/10) | Chủ dự án quyết định chatbot không cần đăng nhập. Chỉ POST /api/v1/ai/chat/completions mở; khách bị giới hạn 5 lượt/phút/IP, 10 lượt/ngày/IP, 200 lượt/ngày cho tất cả khách. Gateway thêm UseForwardedHeaders để chuyển IP thật. Source + build + harness local 23/23 + kiểm tra gateway; chưa deploy. Cần deploy lại **AIOCR và Gateway** cùng lúc, không có migration. FE xử lý 429 ai.guest_quota_exceeded / ai.guest_limit_reached và giữ lịch sử chat khách ở client. |
+| Gần nhất | Hạn mức AI + health (AI-USAGE-01, HEALTH-01, 30/10) | AIOCR ghi ai_request_logs, giới hạn 30 lượt/người/ngày và 500 lượt/hệ thống/ngày, MaxOutputTokens cấu hình; GET /api/v1/ai/knowledge/usage. 6 service có /health/ready (DB, RabbitMQ). Build pass, harness AIOCR 58/58, Workflow health thử với RabbitMQ thật. Chưa deploy; cần chạy docs/sql/aiocr-ai-request-logs.sql trên wardmate-db. |
+| Gần nhất | Cache access-context (ACCESS-CACHE-01, 30/10) | Chủ dự án quyết định làm. SharedKernel AccessContextCacheHandler cache 200 của IAM access-context theo hash token, mặc định 30 giây (`Iam__AccessContextCacheSeconds`, 0–60, 0 = tắt), trong bộ nhớ từng replica. Đổi mật khẩu/khóa/đổi quyền trễ tối đa thời gian cache. Build pass, handler kiểm tra bằng chương trình tạm; chưa test HTTP end-to-end, chưa deploy 5 service. |
+| Gần nhất | Gỡ SMS (SMS-REMOVE-01, 29/10) | Source đã bỏ SMS ở IAM (OTP chỉ Email, bỏ 3 API xác minh số) và Analytics (bỏ kênh SMS, API đối soát); build pass, chưa deploy. Các mục SMS/eSMS bên dưới trong file này là lịch sử. Xóa biến Sms__* trên Azure khi deploy. |
+| Gần nhất | AIOCR Azure (29/10) | Đã khởi động lại được: thêm secret jwt-key (chép từ IAM), Jwt__Issuer=WardMate.IAM, Jwt__Audience=WardMate.Client, Iam__BaseUrl, Services__DocumentForm__BaseUrl; gateway trả 401 không token. Còn thiếu ConnectionStrings__AiOcrDatabase + Assistant__Enabled (chờ chọn DB riêng). **Jwt__Key IAM đang là biến thường và đã bị lộ trong phiên 29/10: nên đổi key cho toàn hệ thống, lưu dạng secret.** Issuer/audience Azure khác mặc định code. |
 | Gần nhất | AIOCR JWT rollout | Code/build đã có theo nhật ký; chưa Docker/Azure cho patch mới. Xác minh issuer/audience IAM đang dùng, bàn giao env secret đúng; không tự in key. Cập nhật ví dụ cũ trong docs/azure-deployment.md sau khi có căn cứ. |
 | Gần nhất | DocumentForm auth.session_unavailable | Diagnostics/image/config đã được rollout theo nhật ký. Còn thiếu tái hiện authenticated request gốc để kết luận lỗi503 đã hết. Không đổi quyền để né lỗi kết nối. |
 | Gần nhất | Analytics authenticated FE | Migration, IAM URL, worker/backfill đã xử lý theo nhật ký; FE/HTTP theo đúng role/ward chưa xác nhận đầy đủ. Không coi health200 là dashboard đúng. |
@@ -245,6 +250,34 @@ Không đính kèm nguyên lịch sử chat hoặc .env: hội thoại cũ có s
 Source chính: IAM Application/Accounts/ProvisionStaffRequests.cs (mới), IManagementScope.cs; Infrastructure/Persistence/StaffAdministration.cs; API/Controllers/StaffAdministrationController.cs. Kết quả build và phần còn chờ xem mục IAM-STAFF-PROVISION-01 mới nhất trong PROGRESS.md. Chưa deploy/FE nghiệm thu hai API; không tự triển khai cloud hoặc đổi RBAC để tiếp tục. Mục 4 của bản bàn giao trước đó không tự cập nhật trạng thái production vì bổ sung này.
 
 Kết quả kiểm tra Option A: `dotnet build WardMate.sln -c Release -warnaserror -m:1` thành công 0 warnings/0 errors, 00:05:53.88. Không test project/runtime HTTP/DB/deploy/Git. Đã triển khai source, phần còn chờ là rollout IAM và FE nghiệm thu. Không cần migration hoặc cấu hình mới.
+
+## Cập nhật 30/10/2026 — Triển khai Staffing, Cache AccessContext và Đồng bộ Gateway Production
+
+1. **Deploy các service Azure Container Apps:**
+   - `wardmate-application-workflow`: image `workflow-20261030-01` (chứa tính năng Staffing, Tham vấn, Phân công, Cache access-context).
+   - `wardmate-analytics-system`: image `analytics-20261030-01` (gỡ kênh SMS, Cache access-context).
+   - `wardmate-aiocr`: image `aiocr-20261030-02` (Hạn mức Gemini, ai_request_logs, Chatbot, /health/ready, Cache access-context).
+   - `wardmate-gateway`: image `gateway-20261030-01` (định tuyến Staffing, Tham vấn, fix thứ tự route manager applications).
+   - `wardmate-iam`: image `iam-20261030-01` (Cung cấp tài khoản Manager/ProcedureManager Option A, gỡ bỏ SMS, email SMTP, /health/ready).
+
+2. **Cơ sở dữ liệu Supabase (đã chạy thành công):**
+   - Workflow DB: Chạy `docs/sql/workflow-staffing-tables.sql` (migration `20261029161554_AddStaffingTablesOnly`) tạo 4 bảng `application_consultations`, `officer_leaves`, `officer_shifts`, `officer_leave_decisions`, các index và check constraint.
+   - IAM DB: Chạy `docs/sql/iam-staffing-permissions.sql` (migration `20261029120000_ManagerStaffingPermissions`) seed quyền Staffing, Phân công và Tham vấn cho MANAGER và FRONT_DESK_OFFICER.
+   - AIOCR DB: Chạy `docs/sql/aiocr-ai-request-logs.sql` (migration `20261030083635_AiRequestLogs`) tạo bảng `ai_request_logs`.
+
+3. **Kiểm tra Live Gateway trên Azure:**
+   - Health: `GET /health` → 200 OK (`Healthy`).
+   - Staffing Shifts: `GET /api/v1/staffing/shifts` → 401 Unauthorized (`auth.unauthorized`, định tuyến thành công sang Workflow).
+   - Staffing Leaves: `GET /api/v1/staffing/leaves` → 401 Unauthorized (định tuyến thành công sang Workflow).
+   - Staffing Consultations: `GET /api/v1/staffing/consultations` → 401 Unauthorized (định tuyến thành công sang Workflow).
+   - Manager Applications: `GET /api/v1/manager/applications` → 401 Unauthorized (định tuyến thành công sang Workflow).
+   - AI Usage Report: `GET /api/v1/ai/knowledge/usage` → 401 Unauthorized (định tuyến thành công sang AIOCR với image mới `aiocr-20261030-02`).
+   - AI Chat Sessions: `GET /api/v1/ai/chat/sessions` → 401 Unauthorized (định tuyến thành công sang AIOCR).
+   - IAM Staff Provisioning: `POST /api/v1/accounts/manager` và `POST /api/v1/accounts/procedure-manager` → 401 Unauthorized (hết lỗi 405, route hoạt động chuẩn xác).
+   - IAM Removed SMS Routes: `POST /api/v1/users/me/phone-verification/request` → 404 Not Found (đã gỡ bỏ sạch sẽ).
+
+
+
 
 ### Bổ sung lịch ngày nghỉ — 2026-11-01
 Workflow có 4 API `/api/v1/staffing/closures` (GET/POST, POST national, POST id/cancel). `ReviewDeadline:Holidays` vẫn hỗ trợ nhưng lịch khai báo động nằm trong bảng calendar_closures; đọc cùng policy snapshot và bảo toàn ngân sách khi resume. Cần migration Workflow + IAM permission workflow.calendar.manage trước rollout. Không bỏ 18 API staffing/dispatch/consultation. Hợp đồng, giới hạn và kết quả kiểm tra xem api-guide.md, system-constraints.md, PROGRESS.md. Chưa xác minh production.

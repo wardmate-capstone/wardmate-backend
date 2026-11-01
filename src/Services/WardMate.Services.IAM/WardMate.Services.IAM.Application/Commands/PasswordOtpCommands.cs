@@ -22,7 +22,8 @@ public sealed class RequestPasswordOtpValidator : AbstractValidator<RequestPassw
     public RequestPasswordOtpValidator()
     {
         RuleFor(x => x.EmailOrUsername).NotEmpty().MaximumLength(255);
-        RuleFor(x => x.Channel).Must(x => x is "EMAIL" or "SMS");
+        // SMS was removed (sending real SMS needs a business licence); OTP goes by Email only.
+        RuleFor(x => x.Channel).Equal("EMAIL").WithMessage("OTP chỉ gửi qua Email.");
         RuleFor(x => x.Purpose).Must(x => x is "CHANGE_PASSWORD" or "FORGOT_PASSWORD");
     }
 }

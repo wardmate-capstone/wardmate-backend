@@ -609,6 +609,12 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 
 ## Nhật ký tài liệu
 
+- 30/10/2026 — AI-GUEST-01: chatbot không cần đăng nhập, hạn mức riêng cho khách theo IP; gateway chuyển IP thật.
+
+- 30/10/2026 — AI-USAGE-01, HEALTH-01: hạn mức/nhật ký lượt gọi Gemini; /health/ready kiểm tra DB và RabbitMQ.
+
+- 30/10/2026 — ACCESS-CACHE-01: cache 200 của IAM access-context tối đa 30 giây (cấu hình 0–60), thay quy tắc không cache trong IAM-SEC-02 và WORKFLOW-FE-1026.
+
 - 20/10/2026 — QR-BACKWARD-COMPAT-001: Bổ sung cơ chế tương thích ngược cho mã QR đã cấp trước đây: (1) Endpoint `GET /api/v1/applications/{id}` cho phép truy cập nặc danh (`[AllowAnonymous]`), nếu không có Bearer token sẽ tự động HTTP 302 Redirect về `GET /api/v1/public/qr-lookup?applicationId={id}`, đảm bảo người dân quét lại mã QR cũ trên PDF in trước đây vẫn xem được thông tin công khai hợp lệ mà không bị lỗi 401/403. (2) `GeneratePdfDocumentCommand` tự động cập nhật bản ghi `ApprovedQr` cũ sang URL tra cứu công khai mới và sinh lại hình ảnh QR khi xuất PDF mới.
 
 - 19/10/2026 — OFFICER-QR-001: bổ sung endpoint danh sách tổng hợp hồ sơ phường `GET /api/v1/officer/applications` (ràng buộc: chỉ xem hồ sơ cùng `ward_code`, không xem hồ sơ do chính cán bộ nộp, hỗ trợ lọc nhiều trạng thái phân tách bằng dấu phẩy, phân trang tối đa 100). Thêm endpoint tra cứu QR công khai không cần auth `GET /api/v1/public/qr-lookup` hỗ trợ phân giải URL/GUID/token trả thông tin hợp lệ của tờ khai đã duyệt. Cấu hình Gotenberg URL trên Azure Container Apps yêu cầu HTTPS.
@@ -666,7 +672,7 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 ### AI-P2-01 — CCCD, tiền kiểm và chat (21/10/2026)
 
 - Nguồn: AIOCR.Application/AssistantContracts.cs; AIOCR.Infrastructure/GeminiAssistant.cs, AuthorizedDocumentSource.cs, ChatService.cs, ChatDbContext.cs; AIOCR.API/Controllers/AssistantController.cs, AssistantRegistration.cs.
-- Bearer bắt buộc, kiểm tra chữ ký HS256/issuer/audience/expiry/sub GUID; chưa truy vấn access-context để thu hồi JWT tức thì. Không tự thêm role/permission mới; tất cả user có JWT hợp lệ được dùng AI, DocumentForm bảo vệ đọc giấy tờ.
+- (30/10/2026: API chat completions đã mở cho khách, xem AI-GUEST-01.) Bearer bắt buộc, kiểm tra chữ ký HS256/issuer/audience/expiry/sub GUID; chưa truy vấn access-context để thu hồi JWT tức thì. Không tự thêm role/permission mới; tất cả user có JWT hợp lệ được dùng AI, DocumentForm bảo vệ đọc giấy tờ.
 - CCCD frontImage bắt buộc, backImage optional, PNG/JPEG kiểm tra magic bytes,<=8MiB/file,request17MiB. Không lưu CCCD vào DB/log; nội dung gửi Gemini. Chưa giải mã ảnh cục bộ để xác minh toàn vẹn; file hỏng có thể bị provider từ chối. JSON bắt buộc đủ fields, không trùng key; giá trị thiếu null; CCCD12số, ngàyISO, confidence hữu hạn0..1. Output sai502, không bịa kết quả.
 - Verify yêu cầu IDs không rỗng, expectedType tùy chọn<=255 và bị bỏ qua; caller token được gửi tới DocumentForm, xác minh tài liệu nằm trong danh sách hồ sơ trước download. Giữ phân quyền owner/officer của service đó, không privileged bypass. Chỉ URL cấu hình, không redirect, response file giới hạn8MiB. PDF/PNG/JPEG; không xử lý DOCX. expectedType lấy từ Title của checklist hồ sơ Workflow qua ChecklistId của giấy tờ DocumentForm, không lấy từ client. Thiếu liên kết/mục không hợp lệ trả409, chưa cấu hình Workflow trả503; không gọi AI khi không có căn cứ. isValid chỉ gợi ý, không ghi checklist, không chứng nhận pháp lý; hạ false khi confidence<0.7/qualityIssues/loại rỗng.
 - Chat message1..4000ký tự, wardCode1..50 chữ/số/_/-, không đổi ward giữa phiên. Ward chỉ là ngữ cảnh, chưa xác minh phường. Queries luôn lọc UserId, foreign session404. Lưu cặp User/Assistant trong transaction; lỗi AI rollback, cùng phiên khóa NOWAIT trả409 khi cạnh tranh. Không có idempotency, timeout sau commit cần đọc lại lịch sử. Giữ khóa DB trong tối đa thời gian gọi model; cần cân nhắc pool khi tăng tải.
@@ -739,6 +745,8 @@ Nhật ký 22/10/2026 — IAM-OTP-01: bổ sung script catch-up docs/sql/iam-cat
 
 
 ### IAM-SMS-01 — OTP eSMS (22/10/2026)
+
+- ⚠️ Không còn hiệu lực từ 29/10/2026: xem SMS-REMOVE-01.
 - Mở kênh SMS của IAM-OTP-01; stub SMS Analytics vẫn không đổi. Số nhận chỉ từ profile tài khoản hợp lệ; normalize 0/84/+84 về dạng0, chấp nhận mobile10số đầu03/05/07/08/09. Không xác minh số còn hoạt động hay chủ thuê bao.
 - IIamSmsSender/IamSmsSender: HTTPS endpoint eSMS cố định, không redirect, timeout10s, không tự retry; chỉ CodeResult100 thành công. Log HTTP status hoặc mã lỗi numeric giới hạn4ký tự/loại exception, không raw response/content/OTP/khóa/số điện thoại. Keys chỉ cấu hình môi trường. Provider=eSMS, SmsType2, Sandbox0/1; brand ASCII chữ/số/khoảng trắng1..32. Đổi brand cần duyệt template nhà mạng.
 - PasswordOtpService: channel ghi SMS, giữ HMAC-SHA256 có khóa và salt hiện có (không hạ xuống SHA256 thuần). Khóa user, cooldown60s xuyên kênh/purpose, expire challenge cũ,5phút,5lần thử, dùng một lần. Verify lấy challenge mới nhất theo purpose không lọcEMAIL. Lỗi gửi được invalidate và giữ cooldown. Không có bảo đảm exactly-once khi nhà mạng đã nhận nhưng timeout/transaction lỗi.
@@ -751,7 +759,7 @@ Nhật ký 22/10/2026 — IAM-OTP-01: bổ sung script catch-up docs/sql/iam-cat
 - PhoneVerificationService và PasswordOtpService dùng user FOR UPDATE, cooldown60s chung, quota10OTP/5SMS rolling24h cấu hình clamp; request provider lỗi đã commit vẫn tính quota. Không quota chi phí toàn cục/theo số across accounts; IP limiter chỉ mỗi replica. Hủy request/transaction lỗi có thể xảy ra sau khi nhà mạng nhận tin; không bảo đảm exactly-once hoặc hạn mức trước lỗi transaction.
 - Password recovery202 nội dung đồng nhất cho account không có/thiếu số/chưa verified/cooldown/quota/provider lỗi, không masked phone; không cam kết chống timing analysis. Endpoint chính chủ status mới được trả masked phone.
 - users.security_stamp + JWT claim được so tại IAM mỗi request. Hai đường đổi mật khẩu đổi stamp/revoke refresh/invalidateOTP atomically. Token issuance hiện serialize user/password để tránh cấp token hợp lệ bằng hash cũ. Client thiếu stamp bị từ chối access; refresh hợp lệ chưa revoked vẫn có thể lấy token mới.
-- SharedKernel/Web/AccountSessionMiddleware được gắn5API sauauthentication: IAM access-context qua HTTP timeout5s, không redirect/cache, fail closed401 hoặc503. Cần Iam:BaseUrl đúng và mạng IAM khả dụng. IAM không tự gọi lại chính mình. Các request đang thực thi không bị hủy; SignalR theo guard hiện hữu trước gửi/hub và polling, không đóng socket tức thì. Tăng phụ thuộc và tải IAM; chưa có revocation cache phân tán.
+- SharedKernel/Web/AccountSessionMiddleware được gắn5API sauauthentication: IAM access-context qua HTTP timeout5s, không redirect, fail closed401 hoặc503. ⚠️ Từ 30/10/2026 câu trả lời 200 được cache ngắn theo ACCESS-CACHE-01. Cần Iam:BaseUrl đúng và mạng IAM khả dụng. IAM không tự gọi lại chính mình. Các request đang thực thi không bị hủy; SignalR theo guard hiện hữu trước gửi/hub và polling, không đóng socket tức thì. Tăng phụ thuộc và tải IAM; chưa có revocation cache phân tán.
 - Cleanup giữ ít nhất2ngày,mặc định30; mỗi giờ/batch1000 mỗi bảng. Chỉ purge refresh sau hết hạn quáretention, không purge refresh còn hạn dù revoked. Welcome chỉ purge sent, không purge failed/pending. Worker bắt lỗi có logtype, không chứa secrets; nhiều replica có thể cùng cleanup, ExecuteDelete idempotent.
 - Migration AccountSecurityHardening thay checkpurpose thêm VERIFY_PHONE, thêm target_phone_number/security_stamp/verified_phone_number. Cần áp dụng trướccode; rollback về check cũ không được khi còn dữ liệu VERIFY_PHONE, cần kế hoạch dữ liệu riêng.
 Nguồn: IAM Domain/User.cs,UserOtp.cs; Infrastructure/Security/PhoneVerificationService.cs,OtpLimits.cs,AccountSecurityCleanupWorker.cs,PasswordOtpService.cs,JwtTokenService.cs; Persistence/IdentityStore.cs; API/Controllers/UsersController.cs; SharedKernel/Web/AccountSessionMiddleware.cs; Program.cs5service và cấu hình. Lịch sử23/10/2026: bổ sung IAM-SEC-02, thay phản hồi masked anonymous và hạn chế accessJWT cũ của tài liệu trước; chưa deploy/chưa gửiSMS thật.
@@ -810,6 +818,8 @@ Nguồn: AnalyticsRegistration.cs, AnalyticsDbContext.cs, AnalyticsAggregationJo
 - Nguồn: IAM Application/Accounts/ProvisionStaffRequests.cs, IManagementScope.cs; Infrastructure/Persistence/StaffAdministration.cs, RbacStore.cs; API/Controllers/StaffAdministrationController.cs.
 - Lịch sử: thêm rule IAM-STAFF-PROVISION-01 ngày23/10/2026, không thay các rule cũ.
 ### NOTIFY-SMS-01 — eSMS thông báo hồ sơ (23/10/2026)
+
+- ⚠️ Không còn hiệu lực từ 29/10/2026: xem SMS-REMOVE-01.
 
 - Thay giới hạn stub Analytics của TASK-26; IAM OTP không đổi. Inbox chỉ tạo SMS khi Sms:Enabled; bật sau không backfill sự kiện đã xử lý. Kênh chỉ dùng recipient đã được pipeline xác định và liên hệ IAM hiện tại, kiểm tra scope phường hiện hữu.
 - Cấu hình riêng: Provider=eSMS, SmsType=2, Sandbox=0/1; khóa bắt buộc, brand ASCII chữ/số/khoảng trắng 1..32. Gửi thật còn cần TemplatesApproved=true. Mặc định disabled/Sandbox1; không tự chép secret IAM.
@@ -891,13 +901,15 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - Lịch sử 24/10/2026: thêm KB-02. Cập nhật KB-01: trạng thái tài liệu nay gồm CHUNKED/EMBEDDED/EMBEDDING_FAILED; chatbot dùng Knowledge Base khi bật RagEnabled. Chưa gọi Gemini thật, chưa apply DB, chưa deploy.
 
 
+- ⚠️ Từ 29/10/2026 phần SMS (đối soát, xác nhận chi phí) đã gỡ theo SMS-REMOVE-01; phần replay IN_APP/EMAIL và audit vẫn áp dụng.
+
 ### WORKFLOW-FE-1026 — Danh sách đã nộp, tên người nộp, thống kê phân công, lịch sử thao tác (29/10/2026)
 
 - Danh sách tổng hợp cán bộ/Manager (ListAll) luôn kèm điều kiện `status <> 'DRAFT' AND submitted_at IS NOT NULL`, trước mọi bộ lọc FE. Thay mô tả cũ "trả toàn bộ hồ sơ phường": bản nháp và nháp tự hủy chưa từng nộp không hiện cho cán bộ/Manager; `status=DRAFT` trả rỗng, không lỗi. Pending không đổi.
 - `applications.applicant_name` varchar(255) nullable: snapshot `fullName` của IAM access-context lúc nộp/nộp lại (lấy qua middleware, không từ body). Trim, cắt 255; rỗng thì giữ giá trị cũ. Không chứa CCCD/số điện thoại. Hồ sơ cũ NULL; không backfill vì Workflow không đọc DB IAM. Tên có thể khác hồ sơ IAM hiện tại nếu công dân đổi tên sau khi nộp.
 - Assignment-summary: chỉ MANAGER + `workflow.assign.manage`, phường từ access-context, loại hồ sơ của chính Manager. Quá hạn dùng chung hàm `Overdue` với bộ lọc `overdue=true` (quy tắc WORKFLOW-ASSIGN-01). activeCount gồm SUBMITTED/UNDER_REVIEW/NEED_REVISION/DOCUMENTS_READY có người phụ trách — rộng hơn đề xuất FE một trạng thái (SUBMITTED sau nộp lại vẫn giữ cán bộ). Số liệu đọc tại thời điểm gọi, không khóa; các COUNT chạy riêng nên có thể lệch nhỏ khi đang có thao tác đồng thời.
 - Officer activity: policy `workflow.queue.read`; mặc định officerId = người gọi; officerId khác chỉ cho MANAGER (403 workflow.forbidden). Chỉ hồ sơ của phường hiện tại của người gọi và không phải hồ sơ cán bộ đó tự nộp — cán bộ đổi phường sẽ không thấy lịch sử ở phường cũ. Gộp application_status_history (ChangedBy) và application_assignment_history (ActorId); page ≥ 1, pageSize 1–100, page × pageSize ≤ 5000, from ≤ to, action trong danh sách cho phép; sai → 400 workflow.validation. Gộp trong bộ nhớ tối đa page × pageSize dòng mỗi nguồn; total = tổng COUNT hai nguồn. Index mới (changed_by, created_at) và (actor_id, created_at).
-- Không cache access-context; mỗi request vẫn hỏi IAM (giữ quy tắc fail closed). Lỗi IAM → 503 application.iam_unavailable.
+- Access-context: từ 30/10/2026 câu trả lời 200 của IAM được cache ngắn theo ACCESS-CACHE-01 (thay câu "không cache"). Lỗi IAM khi chưa có cache → 503 application.iam_unavailable.
 - Nguồn: Workflow Domain/ApplicationRecord.cs (ApplicantName, SnapshotApplicantName); Application/WorkflowContracts.cs, ReviewContracts.cs, WorkflowRequests.cs, ReviewHandlers.cs; Infrastructure/ApplicationReviewStore.cs, ApplicationStore.cs, WorkflowDbContext.cs, Migrations/20261029005650_ApplicantNameAndActivity.cs; API/Controllers/ApplicationsController.cs, ApplicationReviewController.cs, ManagerAssignmentController.cs, OfficerActivityController.cs; Gateway appsettings.json, appsettings.Production.json; docs/sql/workflow-applicant-name-activity.sql.
 - Lịch sử 29/10/2026: thêm quy tắc theo yêu cầu FE 26/10 (mục 2–5). Chưa apply DB, chưa deploy, không Git.
 
@@ -927,6 +939,16 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - Gateway ghi đè cluster ai-ocr → `http://ai-ocr:8080/`; depends_on ai-ocr `required: false` (cần Docker Compose ≥ 2.20). Không chạy profile ai thì gateway vẫn khởi động, chỉ route AI lỗi.
 - Chỉ áp dụng Docker local, không thay cấu hình Azure. Nguồn: docker/docker-compose.yml, docker/.env.example. Lịch sử 29/10/2026: thay ghi chú cũ "không tự tạo PostgreSQL AIOCR trong Compose".
 
+
+### SMS-REMOVE-01 — Gỡ bỏ SMS (29/10/2026)
+
+- Thay các quy tắc IAM-SMS-01, phần SMS của IAM-SEC-02 (xác minh số, quota 5 SMS/24 giờ), NOTIFY-SMS-01 và phần SMS của NOTIFY-ADMIN-01 (đối soát, xác nhận chi phí). Các quy tắc đó không còn hiệu lực.
+- OTP quên/đổi mật khẩu chỉ qua Email: validator chỉ nhận `channel = EMAIL` (400 nếu khác); Email tắt → 503 `iam.email_unavailable`. Hạn mức còn lại: cooldown 60 giây, tối đa `PasswordOtp:MaxRequestsPer24Hours` (mặc định 10) OTP/24 giờ/tài khoản.
+- Không còn xác minh quyền sở hữu số điện thoại. Sửa số trong hồ sơ vẫn xóa `VerifiedPhoneNumber` cũ (dữ liệu lịch sử).
+- Thông báo chỉ IN_APP và EMAIL. Delivery SMS Pending cũ → Suppressed `sms.removed`; gửi lại delivery SMS → 409 `notifications.channel_removed`.
+- Giữ ràng buộc DB `ck_user_otps_channel` và `ck_notifications_channel` có `SMS` để không phải sửa dữ liệu cũ; code mới không ghi `SMS`.
+- Nguồn: IAM Application/Commands/PasswordOtpCommands.cs, Accounts/NotificationRecipients.cs; Infrastructure/Security/PasswordOtpService.cs, OtpLimits.cs, Persistence/IdentityStore.cs, Persistence/NotificationRecipients.cs, DependencyInjection.cs; API/Controllers/UsersController.cs, appsettings.json. Analytics Application/DeliveryAdministration.cs; Infrastructure/ExternalNotificationSender.cs, NotificationDeliveryWorker.cs, NotificationInboxWorker.cs, DeliveryAdministration.cs, NotificationPipelineModels.cs, DependencyInjection.cs; API/Controllers/NotificationDeliveryAdminController.cs, appsettings*.json. Đã xóa: IAM IIamSmsSender.cs, IamSmsSender.cs, IPhoneVerificationService.cs, PhoneVerificationService.cs; Analytics EsmsNotificationSender.cs.
+- Lịch sử 29/10/2026: chủ dự án quyết định bỏ SMS vì cần giấy phép kinh doanh và chỉ dùng dịch vụ miễn phí. Chưa deploy, không Git.
 
 ### STAFFING-01 — Điều phối hồ sơ, Lịch làm/Nghỉ phép và Tham vấn chuyên môn (29/10/2026)
 
@@ -960,6 +982,45 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
   - IAM Migration: `20261029120000_ManagerStaffingPermissions.cs`.
   - Gateway: `appsettings.json` (routes `workflow-manager-applications-v1`, `workflow-manager-applications-root-v1`, `workflow-staffing-v1`, `workflow-staffing-root-v1`).
 - **Lịch sử 29/10/2026:** Thêm quy tắc STAFFING-01 hợp nhất staffing vào ApplicationWorkflow và remote.
+
+### ACCESS-CACHE-01 — Cache ngắn hạn access-context của IAM (30/10/2026)
+
+- Quyết định của chủ dự án ngày 30/10/2026: thay quy tắc "không cache access-context" (IAM-SEC-02, WORKFLOW-FE-1026). Mục tiêu giảm số lần gọi IAM và độ trễ mỗi request.
+- Phạm vi: mọi lời gọi `GET .../api/v1/users/access-context` từ 5 service (AccountSessionMiddleware ở Workflow, DocumentForm, ProcedureCatalog, Analytics, AIOCR; WorkflowAccessMiddleware; AnalyticsAccess và SignalR hub/guard của Analytics; KnowledgeAccess của AIOCR). IAM không dùng cache này.
+- Chỉ cache phản hồi **200** của IAM. 401/403/5xx, timeout và lỗi mạng không được cache: request sau lại hỏi IAM, giữ fail closed khi chưa có cache.
+- Khóa cache = SHA-256 của URL + header Authorization; không lưu token thô. Mỗi token có mục riêng, không dùng chung giữa người dùng. Body > 64 KiB không cache. Tối đa 10.000 mục mỗi tiến trình; cache trong bộ nhớ từng replica, không phân tán, không cần Redis.
+- Thời gian: `Iam:AccessContextCacheSeconds` (biến môi trường `Iam__AccessContextCacheSeconds`), mặc định 30, giới hạn 0–60; 0 tắt cache.
+- **Hệ quả bảo mật đã chấp nhận:** sau khi đổi mật khẩu, thu hồi phiên, khóa tài khoản, đổi vai trò/quyền/phường/lĩnh vực phụ trách, token cũ vẫn được chấp nhận ở các service khác tối đa bằng thời gian cache (mặc định 30 giây). Với SignalR, thêm chu kỳ kiểm tra 15 giây. Tên người nộp (applicant_name) lấy từ access-context cũng có thể trễ tối đa bằng thời gian cache. IAM vẫn kiểm tra ngay với các API của chính IAM. Khi IAM down, request có mục cache còn hạn vẫn đi qua; hết hạn thì 503 như cũ.
+- Nguồn: SharedKernel/Web/AccessContextCacheHandler.cs, AccountSessionMiddleware.cs; Program.cs của ApplicationWorkflow.API, AnalyticsSystem.API, AIOCR.API (`AddAccessContextCache`). Lịch sử 30/10/2026: thêm quy tắc; kiểm tra handler bằng chương trình tạm (7/7 + factory), chưa chạy HTTP end-to-end, chưa deploy.
+
+### AI-USAGE-01 — Hạn mức và nhật ký lượt gọi Gemini (30/10/2026)
+
+- Bảng `ai_request_logs` (DB AIOCR): mỗi lần gọi Gemini một dòng gồm `user_id` (null với worker), `operation`, `model`, `outcome` ∈ SUCCESS/FAILED/REJECTED (check `ck_ai_request_logs_outcome`), `error_code`, token (prompt; output = candidates + thoughts; total), `duration_ms` ≥ 0, `item_count` ≥ 1 (check `ck_ai_request_logs_counts`). Không lưu nội dung câu hỏi, câu trả lời, file hay CCCD. Log ghi bằng DbContext riêng nên lượt chat lỗi bị rollback vẫn còn log. Lỗi ghi log chỉ ghi warning, không làm hỏng lượt gọi AI.
+- Hạn mức theo ngày UTC+07: mỗi người `Assistant:DailyRequestsPerUser` (mặc định 30, 0–10000, 0 = không giới hạn), toàn hệ thống `Assistant:DailyRequestsTotal` (mặc định 500, 0–1.000.000). Chỉ tính CHAT, CHAT_RAG, CCCD_EXTRACT, DOCUMENT_VERIFY có outcome khác REJECTED; embedding chỉ ghi log. Vượt → 429 `ai.quota_exceeded` / `ai.daily_limit_reached`, Gemini không được gọi, ghi một dòng REJECTED.
+- Giới hạn đã biết: đếm không khóa, nhiều request đồng thời sát ngưỡng có thể vượt vài lượt. Không có DB AIOCR thì CCCD/tiền kiểm chạy không giới hạn ngày (chỉ còn giới hạn tốc độ 10/phút). Chưa có job xóa log cũ. Hạn mức này không thay thế hạn mức thật của Google; vượt hạn mức Google vẫn trả 503 `ai.provider_unavailable`.
+- `Gemini:MaxOutputTokens` mặc định 4096, giới hạn 256–8192. `finishReason = MAX_TOKENS` → 502 `ai.output_truncated`.
+- Báo cáo: GET `/api/v1/ai/knowledge/usage`, quyền như KnowledgeAccess (PROCEDURE_MANAGER/IT_ADMIN + `knowledge.manage`), tối đa 93 ngày.
+- Nguồn: AIOCR Domain/AiRequestLog.cs; Application/AiUsageContracts.cs; Infrastructure/AiUsageService.cs, GeminiAssistant.cs, Knowledge/GeminiEmbeddingProvider.cs, ChatDbContext.cs, Migrations/20261030083635_AiRequestLogs.cs; API/AssistantRegistration.cs, Controllers/KnowledgeController.cs, appsettings.json; docs/sql/aiocr-ai-request-logs.sql.
+- Lịch sử 30/10/2026: thêm quy tắc; thay hằng số maxOutputTokens 4096 trong code bằng cấu hình. Kiểm tra local bằng harness HTTP (Postgres thật, IAM/Gemini giả) 58/58; chưa gọi Gemini thật, chưa deploy.
+
+### HEALTH-01 — Liveness và readiness (30/10/2026)
+
+- `/health` không kiểm tra phụ thuộc (liveness). `/health/ready` chạy các check gắn tag `ready`, timeout 5 giây mỗi check, trả 503 khi Unhealthy, Degraded vẫn 200. Không xác thực; mô tả không chứa thông tin kết nối.
+- DB: `Database.CanConnectAsync` trong scope riêng (IAM, ProcedureCatalog, Workflow, DocumentForm, Analytics hai DbContext, AIOCR khi có connection string).
+- RabbitMQ (Workflow, Analytics): `RabbitStatus` giữ kết nối hiện tại của worker; health đọc `IsOpen`, không mở kết nối mới (CloudAMQP Free giới hạn số kết nối). Worker outbox và consumer kiểm tra `IsOpen` mỗi vòng và kết nối lại khi broker rớt, kể cả lúc rảnh (trước đây outbox rảnh chỉ phát hiện khi publish).
+- Nguồn: SharedKernel/Web/DependencyHealth.cs; EventBus/RabbitStatus.cs; Workflow Infrastructure/WorkflowOutbox.cs, ProcedureCatalogClient.cs; Analytics Infrastructure/WorkflowNotificationConsumer.cs, DependencyInjection.cs; Program.cs của 6 service.
+- Lịch sử 30/10/2026: thay mô tả "/health chỉ là health cơ bản" (TASK-35). Đã chạy thử Workflow local: disabled, connected, broker tắt → 503 disconnected, broker bật lại → connected. Analytics chưa chạy thử runtime. Chưa có lịch sử sức khỏe, cảnh báo tự động, backup/restore drill.
+
+### AI-GUEST-01 — Chatbot không cần đăng nhập (30/10/2026)
+
+- Chủ dự án quyết định chatbot công khai để người dân hỏi mà không cần tài khoản. Chỉ `POST /api/v1/ai/chat/completions` có `[AllowAnonymous]`; CCCD, tiền kiểm, `GET /api/v1/ai/chat/sessions[/{id}/messages]` và Knowledge Base vẫn bắt buộc đăng nhập. Thay câu "Bearer bắt buộc" của AI-P2-01 cho riêng API chat.
+- Phiên của khách lưu `chat_sessions.user_id = 00000000-0000-0000-0000-000000000000` (`ChatOwners.Guest`), không cần migration. JWT hợp lệ không thể mang sub rỗng (OnTokenValidated chặn), nên tài khoản không đọc hoặc tiếp tục được phiên khách và khách không dùng được phiên của tài khoản (404 `chat.not_found`). Phiên khách chỉ tiếp tục được bằng `conversationId` (GUID ngẫu nhiên), ai biết ID này đều hỏi tiếp được trong phiên đó; không có API đọc lịch sử phiên khách.
+- Token sai hoặc hết hạn trên API chat bị coi là khách (không 401).
+- Hạn mức khách: `Assistant:GuestRequestsPerMinute` (mặc định 5, 1–60) theo IP; `Assistant:DailyGuestRequestsPerIp` (mặc định 10, 0–10000, 0 = tắt) theo IP, đếm trong bộ nhớ, không lưu IP vào DB; `Assistant:DailyGuestRequestsTotal` (mặc định 200, 0–1.000.000, 0 = tắt) đếm trong `ai_request_logs` các lượt có `user_id` null. Vượt → 429 không code / `ai.guest_quota_exceeded` / `ai.guest_limit_reached`, Gemini không được gọi. Vẫn chịu `Assistant:DailyRequestsTotal`.
+- IP khách = mục đầu tiên của `X-Forwarded-For`, nếu không có thì địa chỉ kết nối. Gateway dùng `UseForwardedHeaders` (chỉ X-Forwarded-For, tin một hop ingress) nên YARP ghi đè header bằng IP thật và bỏ giá trị client tự gửi.
+- Giới hạn đã biết: gọi thẳng AIOCR không qua gateway thì giả được IP (ingress AIOCR nên để internal); bộ đếm theo IP mất khi replica khởi động lại và tính riêng cho từng replica; nhiều người dùng chung một IP (NAT, wifi công cộng) chung hạn mức IP. Khi RAG bật, embedding câu hỏi chạy trước bước kiểm tra hạn mức nên lượt bị từ chối vẫn có thể tốn một embedding. Tin nhắn của khách lưu trong DB AIOCR như chat thường, chưa có job tự xóa.
+- Nguồn: AIOCR API/Controllers/AssistantController.cs, AssistantRegistration.cs, appsettings.json; Application/AssistantContracts.cs (`ChatOwners`), AiUsageContracts.cs; Infrastructure/AiUsageService.cs, ClientAddress.cs; Gateways/WardMate.YarpGateway/Program.cs.
+- Lịch sử 30/10/2026: thêm quy tắc. Kiểm tra local: harness HTTP AIOCR (Postgres thật, IAM/Gemini giả) 23/23; gateway thật + server echo: không header → 127.0.0.1, một hop → IP đó, header giả "6.6.6.6, IP" → chỉ còn IP. Chưa deploy.
 
 
 ## WF-STAFFING-DI-01 — Đăng ký runtime cho staffing (2026-11-01)

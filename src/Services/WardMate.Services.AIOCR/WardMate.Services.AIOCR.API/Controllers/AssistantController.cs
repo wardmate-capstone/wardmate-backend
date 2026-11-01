@@ -31,12 +31,15 @@ public sealed class AssistantController(ICccdExtractionService cccd, IDocumentPr
         var result = await validator.Verify(stream, document.ExpectedType, ct);
         return Ok(result with { ChecklistId = document.ChecklistId, ExpectedType = document.ExpectedType });
     }
-    [HttpPost("/api/v1/ai/chat/completions"), RequestSizeLimit(32768)]
+    // Public: citizens may ask without signing in. Guest turns are kept under ChatOwners.Guest and can only be continued
+    // with the returned conversationId; history endpoints stay signed-in only.
+    [HttpPost("/api/v1/ai/chat/completions"), AllowAnonymous, RequestSizeLimit(32768)]
     public async Task<ActionResult<ChatResult>> Complete(ChatRequest input, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(input.Message) || string.IsNullOrWhiteSpace(input.WardCode) || input.ConversationId == Guid.Empty)
             throw new AiFailure(400, "chat.invalid_input", "Cần message, wardCode và conversationId hợp lệ hoặc null.");
-        return Ok(await chat.Complete(UserId, new(input.Message, input.ConversationId, input.WardCode), ct));
+        var owner = User.Identity?.IsAuthenticated == true ? UserId : ChatOwners.Guest;
+        return Ok(await chat.Complete(owner, new(input.Message, input.ConversationId, input.WardCode), ct));
     }
     [HttpGet("/api/v1/ai/chat/sessions")]
     public async Task<ActionResult<Page<SessionDto>>> Sessions([FromQuery, Range(1, 100000)] int pageNumber = 1,

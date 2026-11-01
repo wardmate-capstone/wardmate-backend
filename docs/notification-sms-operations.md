@@ -1,5 +1,7 @@
 # TASK-26 — Vận hành SMS thông báo hồ sơ
 
+> ⚠️ **Lịch sử — SMS đã bị gỡ khỏi hệ thống ngày 29/10/2026 (SMS-REMOVE-01).** Không dùng runbook này.
+
 Cập nhật 23/10/2026. Đây là runbook vận hành; hợp đồng API vẫn ở `api-guide.md`.
 
 ## Cấu hình và triển khai

@@ -123,9 +123,7 @@ Không có cross-service FK, không coi job chạy là xác nhận dữ liệu �
    AnalyticsSystem hiện có; không khởi chạy lại service khác ngoài nhu cầu tích hợp.
 4. Process Hangfire phải chạy liên tục để thực hiện cron; môi trường scale-to-zero không bảo đảm lịch.
    Xem [tài liệu Hangfire](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html).
-5. Local: build Release toàn solution, chạy `python scripts/verify-analytics-local.py` với Docker khả dụng.
-   Script mới của TASK-31–33 dùng DB/container/cổng tạm, dữ liệu giả và IAM mô phỏng; không khôi phục
-   các test project cũ. Workflow, Analytics, PostgreSQL, Hangfire và Gateway đều chạy thật.
+5. Local: build Release toàn solution. Script smoke test `scripts/verify-analytics-local.py` đã gỡ ngày 29/10/2026 (CLEANUP-01) vì chỉ phục vụ test, không phục vụ vận hành.
    Kiểm tra thêm trên IAM thật trước bàn giao production; test mô phỏng không thay thế bước này.
 
 FE kiểm tra theo thứ tự: IT_ADMIN chạy rebuild → đợi job Succeeded → Manager mở overview/trends/bảng
@@ -3574,7 +3572,7 @@ Thành công201 trả DTO chứa `submissionId`, trạng thái và thông tin fi
 
 ## Chặng 3 P2 — AI/OCR cho công dân (21/10/2026)
 
-Các API dưới đây nằm trong AIOCR, yêu cầu Bearer JWT IAM hợp lệ, không yêu cầu role quản trị riêng. Gateway có route giữ nguyên /api/v1/ai-ocr/... và /api/v1/ai/chat/... . Quyền đọc giấy tờ vẫn do DocumentForm/Workflow kiểm tra; đăng nhập không có nghĩa được đọc giấy tờ người khác.
+Các API dưới đây nằm trong AIOCR, yêu cầu Bearer JWT IAM hợp lệ, không yêu cầu role quản trị riêng. **Từ 30/10/2026, riêng `POST /api/v1/ai/chat/completions` không cần đăng nhập (xem mục AI-GUEST-01).** Gateway có route giữ nguyên /api/v1/ai-ocr/... và /api/v1/ai/chat/... . Quyền đọc giấy tờ vẫn do DocumentForm/Workflow kiểm tra; đăng nhập không có nghĩa được đọc giấy tờ người khác.
 
 ### POST /api/v1/ai-ocr/cccd/extract
 
@@ -3808,6 +3806,8 @@ Xác nhận đủ ba migration mới trong public."__EFMigrationsHistory" và ha
 
 ### IAM — OTP qua eSMS (22/10/2026)
 
+> ⚠️ **Đã gỡ ngày 29/10/2026 (SMS-REMOVE-01).** Mục này chỉ còn giá trị lịch sử; xem mục SMS-REMOVE-01 ở cuối tài liệu.
+
 Dùng POST /api/v1/auth/password-otp/request với body {"emailOrUsername":"ten-dang-nhap","channel":"SMS","purpose":"FORGOT_PASSWORD"}. API dùng số di động đã lưu trong UserProfile, không nhận số tùy ý từ client. CHANGE_PASSWORD cần Bearer của chính tài khoản. Browser tiếp tục cần Origin được phép và X-CSRF-Protection: 1; giới hạn 10 request/IP/phút hiện hữu không đổi.
 
 202 trả message chứa số đã che khi eSMS chấp nhận yêu cầu gửi thật. CodeResult=100 là nhà cung cấp chấp nhận, không phải xác nhận điện thoại đã nhận. Sandbox=1 trả message thử nghiệm không gửi SMS. Tài khoản không khả dụng hoặc đang cooldown vẫn trả 202 chung. Thiếu số:400 iam.phone_not_configured; sai định dạng:400 iam.phone_invalid; tắt/thiếu cấu hình:400 iam.sms_unavailable; eSMS lỗi/timeout:503 iam.sms_delivery_failed. Cập nhật số hoặc chọn EMAIL; đợi tối thiểu60s khi gửi lại. Không tự retry SMS để tránh gửi trùng/tính phí trùng.
@@ -3820,6 +3820,8 @@ Tài liệu nhà cung cấp: https://developers.esms.vn/esms-api/ham-gui-tin/tin
 
 
 ### Bảo mật tài khoản — xác minh số, hạn mức OTP, thu hồi phiên (23/10/2026)
+
+> ⚠️ **Đã gỡ ngày 29/10/2026 (SMS-REMOVE-01).** Mục này chỉ còn giá trị lịch sử; xem mục SMS-REMOVE-01 ở cuối tài liệu.
 
 **Xác minh số điện thoại (chính chủ, Bearer bắt buộc):**
 - GET /api/v1/users/me/phone-verification trả200 {verified,maskedPhoneNumber}. Chỉ dùng cho tài khoản đang đăng nhập; số cũ chưa tự được công nhận là đã xác minh.
@@ -3927,6 +3929,8 @@ Tạo người quản lý danh mục thủ tục. Body cùng các trường như
 - Không cần migration/cấu hình mới. Cần deploy IAM mới để Swagger/routes xuất hiện; build local không chứng minh đã deploy.
 ## TASK-26 — SMS thông báo hồ sơ qua eSMS (23/10/2026)
 
+> ⚠️ **Đã gỡ ngày 29/10/2026 (SMS-REMOVE-01).** Mục này chỉ còn giá trị lịch sử; xem mục SMS-REMOVE-01 ở cuối tài liệu.
+
 Đã thay stub SMS Analytics bằng adapter eSMS; phần SMS OTP IAM không thay đổi. Workflow phát sự kiện qua TASK-27, inbox tạo delivery SMS khi `Sms:Enabled=true`, worker lấy liên hệ hiện tại từ IAM và gửi nền. FE không gọi API gửi SMS trực tiếp; routes, body, response HTTP, DTO và token của API hồ sơ/thông báo giữ nguyên. Việc gửi thất bại không đổi kết quả tạo/nộp hồ sơ. Không dùng trạng thái hồ sơ hoặc HTTP 200 để kết luận SMS đã đến điện thoại.
 
 Hướng dẫn cấu hình, migration, truy vấn đối soát và phục hồi: [SMS operations](notification-sms-operations.md). Mẫu cấu hình mặc định tắt, Sandbox=1, secret và template để trống. Mẫu CSKH cần được nhà mạng duyệt; không tái sử dụng mẫu OTP. Missing template/phone/config trả trạng thái delivery Blocked, không phải ProblemDetails của API hồ sơ. Timeout/kết quả không rõ là Unknown; crash có thể giữ Dispatching; operator phải đối soát trước khi gửi lại. Không áp dụng hướng dẫn replay tổng quát cho Unknown/Dispatching.
@@ -4025,6 +4029,8 @@ Cấu hình mới **trên IAM**: `ProcedureCatalog__BaseUrl` trỏ đúng Catalo
 
 ## Quản trị thông báo lỗi và đối soát SMS — 24/10/2026
 
+> ⚠️ Từ 29/10/2026 (SMS-REMOVE-01) phần SMS (đối soát, `acknowledgeSmsCost`, trạng thái Dispatching/Unknown của SMS) đã gỡ; các phần IN_APP/EMAIL vẫn đúng.
+
 Dành cho **IT_ADMIN** để xem các lượt gửi thông báo (delivery) bị lỗi, đối soát SMS chưa rõ kết quả với eSMS và gửi lại có kiểm soát. Không dành cho FE công dân, cán bộ hay Manager. Mọi API cần Bearer, role IT_ADMIN (IAM xác minh lại mỗi request) và quyền:
 
 - `notifications.deliveries.read`: xem danh sách, chi tiết, lịch sử thao tác.
@@ -4070,6 +4076,8 @@ Chi tiết trả 200 cùng DTO trên, 404 `notifications.delivery_not_found`. `/
 202 kèm DTO mới (revision mới). API không gửi ngay; xem kết quả bằng GET chi tiết sau đó. Lỗi: 400 `notifications.validation`, `notifications.sms_cost_ack_required`; 404; 409 `notifications.revision_conflict` (người khác vừa thao tác, tải lại), `notifications.delivery_busy` (worker đang xử lý, thử lại sau), `notifications.invalid_state`, `notifications.reconciliation_required`, `notifications.channel_disabled`.
 
 ### POST `/api/v1/admin/notification-deliveries/{id}/sms-reconciliation`
+
+> ⚠️ **Đã gỡ ngày 29/10/2026 (SMS-REMOVE-01).** Mục này chỉ còn giá trị lịch sử; xem mục SMS-REMOVE-01 ở cuối tài liệu.
 
 ```json
 { "expectedRevision": "GUID", "outcome": "ACCEPTED", "reference": "eSMS portal 24/10 09:30", "reason": "Đã đối chiếu SMSID trên eSMS", "providerMessageId": "abc123" }
@@ -4318,7 +4326,7 @@ GET `/api/v1/officer/applications` nay chỉ trả hồ sơ **đã từng nộp*
 
 ### Chưa làm trong lượt này
 
-Mục 1 (bật RabbitMQ/worker trên Azure), mục 6 (minReplicas, cache access-context, cache quyền DocumentForm, Application Insights) và mục 7 (xác nhận image/migration đang chạy trên Azure) cần Antigravity/hạ tầng. Cache access-context trái quy tắc hiện tại "không cache, fail closed" nên chờ chủ dự án quyết.
+Mục 1 (bật RabbitMQ/worker trên Azure), mục 6 (minReplicas, cache access-context, cache quyền DocumentForm, Application Insights) và mục 7 (xác nhận image/migration đang chạy trên Azure) cần Antigravity/hạ tầng. Cache access-context: đã làm ngày 30/10/2026, xem mục ACCESS-CACHE-01 ở cuối tài liệu.
 
 
 ## Rút nhận xét OPEN của cán bộ trước — 29/10/2026 (WORKFLOW-COMMENT-01)
@@ -4372,6 +4380,35 @@ FE nên xử lý:
 - `409 chat.busy`: giữ nút gửi ở trạng thái chờ, gửi lại khi lượt trước trả về; không coi là lỗi AI.
 - `503 chat.database_unavailable`: báo hệ thống bận, thử lại sau; không hiện "AI trả lời sai".
 
+
+## Gỡ bỏ SMS khỏi hệ thống — 29/10/2026 (SMS-REMOVE-01)
+
+**Lý do:** gửi SMS thật (eSMS, brandname) cần giấy phép kinh doanh; hệ thống chỉ dùng dịch vụ miễn phí. Mọi mục SMS ở trên (IAM OTP qua eSMS 22/10, xác minh số điện thoại 23/10, SMS thông báo hồ sơ 23/10, đối soát SMS 24/10) **không còn hiệu lực**.
+
+### API đã gỡ (gọi sẽ nhận 404)
+
+| API | Trước đây |
+|---|---|
+| GET `/api/v1/users/me/phone-verification` | Trạng thái xác minh số điện thoại |
+| POST `/api/v1/users/me/phone-verification/request` | Gửi OTP SMS xác minh số |
+| POST `/api/v1/users/me/phone-verification/confirm` | Xác nhận OTP SMS |
+| POST `/api/v1/admin/notification-deliveries/{id}/sms-reconciliation` | Đối soát SMS với eSMS |
+
+FE cần bỏ màn/nút xác minh số điện thoại và nút đối soát SMS nếu có.
+
+### API thay đổi
+
+- POST `/api/v1/auth/password-otp/request`: OTP **chỉ gửi qua Email**. `channel` có thể bỏ (mặc định `EMAIL`); gửi `"SMS"` → 400 lỗi validation "OTP chỉ gửi qua Email.". Message 202 chung đổi thành "...mã OTP sẽ được gửi qua Email...". Các phần khác (cooldown 60 giây, tối đa 10 OTP/24 giờ, 5 phút hết hạn, tối đa 5 lần thử) giữ nguyên. Bỏ hạn mức riêng 5 SMS/24 giờ.
+- POST `/api/v1/admin/notification-deliveries/{id}/replay`: bỏ trường `acknowledgeSmsCost` (gửi kèm cũng bị bỏ qua). Delivery kênh SMS cũ không gửi lại được: 409 `notifications.channel_removed`.
+- GET `/api/v1/admin/notification-deliveries`: vẫn lọc được `channel=SMS` để xem các dòng cũ.
+- Thông báo hồ sơ chỉ còn kênh **IN_APP** (SignalR) và **EMAIL** (khi `Email:Enabled=true`). Inbox không tạo delivery SMS nữa; delivery SMS còn `Pending` từ trước được đóng thành `Suppressed` với `errorCode: "sms.removed"`, không gửi.
+
+### Dữ liệu và cấu hình
+
+- **Không xóa bảng/cột** trong DB: `users.verified_phone_number`, cột `external_message_id`, `provider`, `is_sandbox` của `notification_deliveries`, ràng buộc channel cho phép `SMS` vẫn giữ để đọc được dữ liệu cũ. Không cần migration.
+- Số điện thoại vẫn là thông tin hồ sơ cá nhân bình thường (không xác minh). IAM không còn gửi số điện thoại sang Analytics trong API danh sách người nhận thông báo nội bộ.
+- Bỏ khỏi cấu hình: mục `Sms` trong appsettings IAM và Analytics, `PasswordOtp:MaxSmsPer24Hours`, biến `Sms__*` và `NOTIFICATION_SMS_*` trong docker-compose và `.env.example`. Biến môi trường SMS còn đặt trên Azure không gây lỗi nhưng nên xóa.
+- Tài liệu vận hành SMS [notification-sms-operations.md](notification-sms-operations.md) chỉ còn giá trị lịch sử.
 
 ## 18 API Điều phối hồ sơ, Lịch làm/Nghỉ phép và Tham vấn chuyên môn — 29/10/2026 (STAFFING-WORKFLOW-01)
 
@@ -4500,6 +4537,91 @@ Quyền đọc: `workflow.consultation.read`. Quyền tạo/đóng: Manager có 
 - **Ai dùng:** Chuyên viên có `workflow.consultation.respond` để hệ thống `DocumentForm` xác thực quyền đọc hồ sơ/tài liệu đính kèm khi tham vấn.
 - **Kiểm tra nghiệp vụ:** Tồn tại tham vấn chưa đóng (`status != 'CLOSED'`), đúng chuyên viên, đúng version phân công và phiên bản hồ sơ.
 - **Kết quả 200:** `{ allowed: true, applicationId, version }`.
+
+## Cache quyền truy cập (access-context) — 30/10/2026 (ACCESS-CACHE-01)
+
+**Không đổi API, request hay response.** Chỉ đổi cách các service hỏi IAM phía sau.
+
+- Trước đây mỗi request có token tới Workflow, DocumentForm, ProcedureCatalog, Analytics, AIOCR đều gọi IAM `GET /api/v1/users/access-context`; riêng Workflow gọi 2 lần mỗi request. Nay kết quả thành công được nhớ 30 giây (mặc định) theo từng token, nên trong 30 giây đó request sau không hỏi lại IAM.
+- **FE cần biết:** sau khi người dùng đổi mật khẩu, bị khóa, bị thu hồi phiên hoặc admin đổi vai trò/quyền/phường, các service ngoài IAM có thể vẫn nhận token cũ hoặc quyền cũ tối đa khoảng 30 giây (SignalR có thể tới ~45 giây). Sau đó trả 401 `auth.session_revoked` như trước. Khi test đổi quyền, chờ ~30 giây hoặc đăng nhập lại để lấy token mới (token mới có mục cache mới).
+- Mã lỗi không đổi: 401 `auth.session_revoked`, 503 `auth.session_unavailable` / `application.iam_unavailable` / `knowledge.iam_unavailable`. Lỗi không được cache.
+- Cấu hình: `Iam__AccessContextCacheSeconds` (0–60, mặc định 30; đặt 0 để tắt và quay về hỏi IAM mỗi request). Không cần Redis hay dịch vụ trả phí.
+
+## Giới hạn và nhật ký lượt gọi AI — 30/10/2026 (AI-USAGE-01)
+
+**Mục đích:** giữ Gemini trong hạn mức miễn phí và biết AI đã được dùng bao nhiêu. Mỗi lần AIOCR gọi Gemini (chat, chat có nguồn, đọc CCCD, tiền kiểm giấy tờ, embedding) được ghi một dòng vào bảng `ai_request_logs`: ai gọi, loại thao tác, model, thành công hay lỗi, số token, thời gian. **Không lưu câu hỏi, câu trả lời, file hay số CCCD.**
+
+### Hạn mức mỗi ngày (theo ngày giờ Việt Nam)
+
+- Mỗi người: tối đa `Assistant:DailyRequestsPerUser` lượt (mặc định **30**), tính chung chat, đọc CCCD và tiền kiểm giấy tờ.
+- Toàn hệ thống: tối đa `Assistant:DailyRequestsTotal` lượt (mặc định **500**).
+- Đặt 0 để bỏ giới hạn tương ứng. Embedding không bị tính vào hạn mức (chỉ ghi log).
+- Câu hỏi RAG không có nguồn phù hợp (trả câu cố định, không gọi Gemini) không tốn lượt.
+- Vượt hạn mức → **429**, ProblemDetails `code`:
+  - `ai.quota_exceeded`: người dùng đã hết lượt hôm nay. FE hiện thông báo và cho thử lại ngày mai.
+  - `ai.daily_limit_reached`: cả hệ thống hết lượt hôm nay.
+  - Khác với 429 của giới hạn tốc độ (10 request/phút/người, không có `code`): chờ 1 phút rồi thử lại.
+- Độ dài câu trả lời: `Gemini:MaxOutputTokens` (mặc định 4096, giới hạn 256–8192). Câu trả lời bị cắt → **502** `ai.output_truncated` (trước đây là `ai.invalid_response`); FE gợi ý người dùng hỏi ngắn hơn.
+
+### GET `/api/v1/ai/knowledge/usage?from=YYYY-MM-DD&to=YYYY-MM-DD`
+
+- **Ai dùng:** PROCEDURE_MANAGER hoặc IT_ADMIN có quyền `knowledge.manage` (giống các API Knowledge Base).
+- **Khi nào:** xem AI đã dùng bao nhiêu, còn bao nhiêu lượt hôm nay, có lỗi nhiều không.
+- `from`/`to` là ngày giờ Việt Nam, mặc định 7 ngày gần nhất, tối đa 93 ngày.
+- **200:** `{ from, to, dailyRequestsPerUser, dailyRequestsTotal, maxOutputTokens, usedToday, days: [{ date, operation, success, failed, rejected, promptTokens, outputTokens, totalTokens }] }`. `operation`: CHAT, CHAT_RAG, CCCD_EXTRACT, DOCUMENT_VERIFY, EMBED_QUERY, EMBED_DOCUMENTS. `usedToday` là số lượt đã tính vào hạn mức toàn hệ thống hôm nay.
+- **Lỗi:** 400 `ai.invalid_range` (to < from hoặc quá 93 ngày); 401; 403 `knowledge.forbidden`; 503 `chat.not_configured` (chưa có DB AIOCR).
+- **Gateway:** dùng route `/api/v1/ai/knowledge/**` có sẵn, không cần route mới.
+
+**Triển khai:** chạy `docs/sql/aiocr-ai-request-logs.sql` trên DB AIOCR (`wardmate-db`) trước khi deploy AIOCR, hoặc để `Database__AutoMigrate=true`. Biến môi trường tùy chọn: `Assistant__DailyRequestsPerUser`, `Assistant__DailyRequestsTotal`, `Gemini__MaxOutputTokens`.
+
+## Kiểm tra sức khỏe service — 30/10/2026 (HEALTH-01)
+
+Mỗi service IAM, ProcedureCatalog, ApplicationWorkflow, DocumentForm, AnalyticsSystem, AIOCR có 2 đường dẫn, không cần đăng nhập:
+
+| Đường dẫn | Ý nghĩa | Dùng cho |
+|---|---|---|
+| `GET /health` | Tiến trình còn chạy. **Không** kiểm tra DB hay RabbitMQ, luôn 200 `Healthy` khi app sống | Liveness probe Azure/Docker (giữ như cũ) |
+| `GET /health/ready` | Kiểm tra DB và RabbitMQ. 200 khi ổn (Healthy hoặc Degraded), **503** khi có phần Unhealthy | Người vận hành, readiness probe, kiểm tra sau deploy |
+
+Ví dụ `/health/ready`:
+
+```json
+{ "status": "Healthy", "durationMs": 31, "checks": [
+  { "name": "database", "status": "Healthy", "description": "reachable", "durationMs": 29 },
+  { "name": "rabbitmq", "status": "Healthy", "description": "connected", "durationMs": 0 } ] }
+```
+
+- **database:** mở kết nối tới DB của service (tối đa 5 giây). Analytics có `notifications-database` và `analytics-database`. AIOCR chỉ kiểm tra khi có `ConnectionStrings__AiOcrDatabase`.
+- **rabbitmq** (Workflow, Analytics): đọc trạng thái kết nối của worker, **không mở kết nối mới**. `disabled` (Healthy) khi `RabbitMq__Enabled=false`; `connected`; `connecting` (Degraded, vài giây sau khi khởi động); `disconnected` (Unhealthy). Worker tự kết nối lại khi broker trở lại.
+- `description` chỉ là chữ cố định hoặc tên loại lỗi, không chứa host, mật khẩu hay connection string.
+- **Lưu ý:** gọi `/health/ready` cũng đánh thức app đang `minReplicas=0`. **Không** đặt `/health/ready` làm liveness probe: DB hoặc broker lỗi sẽ khiến Azure khởi động lại container liên tục.
+- Gateway chưa có route tới `/health/ready` của từng service; gọi thẳng URL của service hoặc qua console Azure.
+
+## Chatbot công khai cho người dân — 30/10/2026 (AI-GUEST-01)
+
+**Mục đích:** người dân hỏi chatbot mà **không cần đăng nhập**. Chỉ `POST /api/v1/ai/chat/completions` được mở; đọc CCCD, tiền kiểm giấy tờ, danh sách phiên và lịch sử chat vẫn yêu cầu đăng nhập (401 khi thiếu token).
+
+### POST `/api/v1/ai/chat/completions` (không cần token)
+
+- Body giữ nguyên: `{ "message": "...", "conversationId": null, "wardCode": "WARD_001" }`. Response giữ nguyên: `{ conversationId, answer, relatedProcedures, citations, grounded }`.
+- **Có token hợp lệ:** chạy như cũ, phiên gắn với tài khoản, xem lại được qua `GET /api/v1/ai/chat/sessions`.
+- **Không có token (khách):** phiên thuộc "khách". Muốn hỏi tiếp, FE gửi lại `conversationId` vừa nhận. Khách **không** có API lịch sử: FE tự giữ các tin nhắn trên màn hình (ví dụ trong sessionStorage). Mất `conversationId` thì bắt đầu phiên mới.
+- **Token hết hạn hoặc sai** trên API này không trả 401 mà được coi là khách. FE nên refresh token trước khi chat nếu muốn lưu vào lịch sử tài khoản.
+- Khách không dùng được phiên của tài khoản và ngược lại: 404 `chat.not_found`.
+
+### Hạn mức cho khách
+
+| Giới hạn | Cấu hình (biến môi trường) | Mặc định | Vượt |
+|---|---|---|---|
+| Lượt/phút mỗi IP | `Assistant__GuestRequestsPerMinute` (1–60) | 5 | 429 không có `code`, chờ 1 phút |
+| Lượt/ngày mỗi IP | `Assistant__DailyGuestRequestsPerIp` (0 = tắt) | 10 | 429 `ai.guest_quota_exceeded` |
+| Lượt/ngày của tất cả khách | `Assistant__DailyGuestRequestsTotal` (0 = tắt) | 200 | 429 `ai.guest_limit_reached` |
+
+- Lượt của khách vẫn tính vào hạn mức toàn hệ thống `Assistant__DailyRequestsTotal` (500). Phần khách tối đa 200, nên người đã đăng nhập luôn còn ít nhất 300 lượt.
+- FE khi nhận `ai.guest_quota_exceeded` / `ai.guest_limit_reached`: hiện thông báo và nút **Đăng nhập để hỏi tiếp**.
+- `GET /api/v1/ai/knowledge/usage` có thêm `dailyGuestRequestsTotal`, `dailyGuestRequestsPerIp`, `guestUsedToday`.
+
+**Triển khai:** deploy lại AIOCR **và Gateway**. Gateway giờ đọc IP thật của người dùng từ ingress và chuyển xuống AIOCR. Nếu chỉ deploy AIOCR thì mọi khách có chung một IP (IP của gateway) và cùng chia 5 lượt/phút. Không cần migration hay SQL mới.
 
 
 ## WF-STAFFING-DI-01 — Khắc phục 500 khi khởi tạo controller (2026-11-01)

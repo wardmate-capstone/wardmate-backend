@@ -3,11 +3,12 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using WardMate.Services.AIOCR.Application;
+using WardMate.Services.AIOCR.Domain;
 
 namespace WardMate.Services.AIOCR.Infrastructure.Knowledge;
 
 // Gemini embedContent / batchEmbedContents. Disabled unless Knowledge:EmbeddingEnabled=true and Gemini:Key is set.
-public sealed partial class GeminiEmbeddingProvider(HttpClient http, IConfiguration config, KnowledgeSettings settings) : IEmbeddingProvider
+public sealed partial class GeminiEmbeddingProvider(HttpClient http, IConfiguration config, KnowledgeSettings settings, IAiUsage usage) : IEmbeddingProvider
 {
     public const int MaxBatch = 50;   // Gemini accepts up to 100 requests per batch; stay well below.
     private const int MaxChars = 6000; // ~1.5k tokens, above the chunk ceiling of 1,500 characters.
@@ -30,7 +31,7 @@ public sealed partial class GeminiEmbeddingProvider(HttpClient http, IConfigurat
                 outputDimensionality = settings.EmbeddingDimensions
             }).ToArray()
         };
-        using var doc = await Post($"{model}:batchEmbedContents", body, ct);
+        using var doc = await Post(AiOperations.EmbedDocuments, model, inputs.Count, $"{model}:batchEmbedContents", body, ct);
         if (!doc.RootElement.TryGetProperty("embeddings", out var embeddings) || embeddings.GetArrayLength() != inputs.Count) throw Invalid();
         return embeddings.EnumerateArray().Select(Values).ToArray();
     }
@@ -45,7 +46,7 @@ public sealed partial class GeminiEmbeddingProvider(HttpClient http, IConfigurat
             taskType = "RETRIEVAL_QUERY",
             outputDimensionality = settings.EmbeddingDimensions
         };
-        using var doc = await Post($"{model}:embedContent", body, ct);
+        using var doc = await Post(AiOperations.EmbedQuery, model, 1, $"{model}:embedContent", body, ct);
         if (!doc.RootElement.TryGetProperty("embedding", out var embedding)) throw Invalid();
         return Values(embedding);
     }
@@ -67,7 +68,23 @@ public sealed partial class GeminiEmbeddingProvider(HttpClient http, IConfigurat
         return model;
     }
 
-    private async Task<JsonDocument> Post(string path, object body, CancellationToken ct)
+    private async Task<JsonDocument> Post(string operation, string model, int items, string path, object body, CancellationToken ct)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var doc = await Send(path, body, ct);
+            await usage.Record(new(operation, model, AiOutcomes.Success, null, (int)watch.ElapsedMilliseconds, ItemCount: items), ct);
+            return doc;
+        }
+        catch (AiFailure failure)
+        {
+            await usage.Record(new(operation, model, AiOutcomes.Failed, failure.Code, (int)watch.ElapsedMilliseconds, ItemCount: items), ct);
+            throw;
+        }
+    }
+
+    private async Task<JsonDocument> Send(string path, object body, CancellationToken ct)
     {
         var key = config["Gemini:Key"];
         if (string.IsNullOrWhiteSpace(key)) throw new AiFailure(503, "knowledge.embedding_not_configured", "Cần cấu hình Gemini:Key để tạo embedding.");

@@ -4,9 +4,14 @@ using WardMate.Services.AIOCR.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+// Short-lived cache of IAM access-context answers shared by every IAM HttpClient in this service.
+builder.Services.AddAccessContextCache();
 
 builder.Services.AddControllers();
-builder.Services.AddHealthChecks();
+var health = builder.Services.AddHealthChecks();
+// Chat/Knowledge Base need the AIOCR database; without it only CCCD/verify run, so it is not checked.
+if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("AiOcrDatabase")))
+    health.AddReadyProbe<ChatDbContext>("database", (db, ct) => db.Database.CanConnectAsync(ct));
 builder.AddAssistant();
 builder.Services.AddGlobalExceptionHandling();
 builder.Services.AddHttpClient<WardMate.Services.AIOCR.Infrastructure.Extraction.AzureProcedureDocumentExtractor>(http =>
@@ -37,7 +42,7 @@ app.UseRateLimiter();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapWardMateHealth();
 app.MapGet("/", () => Results.Ok(new { service = "WardMate.Services.AIOCR" }));
 
 app.Run();

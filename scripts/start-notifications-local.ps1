@@ -21,7 +21,7 @@ $mapping = @{
 }
 $settings = @{
     ASPNETCORE_ENVIRONMENT='Development'; ASPNETCORE_URLS='http://localhost:5006'
-    Jwt__Issuer='wardmate'; Jwt__Audience='wardmate-client'; Sms__Enabled='false'
+    Jwt__Issuer='wardmate'; Jwt__Audience='wardmate-client'
 }
 foreach ($key in $mapping.Keys) { if ($values.ContainsKey($key) -and $values[$key]) { $settings[$mapping[$key]] = $values[$key] } }
 if ($values.ContainsKey('NOTIFICATIONS_ENABLED')) {

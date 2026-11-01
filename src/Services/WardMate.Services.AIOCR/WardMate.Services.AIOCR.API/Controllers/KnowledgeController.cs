@@ -8,7 +8,7 @@ namespace WardMate.Services.AIOCR.API.Controllers;
 [ApiController, Authorize, KnowledgeAccess, Route("api/v1/ai/knowledge"), ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 [ProducesResponseType<ProblemDetails>(400), ProducesResponseType<ProblemDetails>(401), ProducesResponseType<ProblemDetails>(403),
  ProducesResponseType<ProblemDetails>(404), ProducesResponseType<ProblemDetails>(409), ProducesResponseType<ProblemDetails>(503)]
-public sealed class KnowledgeController(IKnowledgeBase knowledge) : ControllerBase
+public sealed class KnowledgeController(IKnowledgeBase knowledge, IAiUsage usage, TimeProvider clock) : ControllerBase
 {
     private Guid Actor => Guid.Parse(User.FindFirst("sub")!.Value);
 
@@ -65,6 +65,14 @@ public sealed class KnowledgeController(IKnowledgeBase knowledge) : ControllerBa
 
     [HttpPost("procedures/sync"), ProducesResponseType<ProcedureSyncAllResult>(200)]
     public async Task<IActionResult> SyncAll(CancellationToken ct) => Ok(await knowledge.SyncAllProcedures(Actor, ct));
+
+    /// <summary>Thống kê lượt gọi Gemini theo ngày (UTC+07) và loại thao tác, kèm hạn mức đang áp dụng. Mặc định 7 ngày gần nhất.</summary>
+    [HttpGet("usage"), ProducesResponseType<AiUsageReport>(200)]
+    public async Task<IActionResult> Usage([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime.AddHours(7));
+        return Ok(await usage.Report(from ?? today.AddDays(-6), to ?? today, ct));
+    }
 }
 
 public sealed class KnowledgePdfUpload

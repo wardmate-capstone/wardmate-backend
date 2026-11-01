@@ -10,10 +10,10 @@ using WardMate.Services.IAM.Domain.Entities;
 using WardMate.Services.IAM.Infrastructure.Persistence;
 namespace WardMate.Services.IAM.Infrastructure.Security;
 
-public sealed class PasswordOtpService(IamDbContext db, IIamEmailSender email, IIamSmsSender sms, IPasswordHasher passwords,
+public sealed class PasswordOtpService(IamDbContext db, IIamEmailSender email, IPasswordHasher passwords,
     IConfiguration config, TimeProvider clock, ILogger<PasswordOtpService> logger) : IPasswordOtpService
 {
-    private static Result<string> Accepted() => Result<string>.Success("Nếu tài khoản hợp lệ và đủ thời gian gửi lại, mã OTP sẽ được gửi qua kênh đã chọn. Vui lòng kiểm tra và đợi ít nhất 60 giây trước khi yêu cầu lại.");
+    private static Result<string> Accepted() => Result<string>.Success("Nếu tài khoản hợp lệ và đủ thời gian gửi lại, mã OTP sẽ được gửi qua Email. Vui lòng kiểm tra và đợi ít nhất 60 giây trước khi yêu cầu lại.");
     private static Result<string> Invalid() => Result<string>.Failure(new("iam.otp_invalid", "OTP không hợp lệ, đã dùng, quá số lần thử hoặc hết hạn. Vui lòng yêu cầu mã mới.", ErrorKind.BadRequest));
     private byte[] Hash(UserOtp row, string code)
     {
@@ -29,40 +29,23 @@ public sealed class PasswordOtpService(IamDbContext db, IIamEmailSender email, I
         && (purpose == "FORGOT_PASSWORD" || actor == user.Id);
     public async Task<Result<string>> Request(RequestPasswordOtpCommand r, CancellationToken ct)
     {
-        if (r.Channel == "SMS" && !sms.Enabled) return Result<string>.Failure(new("iam.sms_unavailable", "Kênh SMS chưa sẵn sàng, vui lòng chọn Email.", ErrorKind.BadRequest));
         if (r.Purpose == "CHANGE_PASSWORD" && r.ActorId is null) return Result<string>.Failure(AuthErrors.UserUnavailable);
-        if (r.Channel == "EMAIL" && !email.Enabled) return Result<string>.Failure(new("iam.email_unavailable", "Dịch vụ Email chưa sẵn sàng. Vui lòng thử lại sau.", ErrorKind.ServiceUnavailable));
+        if (!email.Enabled) return Result<string>.Failure(new("iam.email_unavailable", "Dịch vụ Email chưa sẵn sàng. Vui lòng thử lại sau.", ErrorKind.ServiceUnavailable));
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var user = await Lock(r.EmailOrUsername.Trim().ToLowerInvariant(), ct);
         if (!Allowed(user, r.Purpose, r.ActorId)) return Accepted();
-        string? phone = null;
-        if (r.Channel == "SMS")
-        {
-            var profile = await db.Set<UserProfile>().AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user!.Id, ct);
-            if (string.IsNullOrWhiteSpace(profile?.PhoneNumber)) return Accepted();
-            phone = IamSmsSender.NormalizePhone(profile.PhoneNumber);
-            if (phone is null) return Accepted();
-        }
-        if (r.Channel == "SMS" && phone != user!.VerifiedPhoneNumber) return Accepted();
         var now = clock.GetUtcNow().UtcDateTime;
-        if (await OtpLimits.Exceeded(db, config, user!.Id, r.Channel, now, ct)) return Accepted();
+        if (await OtpLimits.Exceeded(db, config, user!.Id, now, ct)) return Accepted();
         if (await db.UserOtps.AnyAsync(x => x.UserId == user!.Id && x.CreatedAtUtc > now.AddSeconds(-60), ct)) return Accepted();
         await db.UserOtps.Where(x => x.UserId == user!.Id && !x.IsUsed && x.ExpiresAtUtc > now)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresAtUtc, now), ct);
         var code = RandomNumberGenerator.GetInt32(0, 1000000).ToString("D6", System.Globalization.CultureInfo.InvariantCulture);
-        var otp = new UserOtp { UserId = user!.Id, Channel = r.Channel, Purpose = r.Purpose, CreatedAtUtc = now, ExpiresAtUtc = now.AddMinutes(5) };
+        var otp = new UserOtp { UserId = user!.Id, Channel = "EMAIL", Purpose = r.Purpose, CreatedAtUtc = now, ExpiresAtUtc = now.AddMinutes(5) };
         otp.OtpHash = Convert.ToHexString(Hash(otp, code)); db.UserOtps.Add(otp);
         await db.SaveChangesAsync(ct);
-        Result<bool>? delivery = null;
         try
         {
-            if (r.Channel == "SMS") delivery = await sms.SendOtp(phone!, code, ct);
-            else await email.Otp(user.Email, code, ct);
-            if (delivery is { IsSuccess: false })
-            {
-                otp.ExpiresAtUtc = clock.GetUtcNow().UtcDateTime;
-                await db.SaveChangesAsync(ct);
-            }
+            await email.Otp(user.Email, code, ct);
         }
         catch (Exception) when (!ct.IsCancellationRequested)
         {

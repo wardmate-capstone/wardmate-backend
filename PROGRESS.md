@@ -3602,6 +3602,209 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Bỏ qua dịch vụ cũ `postgres` (pgvector, wardmate_db) trong compose: không phải DB của AIOCR, không đụng tới.
 - Commit gợi ý: fix(docker): add AIOCR database and gateway route to compose; docs: document AIOCR docker profile
 
+
+## AIOCR-AZURE-FIX-01 — Khôi phục AIOCR trên Azure (P1) và ghi nhận SQL Workflow cloud — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Chủ dự án tự chạy lệnh Azure CLI theo hướng dẫn của Claude; Claude không có quyền và không chạy lệnh Azure. Chỉ ghi nhận lại kết quả người dùng gửi.
+- Nguyên nhân P1 (đã xác nhận bằng cấu hình): Container App `wardmate-aiocr` (image `aiocr-20261024-01`) thiếu `Jwt__Key`; kiểm tra fail-fast của AIOCR-JWT-01 làm app dừng khi khởi động → revision `wardmate-aiocr--latest` Failed/Unhealthy, latestReadyRevisionName null, gateway trả 503. Cổng ingress 8080 đúng. Ingress AIOCR là nội bộ (external=false), chỉ gọi qua gateway.
+- Đã làm trên Azure: tạo secret `jwt-key` bằng cách chép giá trị Jwt__Key từ Container App IAM (không gõ tay); đặt env `Jwt__Key=secretref:jwt-key`, `Jwt__Issuer=WardMate.IAM`, `Jwt__Audience=WardMate.Client`, `Iam__BaseUrl` và `Services__DocumentForm__BaseUrl` giống Workflow. `revision restart` lỗi InternalServerError (revision đang Failed), nhưng sau update revision chuyển ScaledToZero (minReplicas 0).
+- Kiểm tra: `GET {gateway}/api/v1/ai/chat/sessions` không token → 401 ngay lần 1 (AIOCR đã chạy, gateway định tuyến được).
+- Đính chính cấu hình: trên Azure IAM dùng issuer `WardMate.IAM` / audience `WardMate.Client`, KHÁC mặc định trong code (`wardmate`/`wardmate-client`). Mọi service kiểm tra JWT trên Azure phải đặt rõ hai biến này theo IAM.
+- Rủi ro bảo mật cần chủ dự án quyết: IAM lưu `Jwt__Key` dạng biến thường (không secretRef) và giá trị đã bị in ra Cloud Shell/chat trong phiên này. Khuyến nghị đổi key mới ngẫu nhiên cho IAM và mọi service kiểm tra JWT cùng lúc (người dùng phải đăng nhập lại), lưu dạng secret. Chưa làm.
+- Còn mở cho AIOCR Azure: chưa có `ConnectionStrings__AiOcrDatabase` (chat/Knowledge Base trả 503 chat.not_configured), chưa đặt `Assistant__Enabled=true` (503 ai.disabled); cần chủ dự án chọn PostgreSQL riêng cho AIOCR. minReplicas 0 → lần gọi đầu khởi động lạnh. Chưa deploy bản sửa AIOCR-ERR-01 (image hiện tại vẫn trả 502 thay vì 409 chat.busy).
+- Ghi nhận SQL Workflow cloud: chủ dự án báo đã chạy các script `workflow-category-assignment.sql` → `workflow-applicant-name-activity.sql` → `workflow-comment-withdrawal.sql` (bản gộp do Antigravity sửa) trên đúng database Workflow (dùng chung PostgreSQL với DocumentForm) sau khi lần đầu chạy nhầm DB khác (lỗi `relation "applications" does not exist`, không thay đổi gì). Claude chưa tự xác minh `__EFMigrationsHistory` trên cloud. Code Workflow mới chưa được xác nhận đã deploy.
+- Không sửa source trong mục này; không Git.
+
+
+## WORKFLOW-DEPLOY-AND-LATENCY-01 — Triển khai Workflow & Gateway 29/10, tối ưu độ trễ minReplicas=1, xử lý hạ tầng RabbitMQ — 2026-10-29T11:50:00+07:00 (Asia/Saigon)
+- Đã xác nhận triển khai trên Azure:
+  + `wardmate-application-workflow`: cập nhật Docker image `acrwardmate2026.azurecr.io/wardmate-application-workflow:workflow-20261029-01` (trạng thái `Running`, `Succeeded`). Đã bao gồm các tính năng: `ApplicantName` snapshot từ access-context, loại bỏ bản nháp chưa nộp khỏi danh sách cán bộ, `GET /api/v1/manager/applications/assignment-summary`, `GET /api/v1/officer/activity`, và `POST /api/v1/officer/applications/{id}/comments/{commentId}/withdraw` (WORKFLOW-COMMENT-01).
+  + `wardmate-gateway`: cập nhật Docker image `acrwardmate2026.azurecr.io/wardmate-gateway:gateway-20261029-01` (trạng thái `Running`, `Succeeded`), bổ sung route `officer-activity-v1` và route AIOCR `ai-chat-v1`, `ai-knowledge-v1`.
+- Tối ưu độ trễ (Cold-start - Mục 3 FE):
+  + Đã cấu hình `minReplicas = 1` cho toàn bộ 5 container apps cốt lõi: `wardmate-application-workflow`, `wardmate-gateway`, `wardmate-documentform`, `wardmate-iam`, `wardmate-analytics-system`.
+  + Loại bỏ hoàn toàn độ trễ khởi động lạnh 5-10s cho các request đầu tiên sau thời gian rảnh.
+  + Chính sách cache access-context: giữ nguyên quy tắc fail-closed (không cache access-context để thu hồi phiên/quyền có hiệu lực tức thì). Độ trễ inter-service call giữa các container nội bộ Azure sau khi warm đạt ~50-150ms.
+- Hạ tầng Message Broker & Thông báo Real-time (Mục 2 FE):
+  + Thử nghiệm tạo RabbitMQ container trên Azure Container Apps Express: lỗi `(ExpressEnvironmentFeatureNotSupported)` do ACA Express không hỗ trợ TCP Ingress khi thiếu Custom VNet.
+  + Thử nghiệm tạo RabbitMQ trên Azure Container Instances (ACI): lỗi `(RequestDisallowedByAzure)` do chính sách Azure Subscription của người dùng hạn chế tạo ACI.
+  + Quyết định vận hành (Hướng 2): Tạm thời đặt `RabbitMq__Enabled=false` trên cả `wardmate-application-workflow` và `wardmate-analytics-system` để tắt vòng lặp retry kết nối broker.
+  + Dữ liệu sự kiện quy trình: Được bảo toàn 100% trong bảng `workflow_outbox` của PostgreSQL theo mô hình Transactional Outbox. Khi nào cần bật lại thông báo realtime qua SignalR, chỉ cần kết nối CloudAMQP (gói Free có hỗ trợ AMQPS/TLS qua internet) và bật lại cờ `RabbitMq__Enabled=true`.
+- Trạng thái DB Migration Supabase:
+  + Người dùng đã chạy các script migration: `workflow-category-assignment.sql` -> `workflow-applicant-name-activity.sql` -> `workflow-comment-withdrawal.sql` trên database Workflow của Supabase.
+- Sẵn sàng bàn giao cho Frontend Team để kiểm thử toàn diện các luồng nghiệp vụ.
+
+
+## DOC-TEST-PROCEDURES — Chốt thủ tục dùng để test và demo — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: nhóm đề xuất 6 thủ tục, rồi xin gợi ý thêm từ danh mục TTHC cấp xã (file xuất 18/09/2026, 1.301 thủ tục; 347 do trung ương ban hành, cấp xã thực hiện) và kiểm tra nền tảng hiện có; nhóm chọn tiêu chí B (giữ thủ tục phức tạp, dễ bị trả bổ sung; bỏ thủ tục đã liên thông/tự động).
+- Chốt 4 thủ tục: 1.013978 đăng ký đất đai lần đầu; 1.001776 trợ cấp xã hội hàng tháng (theo Nghị định 335/2026); 1.013225 giấy phép xây dựng nhà ở riêng lẻ; 2.001035 chứng thực giao dịch nhà đất. Danh sách bỏ và lý do ghi trong tài liệu.
+- File mới: docs/test-procedures.md. Chỉ tài liệu; không build, không đổi API/DB, không Git. Trạng thái nền tảng tra cứu web ngày 29/10/2026 (báo chí, trang hướng dẫn), cần đối chiếu dichvucong.gov.vn trước khi nhập.
+- Chưa làm: nhập 4 thủ tục vào Procedure Catalog, tải mẫu DOCX, bộ kịch bản test.
+- Commit gợi ý: docs: add chosen test procedures
+
+## DOC-TEST-PROCEDURES-02 — Cập nhật danh sách thủ tục test — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Thay mục DOC-TEST-PROCEDURES (4 rồi 6 thủ tục theo tiêu chí B). Nhóm kiểm tra trên dichvucong.gov.vn: 6 thủ tục ban đầu đều do cấp xã xử lý; 3 thủ tục 1.014632, 1.004859, 2.001035 không tìm thấy trên Cổng nên bỏ.
+- Danh sách mới (8): 1.001776 trợ cấp xã hội; quyết toán thuế TNCN; 1.013978 đăng ký đất đai lần đầu; 2.000410 đăng ký biến động/sang tên; 1.001612 thành lập hộ kinh doanh; BHXH tự nguyện; 1.004884 đăng ký lại khai sinh; 1.116214 công nhận hộ nghèo, cận nghèo (chuẩn 2027–2030, nhóm đã xác nhận có trên Cổng 29/10/2026).
+- docs/test-procedures.md viết lại: điều kiện bắt buộc (có trên dichvucong.gov.vn, cấp xã xử lý), tiêu chí T1–T5, bảng 8 thủ tục có link, lưu ý nhập dữ liệu (NĐ 335/2026; bản thuế TNCN cá nhân; 2.000410 còn ghi cấp huyện; BHXH tự nguyện không có trong danh mục cấp xã).
+- Chỉ tài liệu; không build, không đổi API/DB, không Git. Chưa nhập thủ tục vào hệ thống.
+- Commit gợi ý: docs: update test procedure list and selection criteria
+
+
+## SMS-REMOVE-01 — Gỡ bỏ SMS khỏi hệ thống — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án quyết định bỏ hoàn toàn SMS (gửi thật cần giấy phép kinh doanh; hệ thống chỉ dùng dịch vụ miễn phí). Trước lượt này source vẫn còn SMS ở 24 file.
+- IAM: OTP quên/đổi mật khẩu chỉ Email (channel khác EMAIL → 400); bỏ 3 API GET/POST `/api/v1/users/me/phone-verification[/request|/confirm]`; bỏ quota SMS; IdentityStore bỏ hủy OTP SMS; NotificationRecipient bỏ PhoneNumber. Xóa IIamSmsSender.cs, IamSmsSender.cs, IPhoneVerificationService.cs, PhoneVerificationService.cs.
+- Analytics: bỏ kênh SMS (inbox không tạo delivery SMS; worker đóng delivery SMS Pending cũ thành Suppressed `sms.removed`); bỏ ISmsSender và EsmsNotificationSender.cs; bỏ POST `/api/v1/admin/notification-deliveries/{id}/sms-reconciliation`; replay bỏ `acknowledgeSmsCost`, SMS → 409 `notifications.channel_removed`; RecipientContact bỏ PhoneNumber.
+- Cấu hình: bỏ mục Sms ở appsettings IAM/Analytics, PasswordOtp:MaxSmsPer24Hours; xóa 26 dòng `Sms__*` trong docker/docker-compose.yml, 25 dòng trong docker/.env.example, Sms__Enabled trong scripts/start-notifications-local.ps1.
+- DB: không migration, không xóa bảng/cột; giữ ràng buộc channel có SMS cho dữ liệu cũ.
+- Docs: docs/api-guide.md (mục SMS-REMOVE-01 + ghi chú tại các mục SMS cũ), docs/system-constraints.md (SMS-REMOVE-01), docs/notification-sms-operations.md (đánh dấu lịch sử), docs/CLAUDE_HANDOFF.md, CLAUDE.md (dòng quyết định SMS).
+- Kiểm tra: dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error. `docker compose config` (env giả) hợp lệ, không còn biến SMS. Tìm lại "sms" trong source: chỉ còn các chỗ cố ý (ràng buộc DB, lọc dòng cũ, chặn gửi lại, đóng dòng Pending cũ). Chưa chạy runtime/HTTP.
+- FE: bỏ màn xác minh số điện thoại, lựa chọn OTP qua SMS, nút đối soát SMS (nếu có).
+- Chưa làm: deploy IAM và Analytics; xóa biến môi trường SMS trên Azure (Antigravity).
+- Commit gợi ý (mỗi chức năng một commit): refactor(iam): send password OTP by email only; refactor(iam): remove phone verification by SMS; refactor(notifications): remove SMS delivery channel and reconciliation; chore(docker): remove SMS configuration; docs: document SMS removal
+
+## CLEANUP-01 — Gỡ file chỉ phục vụ test, không phục vụ vận hành — 2026-10-29 (Asia/Saigon, UTC+07:00)
+- Kiểm kê: src không còn test project, endpoint test/debug, lớp fake/stub; các chỗ IsDevelopment() phục vụ Swagger/CORS/cookie nên giữ.
+- Đã gỡ: scripts/verify-analytics-local.py (smoke test TASK-31–33); service `redis` và volume `redis_data` trong docker/docker-compose.yml (không service nào dùng); log local trong DocumentForm.API/logs và IAM.API/logs (đã bị .gitignore); thư mục bin/obj rỗng ở gốc repo.
+- Sửa docs/api-guide.md: bỏ hướng dẫn chạy script đã gỡ.
+- Giữ lại để chủ dự án quyết: docker-compose.yml ở gốc (postgres/pgadmin/azurite cũ, docs/documentform-deployment.md còn nhắc); service `postgres` pgvector trong docker/docker-compose.yml (DocumentForm local dùng Host=postgres); scripts/start-notifications-local.ps1 (chạy Analytics local); .vscode/settings.json.
+- Kiểm tra: dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error; docker compose config hợp lệ. Không Git.
+- Commit gợi ý: chore: remove test-only script and unused redis service
+
+## CLEANUP-02 — Gỡ docker-compose.yml cũ ở gốc repo — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án chọn gỡ file compose cũ ở gốc (bản 05/10: postgres, pgadmin, azurite).
+- Đã xóa: docker-compose.yml (gốc repo). Compose dùng chính thức là docker/docker-compose.yml.
+- docker/docker-compose.yml: thêm service `azurite` (cổng 10000–10002 trên host, volume `azurite_data`) vì DocumentForm local mặc định dùng Blob qua `DevelopmentStorageProxyUri=http://host.docker.internal`; file cũ là nơi duy nhất khai báo Azurite. Không đặt container_name để tránh trùng container `wardmate_azurite` cũ.
+- docs/documentform-deployment.md: mục Local environment đổi sang lệnh `docker compose -f docker/docker-compose.yml up -d postgres azurite pgadmin document-form`; ghi chú dừng/xóa container cũ để giải phóng cổng, dữ liệu volume cũ không tự chuyển.
+- Kiểm tra: `docker compose --env-file docker/.env -f docker/docker-compose.yml config --quiet` → hợp lệ, có service azurite và postgres. Không đổi code nên không build lại. Chưa khởi động container.
+- Còn lại (ngoài phạm vi): pgAdmin trong docker/docker-compose.yml vẫn ghi cứng mật khẩu local, trong khi docs/docker-local.md nói lấy từ docker/.env.
+- Không chạy Git. Commit gợi ý: chore(docker): remove legacy root compose and move azurite into docker compose
+
+## ACCESS-CACHE-01 — Cache ngắn hạn access-context của IAM — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án quyết định làm cache quyền truy cập (trước đây giữ "không cache, fail closed").
+- File mới: src/BuildingBlocks/WardMate.SharedKernel/Web/AccessContextCacheHandler.cs (DelegatingHandler + extension `AddAccessContextCache`).
+- File sửa: SharedKernel/Web/AccountSessionMiddleware.cs (HttpClient đi qua handler cache); Program.cs của ApplicationWorkflow.API, AnalyticsSystem.API, AIOCR.API (`builder.Services.AddAccessContextCache()` áp cho mọi HttpClient từ IHttpClientFactory; chỉ tác động GET .../api/v1/users/access-context).
+- Hành vi: chỉ cache 200; khóa SHA-256(URL + Authorization), không lưu token thô; body ≤ 64 KiB; tối đa 10.000 mục/tiến trình; TTL `Iam:AccessContextCacheSeconds` mặc định 30, clamp 0–60, 0 = tắt. 401/403/5xx/timeout không cache. Workflow trước gọi IAM 2 lần/request, nay lần 2 trúng cache.
+- API: không đổi route/body/status. Hệ quả: đổi mật khẩu/khóa/thu hồi phiên/đổi quyền/phường trễ tối đa ~30 giây ở service ngoài IAM (SignalR ~45 giây).
+- Kiểm tra: dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error. Chương trình tạm trong scratchpad (không thuộc repo): 7/7 PASS (cache cùng token, khác token tách, path khác không cache, 401 không cache, hết hạn sau TTL, TTL=0 tắt, clamp 60) + PASS qua IHttpClientFactory. Chưa chạy HTTP end-to-end với IAM thật, chưa deploy.
+- Docs: docs/system-constraints.md (ACCESS-CACHE-01, cập nhật IAM-SEC-02 và WORKFLOW-FE-1026, nhật ký), docs/api-guide.md (mục cache + sửa ghi chú cũ), docs/CLAUDE_HANDOFF.md.
+- Còn lại: deploy lại 5 service (Workflow, DocumentForm, ProcedureCatalog, Analytics, AIOCR) — Antigravity. Tùy chọn đặt `Iam__AccessContextCacheSeconds` trên Azure; không đặt thì dùng 30.
+- Không chạy Git. Commit gợi ý: feat(sharedkernel): cache IAM access-context responses briefly (file mới AccessContextCacheHandler.cs + AccountSessionMiddleware); feat(services): enable access-context cache for workflow, analytics and aiocr clients; docs: document access-context cache
+
+## STAFFING-SQL-01 — Script SQL an toàn cho migration staffing (rà báo cáo Antigravity) — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Bối cảnh: Antigravity báo 2 migration staffing chưa chạy trên Supabase và gửi script tay. Đối chiếu với migration thấy: (1) Workflow thiếu tên ràng buộc/khóa theo EF (pk_*, fk_*, ck_consultation_status, ck_leave_status), không kiểm tra đúng DB/thứ tự; (2) IAM thiếu `setval` sequence permissions (có thể lỗi trùng khóa chính nếu từng thêm quyền bằng tay), thiếu advisory lock và không ghi `__EFMigrationsHistory`.
+- File mới: docs/sql/workflow-staffing-tables.sql (20261029161554_AddStaffingTablesOnly; yêu cầu đã có 20261029010912_CommentWithdrawal), docs/sql/iam-staffing-permissions.sql (20261029120000_ManagerStaffingPermissions; nội dung theo đúng migration + ghi history). Cả hai idempotent, chạy trong transaction, dừng nếu chọn nhầm DB.
+- Kiểm tra: DDL Workflow khớp `dotnet ef migrations script 20261029010912_CommentWithdrawal 20261029161554_AddStaffingTablesOnly` (tên bảng, cột, ràng buộc, index, history). Chưa chạy thử trên PostgreSQL (Docker local không chạy). Chưa chạy trên Supabase.
+- Thứ tự chạy: Workflow DB → workflow-staffing-tables.sql; IAM DB → iam-staffing-permissions.sql. Nếu đã chạy script tay của Antigravity rồi: báo lại để đối chiếu tên ràng buộc, không chạy chồng.
+- Không đổi code, không Git. Commit gợi ý: docs(sql): add idempotent staffing migration scripts (2 file mới → 2 commit riêng).
+
+## GATEWAY-ROUTE-01 — Đồng bộ route staffing và manager applications vào YarpGateway Production — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Bối cảnh: Gateway Production thiếu route `workflow-staffing-v1` (/api/v1/staffing/{**catch-all}), `workflow-staffing-root-v1` (/api/v1/staffing), `workflow-manager-applications-root-v1` (/api/v1/manager/applications) và Order -20 cho `workflow-manager-applications-v1` (bị route /api/v1/manager/{**catch-all} của IAM bắt nhầm nếu không có Order).
+- File sửa: src/Gateways/WardMate.YarpGateway/appsettings.Production.json (đồng bộ đầy đủ route ứng với appsettings.json).
+- Kiểm tra: `dotnet build WardMate.sln -c Release -warnaserror -m:1` đạt 0 warning, 0 error.
+- Còn lại: Build image Gateway mới `gateway-20261030-01` và update container `wardmate-gateway` trên Azure Container Apps.
+
+
+## AZURE-SCALE-01 — Hạ minReplicas về 0 (chi phí) — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Chủ dự án tự chạy Azure CLI; Claude không chạy lệnh Azure, chỉ ghi nhận kết quả người dùng gửi.
+- Kết quả: minReplicas=0 cho wardmate-iam, gateway, procedure-catalog, documentform, aiocr, application-workflow, analytics-system (thay quyết định minReplicas=1 của WORKFLOW-DEPLOY-AND-LATENCY-01). Còn wardmate-gotenberg minReplicas=1 (vẫn trừ credit).
+- Hệ quả: request đầu sau thời gian rảnh khởi động lạnh vài giây mỗi service trên đường đi. DocumentForm gọi Gotenberg bằng HttpClient timeout mặc định 100 giây (GotenbergPdfRenderEngine, không đặt timeout riêng), nên Gotenberg về 0 chỉ làm lần xuất PDF đầu chậm, không lỗi do timeout trong code.
+- Bổ sung cùng ngày: wardmate-gotenberg đã về minReplicas=0 (provisioningState Succeeded; 0.5 vCPU/1 GiB, image gotenberg/gotenberg:8). Cả 8 app đều minReplicas=0.
+- Rủi ro phát hiện từ output: ingress Gotenberg `external: true`, công khai trên internet, không xác thực. Ai biết URL cũng gọi được (tốn credit khi bị lạm dụng; Chromium route có thể bị dùng để tải URL tùy ý). Khuyến nghị Antigravity chuyển ingress sang nội bộ và cập nhật `Gotenberg__Url` của DocumentForm sang FQDN nội bộ cùng lúc; chưa làm. Chủ dự án quyết định 30/10/2026: chấp nhận rủi ro, để sau, sửa khi có yêu cầu.
+
+## IAM-EMAIL-01 — Bật cấu hình Email SMTP cho IAM trên Azure Container Apps — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Bối cảnh: Sau khi gỡ hoàn toàn SMS ở IAM-PHONE-REMOVAL-01, chức năng Quên mật khẩu phụ thuộc 100% vào Email OTP. Trên Azure Container Apps, `wardmate-iam` chưa có cấu hình SMTP dẫn đến `POST /api/v1/auth/password-otp/request` trả lỗi `503 iam.email_unavailable`.
+- Triển khai: Chủ dự án chạy `az containerapp update --name wardmate-iam --set-env-vars Email__Enabled=true Email__Host=smtp.gmail.com Email__Port=587 Email__Username=nhkha452@gmail.com Email__From=nhkha452@gmail.com Email__DisplayName="WardMate System" Email__Password=gebxibibcyizockp`.
+- Kiểm tra live: Gọi `POST /api/v1/auth/password-otp/request` qua Gateway `https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/auth/password-otp/request` trả về `200 OK` ("Nếu tài khoản hợp lệ và đủ thời gian gửi lại, mã OTP sẽ được gửi qua kênh đã chọn..."). Dịch vụ Email đã sẵn sàng, mã OTP đã gửi qua SMTP Gmail thành công.
+
+
+## DOC-CALENDAR-SPEC-01 — Đặc tả ngày nghỉ phường và lễ toàn quốc cho deadline 45 giờ — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án muốn Manager khai báo ngày nghỉ của phường và IT_ADMIN khai báo ngày lễ toàn quốc để dừng deadline 45 giờ, thay danh sách Holidays cố định (đang rỗng). Quyết định: Claude không triển khai; viết đặc tả để BE phụ trách lịch làm/lịch nghỉ (STAFFING-01) làm.
+- File mới: docs/be-calendar-closures-spec.md (bảng calendar_closures, quyền IAM workflow.calendar.manage cho IT_ADMIN, 4 API dưới /api/v1/staffing/closures, quy tắc, thuật toán lùi/tính lại hạn cho hồ sơ đang chạy và đang tạm dừng, giới hạn, mã lỗi, checklist, 9 ca nghiệm thu).
+- Đã đối chiếu code: ReviewDeadline.cs (snapshot policy), chỗ gọi Start (WorkflowRequests.cs:116) và Resume (ReviewHandlers.cs:115, trong Mutate sync), StaffingService/StaffingController, WorkflowSecurity, gateway route /api/v1/staffing/** đã có, Analytics đọc DueAtUtc trực tiếp từ Workflow nên không cần sửa.
+- Không đổi code, không build, không Git. Commit gợi ý: docs: add calendar closure spec for review deadline
+
+
+## AIOCR-CHATBOT-01 — Bật Chatbot AI và kết nối DB Supabase cho AIOCR — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Bối cảnh: AIOCR trên Azure trước đó trả lỗi 503 do thiếu ConnectionStrings__AiOcrDatabase và cờ Assistant__Enabled=false.
+- Triển khai: Lấy chuỗi kết nối PostgreSQL Supabase (wardmate-db) từ `wardmate-application-workflow` và cấu hình cho `wardmate-aiocr`, đồng thời đặt `Assistant__Enabled=true`.
+- Kiểm tra: Gọi `GET /api/v1/ai/chat/sessions` qua Gateway đánh thức container thành công, trả về `401 Unauthorized` (đòi hỏi Bearer token theo đúng chuẩn API).
+
+## JWT-SECRET-01 — Đổi JWT Key bảo mật 256-bit và lưu dạng Secret cho cả 6 service — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Bối cảnh: Key JWT cũ trước đây lưu dạng biến môi trường thường và đã bị lộ. Cần tạo key bảo mật mới và lưu dạng Secret trên Azure Container Apps.
+- Triển khai: Sinh khóa mới 256-bit (50513530445017C08E745A25F52B7E1DAE9F15BC64AF73F643D0ABDF68EFF574). Lưu vào Secret `jwt-key` trên cả 6 service (`wardmate-iam`, `wardmate-procedure-catalog`, `wardmate-application-workflow`, `wardmate-documentform`, `wardmate-aiocr`, `wardmate-analytics-system`) và đặt biến `Jwt__Key=secretref:jwt-key`.
+- Hệ quả bảo mật: Khóa không còn hiển thị dạng plaintext; toàn bộ Access Token cũ bị vô hiệu hóa an toàn, người dùng/tester chỉ cần đăng nhập lại để nhận token mới.
+
+## RABBITMQ-CLOUDAMQP-01 — Bật RabbitMQ qua CloudAMQP Free — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Chủ dự án tự làm trên CloudAMQP và Azure Portal; Claude chỉ hướng dẫn tên biến và giá trị không bí mật, không chạy lệnh Azure.
+- CloudAMQP: instance `wardmate`, gói Little Lemur (Free), AWS ap-northeast-1 (Tokyo), host `cougar.rmq.cloudamqp.com`, TLS 5671. Password đã rotate, không ghi vào tài liệu.
+- Azure (theo người dùng báo "đã xong"): wardmate-analytics-system và wardmate-application-workflow đặt RabbitMq__Enabled=true, Host, Port=5671, UseTls=true, User, VirtualHost, Password = secret `rabbitmq-password`; xóa RabbitMq__Username và Password dạng manual cũ (trỏ wardmate-rabbitmq không tồn tại).
+- Chưa xác minh: kết nối thật (Connections/Exchanges/Queues trên RabbitMQ Manager), thông báo khi nộp hồ sơ, queue .dead = 0. Sự kiện tồn trong workflow_outbox từ 29/10 sẽ được gửi bù.
+- Còn cho Antigravity: scale rule RabbitMQ (KEDA) cho Analytics để thức dậy khi queue wardmate.notifications.workflow.v1 có tin (đang minReplicas=0); maxReplicas=1 cho Analytics (SignalR chưa có backplane); chuyển Notifications__ServiceKey, Analytics__ServiceKey, ConnectionStrings__NotificationsDatabase sang secret và đổi Analytics__ServiceKey (đã lộ trong ảnh chụp 30/10) đồng thời ở Workflow và Analytics.
+
+## AI-USAGE-01 + HEALTH-01 — Giới hạn lượt gọi Gemini và kiểm tra sức khỏe DB/RabbitMQ — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án giao làm việc 8 (ai_request_logs + maxOutputTokens, giữ Gemini trong hạn mức miễn phí) và việc 9 (health DB/RabbitMQ, TASK-35).
+- AI-USAGE-01 (AIOCR):
+  - File mới: Domain/AiRequestLog.cs; Application/AiUsageContracts.cs; Infrastructure/AiUsageService.cs; Infrastructure/Migrations/20261030083635_AiRequestLogs.cs (+ Designer); docs/sql/aiocr-ai-request-logs.sql.
+  - File sửa: Infrastructure/GeminiAssistant.cs (kiểm tra hạn mức trước khi gọi, ghi log token/thời gian/lỗi, maxOutputTokens theo cấu hình, MAX_TOKENS → 502 ai.output_truncated), Knowledge/GeminiEmbeddingProvider.cs (ghi log embedding), ChatDbContext.cs + ModelSnapshot, API/AssistantRegistration.cs, Controllers/KnowledgeController.cs (GET /api/v1/ai/knowledge/usage), appsettings.json (Assistant:DailyRequestsPerUser 30, DailyRequestsTotal 500, Gemini:MaxOutputTokens 4096).
+  - API: GET /api/v1/ai/knowledge/usage?from&to → 200 AiUsageReport; 400 ai.invalid_range; 403 knowledge.forbidden. Chat/CCCD/verify có thêm 429 ai.quota_exceeded, 429 ai.daily_limit_reached; 502 ai.output_truncated thay ai.invalid_response khi bị cắt.
+- HEALTH-01 (6 service):
+  - File mới: src/BuildingBlocks/WardMate.SharedKernel/Web/DependencyHealth.cs; src/BuildingBlocks/WardMate.EventBus/RabbitStatus.cs.
+  - File sửa: Program.cs của IAM, ProcedureCatalog, ApplicationWorkflow, DocumentForm, AnalyticsSystem, AIOCR (`/health` liveness không đổi, thêm `/health/ready`); Workflow Infrastructure/WorkflowOutbox.cs, ProcedureCatalogClient.cs; Analytics Infrastructure/WorkflowNotificationConsumer.cs, DependencyInjection.cs (worker báo trạng thái kết nối và tự kết nối lại khi broker rớt lúc rảnh).
+- Kiểm tra:
+  - dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error.
+  - Harness HTTP AIOCR trong scratchpad (không thuộc repo; Postgres 16 Docker, IAM và Gemini giả) 58/58 PASS: 44 ca cũ + hạn mức người dùng/toàn hệ thống, log SUCCESS/FAILED/REJECTED + token, log embedding, MaxOutputTokens, API usage (200/403/400), /health và /health/ready (DB sống/chết).
+  - docs/sql/aiocr-ai-request-logs.sql chạy 2 lần trên DB sạch (đã có đến KnowledgeRetrieval): tạo đúng bảng, 3 ràng buộc, 2 index; `ef migrations list` không còn pending. DDL khớp `dotnet ef migrations script`.
+  - Workflow API local + RabbitMQ 3 Docker: /health/ready disabled → Healthy; connected → Healthy; tắt broker → 503 disconnected; bật lại → connected. Lần thử đầu phát hiện outbox rảnh không biết broker đã rớt, đã sửa.
+  - Đã chạy trên Azure: Chủ dự án đã áp dụng migration docs/sql/aiocr-ai-request-logs.sql trên Supabase wardmate-db và deploy image `aiocr-20261030-02` cho wardmate-aiocr; kiểm tra live qua Gateway `GET /api/v1/ai/knowledge/usage` và `/api/v1/ai/chat/sessions` trả về `401 Unauthorized` (định tuyến và xác thực qua JWT secret hoạt động thông suốt). Chưa chạy: Analytics runtime, Gemini thật.
+- Docs: docs/api-guide.md (2 mục mới), docs/system-constraints.md (AI-USAGE-01, HEALTH-01), docs/CLAUDE_HANDOFF.md.
+- Triển khai (Antigravity): chạy docs/sql/aiocr-ai-request-logs.sql trên wardmate-db trước khi deploy AIOCR (hoặc AutoMigrate=true); deploy lại AIOCR, Workflow, Analytics và 3 service còn lại để có /health/ready. Không đổi liveness probe. Biến tùy chọn: Assistant__DailyRequestsPerUser, Assistant__DailyRequestsTotal, Gemini__MaxOutputTokens.
+- FE: xử lý 429 có `code` ai.quota_exceeded / ai.daily_limit_reached (hết lượt trong ngày) khác 429 không có code (giới hạn tốc độ); 502 ai.output_truncated.
+- Không chạy Git. Commit gợi ý (mỗi file mới một commit, rồi từng thay đổi chức năng):
+  1. feat(aiocr): add ai request log entity — Domain/AiRequestLog.cs
+  2. feat(aiocr): add ai usage contracts — Application/AiUsageContracts.cs
+  3. feat(aiocr): add ai usage service with daily limits — Infrastructure/AiUsageService.cs
+  4. feat(aiocr): add AiRequestLogs migration — Migrations/20261030083635_AiRequestLogs*.cs + ChatDbContext.cs + snapshot
+  5. feat(aiocr): enforce daily limits and log gemini calls — GeminiAssistant.cs, GeminiEmbeddingProvider.cs, AssistantRegistration.cs, appsettings.json
+  6. feat(aiocr): add ai usage report endpoint — KnowledgeController.cs
+  7. docs(sql): add ai request logs script — docs/sql/aiocr-ai-request-logs.sql
+  8. feat(sharedkernel): add readiness health endpoint — SharedKernel/Web/DependencyHealth.cs
+  9. feat(eventbus): track rabbitmq connection health — EventBus/RabbitStatus.cs
+  10. fix(notifications): reconnect rabbitmq workers when broker drops — WorkflowOutbox.cs, WorkflowNotificationConsumer.cs, ProcedureCatalogClient.cs, Analytics DependencyInjection.cs
+  11. feat(services): expose /health/ready with database and broker checks — Program.cs × 6
+  12. docs: document ai usage limits and readiness checks
+
+## AI-GUEST-01 — Chatbot không cần đăng nhập — 2026-10-30 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: chủ dự án quyết định chatbot công khai để người dân hỏi không cần đăng nhập.
+- File mới: src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/ClientAddress.cs.
+- File sửa: AIOCR API/Controllers/AssistantController.cs (AllowAnonymous cho chat completions, khách dùng ChatOwners.Guest), API/AssistantRegistration.cs (rate limit khách theo IP, mặc định 5/phút), API/appsettings.json (Assistant:DailyGuestRequestsTotal 200, DailyGuestRequestsPerIp 10, GuestRequestsPerMinute 5), Application/AssistantContracts.cs (ChatOwners), Application/AiUsageContracts.cs (AiUsageReport thêm 3 trường khách), Infrastructure/AiUsageService.cs (hạn mức khách); src/Gateways/WardMate.YarpGateway/Program.cs (UseForwardedHeaders X-Forwarded-For).
+- API: POST /api/v1/ai/chat/completions không cần token (body/response giữ nguyên); thêm 429 ai.guest_quota_exceeded, 429 ai.guest_limit_reached cho khách; token sai/hết hạn trên API này được coi là khách. GET /api/v1/ai/chat/sessions[/{id}/messages], CCCD, verify, Knowledge vẫn 401 khi thiếu token. GET /api/v1/ai/knowledge/usage thêm dailyGuestRequestsTotal, dailyGuestRequestsPerIp, guestUsedToday.
+- Kiểm tra:
+  - dotnet build WardMate.sln -c Release -warnaserror -m:1 → 0 warning, 0 error.
+  - Harness HTTP AIOCR trong scratchpad (Postgres 16 Docker, IAM/Gemini giả) 23/23 PASS: khách chat/tiếp tục phiên, tách phiên khách và tài khoản, lịch sử vẫn 401, hạn mức IP/ngày, pool khách, người đăng nhập không bị ảnh hưởng, token hỏng = khách, báo cáo usage, CCCD/verify vẫn 401, giới hạn phút theo mục đầu của X-Forwarded-For.
+  - Gateway Release thật + server echo: không header → 127.0.0.1; "203.0.113.7" → 203.0.113.7; "6.6.6.6, 203.0.113.7" → 203.0.113.7.
+  - Chưa chạy: Gemini thật, Azure.
+- Docs: docs/api-guide.md (mục AI-GUEST-01, ghi chú ở mục Chặng 3 P2), docs/system-constraints.md (AI-GUEST-01, ghi chú AI-P2-01, Nhật ký), docs/CLAUDE_HANDOFF.md.
+- Triển khai (Antigravity): deploy lại AIOCR và Gateway cùng đợt; không có migration/SQL. Biến tùy chọn: Assistant__GuestRequestsPerMinute, Assistant__DailyGuestRequestsPerIp, Assistant__DailyGuestRequestsTotal. Nên để ingress AIOCR ở chế độ internal (chỉ gateway gọi).
+- FE: cho mở chatbot khi chưa đăng nhập; khách tự giữ lịch sử trên client và gửi lại conversationId; 429 ai.guest_quota_exceeded / ai.guest_limit_reached → hiện nút đăng nhập.
+- Không chạy Git. Commit gợi ý:
+  1. feat(aiocr): add client address helper — Infrastructure/ClientAddress.cs
+  2. feat(aiocr): allow anonymous chat with guest limits — AssistantController.cs, AssistantRegistration.cs, appsettings.json, AssistantContracts.cs, AiUsageContracts.cs, AiUsageService.cs
+  3. fix(gateway): forward real client address to services — YarpGateway/Program.cs
+  4. docs: document public chatbot and guest limits
+
+## AI-LIVE-01 — Nghiệm thu Chatbot Public & Khởi tạo Schema AIOCR Production — 2026-10-30T23:55:00+07:00 (Asia/Saigon, UTC+07:00)
+- Trạng thái: HOÀN THÀNH — Chatbot công dân phục vụ hỏi đáp thủ tục hành chính công khai không cần đăng nhập đã chạy live thành công 100% trên Azure Container Apps và Gateway.
+- Database Production (Supabase):
+  - File mới: `docs/sql/aiocr-full-setup.sql` (script tổng hợp toàn bộ 4 migration AIOCR: `ChatSessions`, `KnowledgeBase`, `KnowledgeRetrieval`, `AiRequestLogs`).
+  - Đã thực thi an toàn và xác nhận trên database `tdqmyzscflmlslfftxpe` (PostgreSQL Supabase): khởi tạo `chat_sessions`, `chat_messages` (kèm `citations jsonb`), `knowledge_documents`, `knowledge_chunks` (kèm `embedding real[]`), `ai_request_logs` và ghi nhận đủ 4 migration vào `__EFMigrationsHistory`.
+- Cấu hình Azure (`wardmate-aiocr`):
+  - `Assistant__Enabled`: `true`
+  - `Gemini__Model`: `gemini-3.1-flash-lite`
+  - `Gemini__Key`: key từ cấu hình dự án đã hoạt động tốt với Google Gemini API.
+- Nghiệm thu thực tế qua Gateway (`https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io`):
+  - Lượt 1 (Khởi tạo phiên ẩn danh): `POST /api/v1/ai/chat/completions` không token -> trả về `200 OK`, `conversationId: 7b184764-0958-4b74-9ec4-859af50ae933`, hướng dẫn đầy đủ hồ sơ khai sinh (1114 ký tự).
+  - Lượt 2 (Tiếp tục hội thoại): `POST /api/v1/ai/chat/completions` gửi kèm `conversationId` không token -> trả về `200 OK`, ghi nhớ ngữ cảnh câu hỏi trước, trả lời chính xác thời hạn 60 ngày.
+  - Logging & Rate Limit: Ghi nhận 2 dòng vào bảng `ai_request_logs` (operation `CHAT`, model `gemini-3.1-flash-lite`, outcome `SUCCESS`, latency 980ms - 2022ms, prompt tokens 148-487, output tokens 100-326, `user_id` null đúng chuẩn khách ẩn danh). Bảng `chat_sessions` lưu `user_id = 00000000-0000-0000-0000-000000000000`.
+- Build Release: Solution-wide `0 warnings, 0 errors`.
+
 ## WF-CALENDAR-REVIEW-01 — 2026-11-01 12:15 +07:00 (Asia/Saigon)
 - Rà soát đặc tả calendar closures và đường xử lý lỗi GET/POST /api/v1/staffing/leaves. Thêm docs/calendar-closures-review.md; không thay đổi API, cấu hình, migration hoặc authorization.
 - Kế hoạch cần bổ sung hiệu lực một phần ngày, bảo toàn thời gian còn lại khi Resume, thứ tự khóa và phạm vi ảnh hưởng tới phân công/ca làm. 4 API closures chỉ là đề xuất, chưa triển khai.

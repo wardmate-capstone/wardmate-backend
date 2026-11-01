@@ -5,8 +5,7 @@ public sealed record DeliveryAdminDto(Guid Id, Guid NotificationId, string Chann
     DateTime NextAttemptAt, string? ErrorCode, DateTime? SentAt, string? Provider, string? ExternalMessageId,
     bool? IsSandbox, Guid Revision, DateTime UpdatedAt, string ProviderRequestId);
 public sealed record DeliveryPage(DeliveryAdminDto[] Items, int Page, int PageSize, int Total);
-public sealed record DeliveryReplayInput(Guid ExpectedRevision, string Reason, bool AcknowledgeDuplicateRisk, bool AcknowledgeSmsCost = false);
-public sealed record SmsReconcileInput(Guid ExpectedRevision, string Outcome, string Reference, string Reason, string? ProviderMessageId = null);
+public sealed record DeliveryReplayInput(Guid ExpectedRevision, string Reason, bool AcknowledgeDuplicateRisk);
 public sealed record DeliveryAuditDto(Guid Id, Guid ActorId, string Action, string BeforeState, string AfterState, int BeforeAttempts,
     Guid BeforeRevision, Guid AfterRevision, string Reason, string? Reference, string? BeforeMessageId, string? AfterMessageId, DateTime CreatedAt);
 public interface IDeliveryAdministration
@@ -15,5 +14,4 @@ public interface IDeliveryAdministration
     Task<DeliveryAdminDto> Get(Guid id, CancellationToken ct);
     Task<DeliveryAuditDto[]> Audit(Guid id, int page, int pageSize, CancellationToken ct);
     Task<DeliveryAdminDto> Replay(Guid actor, Guid id, DeliveryReplayInput input, CancellationToken ct);
-    Task<DeliveryAdminDto> Reconcile(Guid actor, Guid id, SmsReconcileInput input, CancellationToken ct);
 }

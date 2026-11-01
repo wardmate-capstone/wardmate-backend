@@ -17,21 +17,11 @@ public sealed class NotificationDeliveryWorker(IServiceScopeFactory scopes, ICon
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var row = await db.Deliveries.FromSqlRaw("SELECT * FROM notification_deliveries WHERE \"State\" = 'Pending' AND \"NextAttemptAt\" <= now() ORDER BY \"NextAttemptAt\", \"Id\" LIMIT 1 FOR UPDATE SKIP LOCKED").SingleOrDefaultAsync(ct);
         if (row is null) return false;
+        // SMS was removed; a pending SMS row left from before is closed without sending.
         if (row.Channel == "SMS")
         {
-            row.State = "Dispatching";
-            row.Provider = "eSMS";
-            row.IsSandbox = (configuration["Sms:Sandbox"] ?? "1") != "0";
-            row.ErrorCode = "sms.dispatch_interrupted";
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-            // A crash after this fence requires reconciliation, not automatic re-send.
-            await using var smsTx = await db.Database.BeginTransactionAsync(ct);
-            db.ChangeTracker.Clear();
-            row = await db.Deliveries.FromSqlInterpolated($"SELECT * FROM notification_deliveries WHERE \"Id\" = {row.Id} FOR UPDATE").SingleAsync(ct);
-            if (row.State != "Dispatching") { await smsTx.CommitAsync(ct); return true; }
-            await ProcessDelivery();
-            await db.SaveChangesAsync(ct); await smsTx.CommitAsync(ct); return true;
+            row.State = "Suppressed"; row.ErrorCode = "sms.removed";
+            await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return true;
         }
         await ProcessDelivery();
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return true;
@@ -52,11 +42,11 @@ public sealed class NotificationDeliveryWorker(IServiceScopeFactory scopes, ICon
             }
             else row.State = await scope.ServiceProvider.GetRequiredService<ExternalNotificationSender>().Send(n, contact, row, ct);
             row.SentAt = row.State == "Sent" ? DateTime.UtcNow : null;
-            if (row.Channel != "SMS" || row.State == "Suppressed") row.ErrorCode = row.State == "Blocked" ? "notification.channel_not_configured" : null;
+            row.ErrorCode = row.State == "Blocked" ? "notification.channel_not_configured" : null;
         }
         catch (Exception error) when (!ct.IsCancellationRequested)
         {
-            row.Attempts++; row.State = row.Channel == "SMS" ? "Unknown" : row.Attempts >= 10 ? "Dead" : "Pending";
+            row.Attempts++; row.State = row.Attempts >= 10 ? "Dead" : "Pending";
             row.NextAttemptAt = RetrySchedule.Next(row.Attempts); row.ErrorCode = error is NotificationSendException failure ? failure.Code : "notification.delivery_failed";
             logger.LogWarning("Notification delivery {DeliveryId} failed; attempt {Attempt}, state {State}.", row.Id, row.Attempts, row.State);
         }
