@@ -20,6 +20,9 @@ public static class ChecklistStates
 
 public sealed class ApplicationRecord
 {
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<ClosureInterval> CalendarClosures { get; set; } = [];
     public Guid Id { get; set; } = Guid.NewGuid();
     public string ApplicationCode { get; set; } = string.Empty;
     public Guid UserId { get; set; }
