@@ -648,6 +648,77 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.CalendarClosure", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at_utc");
+
+                    b.Property<Guid?>("CancelledBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cancelled_by");
+
+                    b.Property<DateOnly>("ClosureDate")
+                        .HasColumnType("date")
+                        .HasColumnName("closure_date");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime>("EffectiveFromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_from_utc");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("WardCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("ward_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_calendar_closures");
+
+                    b.HasIndex("ClosureDate")
+                        .IsUnique()
+                        .HasDatabaseName("ux_calendar_closures_national")
+                        .HasFilter("cancelled_at_utc IS NULL AND ward_code IS NULL");
+
+                    b.HasIndex("ClosureDate", "Id")
+                        .HasDatabaseName("ix_calendar_closures_closure_date_id");
+
+                    b.HasIndex("WardCode", "ClosureDate")
+                        .IsUnique()
+                        .HasDatabaseName("ix_calendar_closures_ward_code_closure_date")
+                        .HasFilter("cancelled_at_utc IS NULL AND ward_code IS NOT NULL");
+
+                    b.ToTable("calendar_closures", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_closure_cancellation", "(cancelled_by IS NULL AND cancelled_at_utc IS NULL AND cancellation_reason IS NULL) OR (cancelled_by IS NOT NULL AND cancelled_at_utc IS NOT NULL AND cancellation_reason IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_closure_reason", "length(btrim(reason)) BETWEEN 1 AND 500");
+                        });
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.OfficerLeave", b =>
                 {
                     b.Property<Guid>("Id")
