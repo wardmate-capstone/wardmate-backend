@@ -30,10 +30,12 @@ public sealed class ApplicationStore(WorkflowDbContext db) : IApplicationStore
         Func<ApplicationRecord, Task<WorkflowResult<ApplicationDto>>> operation, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await CalendarLocks.Read(db, ct);
         var application = await db.Applications.FromSqlInterpolated(
             $"SELECT * FROM applications WHERE id = {applicationId} AND user_id = {userId} FOR UPDATE")
             .SingleOrDefaultAsync(ct);
         if (application is null) return WorkflowResult<ApplicationDto>.Fail(404, "application.not_found", "Không tìm thấy hồ sơ của bạn.");
+        await CalendarLocks.Load(db, application, ct);
         await db.Entry(application).Collection(x => x.Checklists).LoadAsync(ct);
         await db.Entry(application).Collection(x => x.History).LoadAsync(ct);
         await db.Entry(application).Collection(x => x.AssignmentHistory).LoadAsync(ct); var existingHistoryIds = application.History.Select(x => x.Id).ToHashSet();
