@@ -2702,7 +2702,6 @@ Owner explicitly approved push main after Docker handoff. Fetched origin; main w
 - Gợi ý commit chức năng cho Antigravity: fix(workflow): allow ward-scoped read-only manager access; feat(iam): add authenticated password change; fix(iam): grant manager workflow read permissions. Tách từng file mới riêng theo AGENTS.md. Chờ chỉ thị P1.
 
 - Hoàn tất local: 2026-10-21 09:11:55 +07:00 (Asia/Saigon). Build cuối: dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1 PASS, 0 lỗi/0 cảnh báo, 00:01:55.03. Lần build trước có 5 lỗi khai báo danh sách trùng, đã sửa trước lần build đạt này. Chưa xác nhận integration/runtime hoặc triển khai Azure.
-<<<<<<< Updated upstream
 ## TASK-31..36 - Source implementation assessment (2026-10-21T09:58:56+07:00)
 - Scope: inspected current local source, EF mappings/migrations, workers and documentation; no Git commands or Azure changes.
 - TASK-31/32/33: no metrics aggregation/Hangfire, manager analytics endpoints or citizen feedback implementation found. Planned tables remain SYS_FUTURE in docs/system-unified-erd.md.
@@ -3711,7 +3710,7 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 
 ## IAM-EMAIL-01 — Bật cấu hình Email SMTP cho IAM trên Azure Container Apps — 2026-10-30 (Asia/Saigon, UTC+07:00)
 - Bối cảnh: Sau khi gỡ hoàn toàn SMS ở IAM-PHONE-REMOVAL-01, chức năng Quên mật khẩu phụ thuộc 100% vào Email OTP. Trên Azure Container Apps, `wardmate-iam` chưa có cấu hình SMTP dẫn đến `POST /api/v1/auth/password-otp/request` trả lỗi `503 iam.email_unavailable`.
-- Triển khai: Chủ dự án chạy `az containerapp update --name wardmate-iam --set-env-vars Email__Enabled=true Email__Host=smtp.gmail.com Email__Port=587 Email__Username=nhkha452@gmail.com Email__From=nhkha452@gmail.com Email__DisplayName="WardMate System" Email__Password=gebxibibcyizockp`.
+- Triển khai: Chủ dự án đặt trên `wardmate-iam` các biến Email__Enabled=true, Email__Host=smtp.gmail.com, Email__Port=587, Email__Username, Email__From, Email__DisplayName, Email__Password (giá trị bí mật đã xóa khỏi tài liệu ngày 31/10/2026; mật khẩu ứng dụng cũ đã nằm trong lịch sử Git nên cần thu hồi và tạo mới, lưu dạng secret).
 - Kiểm tra live: Gọi `POST /api/v1/auth/password-otp/request` qua Gateway `https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/auth/password-otp/request` trả về `200 OK` ("Nếu tài khoản hợp lệ và đủ thời gian gửi lại, mã OTP sẽ được gửi qua kênh đã chọn..."). Dịch vụ Email đã sẵn sàng, mã OTP đã gửi qua SMTP Gmail thành công.
 
 
@@ -3729,7 +3728,7 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 
 ## JWT-SECRET-01 — Đổi JWT Key bảo mật 256-bit và lưu dạng Secret cho cả 6 service — 2026-10-30 (Asia/Saigon, UTC+07:00)
 - Bối cảnh: Key JWT cũ trước đây lưu dạng biến môi trường thường và đã bị lộ. Cần tạo key bảo mật mới và lưu dạng Secret trên Azure Container Apps.
-- Triển khai: Sinh khóa mới 256-bit (50513530445017C08E745A25F52B7E1DAE9F15BC64AF73F643D0ABDF68EFF574). Lưu vào Secret `jwt-key` trên cả 6 service (`wardmate-iam`, `wardmate-procedure-catalog`, `wardmate-application-workflow`, `wardmate-documentform`, `wardmate-aiocr`, `wardmate-analytics-system`) và đặt biến `Jwt__Key=secretref:jwt-key`.
+- Triển khai: Sinh khóa mới 256-bit (giá trị đã xóa khỏi tài liệu ngày 31/10/2026; khóa này đã nằm trong lịch sử Git nên cần đổi khóa mới). Lưu vào Secret `jwt-key` trên cả 6 service (`wardmate-iam`, `wardmate-procedure-catalog`, `wardmate-application-workflow`, `wardmate-documentform`, `wardmate-aiocr`, `wardmate-analytics-system`) và đặt biến `Jwt__Key=secretref:jwt-key`.
 - Hệ quả bảo mật: Khóa không còn hiển thị dạng plaintext; toàn bộ Access Token cũ bị vô hiệu hóa an toàn, người dùng/tester chỉ cần đăng nhập lại để nhận token mới.
 
 ## RABBITMQ-CLOUDAMQP-01 — Bật RabbitMQ qua CloudAMQP Free — 2026-10-30 (Asia/Saigon, UTC+07:00)
@@ -3858,3 +3857,70 @@ User explicitly approved exception to local-only rule for Azure CLI/migrations/d
 Pushed tested local image to acrwardmate2026.azurecr.io/wardmate-application-workflow:calendar-20261101-01; digest sha256:d692d06134bf55c29726dd121351b0186584407fcfd461877a5387cecba0c8c3. Container App wardmate-application-workflow provisioning Succeeded, latest wardmate-application-workflow--latest. Previous image retained in registry; no secrets printed or committed.
 Verified live Gateway Swagger200: 4 closure operations, all18 documented staffing operations still present; total broad filter24 includes2 pre-existing assignment-summary/PUT assignee operations. Health /api/application-workflow/health200; closures GET and manager/applications GET without token401. Authenticated production CRUD not verified; no user token fabricated or production test closure created. Local results remain15 console +46 Docker checks. No source changes/new build needed: deployed exact tested image.
 Changed docs/fe-staffing-18-apis.md deployment status and PROGRESS.md. Suggested commits for Antigravity: docs(staffing): record verified Azure calendar rollout; docs(progress): record calendar migration and deployment evidence. No Git executed. Azure deployment was direct CLI, not CI/CD; repository handoff still required to prevent next deployment overwriting changes.
+
+## FE-HANDOFF-1031 — Bàn giao FE tuần 24–31/10 và xử lý báo cáo lỗi FE — 2026-10-31 (Asia/Saigon, UTC+07:00)
+- Đối chiếu báo cáo FE 31/10 với code:
+  - 503 `chat.database_unavailable`: do DB AIOCR thiếu bảng. Anti đã chạy `docs/sql/aiocr-full-setup.sql` trên DB mà `AiOcrDatabase` trỏ tới và xác nhận hết lỗi.
+  - 404 `ai.document_not_found`: FE gửi sai `documentId` (phải là `id` của supporting-documents).
+  - `notification_deliveries` rỗng: worker tắt. Anti đặt `Notifications__WorkersEnabled=true` và `RabbitMq__Enabled=true` cho `wardmate-analytics-system` (image `analytics-20261030-01`, `minReplicas` 0); chưa kiểm tra lại.
+- Chủ dự án chọn đặt Analytics `minReplicas = 1` (có thể phát sinh phí, theo dõi Cost Management); Anti thực hiện, chưa xác nhận.
+- File mới: `docs/fe-handoff-2026-10-31.md`. Nội dung: tóm tắt việc BE trong tuần kèm tình trạng Azure; tình trạng 3 lỗi FE; việc FE cần làm (chatbot công khai, mã lỗi AI, tiền kiểm, thông báo, gỡ SMS, workflow/phân công, hành vi chung, thuật ngữ); giới hạn; việc BE còn mở. Mã lỗi và route đã đối chiếu code.
+- Bảo mật: xóa giá trị mật khẩu ứng dụng Gmail (mục IAM-EMAIL-01) và JWT key (mục JWT-SECRET-01) khỏi `PROGRESS.md`. Hai giá trị này đã nằm trong lịch sử Git nên **cần đổi**: thu hồi mật khẩu ứng dụng Gmail và tạo mới; sinh JWT key mới cho 6 service (người dùng phải đăng nhập lại); cả hai lưu dạng secret trên Azure.
+- Không sửa code, không build (chỉ tài liệu), không chạy Git, không chạy Azure.
+- Commit gợi ý:
+  1. docs: add FE handoff for 24–31/10 — docs/fe-handoff-2026-10-31.md
+  2. docs: redact leaked secrets from progress log — PROGRESS.md (gồm mục này)
+  3. docs: record FE handoff in Claude handoff — docs/CLAUDE_HANDOFF.md
+
+## AI-OFFICER-ASSIST-01 — Trợ lý AI kiểm tra cả bộ hồ sơ cho cán bộ + xử lý 429 Gemini — 2026-11-01 (Asia/Saigon, UTC+07:00)
+- Yêu cầu: FE gửi `BE_FEATURE_REQUEST_AI_DOSSIER_ASSISTANT.md` (AI-OFFICER-ASSIST-01) và `BE_DEVOPS_NOTIFICATION_WORKER_CONFIG.md`.
+- Đã làm (AIOCR):
+  - API mới `POST /api/v1/ai-ocr/applications/{applicationId}/dossier-assist`.
+    - Body tùy chọn `{includeSubmissions?, includeSupportingDocuments?}`.
+    - 200 `DossierAssistResult`: overallAssessment NO_ISSUES_FOUND|NEEDS_ATTENTION|INSUFFICIENT_DATA, summary, files[], extractedFields[], crossChecks[] MATCH|MISMATCH|NOT_FOUND, missingItems[], issues[], suggestedComment, disclaimer.
+    - Lỗi: 400 `ai.invalid_input`, 401, 403 `ai.not_assigned_officer`, 409 `ai.application_not_under_review`, 422 `ai.dossier_empty`, `ai.document_access_failed`, 429 `ai.quota_exceeded`/`ai.daily_limit_reached`/`ai.provider_busy`/không code, 502, 503.
+  - Quyền: chỉ cán bộ đang thụ lý hồ sơ `UNDER_REVIEW`. AIOCR đọc Workflow và DocumentForm bằng token của cán bộ.
+  - Đọc tờ khai DOCX bằng DocumentFormat.OpenXml 3.1.1; đọc giấy tờ PDF/PNG/JPEG/DOCX; có giới hạn số tệp và dung lượng.
+  - Không lưu kết quả; chỉ ghi `ai_request_logs` với thao tác `DOSSIER_ASSIST`, tính vào hạn mức ngày.
+  - Mọi thao tác AI: Google 429 → 429 `ai.provider_busy` kèm `Retry-After` (trước đây 503). Google 5xx → thử lại 1 lần sau 1 giây.
+- Điều chỉnh so với đề xuất FE (lý do ghi trong docs):
+  - Không có verdict `READY_TO_RECEIVE`, `isRecommendedAccept` hay `policyReference`: không phê duyệt hành chính, không trích luật khi chưa có nguồn kiểm chứng.
+  - MANAGER không được gọi.
+  - Không thêm bảng `dossier_ai_reviews`.
+  - Không đổi model, không bật billing hay key rotation (chỉ dùng gói miễn phí).
+  - Không dùng Polly chờ 2/4/8 giây: 429 trả ngay kèm `Retry-After`.
+- File mới:
+  - src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Application/DossierAssistContracts.cs
+  - src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/DossierSource.cs
+  - src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/DocxText.cs
+- File sửa:
+  - AIOCR Application/AssistantContracts.cs (`AiFailure.RetryAfterSeconds`).
+  - Domain/AiRequestLog.cs (`DOSSIER_ASSIST`).
+  - Infrastructure/GeminiAssistant.cs (Review, 429/Retry-After, thử lại 5xx); Infrastructure csproj (OpenXml).
+  - API/Controllers/AssistantController.cs; API/AssistantRegistration.cs (DI, header Retry-After).
+  - docs/api-guide.md, docs/system-constraints.md (AI-OFFICER-ASSIST-01), docs/fe-handoff-2026-10-31.md (thêm mã `ai.provider_busy`), docs/CLAUDE_HANDOFF.md.
+- Kiểm tra:
+  - `dotnet build WardMate.sln -c Release -warnaserror -m:1` → 0 warning, 0 error.
+  - Harness HTTP trong scratchpad (không thuộc repo; Postgres 16 Docker đã xóa; IAM, Workflow, DocumentForm và Gemini giả; DOCX tạo bằng OpenXml) 30/30 PASS:
+    - quyền: cán bộ khác, Manager, sai trạng thái, không token;
+    - body rỗng và chọn phạm vi;
+    - trích bảng và content control;
+    - bỏ qua tệp sai định dạng hoặc vượt giới hạn;
+    - Gemini 429 → `Retry-After` 37; 503 → thử lại thành công; 500 hai lần → 503;
+    - kết quả AI sai enum → 502;
+    - log `DOSSIER_ASSIST`; hạn mức ngày.
+  - Chưa gọi Gemini thật, chưa thử DOCX biểu mẫu thật của phường, chưa deploy.
+- Yêu cầu Worker thông báo (tài liệu DevOps của FE): không sửa code.
+  - Tên biến FE ghi sai. Đúng là `ConnectionStrings__NotificationsDatabase` và `RabbitMq__Host`/`Port`/`User`/`Password`/`VirtualHost`/`UseTls`/`Enabled`, không phải `DefaultConnection` hay `EventBus__RabbitMQ__*`.
+  - Nên đặt `maxReplicas` = 1, không phải 3: job thống kê chạy theo lịch trên mỗi replica.
+  - Trạng thái delivery thật: Pending, Dispatching, Sent, Unknown, Dead, Suppressed. Kênh IN_APP luôn có; EMAIL chỉ có khi `Email__Enabled=true` trên Analytics.
+  - Còn chờ Anti đặt `minReplicas=1` và kiểm tra lại.
+- Triển khai (Antigravity): deploy lại AIOCR; không có migration hay SQL; không cần biến mới.
+- Không chạy Git. Commit gợi ý:
+  1. feat(aiocr): add dossier assist contracts — Application/DossierAssistContracts.cs
+  2. feat(aiocr): extract text from docx forms — Infrastructure/DocxText.cs + Infrastructure csproj
+  3. feat(aiocr): load assigned officer dossier with caller token — Infrastructure/DossierSource.cs
+  4. feat(aiocr): add dossier assist endpoint for assigned officers — GeminiAssistant.cs, AssistantController.cs, AssistantRegistration.cs, AiRequestLog.cs
+  5. fix(aiocr): return provider_busy with retry-after on gemini 429 and retry 5xx once — GeminiAssistant.cs, AssistantContracts.cs, AssistantRegistration.cs
+  6. docs: document dossier assist and gemini busy handling
+- Bổ sung 01/11/2026: chủ dự án chấp nhận rủi ro gửi nội dung hồ sơ (kể cả số định danh) tới Gemini gói miễn phí cho AI-OFFICER-ASSIST-01. Đã ghi vào docs/system-constraints.md, docs/CLAUDE_HANDOFF.md và docs/fe-response-2026-11-01.md. Không đổi code.
