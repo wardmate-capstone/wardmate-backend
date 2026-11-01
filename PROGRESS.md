@@ -3601,3 +3601,57 @@ Lưu ý: thay đổi chưa commit của các task trước (WORKFLOW-ASSIGN-01, 
 - Chưa test: chat thật qua Docker (cần AIOCR_ASSISTANT_ENABLED=true và Gemini key; không gọi Gemini trong lượt này); IAM/procedure-catalog không chạy trong lần thử này.
 - Bỏ qua dịch vụ cũ `postgres` (pgvector, wardmate_db) trong compose: không phải DB của AIOCR, không đụng tới.
 - Commit gợi ý: fix(docker): add AIOCR database and gateway route to compose; docs: document AIOCR docker profile
+
+## WF-CALENDAR-REVIEW-01 — 2026-11-01 12:15 +07:00 (Asia/Saigon)
+- Rà soát đặc tả calendar closures và đường xử lý lỗi GET/POST /api/v1/staffing/leaves. Thêm docs/calendar-closures-review.md; không thay đổi API, cấu hình, migration hoặc authorization.
+- Kế hoạch cần bổ sung hiệu lực một phần ngày, bảo toàn thời gian còn lại khi Resume, thứ tự khóa và phạm vi ảnh hưởng tới phân công/ca làm. 4 API closures chỉ là đề xuất, chưa triển khai.
+- Leaves: request GET from/to hoặc POST StartsAt/EndsAt/Reason; validation service trả 400, dependency controller trả 503, lỗi được báo là 500 chưa xác định nguồn. Không tìm thấy trace được cung cấp trong log local đã tìm; cần method, môi trường và exception runtime. Chưa kiểm tra schema Azure.
+- Kiểm tra: đọc source/controller/model/migration/Program và tìm trace; 0 HTTP test, không chạy build vì chỉ viết tài liệu rà soát; chưa xác nhận đạt gate Release 0 errors/0 warnings. Không thay đổi DTO/token/ProblemDetails.
+- Commit gợi ý cho Antigravity: docs(workflow): review calendar closures design and leave error diagnostics. Không thực hiện Git.
+
+## WF-STAFFING-DI-FIX — 2026-11-01 12:33 +07:00 (Asia/Saigon)
+- Log Azure xác nhận không resolve được IDispatchService khi tạo ManagerDispatchController. Đối chiếu local cũng thiếu IStaffingService, IConsultationService và IDispatchDirectory.
+- Sửa Infrastructure/ProcedureCatalogClient.cs: đăng ký scoped ba service; typed client DispatchDirectory dùng chung cấu hình IAM với WorkflowDirectory (10s, 2 MiB, không redirect).
+- Cập nhật docs/api-guide.md và docs/system-constraints.md (WF-STAFFING-DI-01). Không đổi method/route/body/status contract của 18 API (4 ManagerDispatch, 8 Staffing, 6 Consultations); không đổi DTO, token, quyền hoặc schema. Lỗi khởi tạo trước nghiệp vụ được khắc phục; response thực tế Azure còn phải kiểm tra sau phát hành.
+- Build toàn WardMate.sln Release -warnaserror -m:1: thành công, 0 warnings, 0 errors.
+- Kiểm tra DI bằng console tạm trong logs/workflow-di-check (không phải test project, không thêm solution): 8/8 kiểm tra đạt — resolve 4 interface, activate 3 controller, kiểm tra scoped lifetimes. Không gọi database/network. Restore công cụ tạm ban đầu lỗi NU1900 vì NuGet không truy cập được; chạy lại với NuGetAudit=false cho công cụ tạm, không sửa cấu hình repo. Không có kiểm tra HTTP/E2E hoặc deploy Azure trong phiên này.
+- Antigravity: chỉ stage các hunk liên quan; không commit logs/, build output, secrets hoặc thay đổi khác. Danh sách 3 commit đề xuất: (1) fix(workflow): register dispatch staffing and consultation dependencies — ProcedureCatalogClient.cs; (2) docs(workflow): document staffing dependency configuration and recovery — docs/api-guide.md, docs/system-constraints.md; (3) docs(progress): record staffing dependency fix verification — PROGRESS.md. Không thực hiện Git.
+
+## DEADLINE-CLOSURE-01 — Hoàn thiện API lịch nghỉ và kiểm tra Docker
+- Hoàn thành phiên: 2026-11-01 18:27 +07:00 (Asia/Saigon).
+- Giữ nguyên 18 API staffing/dispatch/consultation; thêm CalendarClosuresController với GET /api/v1/staffing/closures?from&to, POST /api/v1/staffing/closures, POST /api/v1/staffing/closures/national, POST /api/v1/staffing/closures/{id}/cancel. POST tạo nhận {date,reason}; cancel nhận {reason}; thành công 200. GET mảng ClosureDto, POST {closure,rescheduledApplications}. Lỗi 400/401/403/404/409/503 theo api-guide; không che lỗi DB/DI thành thành công.
+- Source mới: ApplicationWorkflow.Domain/CalendarClosure.cs; Application/CalendarContracts.cs; Infrastructure/CalendarClosureService.cs; API/Controllers/CalendarClosuresController.cs; Infrastructure/Migrations/20261101055515_CalendarClosures.cs và .Designer.cs; IAM.Infrastructure/Persistence/Migrations/20261101060000_WorkflowCalendarPermission.cs.
+- Source sửa: ApplicationWorkflow.Domain/ApplicationRecord.cs, ReviewDeadline.cs; Infrastructure/ApplicationStore.cs, ApplicationReviewStore.cs, WorkflowDbContext.cs, ProcedureCatalogClient.cs, Migrations/WorkflowDbContextModelSnapshot.cs; API/WorkflowSecurity.cs. Các đường dẫn service bắt đầu tại src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.* và src/Services/WardMate.Services.IAM/WardMate.Services.IAM.*.
+- Mới: docs/sql/workflow-calendar-closures.sql, docs/sql/iam-calendar-permission.sql, scripts/verify-calendar-local.py.
+- Tài liệu cập nhật: docs/api-guide.md, docs/system-constraints.md, docs/calendar-closures-review.md, docs/CLAUDE_HANDOFF.md và PROGRESS.md.
+- Validation: ngày VN từ hôm nay tới +366; query <=400 ngày; lý do trim 1–500; chỉ hủy tương lai; partial unique active; hủy mềm; phạm vi IAM ward/role/permission. IT_ADMIN thêm workflow.calendar.manage. Không FK xuyên service.
+- Deadline: khoảng đóng cửa có effective_from_utc; union quốc gia/phường; giữ policy snapshot; bảo toàn remaining budget khi resume; bỏ qua overdue/UNKNOWN/kết thúc; history JSON có closureId. Khóa calendar shared/exclusive trước application row lock để submit/resubmit không dùng lịch cũ. Không tự chặn ca/phân công hoặc gửi notification.
+- Build solution: `dotnet build WardMate.sln -c Release --no-restore -warnaserror -m:1`: 0 errors, 0 warnings, 00:01:46.27; logs/calendar-release.log.
+- Console kiểm tra tạm dưới logs/calendar-domain-check: 15/15 đạt (deadline/partial day/union/cancel/pause/overdue/snapshot/DI). Không thêm test project vào source hoặc solution, không tuyên bố coverage toàn dự án. Log: logs/calendar-domain-check.log.
+- Docker image `wardmate-workflow:calendar-local` build thành công bằng Dockerfile Workflow. Docker Engine từng mất VM (`no connected VM`); đã restart và chạy lại được. Lượt đầu script thiếu dữ liệu bắt buộc trong hồ sơ giả lập và thiếu bộ lọc ngày leaves; đã sửa fixture, không bỏ validation sản phẩm.
+- `scripts/verify-calendar-local.py`: 46/46 kiểm tra đạt trong Workflow container + PostgreSQL disposable, IAM/Catalog giả lập; tạo 2 hồ sơ giả 2 phường, kiểm tra reschedule/union/cancel, SQL idempotent chạy 2 lần, concurrent duplicate 200/409, auth 401/403/503, input 400, conflict 409, Swagger 4 operations. Regression GET manager/applications, staffing/leaves, staffing/consultations đều 200. Không tuyên bố toàn bộ nghiệp vụ 18 API đã được test; các controller lỗi DI trước đó được gọi thực tế. Logs/calendar-docker-check.log, calendar-docker-api.log. Containers kiểm thử đã được script xóa.
+- Chưa kiểm tra IAM migration trên IAM database thật; chưa rollout Azure, chưa test token thực, chưa stress-test số hồ sơ lớn. Không chạy Git/commit/push. Cần Antigravity quản lý commit và rollout đúng migration hai DB.
+- FE: dùng token IAM, date yyyy-MM-dd, timestamp UTC; refresh GET sau POST; rescheduledApplications=0 vẫn thành công; policy403 có thể không có body, xử lý cả HTTP status lẫn ProblemDetails.code.
+
+### Gợi ý commit cho Antigravity (không thực thi Git)
+Mỗi file mới dưới đây thành một commit riêng, không squash; validate toàn bộ feature trước merge. Các commit trung gian có thể phụ thuộc file ở commit sau.
+1. `feat(workflow): add calendar closure domain model` — CalendarClosure.cs.
+2. `feat(workflow): define closure requests and response contracts` — CalendarContracts.cs.
+3. `feat(workflow): implement scoped calendar closure operations` — CalendarClosureService.cs.
+4. `feat(workflow): expose calendar closure endpoints` — CalendarClosuresController.cs.
+5. `feat(workflow): add calendar closures migration` — 20261101055515_CalendarClosures.cs.
+6. `chore(workflow): add calendar migration model metadata` — 20261101055515_CalendarClosures.Designer.cs.
+7. `feat(iam): grant national calendar permission to IT admin` — 20261101060000_WorkflowCalendarPermission.cs.
+8. `chore(workflow): add guarded calendar schema SQL` — docs/sql/workflow-calendar-closures.sql.
+9. `chore(iam): add guarded calendar permission SQL` — docs/sql/iam-calendar-permission.sql.
+10. `test(workflow): add disposable Docker calendar checks` — scripts/verify-calendar-local.py.
+Các file có sẵn: tách functional updates cho deadline interval/resume (ReviewDeadline.cs), transient calendar (ApplicationRecord.cs), khóa và load calendar (mỗi store), DB mapping và snapshot, policy calendar, DI registration. Với ProcedureCatalogClient.cs tách sửa DI staffing cũ và đăng ký calendar mới. Các cập nhật api-guide/system-constraints/review/handoff/progress commit docs tương ứng; không gộp thay đổi không liên quan của người dùng. Nếu calendar-closures-review.md chưa được tracking từ phiên trước, cũng cần commit riêng cho file mới đó.
+
+## FE-CALENDAR-HANDOFF — 2026-11-01 (Asia/Saigon)
+Cập nhật docs/fe-staffing-18-apis.md thành nội dung 22 API, giữ tên file; thêm API 19–22 với quyền, request/response mẫu, trạng thái/lỗi, luồng FE, validation và migration/rollout checklist. Bỏ khẳng định cả bản mới đã live Azure khi chưa xác minh. Đối chiếu CalendarClosuresController và CalendarContracts. Không đổi API/source runtime; không chạy lại build/test cho thay đổi tài liệu. Kế thừa kết quả phiên trước: Release 0/0, console15/15, Docker46/46 (IAM giả lập). Không Git hoặc deploy; AGENTS.md giới hạn local và giao Git/remote cho Antigravity. Commit đề xuất riêng: docs(staffing): document four calendar closure APIs for frontend; docs(progress): record calendar frontend handoff.
+
+## CALENDAR-AZURE-ROLLOUT — 2026-11-01 18:35:15 +07:00 (Asia/Saigon)
+User explicitly approved exception to local-only rule for Azure CLI/migrations/deploy, no Git. Read current images/migrations first: Workflow workflow-20261030-01; only CalendarClosures and WorkflowCalendarPermission pending. Applied Workflow 20261101055515_CalendarClosures and IAM 20261101060000_WorkflowCalendarPermission via EF, both Done/exit0. No other services redeployed.
+Pushed tested local image to acrwardmate2026.azurecr.io/wardmate-application-workflow:calendar-20261101-01; digest sha256:d692d06134bf55c29726dd121351b0186584407fcfd461877a5387cecba0c8c3. Container App wardmate-application-workflow provisioning Succeeded, latest wardmate-application-workflow--latest. Previous image retained in registry; no secrets printed or committed.
+Verified live Gateway Swagger200: 4 closure operations, all18 documented staffing operations still present; total broad filter24 includes2 pre-existing assignment-summary/PUT assignee operations. Health /api/application-workflow/health200; closures GET and manager/applications GET without token401. Authenticated production CRUD not verified; no user token fabricated or production test closure created. Local results remain15 console +46 Docker checks. No source changes/new build needed: deployed exact tested image.
+Changed docs/fe-staffing-18-apis.md deployment status and PROGRESS.md. Suggested commits for Antigravity: docs(staffing): record verified Azure calendar rollout; docs(progress): record calendar migration and deployment evidence. No Git executed. Azure deployment was direct CLI, not CI/CD; repository handoff still required to prevent next deployment overwriting changes.
