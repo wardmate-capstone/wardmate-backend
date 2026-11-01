@@ -42,15 +42,22 @@ public static class WorkflowInfrastructureRegistration
         services.AddScoped<IApplicationStore, ApplicationStore>();
         services.AddScoped<IWorkflowAnalyticsSource, WorkflowAnalyticsSource>();
         services.AddScoped<IApplicationReviewStore, ApplicationReviewStore>();
+        services.AddScoped<IDispatchService, DispatchService>();
+        services.AddScoped<IStaffingService, StaffingService>();
+        services.AddScoped<IConsultationService, ConsultationService>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(config.GetSection("RabbitMq").Get<WardMate.EventBus.RabbitOptions>() ?? new());
         services.AddHostedService<WorkflowOutboxWorker>();
-        services.AddHttpClient<IWorkflowDirectory, WorkflowDirectory>(http =>
+        void ConfigureIamClient(HttpClient http)
         {
             http.BaseAddress = new Uri((config["Iam:BaseUrl"] ?? "http://localhost:5001/").TrimEnd('/') + "/");
             http.Timeout = TimeSpan.FromSeconds(10);
             http.MaxResponseContentBufferSize = 2 * 1024 * 1024;
-        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        }
+        services.AddHttpClient<IWorkflowDirectory, WorkflowDirectory>(ConfigureIamClient)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHttpClient<IDispatchDirectory, DispatchDirectory>(ConfigureIamClient)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddHttpClient<IProcedureCatalogClient, ProcedureCatalogClient>(http =>
         {
             var endpoint = config["ProcedureCatalog:BaseUrl"] ?? "http://localhost:5002/";
