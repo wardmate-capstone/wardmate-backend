@@ -11,6 +11,7 @@ COPY ["src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.Procedu
 COPY ["src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/WardMate.Services.ProcedureCatalog.Domain.csproj", "src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Domain/"]
 COPY ["src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/WardMate.Services.ProcedureCatalog.Infrastructure.csproj", "src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Infrastructure/"]
 COPY ["src/BuildingBlocks/WardMate.SharedKernel/WardMate.SharedKernel.csproj", "src/BuildingBlocks/WardMate.SharedKernel/"]
+COPY ["src/BuildingBlocks/WardMate.Auditing/WardMate.Auditing.csproj", "src/BuildingBlocks/WardMate.Auditing/"]
 RUN dotnet restore "src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API/WardMate.Services.ProcedureCatalog.API.csproj"
 COPY . .
 WORKDIR "/src/src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.API"
