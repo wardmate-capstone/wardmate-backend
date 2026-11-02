@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,9 +21,10 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DocumentDb")
             ?? throw new InvalidOperationException("Connection string 'DocumentDb' is not configured.");
 
-        services.AddDbContext<DocumentDbContext>(options =>
+        services.AddSourceAudit<DocumentDbContext>(configuration, "documentform");
+        services.AddDbContext<DocumentDbContext>((sp, options) =>
             options
-                .UseNpgsql(connectionString)
+                .AddInterceptors(sp.GetRequiredService<AuditConnectionInterceptor>()).UseNpgsql(connectionString)
                 .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IDocumentDbContext>(sp => sp.GetRequiredService<DocumentDbContext>());
