@@ -1,7 +1,86 @@
-﻿
+
 
 
 # WardMate — Nhật ký phát triển
+
+---
+
+## TASK-34 — Middleware Audit Log & Cấu hình Hệ thống: HOÀN THÀNH DEPLOY
+
+**Hoàn thành:** 2026-11-03T01:16:00+07:00 (Asia/Saigon)
+
+### Tóm tắt
+Triển khai TASK-34 (Audit Log Middleware & System Configuration) xuyên suốt toàn bộ 6 microservice WardMate. Commit 65 granular commits (43 feat, 10 build, 5 chore, 6 docs + 1 merge) lên `origin/kha`, `origin/main`, `origin/deploy`. Build và deploy 6 Docker image mới lên Azure Container Apps.
+
+### Build Verification
+- `dotnet build WardMate.sln -c Release`: **0 errors, 0 warnings** ✅
+- HEAD: `5e88d5b` (merge commit, bao gồm cả AIOCR DossierAssist từ remote)
+
+### Azure Deployment — Tất cả 6 services
+
+| Container App | Image cũ | Image mới | Digest | provisioningState | Health |
+|---|---|---|---|---|---|
+| wardmate-application-workflow | workflow-20261101-01 | **workflow-20261103-01** | `sha256:3ec0a407...` | Succeeded | 200 Healthy ✅ |
+| wardmate-documentform | documentform-20261101-01 | **documentform-20261103-01** | `sha256:fde594d4...` | Succeeded | 200 Healthy ✅ |
+| wardmate-procedure-catalog | catalog-20261101-01 | **catalog-20261103-01** | `sha256:1ed39b2e...` | Succeeded | 200 Healthy ✅ |
+| wardmate-aiocr | aiocr-20261101-01 | **aiocr-20261103-01** | `sha256:824860b0...` | Succeeded | 200 Healthy ✅ |
+| wardmate-analytics-system | analytics-20261101-01 | **analytics-20261103-01** | `sha256:1588cb35...` | Succeeded | 200 Healthy ✅ |
+| wardmate-iam | iam-20261030-01 | **iam-20261103-01** | `sha256:d74df50a...` | Succeeded | 200 Healthy ✅ |
+
+**Gateway:** không thay đổi (vẫn `gateway-20261030-02`).
+
+### Health Check Results (2026-11-03 ~01:16 UTC+7)
+```
+iam              : 200 {"status":"Healthy","checks":[{"name":"database","status":"Healthy"}]}
+procedure-catalog: 200 {"status":"Healthy","checks":[{"name":"database","status":"Healthy"}]}
+application-workflow: 200 {"status":"Healthy","checks":[{"name":"database","status":"Healthy"},{"name":"rabbitmq","status":"Healthy"}]}
+document-form    : 200 {"status":"Healthy","checks":[{"name":"database","status":"Healthy"}]}
+ai-ocr           : 200 {"status":"Healthy","checks":[{"name":"database","status":"Healthy"}]}
+analytics-system : 200 {"status":"Healthy","checks":[{"name":"notifications-database","status":"Healthy"},{"name":"analytics-database","status":"Healthy"},{"name":"rabbitmq","status":"Healthy"}]}
+```
+
+### Paths thay đổi (TASK-34)
+**BuildingBlocks mới:**
+- `src/BuildingBlocks/WardMate.Auditing/WardMate.Auditing.csproj`
+- `src/BuildingBlocks/WardMate.Auditing/SourceAudit.sql`
+- `src/BuildingBlocks/WardMate.Auditing/AuditSourceMigration.cs`
+- `src/BuildingBlocks/WardMate.Auditing/AuditConnectionInterceptor.cs`
+- `src/BuildingBlocks/WardMate.Auditing/AuditSignature.cs`
+- `src/BuildingBlocks/WardMate.Auditing/AuditRegistration.cs`
+- `src/BuildingBlocks/WardMate.Auditing/AuditRelay.cs`
+- `src/BuildingBlocks/WardMate.Auditing/AuditTrustedProxy.cs`
+
+**Analytics — Domain/Application/Infrastructure/API mới:**
+- `SystemAdministration.cs`, `BusinessAuditEvent.cs`, `BusinessAuditContracts.cs`, `BusinessAuditStore.cs`
+- `SystemAuditContextMiddleware.cs`, `SystemAdministrationController.cs`, `BusinessAuditController.cs`
+- Migrations: `SystemAdministrationAudit`, `BusinessAuditCollector`
+
+**EF Migrations (mỗi service):** `20261102100000`–`20261102100006` (`TransactionalAuditSource`)
+
+**Dockerfiles cập nhật:** tất cả 6 services (thêm `WardMate.Auditing` vào restore)
+
+**Gateway:** `appsettings.json` + `appsettings.Production.json` (thêm routes system-admin)
+
+**Docs:** `docs/api-guide.md`, `docs/system-constraints.md`, `docs/task34-commit-handoff.md`, `docs/task34-system-audit-plan.md`
+
+### API Endpoints mới (Analytics — IT_ADMIN only)
+- `GET  /api/v1/system/admin/settings` — 200/401/403
+- `PUT  /api/v1/system/admin/settings/{key}` — 200/400/401/403/404
+- `GET  /api/v1/system/admin/audit-config` — 200/401/403
+- `POST /api/v1/system/admin/audit-config` — 200/400/401/403
+- `GET  /api/v1/system/admin/health-dashboard` — 200/401/403
+- `GET  /api/v1/system/audit/business-events` — 200/401/403
+- `GET  /api/v1/system/audit/business-events/{eventId}` — 200/401/403/404
+
+### Lưu ý Database Migrations
+Các migration TASK-34 **chưa được apply** lên Azure databases. Services khởi động bình thường vì `Audit:RelayEnabled` và `SystemAdministration:Enabled` mặc định là `false`. Để kích hoạt audit collection cần:
+1. Apply `TransactionalAuditSource` migration cho từng service DB (qua Supabase SQL Editor)
+2. Apply `SystemAdministrationAudit` + `BusinessAuditCollector` migration cho Analytics DB
+3. Set `Audit:RelayEnabled=true`, `Audit:CollectorUrl`, `Audit:SigningKeys:<source>` per service
+4. Set `AuditIngestion:Keys:<source>` trên Analytics service
+5. Set `SystemAdministration:Enabled=true` trên Analytics service
+
+---
 
 **Trạng thái TASK-STAFFING-WORKFLOW-MERGE (Bảo toàn local, hợp nhất chức năng staffing vào ApplicationWorkflow, Docker & Azure Deployment): HOÀN THÀNH** — Hợp nhất thành công 18 API điều phối hồ sơ, lịch làm, nghỉ phép và tham vấn chuyên môn từ local với phiên bản mới nhất của remote trên nhánh `kha`, `main` và `deploy`:
 1. **Bảo toàn dữ liệu & kiến trúc phân công:** Đồng bộ cơ chế phân công sang bảng chuẩn `application_assignment_history` và cột version `assignment_version` (bigint) của remote (đã deploy trên Azure). Loại bỏ bảng trùng lặp `staffing_assignment_history` và cột `procedure_category_id` (chuyển sang `category_id`).
