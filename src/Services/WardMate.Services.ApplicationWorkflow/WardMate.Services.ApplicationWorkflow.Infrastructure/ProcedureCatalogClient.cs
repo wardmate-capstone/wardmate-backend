@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -38,7 +39,8 @@ public static class WorkflowInfrastructureRegistration
     {
         var rawConn = config.GetConnectionString("WorkflowDatabase")
             ?? throw new InvalidOperationException("Cần cấu hình ConnectionStrings:WorkflowDatabase.");
-        services.AddDbContext<WorkflowDbContext>(o => o.UseNpgsql(NormalizeConnectionString(rawConn)).UseSnakeCaseNamingConvention());
+        services.AddSourceAudit<WorkflowDbContext>(config, "workflow");
+        services.AddDbContext<WorkflowDbContext>((sp, o) => o.AddInterceptors(sp.GetRequiredService<AuditConnectionInterceptor>()).UseNpgsql(NormalizeConnectionString(rawConn)).UseSnakeCaseNamingConvention());
         services.AddScoped<IApplicationStore, ApplicationStore>();
         services.AddScoped<IWorkflowAnalyticsSource, WorkflowAnalyticsSource>();
         services.AddScoped<IApplicationReviewStore, ApplicationReviewStore>();
