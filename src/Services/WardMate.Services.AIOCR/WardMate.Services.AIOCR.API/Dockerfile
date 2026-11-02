@@ -1,6 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 COPY Directory.Build.props ./
+COPY src/BuildingBlocks/WardMate.Auditing/ src/BuildingBlocks/WardMate.Auditing/
 COPY src/Services/WardMate.Services.AIOCR/ src/Services/WardMate.Services.AIOCR/
 COPY src/BuildingBlocks/WardMate.SharedKernel/ src/BuildingBlocks/WardMate.SharedKernel/
 RUN dotnet publish src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.API/WardMate.Services.AIOCR.API.csproj -c Release -o /app/publish /p:UseAppHost=false
