@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using System.Text;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -15,9 +16,12 @@ public static class AnalyticsRegistration
         // Same service owns notifications and analytics; separate schema/history avoids collisions.
         var connection = config.GetConnectionString("AnalyticsDatabase") ?? config.GetConnectionString("NotificationsDatabase")
             ?? throw new InvalidOperationException("Cần ConnectionStrings:AnalyticsDatabase hoặc NotificationsDatabase.");
-        services.AddDbContext<AnalyticsDbContext>(o => o.UseNpgsql(connection,
+        services.AddSourceAudit<AnalyticsDbContext>(config, "analytics");
+        services.AddDbContext<AnalyticsDbContext>((sp, o) => o.AddInterceptors(sp.GetRequiredService<AuditConnectionInterceptor>()).UseNpgsql(connection,
             x => x.MigrationsHistoryTable("__AnalyticsMigrationsHistory", "analytics")));
         services.AddScoped<IAnalyticsService, AnalyticsService>();
+        services.AddScoped<ISystemAdministration, SystemAdministration>();
+        services.AddScoped<IBusinessAuditStore, BusinessAuditStore>();
         services.AddScoped<AnalyticsAggregationJob>();
         services.AddHttpClient<IAnalyticsWorkflowClient, AnalyticsWorkflowClient>(http =>
         {
