@@ -4652,3 +4652,60 @@ Lỗi và cách xử lý:
 Token phải do IAM cấp. Quyền mới cần migration IAM `20261101060000_WorkflowCalendarPermission`; Workflow cần migration `20261101055515_CalendarClosures` trước khi gọi API. Migration thuộc hai database khác nhau. SQL hỗ trợ nằm tại `docs/sql/workflow-calendar-closures.sql` và `docs/sql/iam-calendar-permission.sql`, có kiểm tra database đích; không chạy nhầm DB hoặc tự đánh dấu migration khi schema chưa đúng.
 
 Đây là lịch điều chỉnh hạn tiền kiểm nội bộ. Không tự chặn tạo ca, claim/phân công hay chuyển cán bộ; không tự gửi thông báo. Lịch nghỉ riêng của một cán bộ vẫn dùng `staffing/leaves`.
+
+## TASK-34 — Cấu hình hệ thống và audit cấu hình (local, 2026-11-02)
+
+Controller: `SystemAdministrationController`, service AnalyticsSystem. Cả 5 API cần Bearer token IAM và vai trò **IT_ADMIN** được kiểm tra lại qua access-context. Manager/Citizen không được dùng. Gateway chuyển `/api/v1/system/*` tới AnalyticsSystem.
+
+Phạm vi bản này là cấu hình Analytics và nhật ký thay đổi cấu hình; chưa thu thập thay đổi hồ sơ, người dùng, tài liệu hoặc audit từ các service khác. Không thay thế `rbac_audit_logs` của IAM.
+
+Trước khi bật: áp dụng migration `20261102021643_SystemAdministrationAudit` vào database được cấu hình bởi `ConnectionStrings:AnalyticsDatabase` (fallback NotificationsDatabase), rồi đặt `SystemAdministration:Enabled=true`. Mặc định false: người có quyền nhận 503 `system.administration_disabled`. Bật khi còn migration pending khiến service dừng khởi động với thông báo rõ; không tự sửa database production.
+
+| Method và route | Ai dùng, khi nào và cách gọi | Kết quả thành công |
+|---|---|---|
+| GET `/api/v1/system/settings` | IT_ADMIN mở trang cấu hình, không body | 200, mảng cấu hình được hỗ trợ |
+| GET `/api/v1/system/settings/{key}` | Trước khi sửa, lấy `analytics.lookbackDays` và version hiện tại | 200: key, value, version, updatedBy, updatedAtUtc |
+| PUT `/api/v1/system/settings/{key}` | Lưu giá trị mới cùng version vừa đọc và lý do | 200, cấu hình đã lưu và version tăng một; audit được lưu cùng giao dịch |
+| GET `/api/v1/system/audit-logs` | Tra cứu thay đổi; query tùy chọn `from`, `to` dạng UTC có Z, `page=1`, `pageSize=20` | 200: items, page, pageSize, totalCount; sắp xếp mới nhất trước |
+| GET `/api/v1/system/audit-logs/{id}` | Mở chi tiết một dòng lấy từ danh sách audit | 200: người sửa, khóa, giá trị trước/sau, phiên bản, lý do, IP kết nối, trace và thời gian UTC |
+
+Body PUT ví dụ (version phải lấy từ GET, không dùng cố định):
+
+```json
+{ "value": 14, "expectedVersion": 0, "reason": "Tổng hợp lại hai tuần gần nhất" }
+```
+
+`analytics.lookbackDays` nhận số nguyên 1–366, được lịch Hangfire đọc ở lần chạy tiếp theo. Không kích hoạt rebuild ngay; muốn chạy ngay dùng API rebuild hiện có. Chưa có bản ghi thì GET trả giá trị cấu hình môi trường (mặc định 7), version=0, thông tin người/thời gian cập nhật null. Database override có ưu tiên khi tính năng bật. Không nhận JWT key, connection string hay khóa tùy ý.
+
+Lỗi và xử lý:
+- 400: giá trị ngoài khoảng, lý do rỗng hoặc sau trim không đủ 3–500 ký tự, version âm, query ngày không phải UTC hoặc phân trang sai. Sửa dữ liệu rồi gửi lại. Không nhập dữ liệu cá nhân/mật khẩu vào lý do.
+- 401: đăng nhập/token không hợp lệ; đăng nhập lại. 403: cần IT_ADMIN; không sửa token thủ công.
+- 404: khóa không được hỗ trợ hoặc ID audit không tồn tại; kiểm tra danh sách GET.
+- 409 `system.setting_conflict`: người khác đã sửa. Đọc lại cấu hình, kiểm tra thay đổi rồi mới gửi version mới; không tự ghi đè.
+- 503: tính năng chưa bật hoặc IAM không khả dụng. Kiểm tra cấu hình/migration/kết nối IAM; không bỏ phân quyền.
+
+Không có API sửa/xóa audit. Middleware chỉ lấy IP/trace; giao dịch nghiệp vụ mới ghi audit. Không lưu token hoặc request body vào audit. API này chưa được rollout Azure.
+
+### TASK-34 mở rộng — Audit nghiệp vụ liên service
+
+Phần mở rộng này bổ sung thu thập thay đổi trên 37 bảng nghiệp vụ của 7 DbContext, thay cho giới hạn chỉ audit cấu hình ở bản đầu. Danh sách bảng và thứ tự rollout nằm trong `docs/task34-system-audit-plan.md`. Không tự tạo lại lịch sử trước khi migration được áp dụng.
+
+Controller mới: `BusinessAuditController`, thuộc AnalyticsSystem. Hai API dùng JWT IAM và vai trò IT_ADMIN; FE không gửi actor hoặc chữ ký máy chủ.
+
+| Method/route | Mục đích và cách gọi | Kết quả |
+|---|---|---|
+| GET `/api/v1/system/audit-events` | IT_ADMIN mở nhật ký nghiệp vụ. Query tùy chọn `from`, `to` UTC có Z; `source`, `entity`, `actorId`, `traceId`; `page=1`, `pageSize=20`. Không body. | 200: `items`, `page`, `pageSize`, `totalCount`, mới nhất trước; rỗng là chưa có sự kiện khớp bộ lọc. |
+| GET `/api/v1/system/audit-events/{id}` | Mở một sự kiện bằng `eventId` lấy từ danh sách. Không body. | 200: thông tin nguồn, bảng, khóa bản ghi, thao tác, trường thay đổi, actor/IP/trace/thời gian. |
+| POST `/internal/audit/events` | Chỉ relay backend gọi; ẩn Swagger. JSON theo `BusinessAuditMessage`, có `X-Audit-Source`, `X-Audit-Time`, `X-Audit-Signature` HMAC. FE không gọi API này. | 204 khi tiếp nhận hoặc gửi lại cùng sự kiện; không tạo bản sao. |
+
+`source`: `iam`, `catalog`, `workflow`, `documentform`, `aiocr`, `analytics`, `notifications`.
+Mỗi item có `eventId`, `source`, `schema`, `entity`, `entityKey`, `action` (INSERT/UPDATE/DELETE), `before`, `after`, `actorId`, `clientIp`, `traceId`, `occurredAtUtc`.
+`before`/`after` chỉ giữ giá trị của các trường trạng thái, ID và một số trường kỹ thuật được cho phép; giá trị khác là `[REDACTED]`. FE hiển thị “Đã ẩn” và không coi đây là giá trị thật. Actor/IP có thể null với tác vụ nền hoặc SQL trực tiếp. Đây là nhật ký thay đổi dữ liệu, không phải lịch sử tất cả lượt đọc/đăng nhập.
+
+Ví dụ lọc: `/api/v1/system/audit-events?source=workflow&entity=applications&page=1&pageSize=20`.
+
+Lỗi đọc: 400 nếu ngày không UTC, from lớn hơn to, source sai hoặc page/pageSize ngoài giới hạn (page 1–100000, pageSize 1–100); sửa query. 401 đăng nhập lại; 403 cần IT_ADMIN; 404 kiểm tra eventId; 503 kiểm tra bật tính năng và IAM. Lỗi DB thực tế vẫn cần điều tra log, không trả dữ liệu rỗng thay lỗi.
+
+Lỗi ingestion: 401 sai nguồn/chữ ký hoặc thời gian lệch quá 5 phút; kiểm tra khóa đúng nguồn và đồng hồ. 400 sai hợp đồng hoặc giá trị chưa che; sửa producer. 409 cùng eventId nhưng nội dung khác; không ghi đè sự kiện. 413 body lớn hơn 64 KiB. Relay giữ sự kiện và thử lại sau 60 giây nếu chưa nhận 200/204. Quản trị vận hành theo dõi `audit_transport.outbox`, không dùng JWT của người dùng làm khóa HMAC.
+
+IP mặc định là peer kết nối. Có thể cấu hình `Audit:TrustedProxies` bằng các IP proxy thực đã xác minh để xử lý một hop X-Forwarded-For; bỏ trống thì không tin header. Không cam kết IP trình duyệt nếu chưa cấu hình đúng mạng. Apply migrations trước khi bật `Audit:RelayEnabled`; collector cần `SystemAdministration:Enabled=true`. Không có API xóa/sửa sự kiện hoặc tự purge dữ liệu.
