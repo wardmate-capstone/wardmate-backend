@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddIamInfrastructure(this IServiceCollection services, IConfiguration config)
     {
-        services.AddDbContext<IamDbContext>(options => options.UseNpgsql(
+        services.AddSourceAudit<IamDbContext>(config, "iam");
+        services.AddDbContext<IamDbContext>((sp, options) => options.AddInterceptors(sp.GetRequiredService<AuditConnectionInterceptor>()).UseNpgsql(
             config.GetConnectionString("Database") ?? throw new InvalidOperationException("ConnectionStrings:Database is required."))
             .UseSnakeCaseNamingConvention());
         services.AddOptions<JwtOptions>().Bind(config.GetSection("Jwt"))
