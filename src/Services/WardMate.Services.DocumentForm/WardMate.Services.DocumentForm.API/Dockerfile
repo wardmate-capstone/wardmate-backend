@@ -27,6 +27,7 @@ COPY ["src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentFor
 COPY ["src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/WardMate.Services.DocumentForm.Infrastructure.csproj", "src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/"]
 COPY ["src/BuildingBlocks/WardMate.SharedKernel/WardMate.SharedKernel.csproj", "src/BuildingBlocks/WardMate.SharedKernel/"]
 
+COPY ["src/BuildingBlocks/WardMate.Auditing/WardMate.Auditing.csproj", "src/BuildingBlocks/WardMate.Auditing/"]
 RUN dotnet restore "src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.API/WardMate.Services.DocumentForm.API.csproj" \
     --runtime linux-musl-x64
 
