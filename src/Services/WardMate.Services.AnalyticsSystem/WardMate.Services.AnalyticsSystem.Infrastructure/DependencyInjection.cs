@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +13,8 @@ public static class DependencyInjection
     {
         var connection = configuration.GetConnectionString("NotificationsDatabase");
         if (string.IsNullOrWhiteSpace(connection)) throw new InvalidOperationException("Cần cấu hình ConnectionStrings:NotificationsDatabase.");
-        services.AddDbContext<NotificationDbContext>(options => options.UseNpgsql(connection));
+        services.AddSourceAudit<NotificationDbContext>(configuration, "notifications");
+        services.AddDbContext<NotificationDbContext>((sp, options) => options.AddInterceptors(sp.GetRequiredService<AuditConnectionInterceptor>()).UseNpgsql(connection));
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(configuration.GetSection("RabbitMq").Get<WardMate.EventBus.RabbitOptions>() ?? new());
         services.AddSingleton<WardMate.EventBus.RabbitStatus>();
