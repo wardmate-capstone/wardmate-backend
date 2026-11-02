@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddProcedureInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<ProcedureDbContext>(options => options.UseNpgsql(
+        services.AddSourceAudit<ProcedureDbContext>(configuration, "catalog");
+        services.AddDbContext<ProcedureDbContext>((sp, options) => options.AddInterceptors(sp.GetRequiredService<AuditConnectionInterceptor>()).UseNpgsql(
             configuration.GetConnectionString("ProcedureDatabase")
                 ?? throw new InvalidOperationException("Chưa cấu hình kết nối database của Procedure Catalog."))
             .UseSnakeCaseNamingConvention());
