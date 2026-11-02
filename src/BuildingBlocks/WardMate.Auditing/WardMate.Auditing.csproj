@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" />
+    <PackageReference Include="Npgsql" Version="8.0.6" />
+    <EmbeddedResource Include="SourceAudit.sql" />
+  </ItemGroup>
+</Project>
