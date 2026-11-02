@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
@@ -53,7 +54,8 @@ public static class AssistantRegistration
                 : RateLimitPartition.GetFixedWindowLimiter("guest:" + ClientAddress.Of(context), _ => new FixedWindowRateLimiterOptions
                     { PermitLimit = guestPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
         });
-        services.AddDbContext<ChatDbContext>(o => o.UseNpgsql(config.GetConnectionString("AiOcrDatabase")
+        services.AddSourceAudit<ChatDbContext>(config, "aiocr");
+        services.AddDbContext<ChatDbContext>((sp, o) => o.AddInterceptors(sp.GetRequiredService<AuditConnectionInterceptor>()).UseNpgsql(config.GetConnectionString("AiOcrDatabase")
             ?? "Host=localhost;Database=wardmate_aiocr_db;Username=wardmate_aiocr").UseSnakeCaseNamingConvention());
         services.AddScoped<IChatService, ChatService>();
         // Daily Gemini limits and ai_request_logs (no prompt/answer content is stored).
