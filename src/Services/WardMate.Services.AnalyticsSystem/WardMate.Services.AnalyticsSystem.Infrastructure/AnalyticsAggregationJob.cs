@@ -11,11 +11,14 @@ public sealed class AnalyticsAggregationJob(AnalyticsDbContext db, IAnalyticsWor
     IConfiguration config, TimeProvider clock, ILogger<AnalyticsAggregationJob> logger)
 {
     [AutomaticRetry(Attempts = 3)]
-    public Task Refresh(CancellationToken ct)
+    public async Task Refresh(CancellationToken ct)
     {
         var today = DateOnly.FromDateTime(clock.GetUtcNow().ToOffset(TimeSpan.FromHours(7)).DateTime);
         var days = config.GetValue("Analytics:LookbackDays", 7);
-        return Rebuild(today.AddDays(1 - days), today, ct);
+        if (config.GetValue("SystemAdministration:Enabled", false))
+            days = await db.SystemSettings.AsNoTracking().Where(x => x.Key == SystemAdministration.LookbackKey)
+                .Select(x => (int?)x.Value).SingleOrDefaultAsync(ct) ?? days;
+        await Rebuild(today.AddDays(1 - days), today, ct);
     }
     [AutomaticRetry(Attempts = 3)]
     public async Task Rebuild(DateOnly from, DateOnly to, CancellationToken ct)
