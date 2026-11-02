@@ -15,3 +15,4 @@
   3. After pushing to `kha`, build Docker image for the user to test. Push to `main` and `deploy` is ONLY allowed after user tests on Docker and gives explicit approval.
 - `deploy` is the requested staging/production handoff branch connected to Azure. Do not claim deployment succeeded merely because Git push succeeded; report CI/CD status only when verified.
 - Do not commit secrets, generated build outputs, or real user data.
+- Azure deployment (Antigravity): before building or deploying any image, read and follow `docs/antigravity-azure-runbook.md` (build only from a fresh clone of `kha`, one service at a time, record the old image for rollback, verify `/health/ready`, never print secrets). Current handoffs: frontend `docs/fe-handoff-2026-11-01.md`, second backend `docs/be-handoff-2026-11-01.md`.

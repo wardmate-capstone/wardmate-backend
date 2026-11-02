@@ -1,4 +1,4 @@
-> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+﻿> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
 
 > Cập nhật 16/10/2026 — Luồng hiện hành là kiểm tra giấy tờ → DOCUMENTS_READY, không có approve/reject mới. Các mục ghi lịch sử task cũ không còn là hợp đồng của hai endpoint đã bỏ. Xem mục confirm-readiness bên dưới; chỉ áp dụng sau khi deploy đồng bộ Workflow, DocumentForm, Analytics và migrate Workflow/IAM.
 
@@ -4623,7 +4623,6 @@ Ví dụ `/health/ready`:
 
 **Triển khai:** deploy lại AIOCR **và Gateway**. Gateway giờ đọc IP thật của người dùng từ ingress và chuyển xuống AIOCR. Nếu chỉ deploy AIOCR thì mọi khách có chung một IP (IP của gateway) và cùng chia 5 lượt/phút. Không cần migration hay SQL mới.
 
-
 ## WF-STAFFING-DI-01 — Khắc phục 500 khi khởi tạo controller (2026-11-01)
 Áp dụng cho 18 API ManagerDispatch, Staffing và Consultations. Nếu log ghi `Unable to resolve service ... IDispatchService` (hoặc IStaffingService/IConsultationService), backend chưa đăng ký đủ dependency; request chưa tới nghiệp vụ/database. Cần phát hành bản có đăng ký scoped ba service và typed HTTP client IDispatchDirectory. FE giữ nguyên route, body, query và token hiện tại; không đổi dữ liệu hồ sơ để xử lý lỗi này. Sau triển khai phải gọi lại bằng tài khoản đúng quyền; bản sửa DI không xác nhận database hoặc mọi luồng nghiệp vụ đã đạt.
 
@@ -4652,6 +4651,93 @@ Lỗi và cách xử lý:
 Token phải do IAM cấp. Quyền mới cần migration IAM `20261101060000_WorkflowCalendarPermission`; Workflow cần migration `20261101055515_CalendarClosures` trước khi gọi API. Migration thuộc hai database khác nhau. SQL hỗ trợ nằm tại `docs/sql/workflow-calendar-closures.sql` và `docs/sql/iam-calendar-permission.sql`, có kiểm tra database đích; không chạy nhầm DB hoặc tự đánh dấu migration khi schema chưa đúng.
 
 Đây là lịch điều chỉnh hạn tiền kiểm nội bộ. Không tự chặn tạo ca, claim/phân công hay chuyển cán bộ; không tự gửi thông báo. Lịch nghỉ riêng của một cán bộ vẫn dùng `staffing/leaves`.
+
+## Trợ lý AI kiểm tra hồ sơ cho cán bộ — 01/11/2026 (AI-OFFICER-ASSIST-01)
+
+**Dùng để làm gì:** cán bộ đang thụ lý bấm một nút để AI đọc **cả bộ hồ sơ**, gồm tờ khai Word (.docx) và giấy tờ kèm theo (PDF, PNG, JPEG, DOCX). AI trích các thông tin chính, đối chiếu tờ khai với giấy tờ, liệt kê chỗ thiếu hoặc sai, và gợi ý một đoạn nhận xét.
+
+Kết quả **chỉ để tham khảo**: API không đổi trạng thái hồ sơ, không lưu kết quả, không thay quyết định của cán bộ. Cán bộ tự sửa và tự gửi nhận xét bằng các API kiểm tra hồ sơ hiện có.
+
+### POST `/api/v1/ai-ocr/applications/{applicationId}/dossier-assist`
+
+- **Ai được gọi:** chỉ **cán bộ đang được phân công** hồ sơ (`assignedOfficerId` = người gọi, và người gọi không phải người nộp). MANAGER, cán bộ khác và công dân nhận 403 `ai.not_assigned_officer`.
+- **Khi nào gọi:** hồ sơ đang ở `UNDER_REVIEW`, tức là sau khi cán bộ đã nhận hồ sơ. Trạng thái khác → 409 `ai.application_not_under_review`.
+- **Header:** `Authorization: Bearer <access token>`. Không có token → 401.
+- **Body (không bắt buộc, có thể gửi rỗng):** `{ "includeSubmissions": true, "includeSupportingDocuments": true }`.
+  - `includeSubmissions`: có đọc tờ khai DOCX không.
+  - `includeSupportingDocuments`: có đọc giấy tờ kèm theo không.
+  - Thiếu trường nào thì coi trường đó là `true`. Cả hai `false` → 400 `ai.invalid_input`.
+- **Cách BE lấy tài liệu:** BE gọi Workflow và DocumentForm **bằng chính token của cán bộ**, nên hai service đó kiểm tra quyền thêm một lần nữa.
+  - Tờ khai DOCX được BE trích chữ: đoạn văn, bảng (mỗi dòng thành `a | b`), ô nhập nội dung.
+  - Ghi chú (comment) của cán bộ trong file Word không được đọc.
+- **Giới hạn mỗi lần gọi:**
+  - Tối đa 8 tệp được phân tích; mỗi tệp tối đa 8 MiB.
+  - Ảnh và PDF: tối đa 5 tệp, tổng tối đa 12 MiB.
+  - Chữ trích từ DOCX: tối đa 30.000 ký tự mỗi tệp, 60.000 ký tự cho cả hồ sơ.
+  - Tệp vượt giới hạn hoặc sai định dạng **không làm hỏng request**: tệp đó có `analyzed=false` kèm `skipReason`.
+- **Hạn mức:** mỗi lần gọi tính **1 lượt AI** vào hạn mức ngày (AI-USAGE-01, thao tác `DOSSIER_ASSIST`) và vào giới hạn 10 lượt/phút/tài khoản.
+
+**Kết quả 200:**
+```json
+{
+  "applicationId": "…", "analyzedAt": "2026-11-01T02:00:00Z", "applicationStatus": "UNDER_REVIEW", "model": "gemini-…",
+  "overallAssessment": "NEEDS_ATTENTION",
+  "summary": "Tờ khai khớp CCCD; chưa có giấy xác nhận cư trú.",
+  "files": [
+    { "kind": "SUBMISSION", "id": "…", "checklistId": "…", "checklistTitle": "Tờ khai…", "fileName": "to_khai.docx", "analyzed": true, "skipReason": null },
+    { "kind": "SUPPORTING_DOCUMENT", "id": "…", "checklistId": "…", "checklistTitle": "Giấy báo tử", "fileName": "scan.zip", "analyzed": false, "skipReason": "Định dạng chưa hỗ trợ (chỉ DOCX, PDF, PNG, JPEG)." }
+  ],
+  "extractedFields": [ { "name": "Họ tên người khai", "value": "Nguyễn Văn A", "source": "to_khai.docx" } ],
+  "crossChecks": [ { "field": "Nơi cư trú", "valueInForm": "Số 12 Lê Lợi", "valueInDocument": null, "sourceDocument": null, "result": "NOT_FOUND", "note": "Chưa có giấy xác nhận cư trú." } ],
+  "missingItems": [ "Giấy xác nhận cư trú" ],
+  "issues": [],
+  "suggestedComment": "Đề nghị ông/bà bổ sung Giấy xác nhận thông tin về cư trú…",
+  "disclaimer": "Kết quả do AI tạo để cán bộ tham khảo…"
+}
+```
+
+**Ý nghĩa các trường:**
+- `overallAssessment`: đây **không phải** phê duyệt hay tiếp nhận.
+  - `NO_ISSUES_FOUND`: AI không thấy vấn đề.
+  - `NEEDS_ATTENTION`: có điểm cán bộ cần xem.
+  - `INSUFFICIENT_DATA`: không đủ dữ liệu để kiểm tra.
+  - Nếu AI trả `NO_ISSUES_FOUND` nhưng vẫn liệt kê vấn đề, chỗ thiếu hoặc kết quả `MISMATCH`, BE tự đổi thành `NEEDS_ATTENTION`.
+- `crossChecks[].result`:
+  - `MATCH`: thông tin khớp.
+  - `MISMATCH`: thông tin lệch.
+  - `NOT_FOUND`: không có giấy tờ để đối chiếu.
+  - Giá trị AI không đọc được là `null`.
+- `suggestedComment`: đoạn nhận xét gợi ý, hoặc `null` khi không có vấn đề. FE cho cán bộ **chèn vào ô nhận xét rồi tự sửa**, không tự động gửi.
+- Không có trường `policyReference`: AI được yêu cầu **không trích dẫn điều luật**, vì BE chưa có nguồn luật đã kiểm chứng.
+
+**Lỗi thường gặp:**
+
+| HTTP | `code` | Xử lý |
+|---|---|---|
+| 401 | — | Đăng nhập lại |
+| 403 | `ai.not_assigned_officer` | Không phải cán bộ thụ lý → ẩn nút |
+| 409 | `ai.application_not_under_review` | Nhận hồ sơ trước khi dùng |
+| 422 | `ai.dossier_empty` | Không có tệp nào phân tích được → kiểm tra giấy tờ đã tải lên |
+| 401/403/404/409/503 | `ai.document_access_failed` | Workflow hoặc DocumentForm từ chối/lỗi |
+| 429 | `ai.quota_exceeded` / `ai.daily_limit_reached` | Hết lượt AI trong ngày |
+| 429 | (không có code) | Quá 10 lượt/phút |
+| 429 | `ai.provider_busy` | Google Gemini quá tải hoặc hết hạn mức tạm thời. Header **`Retry-After`** (1–120 giây) cho biết khi nào thử lại; FE hiện đếm ngược, không tự gửi lại liên tục |
+| 502 | `ai.invalid_response` / `ai.output_truncated` | Thử lại, hoặc phân tích từng phần (`includeSubmissions` / `includeSupportingDocuments`) |
+| 503 | `ai.provider_unavailable` | Gemini vẫn lỗi sau khi BE đã tự thử lại 1 lần |
+| 503 | `ai.workflow_not_configured` / `ai.document_service_not_configured` | Thiếu cấu hình URL service |
+
+**Thay đổi chung cho mọi API AI** (chat, CCCD, tiền kiểm, dossier-assist):
+- Google trả 429 → BE trả **429 `ai.provider_busy` kèm `Retry-After`**. Trước đây trường hợp này trả 503 `ai.provider_unavailable`.
+- Google trả 500, 502, 503 hoặc 504 → BE **tự thử lại đúng 1 lần** sau 1 giây.
+
+**Cấu hình AIOCR cần có** (đã có từ tính năng tiền kiểm):
+- `Services__ApplicationWorkflow__BaseUrl`
+- `Services__DocumentForm__BaseUrl`
+- `Assistant__Enabled`
+- `Gemini__Key`
+- `Gemini__Model`
+
+Không có migration.
 
 ## TASK-34 — Cấu hình hệ thống và audit cấu hình (local, 2026-11-02)
 

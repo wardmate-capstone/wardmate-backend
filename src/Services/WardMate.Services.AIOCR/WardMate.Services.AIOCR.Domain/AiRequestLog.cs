@@ -23,10 +23,11 @@ public static class AiOperations
     public const string ChatRag = "CHAT_RAG";
     public const string CccdExtract = "CCCD_EXTRACT";
     public const string DocumentVerify = "DOCUMENT_VERIFY";
+    public const string DossierAssist = "DOSSIER_ASSIST";
     public const string EmbedQuery = "EMBED_QUERY";
     public const string EmbedDocuments = "EMBED_DOCUMENTS";
     // Calls a user starts directly; these count toward the daily limits. Embeddings are logged but not counted.
-    public static readonly string[] Limited = [Chat, ChatRag, CccdExtract, DocumentVerify];
+    public static readonly string[] Limited = [Chat, ChatRag, CccdExtract, DocumentVerify, DossierAssist];
 }
 
 public static class AiOutcomes

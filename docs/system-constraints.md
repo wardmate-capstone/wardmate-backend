@@ -1,4 +1,4 @@
-# WardMate — Sổ tay ràng buộc hệ thống
+﻿# WardMate — Sổ tay ràng buộc hệ thống
 
 ## Bổ sung TASK-31–33 — 21/10/2026 (Asia/Saigon)
 
@@ -609,6 +609,8 @@ riêng của từng service. Quyền thực tế còn phụ thuộc dữ liệu 
 
 ## Nhật ký tài liệu
 
+- 01/11/2026 — AI-OFFICER-ASSIST-01: trợ lý AI kiểm tra cả bộ hồ sơ (DOCX + giấy tờ) cho cán bộ đang thụ lý; Gemini 429 → 429 ai.provider_busy kèm Retry-After; thử lại 1 lần khi Gemini lỗi 5xx.
+
 - 30/10/2026 — AI-GUEST-01: chatbot không cần đăng nhập, hạn mức riêng cho khách theo IP; gateway chuyển IP thật.
 
 - 30/10/2026 — AI-USAGE-01, HEALTH-01: hạn mức/nhật ký lượt gọi Gemini; /health/ready kiểm tra DB và RabbitMQ.
@@ -1022,7 +1024,6 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - Nguồn: AIOCR API/Controllers/AssistantController.cs, AssistantRegistration.cs, appsettings.json; Application/AssistantContracts.cs (`ChatOwners`), AiUsageContracts.cs; Infrastructure/AiUsageService.cs, ClientAddress.cs; Gateways/WardMate.YarpGateway/Program.cs.
 - Lịch sử 30/10/2026: thêm quy tắc. Kiểm tra local: harness HTTP AIOCR (Postgres thật, IAM/Gemini giả) 23/23; gateway thật + server echo: không header → 127.0.0.1, một hop → IP đó, header giả "6.6.6.6, IP" → chỉ còn IP. Chưa deploy.
 
-
 ## WF-STAFFING-DI-01 — Đăng ký runtime cho staffing (2026-11-01)
 - IDispatchService, IStaffingService, IConsultationService dùng Scoped cùng phạm vi DbContext; IDispatchDirectory dùng typed HttpClient.
 - IDispatchDirectory dùng Iam:BaseUrl như IWorkflowDirectory (mặc định local http://localhost:5001/), timeout 10 giây, buffer tối đa 2 MiB, không tự theo HTTP redirect. Token được DispatchDirectory gắn riêng từng request; không lưu token dùng chung giữa người dùng.
@@ -1046,6 +1047,49 @@ Bổ sung ngày 2026-11-01 (Asia/Saigon), liên quan WF-05/ANA-DEADLINE-01:
 Nguồn: Domain/CalendarClosure.cs, Domain/ReviewDeadline.cs, Application/CalendarContracts.cs, Infrastructure/CalendarClosureService.cs, ApplicationStore.cs, ApplicationReviewStore.cs, WorkflowDbContext.cs và migration CalendarClosures; API/Controllers/CalendarClosuresController.cs, API/WorkflowSecurity.cs (đều thuộc ApplicationWorkflow); IAM/Persistence/Migrations/20261101060000_WorkflowCalendarPermission.cs.
 
 Lịch sử: 2026-11-01 thêm DEADLINE-CLOSURE-01; giữ nguyên rule ID trước đó. Chưa xác minh rollout Azure/IAM thật.
+
+### AI-OFFICER-ASSIST-01 — Trợ lý AI kiểm tra hồ sơ cho cán bộ (01/11/2026)
+
+- **Phạm vi:** `POST /api/v1/ai-ocr/applications/{applicationId}/dossier-assist`.
+- **Quyền:** chỉ cán bộ đang được phân công. Điều kiện: `assignedOfficerId` = `sub`, và người gọi không phải người nộp. AIOCR lấy thông tin này từ Workflow `GET /api/v1/officer/applications/{id}`.
+  - Hồ sơ phải ở `UNDER_REVIEW`.
+  - Sai người → 403 `ai.not_assigned_officer`. Sai trạng thái → 409 `ai.application_not_under_review`.
+  - MANAGER không dùng được: quyền giám sát không bao gồm quyền thao tác của cán bộ, và DocumentForm chỉ cho cán bộ thụ lý tải DOCX.
+  - AIOCR không dùng service key: mọi lần đọc danh sách và tải tệp đều đi qua Workflow/DocumentForm bằng token của cán bộ.
+- **Nguồn tệp:**
+  - Tờ khai: lấy danh sách bằng `GET api/v1/officer/submissions/by-application/{id}`, tải bằng `.../{submissionId}/download-docx`.
+  - Giấy tờ kèm theo: lấy danh sách bằng `GET api/v1/applications/{id}/supporting-documents`, tải bằng `.../supporting-documents/{id}/download`.
+- **Xử lý tệp:**
+  - DOCX được trích chữ trên server bằng DocumentFormat.OpenXml 3.1.1. Không đọc comment, header, footer; bảng lồng bên trong ô bị bỏ qua.
+  - PDF, PNG, JPEG được gửi nguyên tệp cho Gemini.
+  - Định dạng khác bị bỏ qua, có ghi `skipReason`.
+- **Giới hạn mỗi lần gọi:**
+  - 8 tệp được phân tích; mỗi tệp tối đa 8 MiB.
+  - Ảnh/PDF: tối đa 5 tệp, tổng tối đa 12 MiB.
+  - Chữ trích từ DOCX: tối đa 30.000 ký tự mỗi tệp, 60.000 ký tự tổng.
+  - Vượt giới hạn thì bỏ tệp đó, không làm lỗi cả request. Không còn tệp nào để phân tích → 422 `ai.dossier_empty`.
+- **Kết quả:**
+  - Chỉ để tham khảo: không đổi trạng thái hồ sơ, **không lưu nội dung kết quả**.
+  - `ai_request_logs` ghi một dòng `DOSSIER_ASSIST` (người gọi, thời điểm, model, token), không lưu nội dung hồ sơ.
+  - `overallAssessment` chỉ nhận `NO_ISSUES_FOUND`, `NEEDS_ATTENTION` hoặc `INSUFFICIENT_DATA`; không có giá trị mang nghĩa phê duyệt hay tiếp nhận.
+  - BE hạ `NO_ISSUES_FOUND` thành `NEEDS_ATTENTION` khi kết quả có issue, mục thiếu hoặc `MISMATCH`.
+  - Prompt cấm trích dẫn điều luật và cấm kết luận hồ sơ hợp lệ/được duyệt. Nội dung tệp được coi là dữ liệu không tin cậy.
+- **Hạn mức:** `DOSSIER_ASSIST` được tính vào hạn mức ngày (AI-USAGE-01) và chịu giới hạn 10 lượt/phút/tài khoản.
+- **Lỗi từ Gemini** (áp dụng cho mọi thao tác AI):
+  - HTTP 429 → trả 429 `ai.provider_busy` kèm `Retry-After`. Giá trị lấy từ header `Retry-After` hoặc `RetryInfo.retryDelay`, giới hạn 1–120 giây, mặc định 30.
+  - HTTP 500/502/503/504 → thử lại 1 lần sau 1 giây; vẫn lỗi thì trả 503 `ai.provider_unavailable`.
+  - Không đổi model, không bật billing.
+- **Giới hạn đã biết:**
+  - Nội dung hồ sơ, kể cả số định danh, được gửi tới Gemini gói miễn phí. Theo điều khoản của Google, dữ liệu gửi qua gói miễn phí có thể được dùng để cải thiện sản phẩm. **Chủ dự án đã chấp nhận rủi ro này ngày 01/11/2026.** CCCD và tiền kiểm hiện cũng gửi dữ liệu tương tự.
+  - Kết quả AI có thể sai; cán bộ phải tự đối chiếu.
+  - `Gemini:MaxOutputTokens` (mặc định 4096) có thể không đủ cho hồ sơ dài → 502 `ai.output_truncated`.
+  - Khi kết quả AI sai cấu trúc, lượt đó vẫn ghi `SUCCESS` trong `ai_request_logs` vì Gemini đã trả lời (giống CCCD và tiền kiểm).
+- **Nguồn:**
+  - AIOCR Application/DossierAssistContracts.cs; AssistantContracts.cs (`AiFailure.RetryAfterSeconds`).
+  - Domain/AiRequestLog.cs.
+  - Infrastructure/DossierSource.cs, DocxText.cs, GeminiAssistant.cs, WardMate.Services.AIOCR.Infrastructure.csproj.
+  - API/Controllers/AssistantController.cs, AssistantRegistration.cs.
+- **Lịch sử 01/11/2026:** thêm quy tắc theo yêu cầu FE. Kiểm tra local bằng harness HTTP (Postgres thật; IAM, Workflow, DocumentForm và Gemini giả; DOCX tạo bằng OpenXml): 30/30. Chưa gọi Gemini thật, chưa deploy.
 
 ## SYS-ADMIN-01 — Cấu hình và audit cấu hình Analytics (2026-11-02)
 
