@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using WardMate.SharedKernel.Web;
 using Microsoft.EntityFrameworkCore;
 using WardMate.Services.ProcedureCatalog.Application;
@@ -43,7 +44,8 @@ if (builder.Configuration.GetValue("Database:AutoMigrate", false))
 app.UseGlobalExceptionHandling();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseCors(BrowserCorsExtensions.PolicyName);
-app.UseAuthentication();
+app.UseAuditTrustedProxy(builder.Configuration);
+    app.UseAuthentication();
     app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
