@@ -1046,3 +1046,35 @@ Bổ sung ngày 2026-11-01 (Asia/Saigon), liên quan WF-05/ANA-DEADLINE-01:
 Nguồn: Domain/CalendarClosure.cs, Domain/ReviewDeadline.cs, Application/CalendarContracts.cs, Infrastructure/CalendarClosureService.cs, ApplicationStore.cs, ApplicationReviewStore.cs, WorkflowDbContext.cs và migration CalendarClosures; API/Controllers/CalendarClosuresController.cs, API/WorkflowSecurity.cs (đều thuộc ApplicationWorkflow); IAM/Persistence/Migrations/20261101060000_WorkflowCalendarPermission.cs.
 
 Lịch sử: 2026-11-01 thêm DEADLINE-CLOSURE-01; giữ nguyên rule ID trước đó. Chưa xác minh rollout Azure/IAM thật.
+
+## SYS-ADMIN-01 — Cấu hình và audit cấu hình Analytics (2026-11-02)
+
+- Phạm vi: 5 API `/api/v1/system/settings*`, `/api/v1/system/audit-logs*` của AnalyticsSystem. Dùng JWT và access-context IAM hiện có, bắt buộc IT_ADMIN. Không mở cho Manager/Citizen, không lấy actor từ body.
+- Chỉ cho phép `analytics.lookbackDays`, số nguyên 1–366. Lý do trim 3–500 ký tự; expectedVersion không âm. GET mặc định version=0, giá trị lấy cấu hình môi trường. PUT dùng advisory lock trong transaction và kiểm tra expectedVersion; stale trả409, đọc lại trước khi sửa.
+- `analytics.system_settings` và `analytics.audit_logs` cùng AnalyticsDbContext/database. SaveChanges và commit chung: không ghi được audit thì thay đổi cấu hình rollback. Migration tạo check Value 1–366 và index audit `(OccurredAtUtc, Id)`. Audit có trigger cấm UPDATE/DELETE/TRUNCATE; đây không phải chống can thiệp của DB owner/superuser có thể bỏ trigger.
+- Audit chứa actor, key, số trước/sau, version, reason, IP peer, trace và UTC. Không ghi token/password/request body. Reason là văn bản do quản trị viên nhập: không có bộ lọc PII tự động, người dùng không đưa thông tin nhạy cảm vào lý do.
+- Middleware chỉ ghi metadata trong HttpContext; không suy đoán entity thay đổi từ HTTP status. IP peer có thể là proxy; không tin header X-Forwarded-For do client gửi. Chưa triển khai trusted-proxy forwarding để đảm bảo IP người dùng cuối.
+- Audit list: page 1–100000, pageSize 1–100, ngày phải UTC có Z và from≤to; sai trả400. Khóa/ID không tồn tại404. Chưa có audit ingestion/outbox liên service, chưa bao phủ CRUD nghiệp vụ ngoài settings.
+- `SystemAdministration:Enabled` mặc định false. Migration `20261102021643_SystemAdministrationAudit` phải được áp dụng trước khi bật; startup kiểm tra pending migrations. Khi tắt, endpoint có quyền trả503, worker tiếp tục dùng cấu hình cũ không đọc bảng mới. Khi bật, worker đọc giá trị DB mỗi lần Refresh; không thay lịch cron, không tự rebuild khi PUT.
+- Không có bảo đảm toàn bộ lỗi DB runtime được chuyển thành503; sự cố DB vẫn cần điều tra log. Không đánh dấu TASK-34 toàn hệ thống hoàn tất chỉ từ tính năng này.
+
+Nguồn: AnalyticsSystem Domain/Application/Infrastructure `SystemAdministration.cs`, API `SystemAuditContextMiddleware.cs`, `Controllers/SystemAdministrationController.cs`, `AnalyticsAccess.cs`, `Program.cs`, `AnalyticsDbContext.cs`, `AnalyticsAggregationJob.cs`, migration SystemAdministrationAudit; Gateway appsettings.json/appsettings.Production.json.
+
+Lịch sử: 2026-11-02 thêm SYS-ADMIN-01; giữ nguyên các rule trước. Trạng thái local, chưa deploy Azure. Phạm vi audit liên service và trusted proxy được mở rộng bởi AUDIT-SYSTEM-01 bên dưới; giới hạn bản đầu phía trên chỉ mô tả thời điểm trước phần mở rộng.
+
+## AUDIT-SYSTEM-01 — Audit giao dịch và truyền sự kiện liên service (2026-11-02)
+
+- 37 bảng nghiệp vụ được chỉ định trong 7 migration TransactionalAuditSource có AFTER INSERT/UPDATE/DELETE trigger. Outbox nằm cùng database nguồn, cùng transaction; rollback nghiệp vụ cũng rollback audit, kể cả ExecuteUpdate/Delete và SQL trực tiếp. Không bắt SELECT, login attempt, bảng ngoài danh sách hoặc thay đổi trước migration. UPDATE không đổi dữ liệu không tạo sự kiện; TRUNCATE bảng đã audit bị từ chối, dùng DELETE nếu thực sự cần xóa có dấu vết.
+- Mỗi database sở hữu `audit_transport.outbox`; không đọc chéo DB nghiệp vụ. Collector sở hữu `analytics.business_audit_events`. Không tái dùng workflow_outbox/consumer notifications. Source, schema, table và PK được cấu hình cố định; danh sách đầy đủ tại `docs/task34-system-audit-plan.md`.
+- Kết nối EF nhận actor từ sub JWT đã xác thực, IP từ RemoteIpAddress và trace. Luôn ghi lại cả giá trị rỗng lúc mở kết nối để tránh metadata cũ từ pool. Tác vụ nền/SQL trực tiếp có thể không có actor; không giả định danh người dùng. Metadata này không chống DB owner tự đặt session variables hoặc tắt trigger.
+- Giá trị mặc định bị che `[REDACTED]`; chỉ ID, trạng thái và nhóm trường kỹ thuật trong allowlist được giữ. Không lưu body/token/password, nội dung DOCX, prompt, file URL hoặc profile trong audit tổng quát. Audit settings riêng vẫn giữ lý do do quản trị viên nhập theo SYS-ADMIN-01. Không được nhập bí mật vào lý do.
+- Outbox cấm sửa payload/nguồn/ID/thời gian, cấm xóa chưa gửi và cấm truncate. Sau giao nhận được phép archive/xóa outbox bằng quy trình vận hành riêng; chưa có purge tự động. Bảng collector cấm UPDATE/DELETE/TRUNCATE, không có API sửa/xóa. DB owner/superuser vẫn có thể bỏ trigger: cần runtime DB role riêng khi triển khai.
+- Hai GET audit-events chỉ IT_ADMIN qua IAM. Query UTC, from≤to, page 1–100000/pageSize 1–100, source hợp lệ; sai400, không có ID404, không có quyền401/403. Tắt SystemAdministration nhận503; sự cố DB không được cam kết luôn chuyển503.
+- POST internal ingestion dùng HMAC SHA256 theo nguồn, timestamp ±5 phút, body tối đa64KiB, không dùng JWT của người dùng. Khóa tối thiểu32bytes. Relay chỉ dùng HTTPS trừ loopback HTTP, không theo redirect. Chữ ký sai401; hợp đồng/redaction sai400; trùng eventId khác nội dung409; body lớn413. Cùng eventId/cùng nội dung được nhận lại không nhân đôi.
+- Relay khóa một outbox row bằng FOR UPDATE SKIP LOCKED; chỉ đánh dấu gửi khi nhận200/204. Lỗi giữ lại, retry sau60s; vòng worker2s. Không bảo đảm thời gian giao nhận tối đa hay thứ tự toàn hệ thống. Theo dõi backlog/attempts/last_error để xử lý sự kiện lỗi hợp đồng; không tự bỏ sự kiện lỗi.
+- Relay mặc định tắt. Bật `Audit:RelayEnabled` yêu cầu migrations đầy đủ, CollectorUrl và khóa `Audit:SigningKeys:<source>` (fallback SigningKey). Collector cần SystemAdministration bật và khóa `AuditIngestion:Keys:<source>`. Không commit khóa. Không sửa nội dung helper migration đã phát hành; thay đổi sau rollout cần migration mới/version SQL mới.
+- `Audit:TrustedProxies` mặc định rỗng: IP là peer, bỏ qua X-Forwarded-For. Chỉ cấu hình IP proxy đã xác minh, một hop; không tin header từ client tùy ý. Nếu hạ tầng nhiều hop cần thiết kế tiếp, không tự suy ra IP thật.
+
+Nguồn: `src/BuildingBlocks/WardMate.Auditing/*`; các migration `TransactionalAuditSource*`; AnalyticsSystem `BusinessAuditController.cs`, `BusinessAuditStore.cs`, `BusinessAuditContracts.cs`, `BusinessAuditEvent.cs`, `BusinessAuditCollector` và các DI/Program tích hợp. Giữ nguyên DB-per-service. TASK-35/36 không thuộc phạm vi này.
+
+Lịch sử: 2026-11-02 bổ sung AUDIT-SYSTEM-01, mở rộng SYS-ADMIN-01; chưa xác nhận Azure hay IAM thật.
