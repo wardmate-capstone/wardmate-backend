@@ -10,9 +10,38 @@ public sealed class AnalyticsDbContext(DbContextOptions<AnalyticsDbContext> opti
     public DbSet<OfficerMetric> Officers => Set<OfficerMetric>();
     public DbSet<MetricRefresh> Refreshes => Set<MetricRefresh>();
     public DbSet<CitizenFeedback> Feedback => Set<CitizenFeedback>();
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
+    public DbSet<SystemAuditLog> SystemAudits => Set<SystemAuditLog>();
+    public DbSet<BusinessAuditEvent> BusinessAudits => Set<BusinessAuditEvent>();
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.HasDefaultSchema("analytics");
+        var events = b.Entity<BusinessAuditEvent>();
+        events.ToTable("business_audit_events"); events.HasKey(x=>x.Id);
+        events.Property(x=>x.Source).HasMaxLength(40);
+        events.Property(x=>x.Entity).HasMaxLength(100);
+        events.Property(x=>x.Action).HasMaxLength(10);
+        events.Property(x=>x.TraceId).HasMaxLength(128);
+        events.Property(x=>x.PayloadHash).HasMaxLength(64);
+        events.Property(x=>x.Payload).HasColumnType("jsonb");
+        events.HasIndex(x=>new { x.OccurredAtUtc,x.Id });
+        events.HasIndex(x=>new { x.Source,x.Entity,x.OccurredAtUtc });
+        events.HasIndex(x=>new { x.ActorId,x.OccurredAtUtc });
+        events.HasIndex(x=>x.TraceId);
+        var setting = b.Entity<SystemSetting>();
+        setting.ToTable("system_settings", t => t.HasCheckConstraint("ck_system_setting_value", "\"Value\" BETWEEN 1 AND 366"));
+        setting.HasKey(x => x.Key);
+        setting.Property(x => x.Key).HasMaxLength(100);
+        setting.Property(x => x.Version).IsConcurrencyToken();
+        var audit = b.Entity<SystemAuditLog>();
+        audit.ToTable("audit_logs");
+        audit.HasKey(x => x.Id);
+        audit.HasIndex(x => new { x.OccurredAtUtc, x.Id });
+        audit.Property(x => x.Action).HasMaxLength(100);
+        audit.Property(x => x.EntityKey).HasMaxLength(100);
+        audit.Property(x => x.Reason).HasMaxLength(500);
+        audit.Property(x => x.ClientIp).HasMaxLength(64);
+        audit.Property(x => x.TraceId).HasMaxLength(128);
         var p = b.Entity<ProcedureMetric>();
         p.ToTable("application_procedure_metrics");
         p.HasKey(x => new { x.MetricDate, x.WardCode, x.ProcedureId });
