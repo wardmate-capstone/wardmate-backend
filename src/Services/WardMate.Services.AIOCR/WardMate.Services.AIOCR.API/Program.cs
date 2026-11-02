@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using WardMate.SharedKernel.Web;
 using WardMate.Services.AIOCR.API;
 using WardMate.Services.AIOCR.Infrastructure;
@@ -35,7 +36,8 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
 
 app.UseGlobalExceptionHandling();
 app.UseCors(BrowserCorsExtensions.PolicyName);
-app.UseAuthentication();
+app.UseAuditTrustedProxy(builder.Configuration);
+    app.UseAuthentication();
     app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
