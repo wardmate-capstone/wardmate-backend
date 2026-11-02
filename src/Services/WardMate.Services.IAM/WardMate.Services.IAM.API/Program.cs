@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Serilog;
@@ -142,6 +143,7 @@ try
     app.UseStatusCodePages();
     app.UseCors(BrowserCorsExtensions.PolicyName);
     if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+    app.UseAuditTrustedProxy(builder.Configuration);
     app.UseAuthentication();
     app.UseRateLimiter();
     app.UseAuthorization();
