@@ -1,3 +1,4 @@
+using WardMate.Auditing;
 using WardMate.SharedKernel.Web;
 using Microsoft.EntityFrameworkCore;
 using WardMate.Services.AnalyticsSystem.Infrastructure;
@@ -37,6 +38,14 @@ if (builder.Configuration.GetValue("Database:AutoMigrate", false))
     await scope.ServiceProvider.GetRequiredService<AnalyticsDbContext>().Database.MigrateAsync();
 }
 
+if (builder.Configuration.GetValue("SystemAdministration:Enabled", false))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<AnalyticsDbContext>();
+    if ((await db.Database.GetPendingMigrationsAsync()).Any())
+        throw new InvalidOperationException("Apply Analytics migrations before enabling SystemAdministration:Enabled.");
+}
+
 app.UseGlobalExceptionHandling();
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Swagger:Enabled"))
 { app.UseSwagger(); app.UseSwaggerUI(); }
@@ -48,7 +57,9 @@ if (builder.Configuration.GetValue("Analytics:JobsEnabled", false))
         { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh") });
 }
 app.UseCors(BrowserCorsExtensions.PolicyName);
-app.UseAuthentication();
+app.UseAuditTrustedProxy(builder.Configuration);
+app.UseMiddleware<SystemAuditContextMiddleware>();
+    app.UseAuthentication();
     app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
 app.UseAuthorization();
 app.MapHub<NotificationHub>("/hubs/notifications", options => options.CloseOnAuthenticationExpiration = true).RequireAuthorization();
