@@ -75,7 +75,12 @@ public sealed class SystemHealthWorker(IServiceScopeFactory scopes, IHttpClientF
         var interval = config.GetValue("SystemHealth:IntervalSeconds", 300);
         if (interval is < 30 or > 3600) throw new InvalidOperationException("SystemHealth interval must be 30..3600 seconds.");
         var targets = config.GetSection("SystemHealth:Targets").GetChildren().Select(x => (Name: x.Key, Url: x.Value)).ToArray();
-        if (targets.Length is < 1 or > 20) throw new InvalidOperationException("Configure 1..20 health targets.");
+        if (targets.Length == 0)
+        {
+            logger.LogWarning("SystemHealth is enabled but no targets configured — worker sleeping until restart.");
+            return;
+        }
+        if (targets.Length > 20) throw new InvalidOperationException("Too many health targets; configure at most 20.");
         foreach (var target in targets)
             if (target.Name.Length > 64 || !Uri.TryCreate(target.Url, UriKind.Absolute, out var uri) ||
                 !(uri.Scheme == "https" || uri.Scheme == "http" && uri.IsLoopback) ||
