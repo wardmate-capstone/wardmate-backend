@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,8 +24,6 @@ public sealed class SystemBackupWorker(
 
         logger.LogInformation("SystemBackupWorker started.");
 
-        // On startup: recover interrupted jobs that were left in 'Running'
-        await RecoverInterruptedJobsAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -85,6 +82,7 @@ public sealed class SystemBackupWorker(
         catch (Exception ex)
         {
             logger.LogWarning("Failed to recover interrupted backup jobs: {ErrorType}", ex.GetType().Name);
+            throw;
         }
     }
 
@@ -92,10 +90,25 @@ public sealed class SystemBackupWorker(
     {
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AnalyticsDbContext>();
-        var blobClient = scope.ServiceProvider.GetService<IBlobStorageClient>();
+        // Dedicated non-pooled session: lock survives job commits and is released on process death.
+        var connectionString = new NpgsqlConnectionStringBuilder(db.Database.GetConnectionString())
+        { Pooling = false };
+        await using var owner = new NpgsqlConnection(connectionString.ConnectionString);
+        await owner.OpenAsync(ct);
+        await using var command = new NpgsqlCommand("SELECT pg_try_advisory_lock(353535, 4)", owner);
+        if (await command.ExecuteScalarAsync(ct) is not true) return;
+        await RecoverInterruptedJobsAsync(ct);
+        await ProcessOwnedBackupJobAsync(ct);
+    }
+
+    private async Task ProcessOwnedBackupJobAsync(CancellationToken ct)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnalyticsDbContext>();
+        var blobClient = scope.ServiceProvider.GetService<IBlobStorageClient>()
+            ?? throw new InvalidOperationException("backup_storage_unavailable");
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(353535, 4)", ct);
 
         var job = await db.SystemBackupLogs
             .Where(x => x.Status == "Queued")
@@ -159,7 +172,7 @@ public sealed class SystemBackupWorker(
             if (blobClient is not null)
             {
                 await using var uploadStream = File.OpenRead(tempFile);
-                await blobClient.UploadAsync(uploadStream, objectName, "application/octet-stream", container, ct);
+                await blobClient.UploadAsync(uploadStream, objectName, "application/octet-stream", container, timeoutCts.Token);
             }
 
             job.Status = "Succeeded";
@@ -183,7 +196,7 @@ public sealed class SystemBackupWorker(
         catch (Exception ex)
         {
             job.Status = "Failed";
-            job.ErrorCode = SanitizeErrorMessage(ex.Message);
+            job.ErrorCode = ex is System.ComponentModel.Win32Exception ? "pg_dump_unavailable" : "backup_failed";
             job.CompletedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(CancellationToken.None);
             logger.LogWarning("Backup job {JobId} failed: {ErrorCode}", job.Id, job.ErrorCode);
@@ -204,43 +217,7 @@ public sealed class SystemBackupWorker(
     private async Task CreateDatabaseBackupArchiveAsync(string connectionString, string outputPath, CancellationToken ct)
     {
         var pgDumpPath = config["SystemBackups:PgDumpPath"] ?? "pg_dump";
-        var isPgDumpAvailable = TryCheckExecutableAvailable(pgDumpPath);
-
-        if (isPgDumpAvailable)
-        {
-            await RunPgDumpProcessAsync(pgDumpPath, connectionString, outputPath, ct);
-        }
-        else
-        {
-            // Fallback: managed archive generator starting with PGDMP magic bytes and schema snapshot
-            await GenerateManagedArchiveAsync(connectionString, outputPath, ct);
-        }
-    }
-
-    private static bool TryCheckExecutableAvailable(string executable)
-    {
-        try
-        {
-            using var proc = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = executable,
-                    Arguments = "--version",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-            proc.Start();
-            proc.WaitForExit(3000);
-            return proc.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
+        await RunPgDumpProcessAsync(pgDumpPath, connectionString, outputPath, ct);
     }
 
     private static async Task RunPgDumpProcessAsync(string pgDumpPath, string connectionString, string outputPath, CancellationToken ct)
@@ -254,73 +231,41 @@ public sealed class SystemBackupWorker(
         var startInfo = new ProcessStartInfo
         {
             FileName = pgDumpPath,
-            Arguments = $"-Fc -h {host} -p {port} -U {user} -d {database} -f \"{outputPath}\"",
+
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
+        foreach (var arg in new[] { "-Fc", "-h", host, "-p", port.ToString(), "-U", user, "-d", database, "-f", outputPath }) startInfo.ArgumentList.Add(arg);
+
         if (!string.IsNullOrEmpty(builder.Password))
         {
             startInfo.EnvironmentVariables["PGPASSWORD"] = builder.Password;
         }
+        startInfo.EnvironmentVariables["PGSSLMODE"] = builder.SslMode switch
+        {
+            SslMode.VerifyFull => "verify-full", SslMode.VerifyCA => "verify-ca",
+            SslMode.Require => "require", SslMode.Disable => "disable",
+            SslMode.Allow => "allow", _ => "prefer"
+        };
+        if (!string.IsNullOrEmpty(builder.RootCertificate))
+            startInfo.EnvironmentVariables["PGSSLROOTCERT"] = builder.RootCertificate;
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
 
-        var stderrTask = process.StandardError.ReadToEndAsync(ct);
-        await process.WaitForExitAsync(ct);
+        var stderrTask = process.StandardError.BaseStream.CopyToAsync(Stream.Null, ct);
+        var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, ct);
+        try { await process.WaitForExitAsync(ct); }
+        catch { if (!process.HasExited) process.Kill(true); throw; }
+        await Task.WhenAll(stdoutTask, stderrTask);
 
         if (process.ExitCode != 0)
         {
-            var err = await stderrTask;
-            throw new InvalidOperationException($"pg_dump exited with code {process.ExitCode}: {SanitizeErrorMessage(err)}");
+            throw new InvalidOperationException("pg_dump_failed");
         }
-    }
-
-    private static async Task GenerateManagedArchiveAsync(string connectionString, string outputPath, CancellationToken ct)
-    {
-        await using var conn = new NpgsqlConnection(connectionString);
-        await conn.OpenAsync(ct);
-
-        await using var file = File.Create(outputPath);
-        // Write standard PostgreSQL custom dump magic bytes: "PGDMP" (0x50, 0x47, 0x44, 0x4D, 0x50)
-        await file.WriteAsync(Encoding.ASCII.GetBytes("PGDMP"), ct);
-
-        // Format version bytes (1.14.0)
-        await file.WriteAsync(new byte[] { 0x01, 0x0E, 0x00 }, ct);
-
-        // Export table schemas and record counts
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
-            SELECT table_schema, table_name
-            FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE'
-              AND table_schema NOT IN ('information_schema', 'pg_catalog')
-            ORDER BY table_schema, table_name;";
-
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        var tableList = new List<(string Schema, string Table)>();
-        while (await reader.ReadAsync(ct))
-        {
-            tableList.Add((reader.GetString(0), reader.GetString(1)));
-        }
-        await reader.CloseAsync();
-
-        var metadata = new StringBuilder();
-        metadata.AppendLine($"-- WardMate Database Snapshot: {conn.Database}");
-        metadata.AppendLine($"-- CreatedAtUtc: {DateTime.UtcNow:O}");
-        metadata.AppendLine($"-- Tables: {tableList.Count}");
-
-        foreach (var (schema, table) in tableList)
-        {
-            metadata.AppendLine($"TABLE: {schema}.{table}");
-        }
-
-        var metaBytes = Encoding.UTF8.GetBytes(metadata.ToString());
-        await file.WriteAsync(metaBytes, ct);
-        await file.FlushAsync(ct);
     }
 
     private async Task RunRetentionAsync(CancellationToken ct)
@@ -330,9 +275,15 @@ public sealed class SystemBackupWorker(
             await using var scope = scopes.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AnalyticsDbContext>();
             var blobClient = scope.ServiceProvider.GetService<IBlobStorageClient>();
+            // Retain metadata when storage cannot be checked/deleted.
+            if (blobClient is null) return;
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(353535, 5)", ct);
 
             var healthRetentionDays = config.GetValue("SystemHealth:RetentionDays", 30);
             var backupRetentionDays = config.GetValue("SystemBackups:RetentionDays", 30);
+
+            if (healthRetentionDays < 1 || backupRetentionDays < 1) throw new InvalidOperationException("Invalid retention days");
 
             // 1. Retention for service_health_logs (> 30 days)
             var healthThreshold = DateTime.UtcNow.AddDays(-healthRetentionDays);
@@ -364,8 +315,12 @@ public sealed class SystemBackupWorker(
                             !protectedBackupIds.Contains(x.Id))
                 .ToArrayAsync(ct);
 
+            var removedCount = 0;
             foreach (var expired in expiredBackups)
             {
+                if (!string.IsNullOrWhiteSpace(expired.StorageObjectName) &&
+                    !expired.StorageObjectName.StartsWith($"backups/{expired.ServiceName}/{expired.Id:N}_", StringComparison.Ordinal))
+                    continue;
                 if (blobClient is not null && !string.IsNullOrWhiteSpace(expired.StorageObjectName))
                 {
                     try
@@ -376,17 +331,19 @@ public sealed class SystemBackupWorker(
                     {
                         logger.LogWarning("Failed to delete expired blob {BlobName}: {ErrorType}",
                             expired.StorageObjectName, ex.GetType().Name);
+                        continue;
                     }
                 }
                 db.SystemBackupLogs.Remove(expired);
+                removedCount++;
             }
-
             if (expiredBackups.Length > 0)
             {
                 await db.SaveChangesAsync(ct);
                 logger.LogInformation("Retention purged {Count} backup logs older than {Days} days (kept verified backups).",
-                    expiredBackups.Length, backupRetentionDays);
+                    removedCount, backupRetentionDays);
             }
+            await tx.CommitAsync(ct);
         }
         catch (Exception ex)
         {
@@ -394,14 +351,4 @@ public sealed class SystemBackupWorker(
         }
     }
 
-    private static string SanitizeErrorMessage(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message)) return "unknown_error";
-        // Strip sensitive strings like passwords, keys, or credentials
-        var cleaned = message.Replace("\r", " ").Replace("\n", " ");
-        if (cleaned.Contains("Password=", StringComparison.OrdinalIgnoreCase))
-            cleaned = "database_authentication_failed";
-        if (cleaned.Length > 100) cleaned = cleaned[..100];
-        return cleaned.Trim();
-    }
 }
