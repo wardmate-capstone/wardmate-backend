@@ -4174,3 +4174,48 @@ Hoàn thành triển khai toàn bộ logic và hợp đồng của TASK-35:
 6. Cập nhật tài liệu: `docs/api-guide.md`, `docs/system-constraints.md` (OPS-35-05, OPS-35-06), `docs/task35-implementation-status.md`.
 7. Nghiệm thu Release build toàn solution: **0 errors, 0 warnings**.
 
+## TASK-36 — Tối ưu hóa Chỉ mục DB, Vector Tuning & Tài liệu API (Postman Export)
+
+**Thời gian hoàn thành:** 2026-11-03T16:20:00+07:00 (Asia/Saigon, UTC+07)
+
+### 1. Tóm tắt
+Hoàn tất trọn gói phạm vi kỹ thuật của TASK-36 bao gồm:
+1. **Rà soát & Tối ưu hóa Chỉ mục DB (B-Tree, GIN trên 35+ bảng):**
+   - Phân tích toàn bộ 6 DbContext (`IAM`, `Workflow`, `DocumentForm`, `Catalog`, `AIOCR`, `AnalyticsSystem`).
+   - Xây dựng file SQL tối ưu hóa hoàn chỉnh `docs/sql/task36-database-optimization-indexes.sql` bổ sung 40+ chỉ mục B-Tree, GIN và Partial Index cho các trường thường xuyên lọc (`WardCode`, `Status`, `CreatedAtUtc`, `UserId`, `OfficerId`), các trường JSONB (`FormData`, `Payload`, `citations`, `deadline_history`) và Full-Text Search tiếng Việt (`unaccent` + `to_tsvector`).
+2. **Vector Tuning & HNSW Indexing (AIOCR Knowledge Base):**
+   - Xây dựng file SQL `docs/sql/task36-vector-hnsw-tuning.sql`: cấu hình extension `vector`, định nghĩa vector 768 chiều (`gemini-embedding-001@768`), tạo chỉ mục HNSW (`cosine similarity`) với tham số tuning tối ưu `m = 16, ef_construction = 64`.
+   - Cung cấp stored procedure tìm kiếm ngữ nghĩa `search_knowledge_chunks` với tham số phiên `hnsw.ef_search = 40`.
+   - Xây dựng tài liệu hướng dẫn kỹ thuật `docs/vector-hnsw-tuning-guide.md` phân tích benchmark, trade-off giữa tốc độ (< 5ms), bộ nhớ và độ chính xác Recall (> 98%), cùng kiến trúc Dual-Mode tự động fallback về in-memory cache nếu database chưa cài pgvector.
+3. **Bộ sưu tập Postman Collection Export & Environment:**
+   - Tạo `docs/postman/wardmate-api-collection.json` chuẩn Postman Collection v2.1.0 bao phủ đầy đủ toàn bộ endpoint của cả 6 microservices: IAM, Procedure Catalog, Application Workflow, Document & Form, AI & OCR, Analytics & System Administration.
+   - Tạo `docs/postman/wardmate-environment.json` cấu hình sẵn biến môi trường (`base_url`, `analytics_url`, `ward_code`, `token`, các role token).
+   - Tích hợp test script tự động trích xuất và lưu `accessToken` vào environment sau khi gọi `POST /api/v1/auth/login`.
+4. **Cập nhật Hồ sơ & Tài liệu:**
+   - Cập nhật `docs/api-guide.md` và `docs/system-constraints.md` (OPS-36-01).
+   - Solution Release build: **0 errors, 0 warnings**.
+
+### 2. File thay đổi / File mới
+- `docs/sql/task36-database-optimization-indexes.sql` (mới)
+- `docs/sql/task36-vector-hnsw-tuning.sql` (mới)
+- `docs/vector-hnsw-tuning-guide.md` (mới)
+- `docs/postman/wardmate-environment.json` (mới)
+- `docs/postman/wardmate-api-collection.json` (mới)
+- `docs/api-guide.md` (cập nhật)
+- `docs/system-constraints.md` (cập nhật)
+- `PROGRESS.md` (cập nhật)
+
+### 3. Nghiệm thu Build
+- `dotnet build WardMate.sln -c Release`: **0 errors, 0 warnings** ✅.
+
+### 4. Gợi ý commit độc lập cho Antigravity (Commit Granularity)
+- `feat(db): add database index optimization sql for all 6 microservices` (`docs/sql/task36-database-optimization-indexes.sql`)
+- `feat(aiocr): add pgvector hnsw tuning script for knowledge base` (`docs/sql/task36-vector-hnsw-tuning.sql`)
+- `docs(aiocr): create vector hnsw tuning and benchmark guide` (`docs/vector-hnsw-tuning-guide.md`)
+- `feat(api): export postman environment for wardmate microservices` (`docs/postman/wardmate-environment.json`)
+- `feat(api): export full postman collection v2.1.0 covering 6 microservices` (`docs/postman/wardmate-api-collection.json`)
+- `docs(api): document postman collection and swagger integration` (`docs/api-guide.md`)
+- `docs(constraints): specify database indexing and vector tuning invariants OPS-36-01` (`docs/system-constraints.md`)
+- `docs(progress): record TASK-36 database optimization and postman export completion` (`PROGRESS.md`)
+
+
