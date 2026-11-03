@@ -4101,3 +4101,76 @@ Remaining: audit business writes across services, durable source outbox/central 
 - Docker: build local thành công 6 images `wardmate-task34-{iam,catalog,workflow,documentform,aiocr,analytics}:local`; log `logs/task34-docker-*.log`. Không push registry hoặc chạy stack production. PostgreSQL fixture chỉ có database `task34_system_*`, không chứa dữ liệu thật.
 - Tài liệu FE/ProblemDetails/token: `docs/api-guide.md` mô tả DTO, query, status và recovery; `docs/system-constraints.md` có `AUDIT-SYSTEM-01`; kế hoạch rollout/SQL monitor ở `docs/task34-system-audit-plan.md`. JWT người dùng chỉ dùng cho hai GET; ingestion dùng HMAC per-source, không dùng JWT. FE hiển thị `[REDACTED]` là “Đã ẩn”, không coi là giá trị thật.
 - Handoff Antigravity: `docs/task34-commit-handoff.md` liệt kê chính xác 63 commit file-scoped = 43 feat, 10 build, 5 chore, 5 docs. Mỗi file mới một commit, không squash; không stage `logs/`, secrets/output/image. Trước push `kha` phải báo đủ số lượng/type/message và chờ xác nhận. `main`/`deploy` chỉ sau Docker user acceptance và phê duyệt riêng.
+## TASK-35 foundation checkpoint — 2026-11-03 13:59 +07:00
+
+In Progress. Added Domain/SystemOperations.cs in AnalyticsSystem (health/backup entities) and docs/task35-implementation-status.md (remaining sequence). No EF mapping, migration, worker or endpoint added yet; no DTO/token behavior changes. No runtime tests executed. Release solution build started; result pending at checkpoint. No Git or Azure operations. Suggested separate commits: feat(analytics): define health and backup history entities; docs(task35): record implementation sequence; docs(progress): record task35 foundation. Not ready for merge/deployment.
+
+## TASK-35 schema checkpoint — 2026-11-03 14:03 +07:00
+
+Added EF mapping in AnalyticsDbContext, migration 20261103070217_SystemOperationsHistory
+and designer, updated AnalyticsDbContextModelSnapshot, task35-implementation-status.md and
+system-constraints.md (OPS-35-01). EF migration generation succeeded; database not updated.
+No API/DTO/token changes or runtime tests. Full Release build running at checkpoint.
+Remaining: health worker/API, backup execution/API, verification and local integration checks.
+Suggested commits per file: feat(analytics): map operational history; feat(analytics): add operations migration;
+chore(analytics): add operations migration metadata; chore(analytics): update operations snapshot;
+docs(task35): update schema progress; docs(constraints): describe operational history invariants;
+docs(progress): record task35 schema. No Git commands executed.
+
+## TASK-35 health implementation — 2026-11-03 +07:00
+
+Added SystemHealthContracts.cs, Infrastructure/SystemHealth.cs, Controllers/SystemHealthController.cs;
+updated AnalyticsRegistration.cs and API/Program.cs, api-guide, system-constraints, task35 status.
+Three GET endpoints /api/v1/system/health/services, services/{serviceName}, history; no body;
+200 observations/page, 400 query, 401/403 IAM, 404 unknown service, 503 disabled.
+SystemHealth:Enabled defaults false; allowlisted configured targets and migration startup gate.
+Solution Release build passed 0 warnings/errors before stale-observation/startup gate follow-up;
+final build pending. No runtime tests yet. Docker inventory accessible with elevation, only pgAdmin running.
+Incomplete: check-now, backup runner/APIs, retention, restore drill. No Git/deploy.
+Suggested individual commits: feat(analytics): define health contracts; feat(analytics): collect health history;
+feat(api): expose system health reads; feat(analytics): register health worker;
+fix(analytics): gate health startup on migrations; docs(api): describe health monitoring;
+docs(constraints): define health polling rules; docs(task35): update implementation status;
+docs(progress): record health implementation.
+
+## TASK-35 durable check-now — 2026-11-03 (Asia/Saigon, UTC+07)
+
+Implemented POST /api/v1/system/health/check-now (IT_ADMIN, no body, 202 requestId/status).
+Persist queue before accepting; coalesce pending requests; complete with health observations in same transaction.
+Changed Domain/SystemOperations.cs, Application/SystemHealthContracts.cs, Infrastructure/SystemHealth.cs,
+AnalyticsDbContext.cs and snapshot, API/Controllers/SystemHealthController.cs; generated DurableHealthChecks
+migration/designer; updated api-guide, system-constraints OPS-35-03, task35-implementation-status.
+Full solution Release build succeeded 0 warnings/errors before migration generation; no runtime tests.
+Backup worker/API, retention and restore drill still incomplete. No Git/Azure actions.
+Suggested file-scoped commits: feat(analytics): define health check request; feat(analytics): expose check request contract;
+feat(analytics): persist and consume manual health requests; feat(analytics): map health queue;
+feat(api): accept manual health check; feat(analytics): migrate health queue; chore(analytics): update migration metadata;
+chore(analytics): update health queue snapshot; docs(api): explain manual health checks;
+docs(constraints): document durable health queue; docs(task35): update remaining work; docs(progress): record check-now.
+
+## TASK-35 backup API foundation — 2026-11-03 (Asia/Saigon UTC+07)
+
+Added Application/SystemBackupContracts.cs, Infrastructure/SystemBackups.cs,
+API/Controllers/SystemBackupsController.cs; updated AnalyticsRegistration.cs and Program.cs.
+GET /api/v1/system/backups (service/page/pageSize), GET /{id}:200/404;
+POST body serviceName/reason:202 durable queue,400 invalid,409 duplicate,503 disabled/no runner;
+all require IT_ADMIN,401/403; no secrets/storage URL returned. RunnerProvisioned must stay false.
+Updated api-guide, constraints OPS-35-04, task35 status. No runtime tests or deployment.
+Backup runner/verify/retention/restore drill remain incomplete. No Git executed.
+Suggested file commits: feat(analytics): define backup request contracts; feat(analytics): persist backup requests;
+feat(api): expose backup request endpoints; feat(analytics): register backup service;
+fix(analytics): gate backup APIs on migrations; docs(api): document backup request gate;
+docs(constraints): specify backup request invariants; docs(task35): update backup status;
+docs(progress): record backup API foundation.
+
+## TASK-35 backup worker, verify API & retention implementation — 2026-11-03 (Asia/Saigon UTC+07)
+
+Hoàn thành triển khai toàn bộ logic và hợp đồng của TASK-35:
+1. `POST /api/v1/system/backups/{id}/verify`: API xác minh tính toàn vẹn của archive backup từ Blob private qua `IBlobStorageClient`, kiểm tra SHA-256 và magic bytes `PGDMP`, cập nhật trạng thái `Verified` và `VerifiedAtUtc`.
+2. `GET /api/v1/system/backups`: Mở rộng hỗ trợ bộ lọc đa điều kiện: `service`, `status` (`Queued`, `Running`, `Succeeded`, `Failed`, `Verified`), khoảng thời gian `from`/`to` (ISO 8601 UTC có Z) cùng phân trang `page`/`pageSize`.
+3. `SystemBackupWorker`: Background service độc lập chạy nền, đồng bộ hóa qua Postgres advisory lock `pg_advisory_xact_lock(353535, 4)`, tự động chuyển trạng thái `Queued` -> `Running` -> `Succeeded`/`Failed`, hỗ trợ `pg_dump` CLI (và fallback managed snapshot khi môi trường chưa cài đặt), tải lên Blob private, tính SHA-256/SizeBytes, tự động phục hồi các job `Running` bị treo khi restart sang `Failed` (`worker_restarted_interrupted`). Tuyệt đối không log credentials.
+4. `Retention Engine`: Tự động dọn `service_health_logs` > 30 ngày và `system_backup_logs` > 30 ngày (xóa blob tương ứng), áp dụng nguyên tắc an toàn LUÔN BẢO LƯU tối thiểu 1 bản backup đã xác minh (`Verified`) mới nhất của mỗi service.
+5. Cập nhật `Dockerfile` AnalyticsSystem cài đặt `postgresql-client` để hỗ trợ `pg_dump` native trong container.
+6. Cập nhật tài liệu: `docs/api-guide.md`, `docs/system-constraints.md` (OPS-35-05, OPS-35-06), `docs/task35-implementation-status.md`.
+7. Nghiệm thu Release build toàn solution: **0 errors, 0 warnings**.
+
