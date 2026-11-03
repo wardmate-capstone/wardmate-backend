@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +22,8 @@ public sealed class SystemBackups(AnalyticsDbContext db, IConfiguration config, 
         if (!config.GetValue("SystemBackups:RunnerProvisioned", false))
             throw new AnalyticsException(503, "system.backup_runner_unavailable", "Chưa có backup runner.");
         if (actor == Guid.Empty) throw new AnalyticsException(401, "auth.unauthorized", "Vui lòng đăng nhập.");
+        if (sp.GetService<IBlobStorageClient>() is null)
+            throw new AnalyticsException(503, "system.backup_storage_unavailable", "Chưa cấu hình Blob storage.");
         if (string.IsNullOrWhiteSpace(request.ServiceName) || request.ServiceName.Length > 64 ||
             string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length is < 3 or > 500)
             throw new AnalyticsException(400, "system.invalid_backup", "Tên service và lý do không hợp lệ.");
@@ -71,70 +72,97 @@ public sealed class SystemBackups(AnalyticsDbContext db, IConfiguration config, 
     {
         Enabled();
         if (actor == Guid.Empty) throw new AnalyticsException(401, "auth.unauthorized", "Vui lòng đăng nhập.");
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Retention uses the same lock so it cannot delete a file during verification.
+        if (!await db.Database.SqlQueryRaw<bool>("SELECT pg_try_advisory_xact_lock(353535, 5) AS \"Value\"").SingleAsync(ct))
+            throw new AnalyticsException(409, "system.backup_verification_busy", "Đang xác minh hoặc dọn backup; hãy thử lại sau.");
         var row = await db.SystemBackupLogs.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (row is null) throw new AnalyticsException(404, "system.backup_not_found", "Không tìm thấy backup.");
         if (row.Status is "Queued" or "Running")
             throw new AnalyticsException(409, "system.backup_in_progress", "Bản backup đang chờ hoặc đang chạy, chưa thể xác minh.");
         if (row.Status == "Failed")
             throw new AnalyticsException(400, "system.backup_failed", "Không thể xác minh bản backup đã thất bại.");
-        if (string.IsNullOrWhiteSpace(row.StorageObjectName))
-            throw new AnalyticsException(400, "system.backup_missing_storage", "Bản backup không có file lưu trữ để xác minh.");
-
-        var blobClient = sp.GetService<IBlobStorageClient>();
-        var container = config["SystemBackups:ContainerName"] ?? "wardmate-backups";
-        if (blobClient is not null)
+        var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".dump");
+        using var operationTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        operationTimeout.CancelAfter(TimeSpan.FromMinutes(5));
+        var operationToken = operationTimeout.Token;
+        try
         {
-            await using var stream = await blobClient.DownloadAsync(row.StorageObjectName, container, ct);
+            if (string.IsNullOrWhiteSpace(row.StorageObjectName))
+                throw new AnalyticsException(400, "system.backup_missing_storage", "Bản backup không có file lưu trữ để xác minh.");
+            var blobClient = sp.GetService<IBlobStorageClient>()
+                ?? throw new AnalyticsException(503, "system.backup_storage_unavailable", "Chưa cấu hình Blob storage.");
+            var container = config["SystemBackups:ContainerName"] ?? "wardmate-backups";
+            await using var stream = await blobClient.DownloadAsync(row.StorageObjectName, container, operationToken);
             if (stream is null)
+                throw new AnalyticsException(404, "system.backup_file_missing", "Không tìm thấy file backup.");
+            var maximumBytes = config.GetValue<long>("SystemBackups:MaxVerifyBytes", 1073741824);
+            if (maximumBytes < 1 || row.SizeBytes is null || row.SizeBytes <= 0 || row.SizeBytes > maximumBytes)
+                throw new AnalyticsException(400, "system.backup_size_limit", "Kích thước backup vượt giới hạn xác minh hoặc thiếu metadata.");
+            await using (var file = File.Create(temp))
             {
-                row.ErrorCode = "blob_not_found";
-                await db.SaveChangesAsync(ct);
-                throw new AnalyticsException(404, "system.backup_file_missing", "File backup không tồn tại trên kho lưu trữ Blob.");
-            }
-            using var sha = SHA256.Create();
-            var hashBytes = await sha.ComputeHashAsync(stream, ct);
-            var hashHex = Convert.ToHexString(hashBytes).ToLowerInvariant();
-            if (!string.Equals(hashHex, row.Sha256, StringComparison.OrdinalIgnoreCase))
-            {
-                row.ErrorCode = "checksum_mismatch";
-                await db.SaveChangesAsync(ct);
-                throw new AnalyticsException(400, "system.backup_checksum_mismatch", "Checksum không khớp; file backup có thể đã bị hỏng.");
-            }
-            if (stream.CanSeek)
-            {
-                stream.Position = 0;
-                var header = new byte[5];
-                var read = await stream.ReadAsync(header, 0, 5, ct);
-                if (read == 5 && Encoding.ASCII.GetString(header) != "PGDMP")
+                var buffer = new byte[81920];
+                long total = 0;
+                int read;
+                while ((read = await stream.ReadAsync(buffer, operationToken)) != 0)
                 {
-                    row.ErrorCode = "invalid_archive_format";
-                    await db.SaveChangesAsync(ct);
-                    throw new AnalyticsException(400, "system.backup_invalid_archive", "Định dạng file không phải archive hợp lệ.");
+                    total += read;
+                    if (total > row.SizeBytes || total > maximumBytes)
+                        throw new AnalyticsException(400, "system.backup_size_mismatch", "Kích thước backup không khớp.");
+                    await file.WriteAsync(buffer.AsMemory(0, read), operationToken);
                 }
             }
-        }
-        else if (File.Exists(row.StorageObjectName))
-        {
-            await using var fileStream = File.OpenRead(row.StorageObjectName);
-            using var sha = SHA256.Create();
-            var hashBytes = await sha.ComputeHashAsync(fileStream, ct);
-            var hashHex = Convert.ToHexString(hashBytes).ToLowerInvariant();
-            if (!string.Equals(hashHex, row.Sha256, StringComparison.OrdinalIgnoreCase))
+            if (row.SizeBytes is null || new FileInfo(temp).Length != row.SizeBytes)
+                throw new AnalyticsException(400, "system.backup_size_mismatch", "Kích thước backup không khớp.");
+            await using (var file = File.OpenRead(temp))
             {
-                row.ErrorCode = "checksum_mismatch";
-                await db.SaveChangesAsync(ct);
-                throw new AnalyticsException(400, "system.backup_checksum_mismatch", "Checksum không khớp; file backup có thể đã bị hỏng.");
+                var hash = Convert.ToHexString(await SHA256.HashDataAsync(file, operationToken));
+                if (!string.Equals(hash, row.Sha256, StringComparison.OrdinalIgnoreCase))
+                    throw new AnalyticsException(400, "system.backup_checksum_mismatch", "Checksum không khớp.");
             }
+            var info = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = config["SystemBackups:PgRestorePath"] ?? "pg_restore",
+                UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true
+            };
+            // Decode the complete archive, including data blocks, without connecting to a database.
+            info.ArgumentList.Add("--file=-");
+            info.ArgumentList.Add(temp);
+            using var process = new System.Diagnostics.Process { StartInfo = info };
+            try { process.Start(); }
+            catch (System.ComponentModel.Win32Exception)
+            { throw new AnalyticsException(503, "system.backup_verifier_unavailable", "Cần cài pg_restore."); }
+            var stdout = process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, operationToken);
+            var stderr = process.StandardError.BaseStream.CopyToAsync(Stream.Null, operationToken);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(operationToken);
+            timeout.CancelAfter(TimeSpan.FromMinutes(2));
+            try { await process.WaitForExitAsync(timeout.Token); }
+            catch { if (!process.HasExited) process.Kill(true); throw; }
+            await Task.WhenAll(stdout, stderr);
+            if (process.ExitCode != 0)
+                throw new AnalyticsException(400, "system.backup_invalid_archive", "pg_restore không đọc được archive.");
         }
-        else if (!config.GetValue("SystemBackups:RunnerProvisioned", false))
+        catch (Exception ex)
         {
-            throw new AnalyticsException(503, "system.backup_runner_unavailable", "Chưa có backup runner hoặc kho lưu trữ Blob.");
+            var failure = ex as AnalyticsException ?? (ex is OperationCanceledException
+                ? new AnalyticsException(503, "system.backup_verification_timeout", "Xác minh bị gián đoạn hoặc hết thời gian; hãy thử lại.")
+                : new AnalyticsException(503, "system.backup_verification_unavailable", "Không thể đọc hoặc xác minh backup lúc này."));
+            row.Status = "Succeeded";
+            row.VerifiedAtUtc = null;
+            row.ErrorCode = failure.Code;
+            using var persistTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await db.SaveChangesAsync(persistTimeout.Token);
+            await transaction.CommitAsync(persistTimeout.Token);
+            throw failure;
         }
+        finally { try { File.Delete(temp); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
 
         row.VerifiedAtUtc = DateTime.UtcNow;
         row.Status = "Verified";
         row.ErrorCode = null;
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return Map(row);
     }
     private static BackupSummary Map(SystemBackupLog x) => new(x.Id, x.ServiceName, x.Status,
