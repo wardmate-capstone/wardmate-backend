@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using WardMate.Services.AnalyticsSystem.Application;
+using WardMate.SharedKernel.Blob;
 
 namespace WardMate.Services.AnalyticsSystem.Infrastructure;
 
@@ -20,6 +21,21 @@ public static class AnalyticsRegistration
         services.AddDbContext<AnalyticsDbContext>((sp, o) => o.AddInterceptors(sp.GetRequiredService<AuditConnectionInterceptor>()).UseNpgsql(connection,
             x => x.MigrationsHistoryTable("__AnalyticsMigrationsHistory", "analytics")));
         services.AddScoped<IAnalyticsService, AnalyticsService>();
+        services.AddScoped<ISystemHealth, SystemHealth>();
+        services.AddScoped<ISystemBackups, SystemBackups>();
+        services.AddHostedService<SystemHealthWorker>();
+        services.AddHostedService<SystemBackupWorker>();
+
+        var blobConn = config.GetSection(BlobStorageOptions.SectionName).GetValue<string>("ConnectionString");
+        if (!string.IsNullOrWhiteSpace(blobConn))
+        {
+            services.AddAzureBlobStorage(config);
+        }
+        services.AddHttpClient("system-health", http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(5);
+            http.MaxResponseContentBufferSize = 65536;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<ISystemAdministration, SystemAdministration>();
         services.AddScoped<IBusinessAuditStore, BusinessAuditStore>();
         services.AddScoped<AnalyticsAggregationJob>();
