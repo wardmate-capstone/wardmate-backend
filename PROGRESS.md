@@ -3,6 +3,37 @@
 
 # WardMate — Nhật ký phát triển
 
+## TASK-35 / FE backup defects — sửa local và bàn giao nghiệm thu Azure
+
+Thời điểm: 2026-11-03T23:05:29+07:00 (Asia/Saigon).
+
+- Đối chiếu `ANALYTICS_REMAINING_APIS_PLAN_2026-11-03.md` của FE: sửa Verified giả khi thiếu
+  Blob/file, nonseekable bypass và Succeeded giả khi thiếu storage/tool; loại bỏ fallback PGDMP giả.
+- Paths sửa source (dưới `src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/`):
+  `SystemBackups.cs`, `SystemBackupWorker.cs`. Không thay schema/migration trong lượt sửa này.
+- Verify so size/hash, giải mã toàn archive `pg_restore --file=-`, giới hạn 1GiB/5 phút toàn thao tác,
+  2 phút child process; lỗi reverify xóa VerifiedAtUtc cũ. Lock chống retention race; busy409.
+- Worker bắt buộc pg_dump/storage, upload lỗi ->Failed. Session lock không pooling tuần tự hóa worker;
+  recovery chỉ khi có lock. Retention thiếu storage/xóa thất bại giữ metadata, bảo vệ latestVerified.
+- API giữ routes: POST `/api/v1/system/backups` JSON `{serviceName,reason}` ->202 Queued,
+  GET list/detail ->200; POST `/{id}/verify` không body ->200 Verified, 400/404/409/503 theo nguyên nhân.
+  JWT IAM/IT_ADMIN không thay đổi. DTO không trả secret. FE reload detail khi verify lỗi,
+  Succeeded không đồng nghĩa Verified hoặc restore-tested.
+- Build `dotnet build WardMate.sln -c Release --no-restore -v quiet`: **0 errors, 0 warnings**.
+- Kiểm tra local: **29/29 assertions PASS** với harness tạm trong ignored `logs/task35-check`,
+  PostgreSQL15 Docker và Blob giả lập lỗi/nonseekable, công cụ pg_dump/pg_restore thật.
+  Gồm auth actor, target, queued/duplicate/state gates, upload, fake/truncated archive, size/hash,
+  missing Blob/file/tool, reverify, retention, recovery, owner contention, query và busy409.
+  Không thêm test project vào solution; không khẳng định coverage toàn hệ thống.
+- Restore drill local: pg_restore --exit-on-error vào DB trống thành công; 10 bảng analytics và
+  1 backup fixture đúng snapshot. Không thực hiện restore production hoặc gán RestoreTestedAtUtc cho dữ liệu thật.
+- Docs cập nhật: `docs/api-guide.md`, `docs/system-constraints.md`, `docs/task35-implementation-status.md`;
+  file mới `docs/task35-azure-acceptance.md` có checklist15 ca và6 commit đề xuất cho Antigravity.
+- **Chưa nghiệm thu Azure**: không Git/push/deploy theo AGENTS.md. Chưa kiểm tra token IT_ADMIN thật,
+  Blob Azure, FE end-to-end, timeout và mất connection lock giữa job. Giữ maxReplicas=1;
+  phải kiểm tra client/server PostgreSQL tương thích trước bật runner (image mặc định client15).
+  Không đánh dấu hoàn thành cloud từ kết quả local. Antigravity triển khai theo runbook rồi ghi bằng chứng.
+
 ---
 
 ## TASK-34 — Middleware Audit Log & Cấu hình Hệ thống: HOÀN THÀNH DEPLOY
@@ -4218,4 +4249,16 @@ Hoàn tất trọn gói phạm vi kỹ thuật của TASK-36 bao gồm:
 - `docs(constraints): specify database indexing and vector tuning invariants OPS-36-01` (`docs/system-constraints.md`)
 - `docs(progress): record TASK-36 database optimization and postman export completion` (`PROGRESS.md`)
 
+
+## TASK-35 FE reported backup defects — 2026-11-03 (Asia/Saigon UTC+07)
+
+Changed Infrastructure/SystemBackups.cs and SystemBackupWorker.cs: require storage and pg_dump;
+remove fake managed archive fallback; verify size/hash/pg_restore --list for nonseekable streams;
+retain metadata on Blob deletion failure; use ArgumentList and terminate dump on cancellation;
+remove unconditional startup recovery to avoid failing another replica's jobs.
+Updated api-guide and constraints OPS-35-05. Build running at checkpoint; no runtime tests yet.
+Remaining: durable lease recovery, verify/retention concurrency, bounded download and restore drill.
+No Git/Azure operations. Suggested individual commits: fix(analytics): fail closed when verifying backups;
+fix(analytics): require real durable database backups; docs(api): clarify backup verification;
+docs(constraints): record backup fail-closed rules; docs(progress): record backup defect fixes.
 

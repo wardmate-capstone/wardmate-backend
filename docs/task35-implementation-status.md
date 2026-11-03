@@ -31,13 +31,13 @@ Ngày cập nhật: 2026-11-03, Asia/Saigon.
    - `GET /api/v1/system/backups` (hỗ trợ lọc `service`, `status`, `from`/`to` UTC, phân trang).
    - `GET /api/v1/system/backups/{id}` (chi tiết metadata bản sao lưu, không rò rỉ secret).
    - `POST /api/v1/system/backups` (tạo yêu cầu sao lưu bền vững, advisory lock `353535, 3`, chống duplicate, gate `RunnerProvisioned`).
-   - `POST /api/v1/system/backups/{id}/verify` (xác minh stream từ Blob private, kiểm tra SHA-256 hash và header magic bytes `PGDMP`).
+   - `POST /api/v1/system/backups/{id}/verify`: tải Blob (cả stream không seek), đối chiếu kích thước/SHA-256, dùng `pg_restore --file=-` giải mã toàn archive. Không chỉ kiểm tra header; không đồng nghĩa đã restore database.
 
 5. **Backup Worker & Retention**:
-   - `SystemBackupWorker` chạy ngầm, tuần tự hóa job qua `pg_advisory_xact_lock(353535, 4)`.
+   - `SystemBackupWorker` là hosted service trong tiến trình Analytics, giữ session advisory lock `(353535, 4)` trên kết nối không pooling suốt job. Recovery chỉ chạy khi giữ được lock. Giữ giới hạn maxReplicas=1 trong runbook; chưa nghiệm thu tình huống mất kết nối lock giữa job.
    - Chuyển `Queued` -> `Running` -> `Succeeded`/`Failed`.
-   - Sinh archive database (hỗ trợ `pg_dump` CLI native và fallback managed snapshot `PGDMP`), tính SHA-256, dung lượng `SizeBytes`.
-   - Tải lên kho lưu trữ Blob private thông qua `IBlobStorageClient`.
+   - Bắt buộc `pg_dump` CLI, không có fallback giả archive. Thiếu tool/upload lỗi -> Failed. Tính SHA-256 và SizeBytes sau dump thật.
+   - Tải lên Blob thông qua `IBlobStorageClient`; operator phải xác minh container private và quyền storage khi triển khai.
    - Tự động phục hồi job bị treo khi restart sang `Failed` (`worker_restarted_interrupted`).
    - Không ghi connection string, mật khẩu hoặc raw exception vào log.
    - Retention engine tự động dọn `service_health_logs` > 30 ngày và `system_backup_logs` > 30 ngày (xóa blob kèm theo), LUÔN BẢO LƯU tối thiểu 1 bản backup đã xác minh (`Verified`) mới nhất của mỗi service.
@@ -45,9 +45,16 @@ Ngày cập nhật: 2026-11-03, Asia/Saigon.
 
 6. **Build Verification**:
    - Solution Release build: **0 errors, 0 warnings**.
+   - 29/29 assertions trong harness tạm `logs/task35-check` trên PostgreSQL 15 Docker, Blob giả lập/nonseekable, pg_dump/pg_restore thật. Bao gồm Verify đang bận trả409. Không tạo test project trong solution.
+   - Restore drill local vào DB trống thành công: 10 bảng analytics, 1 bản ghi backup fixture. Không cập nhật RestoreTestedAtUtc cho production từ kết quả fixture.
+   - Chưa nghiệm thu Azure, IAM thật, Blob Azure thật, timeout/mất kết nối giữa job hoặc toàn bộ giao diện FE.
 
 ## Điều kiện vận hành môi trường Production
 
 - Operator áp dụng migrations trên database trước khi kích hoạt `SystemHealth:Enabled=true` hoặc `SystemBackups:Enabled=true`.
 - Cấu hình connection string của từng target DB trong `SystemBackups:Targets:{serviceName}` và `AzureBlob:ConnectionString`.
 - Sau khi cấu hình target và storage, bật `SystemBackups:RunnerProvisioned=true` để bắt đầu nhận và xử lý job sao lưu.
+- Phiên bản pg_dump phải tương thích server (image Debian mặc định hiện cài client 15; không bật runner cho server mới hơn khi chưa cung cấp client phù hợp). Dùng kết nối trực tiếp/session hỗ trợ advisory lock, không transaction-pooling cho Analytics.
+- Verify tối đa 1 GiB mặc định (`SystemBackups:MaxVerifyBytes`), timeout toàn thao tác 5 phút, pg_restore 2 phút. Lỗi lần verify mới xóa VerifiedAtUtc cũ, trả Succeeded + errorCode (Succeeded chỉ là upload trước đó).
+- Retention và Verify dùng chung khóa `(353535,5)`. Thiếu Blob hoặc xóa Blob lỗi giữ metadata; chỉ xóa object thuộc prefix backup/id tương ứng.
+- Handoff nghiệm thu: `docs/task35-azure-acceptance.md`; Azure vẫn chờ Antigravity theo AGENTS.md.
