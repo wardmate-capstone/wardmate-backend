@@ -3,6 +3,37 @@
 
 # WardMate — Nhật ký phát triển
 
+## TASK-35 / FE Backup Defects & Azure Deployment: HOÀN THÀNH TRIỂN KHAI AZURE
+
+Thời điểm: 2026-11-03T23:40:00+07:00 (Asia/Saigon).
+
+### 1. Tóm tắt triển khai
+- Sửa lỗi backup engine theo phản hồi từ FE (ANALYTICS_REMAINING_APIS_PLAN_2026-11-03.md):
+  - SystemBackups.cs: xác thực toàn vẹn archive (pg_restore --file=-), kiểm tra dung lượng/hash SHA256, xóa VerifiedAtUtc cũ khi reverify lỗi, bổ sung advisory lock chống retention race và concurrency conflict (409 Conflict).
+  - SystemBackupWorker.cs: session-scoped advisory lock, bắt buộc pg_dump/storage, upload lỗi đánh dấu Failed, giữ metadata an toàn khi retention thất bại.
+  - SystemHealth.cs: xử lý graceful fallback khi SystemHealth:Targets chưa cấu hình thay vì ném exception làm crash container.
+- Build solution: dotnet build WardMate.sln -c Release -> 0 errors, 0 warnings.
+- Đã push 8 commits lên nhánh origin/kha (HEAD: 3139080).
+
+### 2. Azure Container Apps Deployment
+- Service: wardmate-analytics-system
+- ACR Image: acrwardmate2026.azurecr.io/wardmate-analyticssystem:analytics-20261103-04
+- Image Digest: sha256:e96d1d4fe9a80ac8b66b880e665f6d559e8925daadb137e6b30d18d1f17f9b99
+- Biến môi trường bổ sung: SystemHealth__Enabled=true kèm 6 targets /api/.../health/ready.
+- Provisioning State: Succeeded | Revision: wardmate-analytics-system--latest (Healthy, Running).
+
+### 3. Nghiệm thu Health Endpoint (200 OK)
+- Direct Check: https://wardmate-analytics-system.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/health/ready -> 200 Healthy (3/3 checks: notifications-database, analytics-database, rabbitmq đều Healthy/connected).
+- Gateway Health Check: Cả 6 microservices qua Gateway đều phản hồi 200 Healthy:
+  - iam: Healthy (200)
+  - procedure-catalog: Healthy (200)
+  - application-workflow: Healthy (200)
+  - document-form: Healthy (200)
+  - ai-ocr: Healthy (200)
+  - analytics-system: Healthy (200)
+
+---
+
 ## TASK-35 / FE backup defects — sửa local và bàn giao nghiệm thu Azure
 
 Thời điểm: 2026-11-03T23:05:29+07:00 (Asia/Saigon).
