@@ -4847,3 +4847,12 @@ Lỗi: 404 không tìm thấy hoặc file blob mất (`system.backup_file_missin
 - Retention định kỳ dọn `service_health_logs` > 30 ngày và `system_backup_logs` > 30 ngày (xóa blob tương ứng).
 - Nguyên tắc an toàn: LUÔN BẢO LƯU tối thiểu 1 bản backup đã xác minh (`Verified`) mới nhất của mỗi service, không bao giờ xóa hết.
 
+### TASK-36 — Bộ sưu tập API Postman & Hướng dẫn Tích hợp (Postman Export & Swagger)
+
+- **Postman Collection v2.1.0:** `docs/postman/wardmate-api-collection.json` bao phủ toàn diện 6 microservices (IAM, Catalog, Workflow, DocumentForm, AIOCR, AnalyticsSystem).
+- **Postman Environment:** `docs/postman/wardmate-environment.json` cấu hình sẵn `base_url`, `analytics_url`, `ward_code`, và các biến token theo vai trò (`token`, `it_admin_token`, `manager_token`, `officer_token`, `citizen_token`).
+- **Cơ chế tự động hóa Token:** Endpoint `POST /api/v1/auth/login` tích hợp sẵn test script tự động lưu `accessToken` vào biến môi trường `token` và `it_admin_token` ngay khi đăng nhập thành công.
+- **Tài liệu Swagger:** Cả 6 microservices đều cung cấp Swagger OpenAPI 3.0 tại `/swagger/index.html` và định tuyến tập trung qua Gateway.
+- **Tối ưu hóa chỉ mục DB & Vector Tuning:** Cung cấp script SQL tối ưu 40+ chỉ mục B-Tree/GIN trên 35 bảng hệ thống (`docs/sql/task36-database-optimization-indexes.sql`) và cấu hình pgvector HNSW cho AIOCR (`docs/sql/task36-vector-hnsw-tuning.sql`, `docs/vector-hnsw-tuning-guide.md`).
+
+
