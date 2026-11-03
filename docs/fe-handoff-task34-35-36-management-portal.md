@@ -239,3 +239,4 @@ export interface ProblemDetails {
 
 ---
 *Mọi thắc mắc trong quá trình tích hợp giao diện, vui lòng đối chiếu chi tiết implementation tại mã nguồn: `src/Services/WardMate.Services.AnalyticsSystem` hoặc liên hệ Backend Team.*
+
