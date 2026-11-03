@@ -6,6 +6,9 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure;
 
 public sealed class AnalyticsDbContext(DbContextOptions<AnalyticsDbContext> options) : DbContext(options)
 {
+    public DbSet<ServiceHealthLog> ServiceHealthLogs => Set<ServiceHealthLog>();
+    public DbSet<HealthCheckRequest> HealthCheckRequests => Set<HealthCheckRequest>();
+    public DbSet<SystemBackupLog> SystemBackupLogs => Set<SystemBackupLog>();
     public DbSet<ProcedureMetric> Procedures => Set<ProcedureMetric>();
     public DbSet<OfficerMetric> Officers => Set<OfficerMetric>();
     public DbSet<MetricRefresh> Refreshes => Set<MetricRefresh>();
@@ -16,6 +19,37 @@ public sealed class AnalyticsDbContext(DbContextOptions<AnalyticsDbContext> opti
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.HasDefaultSchema("analytics");
+        var checkRequest = b.Entity<HealthCheckRequest>();
+        checkRequest.ToTable("health_check_requests");
+        checkRequest.HasKey(x => x.Id);
+        checkRequest.HasIndex(x => new { x.CompletedAtUtc, x.RequestedAtUtc });
+        var health = b.Entity<ServiceHealthLog>();
+        health.ToTable("service_health_logs", t =>
+        {
+            t.HasCheckConstraint("ck_health_status", "\"Status\" IN ('Unknown','Healthy','Degraded','Unhealthy')");
+            t.HasCheckConstraint("ck_health_duration", "\"ResponseTimeMs\" >= 0");
+        });
+        health.HasKey(x => x.Id);
+        health.Property(x => x.ServiceName).HasMaxLength(64);
+        health.Property(x => x.Status).HasMaxLength(20);
+        health.Property(x => x.ErrorCode).HasMaxLength(100);
+        health.HasIndex(x => new { x.ServiceName, x.CheckedAtUtc });
+        health.HasIndex(x => new { x.Status, x.CheckedAtUtc });
+        var backup = b.Entity<SystemBackupLog>();
+        backup.ToTable("system_backup_logs", t =>
+        {
+            t.HasCheckConstraint("ck_backup_status", "\"Status\" IN ('Queued','Running','Succeeded','Failed','Verified')");
+            t.HasCheckConstraint("ck_backup_size", "\"SizeBytes\" IS NULL OR \"SizeBytes\" >= 0");
+        });
+        backup.HasKey(x => x.Id);
+        backup.Property(x => x.ServiceName).HasMaxLength(64);
+        backup.Property(x => x.Status).HasMaxLength(20);
+        backup.Property(x => x.StorageObjectName).HasMaxLength(512);
+        backup.Property(x => x.Sha256).HasMaxLength(64);
+        backup.Property(x => x.Reason).HasMaxLength(500);
+        backup.Property(x => x.ErrorCode).HasMaxLength(100);
+        backup.HasIndex(x => new { x.ServiceName, x.CreatedAtUtc });
+        backup.HasIndex(x => x.ServiceName).IsUnique().HasFilter("\"Status\" IN ('Queued','Running')");
         var events = b.Entity<BusinessAuditEvent>();
         events.ToTable("business_audit_events"); events.HasKey(x=>x.Id);
         events.Property(x=>x.Source).HasMaxLength(40);
