@@ -1,4 +1,4 @@
-﻿> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
+> Cập nhật 2026-10-14: chủ dự án đã yêu cầu gỡ bộ test và script kiểm thử khỏi repository. Các kết quả kiểm thử bên dưới là lịch sử; không còn chạy được các script cũ. Dùng Swagger và `docs/api-guide.md` để kiểm tra thủ công.
 
 > Cập nhật 16/10/2026 — Luồng hiện hành là kiểm tra giấy tờ → DOCUMENTS_READY, không có approve/reject mới. Các mục ghi lịch sử task cũ không còn là hợp đồng của hai endpoint đã bỏ. Xem mục confirm-readiness bên dưới; chỉ áp dụng sau khi deploy đồng bộ Workflow, DocumentForm, Analytics và migrate Workflow/IAM.
 
@@ -4795,3 +4795,55 @@ Lỗi đọc: 400 nếu ngày không UTC, from lớn hơn to, source sai hoặc 
 Lỗi ingestion: 401 sai nguồn/chữ ký hoặc thời gian lệch quá 5 phút; kiểm tra khóa đúng nguồn và đồng hồ. 400 sai hợp đồng hoặc giá trị chưa che; sửa producer. 409 cùng eventId nhưng nội dung khác; không ghi đè sự kiện. 413 body lớn hơn 64 KiB. Relay giữ sự kiện và thử lại sau 60 giây nếu chưa nhận 200/204. Quản trị vận hành theo dõi `audit_transport.outbox`, không dùng JWT của người dùng làm khóa HMAC.
 
 IP mặc định là peer kết nối. Có thể cấu hình `Audit:TrustedProxies` bằng các IP proxy thực đã xác minh để xử lý một hop X-Forwarded-For; bỏ trống thì không tin header. Không cam kết IP trình duyệt nếu chưa cấu hình đúng mạng. Apply migrations trước khi bật `Audit:RelayEnabled`; collector cần `SystemAdministration:Enabled=true`. Không có API xóa/sửa sự kiện hoặc tự purge dữ liệu.
+## TASK-35 — Health monitoring (local implementation, 2026-11-03)
+
+Controller `SystemHealthController` trong AnalyticsSystem; yêu cầu JWT IAM role IT_ADMIN.
+GET `/api/v1/system/health/services`: mở trang giám sát, không body; 200 mảng trạng thái mới nhất.
+GET `/api/v1/system/health/services/{serviceName}`: mở service lấy tên từ danh sách; 200 chi tiết,
+404 nếu tên chưa cấu hình. GET `/api/v1/system/health/history`: xem lịch sử, query service,
+from/to UTC có Z, page 1..100000, pageSize 1..100; 200 items/page/pageSize/totalCount.
+Ngày đảo ngược hoặc phân trang sai trả 400; sửa query rồi gọi lại. Chưa đăng nhập 401,
+sai role 403, chưa bật SystemHealth:Enabled trả 503; operator áp dụng migration trước khi bật.
+DTO: id, serviceName, status, httpStatus, responseTimeMs, errorCode, checkedAtUtc.
+Unknown/not_checked nghĩa chưa kiểm tra; Unknown/stale_observation nghĩa mẫu cũ quá hai chu kỳ,
+FE không hiển thị Healthy dựa trên mẫu cũ. Lịch sử giữ nguyên kết quả lúc đo.
+Worker đọc SystemHealth:Targets:{serviceName}=URL readiness từ cấu hình operator,
+IntervalSeconds mặc định 300. Các endpoint không nhận URL từ FE. Chưa triển khai check-now/backup APIs.
+
+### TASK-35 — Yêu cầu kiểm tra ngay
+
+`POST /api/v1/system/health/check-now`, controller SystemHealthController, JWT IT_ADMIN.
+Không body. Dùng khi quản trị muốn đo lại sau khi xử lý sự cố. Trả 202 `{requestId,status:"Queued"}`
+sau khi lưu yêu cầu vào analytics.health_check_requests. Nếu có yêu cầu pending, trả ID đó để tránh
+spam. Worker kiểm tra hàng đợi mỗi 5 giây; thời gian hoàn tất phụ thuộc số target và timeout.
+202 chỉ xác nhận đã nhận yêu cầu. FE đọc lại GET services/history và so thời gian checkedAtUtc.
+401/403: đăng nhập tài khoản có quyền; 503 health_disabled: operator bật cấu hình sau migration.
+
+### TASK-35 — Backup metadata và tạo yêu cầu (đang hoàn thiện runner)
+
+Controller SystemBackupsController, AnalyticsSystem, JWT IT_ADMIN.
+GET `/api/v1/system/backups` query service/page/pageSize: 200 danh sách phân trang.
+GET `/api/v1/system/backups/{id}`: 200 chi tiết hoặc 404. FE dùng để theo dõi trạng thái,
+không có connection string hoặc URL Blob trong DTO.
+POST `/api/v1/system/backups` nhận `{ "serviceName":"documentform", "reason":"Backup before migration" }`.
+202 chỉ khi yêu cầu được lưu; 409 khi service có Queued/Running; 400 khi lý do không đạt 3..500
+ký tự; 404 target chưa cấu hình; 503 nếu chức năng/runner chưa bật. 401/403 theo IAM.
+Hiện runner chưa triển khai: giữ SystemBackups:RunnerProvisioned=false, POST trả 503 có chủ đích.
+Không bật cờ để bỏ qua điều kiện này. GET dùng khi SystemBackups:Enabled=true sau migration.
+Chưa có POST verify, backup tự động hoặc restore drill; không coi API metadata là backup đã hoạt động.
+
+### TASK-35 — Yêu cầu xác minh file sao lưu (Verify)
+
+`POST /api/v1/system/backups/{id}/verify`, controller SystemBackupsController, JWT IT_ADMIN.
+Không body. Dùng để xác minh tính toàn vẹn của file backup sau khi tạo thành công.
+Xác minh tải stream từ Blob, kiểm tra kích thước, tính lại SHA-256 đối chiếu và kiểm tra magic bytes `PGDMP`.
+Trả `200 OK` với DTO cập nhật `status: "Verified"`, `verifiedAtUtc: "<timestamp>"`.
+Lỗi: 404 không tìm thấy hoặc file blob mất (`system.backup_file_missing`); 409 đang chạy/chờ (`system.backup_in_progress`);
+400 nếu job đã failed (`system.backup_failed`), không có file lưu trữ (`system.backup_missing_storage`), checksum mismatch (`system.backup_checksum_mismatch`), hoặc định dạng file hỏng (`system.backup_invalid_archive`).
+
+### TASK-35 — Lịch chạy và chính sách dọn dẹp (Retention)
+
+- `SystemBackupWorker` chạy ngầm, tự động chuyển job `Running` bị treo khi restart sang `Failed` (`worker_restarted_interrupted`).
+- Retention định kỳ dọn `service_health_logs` > 30 ngày và `system_backup_logs` > 30 ngày (xóa blob tương ứng).
+- Nguyên tắc an toàn: LUÔN BẢO LƯU tối thiểu 1 bản backup đã xác minh (`Verified`) mới nhất của mỗi service, không bao giờ xóa hết.
+
