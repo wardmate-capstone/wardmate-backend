@@ -38,7 +38,9 @@ if (builder.Configuration.GetValue("Database:AutoMigrate", false))
     await scope.ServiceProvider.GetRequiredService<AnalyticsDbContext>().Database.MigrateAsync();
 }
 
-if (builder.Configuration.GetValue("SystemAdministration:Enabled", false))
+if (builder.Configuration.GetValue("SystemAdministration:Enabled", false) ||
+    builder.Configuration.GetValue("SystemHealth:Enabled", false) ||
+    builder.Configuration.GetValue("SystemBackups:Enabled", false))
 {
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<AnalyticsDbContext>();
