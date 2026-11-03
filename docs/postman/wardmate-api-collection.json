@@ -1,0 +1,513 @@
+{
+  "info": {
+    "_postman_id": "c71a39b2-32b0-4ce9-9f71-d64e9a4f2105",
+    "name": "WardMate API Collection",
+    "description": "Bộ sưu tập kiểm thử API toàn diện cho hệ thống dịch vụ công phường xã WardMate (6 microservices) bao gồm IAM, Catalog, Workflow, DocumentForm, AIOCR và AnalyticsSystem.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01. Authentication & IAM",
+      "item": [
+        {
+          "name": "Đăng nhập hệ thống (Auth Login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.accessToken) {",
+                  "    pm.environment.set('token', jsonData.accessToken);",
+                  "    pm.environment.set('it_admin_token', jsonData.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin@123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Làm mới Access Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh-token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh-token"]
+            }
+          }
+        },
+        {
+          "name": "Thông tin tài khoản hiện tại",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "me"]
+            }
+          }
+        },
+        {
+          "name": "Danh sách Phường / Xã",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/wards",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "wards"]
+            }
+          }
+        },
+        {
+          "name": "Danh sách Quyền và Vai trò (RBAC)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/roles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "roles"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02. Procedure Catalog",
+      "item": [
+        {
+          "name": "Danh mục Nhóm thủ tục",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/procedure-categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "procedure-categories"]
+            }
+          }
+        },
+        {
+          "name": "Danh sách Thủ tục hành chính",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/procedures?page=1&pageSize=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "procedures"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Chi tiết Thủ tục theo ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/procedures/{{procedure_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "procedures", "{{procedure_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. Application Workflow",
+      "item": [
+        {
+          "name": "Công dân nộp hồ sơ mới",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{citizen_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"procedureId\": \"{{procedure_id}}\",\n  \"wardCode\": \"{{ward_code}}\",\n  \"formData\": {\n    \"applicantName\": \"Nguyễn Văn A\",\n    \"birthDate\": \"1990-01-01\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/applications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "applications"]
+            }
+          }
+        },
+        {
+          "name": "Danh sách hồ sơ cần xử lý (Manager Dispatch)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{manager_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manager/applications?wardCode={{ward_code}}&page=1&pageSize=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "manager", "applications"],
+              "query": [
+                { "key": "wardCode", "value": "{{ward_code}}" },
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Phân công cán bộ phụ trách",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{manager_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"officerId\": \"{{officer_id}}\",\n  \"expectedAssignmentVersion\": 0,\n  \"reason\": \"Phân công xử lý hồ sơ hành chính\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/manager/applications/{{application_id}}/assignments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "manager", "applications", "{{application_id}}", "assignments"]
+            }
+          }
+        },
+        {
+          "name": "Danh sách ca trực cán bộ (Staffing Shifts)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{manager_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/staffing/shifts?wardCode={{ward_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "staffing", "shifts"],
+              "query": [
+                { "key": "wardCode", "value": "{{ward_code}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Danh sách tham vấn chuyên môn (Consultations)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{officer_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/staffing/consultations?status=OPEN",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "staffing", "consultations"],
+              "query": [
+                { "key": "status", "value": "OPEN" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. Document & Form",
+      "item": [
+        {
+          "name": "Lấy mẫu biểu theo thủ tục (Form Template)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/form-templates/procedure/{{procedure_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "form-templates", "procedure", "{{procedure_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Danh sách tài liệu đính kèm của hồ sơ",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/application/{{application_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "application", "{{application_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05. AI & OCR (Trợ lý & Nhận dạng)",
+      "item": [
+        {
+          "name": "Hỏi đáp Trợ lý AI (Assistant Chat)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Thủ tục đăng ký kết hôn cần mang những giấy tờ gì?\",\n  \"wardCode\": \"{{ward_code}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/assistant/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "assistant", "chat"]
+            }
+          }
+        },
+        {
+          "name": "Tra cứu cơ sở tri thức (Knowledge Search)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"đăng ký khai sinh lưu động\",\n  \"topK\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/knowledge/search",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "knowledge", "search"]
+            }
+          }
+        },
+        {
+          "name": "Trạng thái chỉ mục Vector (Knowledge Status)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/knowledge/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "knowledge", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. Analytics & System Administration",
+      "item": [
+        {
+          "name": "Cấu hình hệ thống (GET Settings)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{analytics_url}}/api/v1/system/settings",
+              "host": ["{{analytics_url}}"],
+              "path": ["api", "v1", "system", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Cập nhật cấu hình (PUT Setting)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 14,\n  \"expectedVersion\": 0,\n  \"reason\": \"Cập nhật chu kỳ phân tích dữ liệu lên 14 ngày\"\n}"
+            },
+            "url": {
+              "raw": "{{analytics_url}}/api/v1/system/settings/analytics.lookbackDays",
+              "host": ["{{analytics_url}}"],
+              "path": ["api", "v1", "system", "settings", "analytics.lookbackDays"]
+            }
+          }
+        },
+        {
+          "name": "Nhật ký kiểm toán cấu hình (System Audit Logs)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{analytics_url}}/api/v1/system/audit-logs?page=1&pageSize=20",
+              "host": ["{{analytics_url}}"],
+              "path": ["api", "v1", "system", "audit-logs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Kiểm tra sức khỏe hệ thống tức thì (POST Check Now)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{analytics_url}}/api/v1/system/health/check-now",
+              "host": ["{{analytics_url}}"],
+              "path": ["api", "v1", "system", "health", "check-now"]
+            }
+          }
+        },
+        {
+          "name": "Trạng thái sức khỏe các dịch vụ (GET Health Services)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{analytics_url}}/api/v1/system/health/services",
+              "host": ["{{analytics_url}}"],
+              "path": ["api", "v1", "system", "health", "services"]
+            }
+          }
+        },
+        {
+          "name": "Lịch sử kiểm tra sức khỏe (GET Health History)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{analytics_url}}/api/v1/system/health/history?page=1&pageSize=20",
+              "host": ["{{analytics_url}}"],
+              "path": ["api", "v1", "system", "health", "history"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tạo yêu cầu sao lưu DB thủ công (POST Backup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) {",
+                  "    pm.environment.set('backup_id', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceName\": \"documentform\",\n  \"reason\": \"Sao lưu cơ sở dữ liệu định kỳ kiểm thử\"\n}"
+            },
+            "url": {
+              "raw": "{{analytics_url}}/api/v1/system/backups",
+              "host": ["{{analytics_url}}"],
+              "path": ["api", "v1", "system", "backups"]
+            }
+          }
+        },
+        {
+          "name": "Danh sách các bản sao lưu (GET Backups)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{analytics_url}}/api/v1/system/backups?page=1&pageSize=20",
+              "host": ["{{analytics_url}}"],
+              "path": ["api", "v1", "system", "backups"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Yêu cầu xác minh bản backup (POST Verify)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{it_admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{analytics_url}}/api/v1/system/backups/{{backup_id}}/verify",
+              "host": ["{{analytics_url}}"],
+              "path": ["api", "v1", "system", "backups", "{{backup_id}}", "verify"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+
