@@ -1155,7 +1155,7 @@ Nguồn: SystemHealth.cs, SystemHealthController.cs, SystemHealthContracts.cs, A
 ### OPS-35-04 — Backup request gate (2026-11-03)
 
 SystemBackups:Enabled mặc định false; khi bật API yêu cầu migration đầy đủ ở startup.
-POST còn yêu cầu SystemBackups:RunnerProvisioned=true, hiện phải giữ false vì runner chưa có.
+POST còn yêu cầu SystemBackups:RunnerProvisioned=true và Blob client đã đăng ký; thiếu Blob trả 503. Runner đã có nhưng chỉ bật khi provision target/storage/tools đầy đủ.
 Target lấy từ cấu hình SystemBackups:Targets, không nhận URL/secret từ client.
 Actor lấy IAM, reason trim 3..500 ký tự; DB advisory lock + partial unique index bảo vệ enqueue.
 Status Queued/Running cùng service trả 409. DTO không lộ storage object/credential.
@@ -1165,16 +1165,17 @@ Nguồn: SystemBackups.cs, SystemBackupsController.cs, AnalyticsRegistration.cs,
 
 POST verify (`/api/v1/system/backups/{id}/verify`) chỉ cho phép trên bản backup có status Succeeded hoặc Verified;
 từ chối 409 nếu backup đang Queued/Running, 400 nếu Failed hoặc thiếu StorageObjectName.
-Quá trình xác minh tải lại stream từ Blob private (hoặc file lưu trữ hợp lệ), tính toán SHA-256 đối chiếu
-với checksum gốc và kiểm tra magic bytes `PGDMP` của định dạng archive PostgreSQL custom.
+Quá trình xác minh bắt buộc tải stream từ Blob, đối chiếu kích thước và SHA-256 với metadata,
+giải mã toàn archive bằng `pg_restore --file=-`, stdout bị loại bỏ. Không dùng fallback file local.
 Mọi sai lệch checksum trả 400 `system.backup_checksum_mismatch` và cập nhật errorCode vào DB.
 Khi hợp lệ, cập nhật status sang Verified và ghi nhận VerifiedAtUtc.
 Nguồn: SystemBackups.cs, SystemBackupsController.cs, SystemBackupContracts.cs.
 
 ### OPS-35-06 — Retention and crash recovery (2026-11-03)
 
-SystemBackupWorker chạy độc lập tiến trình API, tuần tự hóa job qua Postgres advisory lock `pg_advisory_xact_lock(353535, 4)`.
-Tự động dọn dẹp job Running bị gián đoạn khi restart sang Failed (`worker_restarted_interrupted`).
+SystemBackupWorker chạy trong tiến trình API, giữ session advisory lock `(353535,4)` trên kết nối không pooling suốt job.
+Chỉ khi giành được lock mới phục hồi Running cũ sang Failed (`worker_restarted_interrupted`); replica không giành được lock bỏ lượt.
+Analytics cần kết nối trực tiếp/session, không transaction pooling. Giữ maxReplicas=1; chưa kiểm chứng mất session lock giữa job.
 Retention định kỳ:
 1. Xóa `service_health_logs` cũ hơn `SystemHealth:RetentionDays` (mặc định 30 ngày).
 2. Xóa `system_backup_logs` cũ hơn `SystemBackups:RetentionDays` (mặc định 30 ngày) và xóa file Blob tương ứng.
@@ -1190,4 +1191,19 @@ Nguồn: SystemBackupWorker.cs, AnalyticsRegistration.cs.
 4. **Bộ sưu tập Postman:** Xuất chuẩn Postman Collection v2.1.0 và Environment tại `docs/postman/`, tích hợp sẵn biến môi trường và kịch bản lưu token tự động sau khi login.
 Nguồn: docs/sql/task36-database-optimization-indexes.sql, docs/sql/task36-vector-hnsw-tuning.sql, docs/vector-hnsw-tuning-guide.md, docs/postman/.
 
+
+### OPS-35-05 — Backup fail-closed correction (2026-11-03)
+
+Worker bắt buộc Blob client và pg_dump; đã bỏ fallback tạo file PGDMP giả.
+Verify bắt buộc tải file, so kích thước/checksum và pg_restore --file=- trên file tạm,
+áp dụng cả stream không seek. Thiếu pg_restore trả 503; archive lỗi trả 400.
+Verified không chứng minh restore dữ liệu thành công. Lỗi xác minh (kể cả mất file/mất Blob client)
+xóa VerifiedAtUtc, giữ Succeeded thể hiện upload trước đó và lưu errorCode. Thiếu file 404;
+archive/size/hash sai 400; lỗi phụ thuộc/cancel/timeout 503. Không trả lỗi chi tiết storage/credential.
+Giới hạn MaxVerifyBytes mặc định 1073741824 bytes, timeout toàn thao tác 5 phút và pg_restore 2 phút.
+Verify/retention dùng chung khóa `(353535,5)`; Verify đang bận trả 409 system.backup_verification_busy.
+Retention thiếu Blob/xóa file lỗi giữ metadata; object phải thuộc prefix backups/{service}/{id:N}_.
+Retention days phải dương. RestoreTestedAtUtc không tự được gán khi Verify.
+Lịch sử cập nhật 2026-11-03: bổ sung giới hạn, lock, recovery, kiểm tra Docker local; Azure chưa nghiệm thu.
+Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 
