@@ -1182,3 +1182,12 @@ Retention định kỳ:
    không bao giờ xóa bản backup bảo vệ này bất kể thời gian tồn tại.
 Nguồn: SystemBackupWorker.cs, AnalyticsRegistration.cs.
 
+### OPS-36-01 — Database Indexing, Vector Tuning & API Export Constraints (2026-11-03)
+
+1. **Chỉ mục B-Tree & GIN:** Áp dụng trên 35 bảng của 6 microservices thông qua script `docs/sql/task36-database-optimization-indexes.sql`. Tất cả lệnh tạo index bắt buộc sử dụng `IF NOT EXISTS` và partial index cho các trạng thái đang xử lý (`status NOT IN ('CANCELLED','REJECTED')`) nhằm tiết kiệm kích thước index và tăng tốc độ ghi (INSERT/UPDATE).
+2. **Chỉ mục Vector HNSW:** Yêu cầu extension `vector` (pgvector), áp dụng cho bảng `knowledge_chunks` của service `WardMate.Services.AIOCR`. Cột vector 768 chiều (`gemini-embedding-001@768`), toán tử khoảng cách `vector_cosine_ops`, cấu hình `m = 16, ef_construction = 64`, thời gian truy vấn `hnsw.ef_search = 40`.
+3. **Cơ chế Dual-Mode Fallback:** Nếu cơ sở dữ liệu PostgreSQL chưa cài extension `vector`, hệ thống tự động fallback sử dụng `KnowledgeVectorCache` in-memory (tải tối đa 20.000 chunks) và tính toán Dot product trên CPU, đảm bảo ứng dụng không bao giờ bị gián đoạn hoạt động.
+4. **Bộ sưu tập Postman:** Xuất chuẩn Postman Collection v2.1.0 và Environment tại `docs/postman/`, tích hợp sẵn biến môi trường và kịch bản lưu token tự động sau khi login.
+Nguồn: docs/sql/task36-database-optimization-indexes.sql, docs/sql/task36-vector-hnsw-tuning.sql, docs/vector-hnsw-tuning-guide.md, docs/postman/.
+
+
