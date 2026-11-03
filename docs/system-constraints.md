@@ -1,4 +1,4 @@
-﻿# WardMate — Sổ tay ràng buộc hệ thống
+# WardMate — Sổ tay ràng buộc hệ thống
 
 ## Bổ sung TASK-31–33 — 21/10/2026 (Asia/Saigon)
 
@@ -1122,3 +1122,63 @@ Lịch sử: 2026-11-02 thêm SYS-ADMIN-01; giữ nguyên các rule trước. Tr
 Nguồn: `src/BuildingBlocks/WardMate.Auditing/*`; các migration `TransactionalAuditSource*`; AnalyticsSystem `BusinessAuditController.cs`, `BusinessAuditStore.cs`, `BusinessAuditContracts.cs`, `BusinessAuditEvent.cs`, `BusinessAuditCollector` và các DI/Program tích hợp. Giữ nguyên DB-per-service. TASK-35/36 không thuộc phạm vi này.
 
 Lịch sử: 2026-11-02 bổ sung AUDIT-SYSTEM-01, mở rộng SYS-ADMIN-01; chưa xác nhận Azure hay IAM thật.
+## OPS-35-01 — Health/backup history schema (2026-11-03)
+
+Migration SystemOperationsHistory định nghĩa analytics.service_health_logs và system_backup_logs.
+Health status chỉ Unknown/Healthy/Degraded/Unhealthy; thời gian phản hồi không âm.
+Backup status chỉ Queued/Running/Succeeded/Failed/Verified; kích thước không âm nếu có.
+Unique partial index ServiceName khi Queued/Running ngăn hai backup hoạt động cùng tên service.
+Đây là ràng buộc schema đã viết, chưa áp dụng runtime; worker/API chưa triển khai.
+Nguồn: AnalyticsDbContext.cs và migration 20261103070217_SystemOperationsHistory.
+
+## OPS-35-02 — Health collection (2026-11-03)
+
+SystemHealthWorker chỉ bật khi SystemHealth:Enabled=true; mặc định tắt. Targets phải có 1..20
+service, tên <=64 ký tự, HTTPS hoặc HTTP loopback, không credentials/query/fragment.
+IntervalSeconds 30..3600, mặc định 300; timeout 5 giây, response tối đa 64KiB, không redirect.
+Analytics khởi động từ chối khi còn pending migration và monitoring đã bật.
+Transaction advisory lock tránh replica ghi chu kỳ trùng. Lỗi kết nối ghi Unhealthy;
+response không đúng JSON health ghi invalid_response. Không lưu body hoặc raw exception.
+Mẫu cũ quá hai chu kỳ hiển thị Unknown. API IT_ADMIN và kiểm tra IAM hiện có.
+Nguồn: SystemHealth.cs, SystemHealthController.cs, AnalyticsRegistration.cs, Program.cs.
+Giới hạn: chưa có alert, retention, backup runner hoặc kiểm tra Docker runtime.
+
+### OPS-35-03 — Durable manual health request (2026-11-03)
+
+POST check-now lưu HealthCheckRequest trước khi trả 202, actor lấy từ IAM access-context.
+Advisory lock riêng tuần tự hóa enqueue, gom các yêu cầu đang chờ vào cùng requestId.
+Collector hoàn tất request cùng transaction với các observation; rollback giữ request pending.
+Không xóa request khi process restart. Worker kiểm tra queue mỗi 5 giây; đo định kỳ vẫn theo
+IntervalSeconds. Migration DurableHealthChecks cần áp dụng trước bật worker.
+Nguồn: SystemHealth.cs, SystemHealthController.cs, SystemHealthContracts.cs, AnalyticsDbContext.
+
+### OPS-35-04 — Backup request gate (2026-11-03)
+
+SystemBackups:Enabled mặc định false; khi bật API yêu cầu migration đầy đủ ở startup.
+POST còn yêu cầu SystemBackups:RunnerProvisioned=true, hiện phải giữ false vì runner chưa có.
+Target lấy từ cấu hình SystemBackups:Targets, không nhận URL/secret từ client.
+Actor lấy IAM, reason trim 3..500 ký tự; DB advisory lock + partial unique index bảo vệ enqueue.
+Status Queued/Running cùng service trả 409. DTO không lộ storage object/credential.
+Nguồn: SystemBackups.cs, SystemBackupsController.cs, AnalyticsRegistration.cs, Program.cs.
+
+### OPS-35-05 — Backup verification and storage integrity (2026-11-03)
+
+POST verify (`/api/v1/system/backups/{id}/verify`) chỉ cho phép trên bản backup có status Succeeded hoặc Verified;
+từ chối 409 nếu backup đang Queued/Running, 400 nếu Failed hoặc thiếu StorageObjectName.
+Quá trình xác minh tải lại stream từ Blob private (hoặc file lưu trữ hợp lệ), tính toán SHA-256 đối chiếu
+với checksum gốc và kiểm tra magic bytes `PGDMP` của định dạng archive PostgreSQL custom.
+Mọi sai lệch checksum trả 400 `system.backup_checksum_mismatch` và cập nhật errorCode vào DB.
+Khi hợp lệ, cập nhật status sang Verified và ghi nhận VerifiedAtUtc.
+Nguồn: SystemBackups.cs, SystemBackupsController.cs, SystemBackupContracts.cs.
+
+### OPS-35-06 — Retention and crash recovery (2026-11-03)
+
+SystemBackupWorker chạy độc lập tiến trình API, tuần tự hóa job qua Postgres advisory lock `pg_advisory_xact_lock(353535, 4)`.
+Tự động dọn dẹp job Running bị gián đoạn khi restart sang Failed (`worker_restarted_interrupted`).
+Retention định kỳ:
+1. Xóa `service_health_logs` cũ hơn `SystemHealth:RetentionDays` (mặc định 30 ngày).
+2. Xóa `system_backup_logs` cũ hơn `SystemBackups:RetentionDays` (mặc định 30 ngày) và xóa file Blob tương ứng.
+3. Ràng buộc bảo toàn: LUÔN BẢO LƯU tối thiểu 1 bản backup đã xác minh (`Verified`) mới nhất của mỗi service,
+   không bao giờ xóa bản backup bảo vệ này bất kể thời gian tồn tại.
+Nguồn: SystemBackupWorker.cs, AnalyticsRegistration.cs.
+
