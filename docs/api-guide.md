@@ -5,6 +5,28 @@
 
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
+## Cập nhật backup sau phản hồi FE — 03/11/2026
+
+Áp dụng code local mới, Azure cần deploy và nghiệm thu riêng. Các route/quyền IT_ADMIN giữ nguyên.
+
+| API | Cách dùng và kết quả |
+|---|---|
+| POST `/api/v1/system/backups` | Quản trị tạo backup với JSON `{"serviceName":"<target đã cấu hình>","reason":"Sao lưu trước bảo trì"}`. 202 là Queued, chưa sao lưu xong. Thiếu runner/Blob trả 503; không retry POST tự động; kiểm tra danh sách trước khi tạo lại. |
+| GET `/api/v1/system/backups` | Lọc service/status/from/to UTC, page/pageSize như trước. 200 là metadata; Succeeded chỉ có nghĩa dump đã upload, không bảo đảm file hiện còn hoặc đã restore. |
+| GET `/api/v1/system/backups/{id}` | Theo dõi Queued/Running đến Succeeded hoặc Failed. Failed cần đọc errorCode, sửa cấu hình/công cụ rồi tạo job mới. |
+| POST `/api/v1/system/backups/{id}/verify` | Không có body. Chỉ gọi với Succeeded/Verified. 200 Verified khi tải được file, khớp dung lượng/hash và pg_restore giải mã toàn archive. Không chứng minh restore vào database thành công. |
+
+Verify trả 409 khi backup đang chạy hoặc một Verify/retention đang giữ khóa; thử lại sau.
+404 `system.backup_file_missing`: file đã mất, kiểm tra storage và tạo backup mới.
+400 size/checksum/invalid_archive: không dùng bản này để khôi phục; tạo lại backup thật.
+503 storage/verifier/unavailable/timeout: operator sửa Blob hoặc pg_restore rồi xác minh lại.
+Lỗi lần xác minh mới xóa VerifiedAtUtc cũ và trả metadata Succeeded + errorCode; FE phải đọc lại detail
+và hiển thị “Chưa xác minh”, không giữ badge Verified. 401/403 vẫn do JWT/IAM/quyền hiện hành.
+Không gửi token, connection string hay file database cho người dùng qua DTO.
+Mặc định Verify giới hạn 1 GiB, toàn thao tác 5 phút; vượt dung lượng trả 400 system.backup_size_limit.
+Chỉ operator tăng SystemBackups:MaxVerifyBytes sau khi cân đối dung lượng tạm; FE không tự chỉnh giới hạn.
+Archive giả từ fallback cũ phải tạo lại; đổi trạng thái bằng tay không làm file hợp lệ.
+
 ## TASK-31–33 — Analytics và đánh giá công dân (21/10/2026)
 
 Phần này mô tả code local mới; không xác nhận đã deploy Azure. AnalyticsSystem vẫn chứa
@@ -4855,4 +4877,11 @@ Lỗi: 404 không tìm thấy hoặc file blob mất (`system.backup_file_missin
 - **Tài liệu Swagger:** Cả 6 microservices đều cung cấp Swagger OpenAPI 3.0 tại `/swagger/index.html` và định tuyến tập trung qua Gateway.
 - **Tối ưu hóa chỉ mục DB & Vector Tuning:** Cung cấp script SQL tối ưu 40+ chỉ mục B-Tree/GIN trên 35 bảng hệ thống (`docs/sql/task36-database-optimization-indexes.sql`) và cấu hình pgvector HNSW cho AIOCR (`docs/sql/task36-vector-hnsw-tuning.sql`, `docs/vector-hnsw-tuning-guide.md`).
 
+
+### TASK-35 Verify correction — 2026-11-03
+
+POST backups/{id}/verify chỉ thành công sau tải Blob, so kích thước/SHA256 và pg_restore --list.
+Không dùng file local làm fallback. Thiếu storage/verifier trả 503; thiếu file 404;
+size/checksum/archive sai 400. FE không tự retry POST; đọc lại bản ghi sau lỗi.
+Verified chỉ là kiểm tra archive, không đồng nghĩa restore drill đã đạt.
 
