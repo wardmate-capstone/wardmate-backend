@@ -124,6 +124,28 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations.Analytics
                         });
                 });
 
+            modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Domain.HealthCheckRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompletedAtUtc", "RequestedAtUtc");
+
+                    b.ToTable("health_check_requests", "analytics");
+                });
+
             modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Domain.MetricRefresh", b =>
                 {
                     b.Property<DateOnly>("MetricDate")
@@ -214,6 +236,49 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations.Analytics
                     b.ToTable("application_procedure_metrics", "analytics");
                 });
 
+            modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Domain.ServiceHealthLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CheckedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("HttpStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ResponseTimeMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceName", "CheckedAtUtc");
+
+                    b.HasIndex("Status", "CheckedAtUtc");
+
+                    b.ToTable("service_health_logs", "analytics", t =>
+                        {
+                            t.HasCheckConstraint("ck_health_duration", "\"ResponseTimeMs\" >= 0");
+
+                            t.HasCheckConstraint("ck_health_status", "\"Status\" IN ('Unknown','Healthy','Degraded','Unhealthy')");
+                        });
+                });
+
             modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Domain.SystemAuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -264,6 +329,76 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations.Analytics
                     b.HasIndex("OccurredAtUtc", "Id");
 
                     b.ToTable("audit_logs", "analytics");
+                });
+
+            modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Domain.SystemBackupLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("RequestedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RestoreTestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Sha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("StorageObjectName")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime?>("VerifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceName")
+                        .IsUnique()
+                        .HasFilter("\"Status\" IN ('Queued','Running')");
+
+                    b.HasIndex("ServiceName", "CreatedAtUtc");
+
+                    b.ToTable("system_backup_logs", "analytics", t =>
+                        {
+                            t.HasCheckConstraint("ck_backup_size", "\"SizeBytes\" IS NULL OR \"SizeBytes\" >= 0");
+
+                            t.HasCheckConstraint("ck_backup_status", "\"Status\" IN ('Queued','Running','Succeeded','Failed','Verified')");
+                        });
                 });
 
             modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Domain.SystemSetting", b =>
