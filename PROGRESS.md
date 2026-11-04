@@ -3,6 +3,26 @@
 
 # WardMate — Nhật ký phát triển
 
+## HOTFIX / Azure ProcedureCatalog: Bổ sung Iam__BaseUrl khắc phục lỗi 503 auth.session_unavailable
+
+Thời điểm: 2026-11-04T11:38:00+07:00 (Asia/Saigon).
+
+### 1. Hiện tượng & Phân tích
+- FE gọi `GET /api/v1/procedure-manager/procedures` nhận `503 auth.session_unavailable` kèm traceId `0HNPQ51MQT94I:00000002`.
+- Truy vấn Azure Log Analytics xác định `AccountSessionMiddleware` cố gắng kết nối tới target mặc định `http://localhost:5001/api/v1/users/access-context` do Azure Container App `wardmate-procedure-catalog` bị thiếu biến môi trường `Iam__BaseUrl`.
+- Các service khác (`workflow`, `documentform`, `analytics`, `aiocr`) đều đã có biến này từ trước.
+
+### 2. Hành động khắc phục
+- Cập nhật cấu hình Azure Container App `wardmate-procedure-catalog`:
+  - Đã nạp `Iam__BaseUrl=https://wardmate-iam.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/`.
+  - Trạng thái revision mới: `ProvisioningState: Succeeded`, `HealthState: Healthy`, `RunningState: Running`.
+- Kiểm tra nghiệm thu:
+  - Gateway health check: `/api/procedure-catalog/health/ready` -> `200 Healthy`.
+  - Gateway unauthenticated request `/api/v1/procedure-manager/procedures` -> `401 Unauthorized` (thay vì 503).
+  - Authenticated request từ FE xác minh phiên với IAM thành công.
+
+---
+
 ## TASK-35 / FE Backup Defects & Azure Deployment: HOÀN THÀNH TRIỂN KHAI AZURE
 
 Thời điểm: 2026-11-03T23:40:00+07:00 (Asia/Saigon).
