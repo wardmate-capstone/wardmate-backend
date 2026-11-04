@@ -15,7 +15,9 @@ Thời điểm: 2026-11-04T11:38:00+07:00 (Asia/Saigon).
 ### 2. Hành động khắc phục
 - Cập nhật cấu hình Azure Container App `wardmate-procedure-catalog`:
   - Đã nạp `Iam__BaseUrl=https://wardmate-iam.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/`.
-  - Trạng thái revision mới: `ProvisioningState: Succeeded`, `HealthState: Healthy`, `RunningState: Running`.
+  - Build & Deploy Docker image mới `acrwardmate2026.azurecr.io/wardmate-procedure-catalog:catalog-20261104-01` (digest: `sha256:95f757cd2b02982ab4612f9dcb0cd9772b85a8fa9a7c8f9004ac9b803c485c5b`).
+  - Pod cũ (chạy từ 04:02Z) đã được thay thế bằng pod mới hoàn toàn (khởi tạo lúc 04:49:25Z), nạp chính xác biến môi trường `Iam__BaseUrl`.
+  - Trạng thái revision: `ProvisioningState: Succeeded`, `HealthState: Healthy`, `RunningState: Running`.
 - Kiểm tra nghiệm thu:
   - Gateway health check: `/api/procedure-catalog/health/ready` -> `200 Healthy`.
   - Gateway unauthenticated request `/api/v1/procedure-manager/procedures` -> `401 Unauthorized` (thay vì 503).
