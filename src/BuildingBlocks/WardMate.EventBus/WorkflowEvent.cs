@@ -2,7 +2,10 @@ namespace WardMate.EventBus;
 
 // Versioned integration contract: no tokens, email, phone or form/comment contents on the broker.
 public sealed record WorkflowEvent(Guid EventId, int Version, Guid ApplicationId, Guid ApplicantId,
-    Guid? AssignedOfficerId, string WardCode, string ApplicationCode, string Kind, string Status, DateTime OccurredAt, Guid? PreviousOfficerId = null, string? AssignmentAction = null);
+    Guid? AssignedOfficerId, string WardCode, string ApplicationCode, string Kind, string Status, DateTime OccurredAt, Guid? PreviousOfficerId = null, string? AssignmentAction = null,
+    StaffingNotice? Staffing = null);
+
+public sealed record StaffingNotice(Guid ResourceId, Guid OfficerId, bool NotifyManagers);
 
 public sealed class RabbitOptions
 {
