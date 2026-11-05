@@ -102,7 +102,7 @@ public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory dir
     public async Task<WorkflowResult<OfficerLeave>> RequestLeave(ReviewActor a, LeaveInput input, CancellationToken ct)
     {
         if (!Officer(a)) return Fail<OfficerLeave>(403, "forbidden", "Chỉ cán bộ gửi yêu cầu nghỉ của mình.");
-        if (config.GetValue<bool>($"WorkSchedule:Wards:{a.WardCode}:RequireWord"))
+        if (LeaveTemplateSettings.Read(config, a.WardCode!).WordRequired)
             return Fail<OfficerLeave>(409, "word_required", "Phường yêu cầu soạn và nộp đơn nghỉ Word từ bản nháp.");
         if (!Range(input.StartsAt, input.EndsAt) || input.EndsAt.UtcDateTime <= clock.GetUtcNow().UtcDateTime || !Reason(input.Reason))
             return Fail<OfficerLeave>(400, "invalid_input", "Cần khoảng nghỉ chưa kết thúc, tối đa 93 ngày và lý do tối đa 2000 ký tự.");
