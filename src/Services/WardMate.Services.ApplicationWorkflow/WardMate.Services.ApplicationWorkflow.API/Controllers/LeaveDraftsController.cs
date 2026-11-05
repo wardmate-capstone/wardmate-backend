@@ -2,6 +2,7 @@ using Azure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WardMate.Services.ApplicationWorkflow.Application;
+using WardMate.Services.ApplicationWorkflow.Infrastructure;
 
 namespace WardMate.Services.ApplicationWorkflow.API.Controllers;
 
@@ -13,10 +14,8 @@ public sealed class LeaveDraftsController(ILeaveDrafts drafts,IConfiguration con
     public IActionResult Capabilities()
     {
         if(string.IsNullOrWhiteSpace(Actor.WardCode)) return Forbid();
-        var ward=config.GetSection($"WorkSchedule:Wards:{Actor.WardCode}");
-        return Ok(new {wordRequired=ward.GetValue<bool>("RequireWord"),templateConfigured=
-            Guid.TryParse(ward["TemplateVersionId"],out var version) && version!=Guid.Empty &&
-            ward["TemplateSha256"] is {Length:64} hash && hash.All(Uri.IsHexDigit),maxDocxBytes=10*1024*1024});
+        var settings=LeaveTemplateSettings.Read(config,Actor.WardCode);
+        return Ok(new {wordRequired=settings.WordRequired,templateConfigured=settings.Template!=null,maxDocxBytes=LeaveDraftService.MaxBytes});
     }
     private async Task<IActionResult> Execute<T>(Func<Task<WorkflowResult<T>>> action)
     {
