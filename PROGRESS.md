@@ -4420,3 +4420,10 @@ docs(constraints): record backup fail-closed rules; docs(progress): record backu
 - Giới hạn: AI vẫn có thể sót; cảnh báo đếm dựa vào đuôi `.doc/.docx` trong lớp chữ PDF — mẫu không ghi tên tệp sẽ không được đếm; tệp lặp lại có thể gây cảnh báo thừa.
 - Bước tiếp theo: Anti deploy lại AIOCR (theo runbook); test lại KB-04 bước 17 với chính PDF thủ tục đất đai, kỳ vọng 3 biểu mẫu.
 - Commit gợi ý: `fix(aiocr): extract every form template from procedure pdf`; `docs: note form coverage warning for procedure extraction`; `docs: record be-04 fix in progress`.
+
+## FE-HANDOFF-1105 — Bàn giao FE việc cần sửa sau test KB-00 → KB-04 — 2026-11-05 (UTC+07)
+
+- File mới: `docs/fe-handoff-2026-11-05.md` — gom FE-01 → FE-09 (mô tả, API, body, mã lỗi, cách test lại), thứ tự ưu tiên, các điểm FE đã làm đúng, góp ý BE-01/02/03/05 đang chờ quyết, kiểm thử lại BE-04 sau deploy AIOCR.
+- Đối chiếu code khi viết: `PUT /procedure-manager/procedures/{id}` ghi đè cả `checklistSchema` và `formDefinitions` (`ProcedureInput.ApplyTo`) nên FE-07 phải gửi đủ object.
+- Chỉ tài liệu; không đổi code/API; không build; không chạy Git.
+- Commit gợi ý: `docs: add frontend handoff for 2026-11-05`; `docs: record fe handoff 1105 in progress and claude handoff`.
