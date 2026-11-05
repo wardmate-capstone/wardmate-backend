@@ -3,6 +3,18 @@
 
 # WardMate — Nhật ký phát triển
 
+## WF-WS — Bàn giao lịch tháng, đơn nghỉ Word, xác nhận và đổi ca
+
+Thời điểm ghi nhận 2026-11-05T22:39:48+07:00 (Asia/Saigon). Trạng thái: đã có source local, còn chờ nghiệm thu HTTP/Swagger bằng JWT qua gateway và editor FE, chưa phát hành. Không chạy Git.
+
+- Workflow thêm 25 thao tác: 12 ở LeaveDraftsController, 11 ở MonthlySchedulesController, 2 ở StaffingController. Method, route, body, quyền, lỗi, mã thành công 200 và hướng dẫn FE nằm ở mục WF-WS trong docs/api-guide.md. Giữ 22 API gốc; POST /api/v1/staffing/leaves có gate Word theo phường. Scope JWT/IAM; file binary DOCX, metadataVersion/expectedVersion, Idempotency-Key UUID, ProblemDetails khi xung đột hoặc phụ thuộc lỗi.
+- Source Workflow mới: Domain/LeaveDraft.cs, Domain/WardSchedule.cs; Application/LeaveDraftContracts.cs, Application/MonthlyScheduleContracts.cs; Infrastructure/LeaveDraftService.cs, LeaveBlobMaintenance.cs, MonthlyScheduleService.cs; API/Controllers/LeaveDraftsController.cs, MonthlySchedulesController.cs.
+- Source Workflow sửa: Domain/OfficerAvailability.cs, Application/StaffingContracts.cs, Infrastructure/StaffingService.cs, WorkflowDbContext.cs, ProcedureCatalogClient.cs, WorkflowOutbox.cs, WardMate.Services.ApplicationWorkflow.Infrastructure.csproj, API/Controllers/StaffingController.cs. EF: 3 cặp migration + Designer (OfficerLeaveWordDrafts, MonthlyStaffSchedules, LeaveDraftAudit) và Migrations/WorkflowDbContextModelSnapshot.cs.
+- Liên service: BuildingBlocks/WardMate.EventBus/WorkflowEvent.cs, IAM Application/Accounts/NotificationRecipients.cs và Infrastructure/Persistence/NotificationRecipients.cs; AnalyticsSystem Infrastructure/NotificationPipelineModels.cs, WorkflowNotificationConsumer.cs và NotificationInboxWorker.cs. Docs: api-guide.md, system-constraints.md, fe-staffing-18-apis.md và PROGRESS.md.
+- Release toàn WardMate.sln sau chỉnh DTO/OpenAPI: **0 lỗi, 0 cảnh báo**. PostgreSQL15 áp dụng đủ migration, bao gồm backfill trên fixture có ca cũ. Trước chỉnh kiểu response lịch: **33/33** assertions qua service với PostgreSQL15 + Azurite, bao gồm replay đồng thời chỉ một leave, audit một lần, tải đúng byte, cấm dò ID, lịch stale và đổi ca nguyên tử. RabbitMQ thật → inbox/notification với danh bạ IAM fixture: 2 sự kiện cho đúng hai đối tượng, phát lại không tăng số thông báo.
+- Hạn mức bộ duyệt làm lệnh chạy lại harness sau chỉnh DTO chưa thực thi. Không tính lần chạy chưa thực thi là PASS. Chưa kiểm chứng HTTP qua gateway, UI editor/đăng xuất đăng nhập, IAM thật, cleanup 7 ngày, mọi tình huống cạnh tranh hoặc Azure. Docker fixture local có thể còn chạy. Không commit logs, cấu hình secret, dữ liệu fixture hay build outputs.
+- Bàn giao Antigravity: mỗi file mới một commit riêng, gồm cả từng file migration và Designer; các sửa file hiện có tách theo chức năng, nhất là snapshot cho từng migration. Gợi ý tiêu đề: feat(workflow): add leave draft lifecycle; feat(workflow): publish monthly schedules; feat(workflow): support shift changes; feat(notifications): deliver staffing events; docs(workflow): document staffing contracts. Antigravity rà soát diff thực tế, báo số lượng và danh sách chính xác trước khi push.
+
 ## HOTFIX / Azure ProcedureCatalog: Bổ sung Iam__BaseUrl khắc phục lỗi 503 auth.session_unavailable
 
 Thời điểm: 2026-11-04T11:38:00+07:00 (Asia/Saigon).
