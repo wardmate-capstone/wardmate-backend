@@ -31,14 +31,15 @@ public sealed class NotificationDelivery
     public DateTime? SentAt { get; set; }
 }
 
-public sealed record RecipientContact(Guid UserId, string Email, string? WardCode, bool IsOfficer, string? FullName = null);
+public sealed record RecipientContact(Guid UserId, string Email, string? WardCode, bool IsOfficer, string? FullName = null,
+    bool IsStaffingManager = false,bool IsStaffingOfficer = false);
 public interface IRecipientContacts
 {
-    Task<RecipientContact[]> Find(Guid[] userIds, string? wardCode, CancellationToken ct);
+    Task<RecipientContact[]> Find(Guid[] userIds, string? wardCode, CancellationToken ct, bool staffingManagers = false);
 }
 public sealed class RecipientContacts(HttpClient http, IConfiguration configuration) : IRecipientContacts
 {
-    public async Task<RecipientContact[]> Find(Guid[] userIds, string? wardCode, CancellationToken ct)
+    public async Task<RecipientContact[]> Find(Guid[] userIds, string? wardCode, CancellationToken ct,bool staffingManagers = false)
     {
         var key = configuration["Notifications:ServiceKey"] ?? "";
         if (key.Length < 32) throw new InvalidOperationException("Chưa cấu hình khóa thông báo IAM.");
@@ -46,7 +47,7 @@ public sealed class RecipientContacts(HttpClient http, IConfiguration configurat
         for (var page = 1; page <= 10000; page++)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "internal/v1/notification-recipients")
-            { Content = JsonContent.Create(new { userIds, wardCode, page }) };
+            { Content = JsonContent.Create(new { userIds, wardCode, page, staffingManagers }) };
             request.Headers.Add("X-Notification-Service-Key", key);
             using var response = await http.SendAsync(request, ct); response.EnsureSuccessStatusCode();
             var batch = await response.Content.ReadFromJsonAsync<RecipientContact[]>(cancellationToken: ct)
