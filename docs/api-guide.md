@@ -1177,6 +1177,7 @@ draftId. AI tắt thì có text nhưng payload cần điền thủ công.
   502; quá thời gian → 504.
 - PDF toàn hình có thể không có text khi OCR tắt.
 - Nhận 200 không có nghĩa nội dung đã đủ để publish; phải xem warnings.
+- Biểu mẫu: AI tạo mỗi tệp/mẫu trong cột "Mẫu đơn, tờ khai" thành một `formDefinitions` riêng. Nếu văn bản nguồn có nhiều tệp `.doc/.docx` hơn số biểu mẫu AI trả, `warnings` có dòng `formDefinitions: Văn bản nguồn có N tệp mẫu…` — FE nên hiện nổi bật để cán bộ bổ sung mẫu còn thiếu (BE-04, 05/11).
 
 #### API 40 — Upload PDF và tạo bản nháp có lưu trữ
 
