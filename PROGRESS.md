@@ -3,6 +3,15 @@
 
 # WardMate — Nhật ký phát triển
 
+## WF-WS — Mẫu nghỉ dùng chung, 05/11/2026 23:30 UTC+7
+
+Workflow dùng chung cấu hình version/hash cho capabilities, đọc mẫu, tạo nháp và policy nộp Word; giữ fallback cấu hình phường cho hệ thống chưa chuyển đổi. Paths: Infrastructure/LeaveTemplateSettings.cs (mới), LeaveDraftService.cs, StaffingService.cs; API/Controllers/LeaveDraftsController.cs; docs/api-guide.md, docs/system-constraints.md, docs/Lịch làm việc Front Desk và đơn nghỉ Word.md. GET capabilities và GET leave-templates/current trả 200 với cấu hình chung hợp lệ; current trả 503 khi sai cặp. POST leave-drafts dùng templateVersionId đó; POST leaves trả 409 khi bật RequireWord. JWT/ownership theo phường như trước. Không cần migration.
+Release WardMate.sln đạt 0 warning/0 error. Harness local 5/5 kiểm tra cấu hình (fallback, cặp thiếu, ưu tiên mẫu chung, phường mới, chuẩn hóa hash); chưa deploy/provision Blob Azure. Gợi ý Antigravity: feat(workflow): share the leave template across wards.
+
+## WF-WS-FE — Bàn giao 47 API theo màn hình (05/11/2026, Asia/Saigon)
+
+Tạo `docs/Lịch làm việc Front Desk và đơn nghỉ Word.md`. Đối chiếu method + route với 6 controller Workflow: 47 cặp duy nhất, 22 cũ + 25 mới, không thiếu hoặc thừa. Tài liệu có vai trò/quyền IAM, request/response, lỗi và ba kịch bản nghiệm thu. Chỉ thay đổi tài liệu; không chạy build hoặc xác nhận deploy trong lượt này. Đề xuất commit riêng cho tài liệu: `docs(workflow): hand off 47 front desk scheduling and leave APIs`.
+
 ## WF-WS — Bàn giao lịch tháng, đơn nghỉ Word, xác nhận và đổi ca
 
 Thời điểm ghi nhận 2026-11-05T22:39:48+07:00 (Asia/Saigon). Trạng thái: đã có source local, còn chờ nghiệm thu HTTP/Swagger bằng JWT qua gateway và editor FE, chưa phát hành. Không chạy Git.
