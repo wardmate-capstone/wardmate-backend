@@ -3,6 +3,50 @@
 
 # WardMate — Nhật ký phát triển
 
+## WF-WS — Azure Deploy: Shared Leave Template + 47 APIs (05/11/2026 23:56 UTC+7)
+
+### Image & Build
+- ACR Run ID: ce17 — `workflow-20261105-02`
+- Digest: `sha256:eb91ecae2d9043181b90c944a072ffdcf1b0debc2db8612f0ea1a94a2f591141`
+- Build: 0 lỗi, 0 cảnh báo. Harness: 5/5 (shared-template-check) + 33/33 (ws-check) + PASS (ws-event-check).
+
+### Azure Blob — Mẫu Word
+- Storage: `stwardmate2026`, container: `workflow-leave-documents`
+- Object: `templates/c7438ea212714770b747063f910ceee7.docx` (14,189 bytes)
+- File gốc: `don-xin-nghi-phep_cong-chuc_2909085842.doc` (Word 97-2003) → chuyển đổi sang OOXML .docx qua Word 16.0 COM trước khi upload
+- TemplateVersionId: `c7438ea2-1271-4770-b747-063f910ceee7`
+- SHA-256: `8F014FC15329FC7C97896E717E8D2F39DB43163F5ED85FEF1B08E5E4B2AAB535`
+
+### Container App `wardmate-application-workflow`
+- Image cũ: `workflow-20261103-01` → Image mới: `workflow-20261105-02`
+- Secret thêm: `azure-blob-connection` (trỏ tới `stwardmate2026`)
+- Env vars mới: `AzureBlob__ConnectionString` (secretref), `WorkSchedule__SharedLeaveTemplate__TemplateVersionId`, `WorkSchedule__SharedLeaveTemplate__TemplateSha256`, `WorkSchedule__SharedLeaveTemplate__RequireWord=false`
+- ProvisioningState: Succeeded
+- `/health/ready` → 200 Healthy (database ✅, rabbitmq ✅)
+- Probe unauthenticated: `GET /api/v1/staffing/capabilities` → 401 ✅ | `GET /api/v1/staffing/leave-templates/current` → 401 ✅
+
+### DB Migration (4 pending → applied)
+- `20261102100002_TransactionalAuditSourceWorkflowDbContext` ✅
+- `20261105055200_OfficerLeaveWordDrafts` ✅
+- `20261105060056_MonthlyStaffSchedules` ✅
+- `20261105153205_LeaveDraftAudit` ✅
+
+### Git
+- 8 commits WF-WS shared template pushed → `origin/kha` (HEAD: 402ae29)
+- Chưa push lên `main` hoặc `deploy`. Chờ user nghiệm thu Docker/Azure để xác nhận.
+
+### Nghiệm thu còn lại (cần JWT thật)
+- Dùng 2 token FRONT_DESK_OFFICER khác phường:
+  1. `GET /staffing/capabilities` → `templateConfigured=true`, cùng `versionId=c7438ea2-1271-4770-b747-063f910ceee7`
+  2. `GET /staffing/leave-templates/current` → cùng `versionId`, `sha256`
+  3. `GET /staffing/leave-templates/c7438ea2-1271-4770-b747-063f910ceee7/docx` → tải được DOCX; hash file tải về khớp SHA-256
+  4. `POST /staffing/leave-drafts` với 2 Idempotency-Key riêng → 2 draftId khác nhau
+  5. Sau nghiệm thu: bật `WorkSchedule__SharedLeaveTemplate__RequireWord=true`
+
+## WF-WS-FE — Cập nhật bàn giao mẫu Word chung (05/11/2026, Asia/Saigon)
+
+Sửa `docs/Lịch làm việc Front Desk và đơn nghỉ Word.md` ngay trong file bàn giao gốc. Bổ sung bước provision một lần, cách FE gọi capabilities/mẫu/nháp và 5 bước nghiệm thu với P02 mới không có cấu hình riêng. Kiểm tra bảng tài liệu vẫn đủ 47 cặp method/route khác nhau, số thứ tự 01–47 (22 cũ + 25 mới). Không thay đổi code/API; không chạy build hoặc nghiệm thu Azure trong lượt sửa tài liệu. Gợi ý commit: `docs(workflow): clarify shared leave template rollout for frontend`.
+
 ## WF-WS — Mẫu nghỉ dùng chung, 05/11/2026 23:30 UTC+7
 
 Workflow dùng chung cấu hình version/hash cho capabilities, đọc mẫu, tạo nháp và policy nộp Word; giữ fallback cấu hình phường cho hệ thống chưa chuyển đổi. Paths: Infrastructure/LeaveTemplateSettings.cs (mới), LeaveDraftService.cs, StaffingService.cs; API/Controllers/LeaveDraftsController.cs; docs/api-guide.md, docs/system-constraints.md, docs/Lịch làm việc Front Desk và đơn nghỉ Word.md. GET capabilities và GET leave-templates/current trả 200 với cấu hình chung hợp lệ; current trả 503 khi sai cặp. POST leave-drafts dùng templateVersionId đó; POST leaves trả 409 khi bật RequireWord. JWT/ownership theo phường như trước. Không cần migration.
