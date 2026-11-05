@@ -4315,3 +4315,108 @@ No Git/Azure operations. Suggested individual commits: fix(analytics): fail clos
 fix(analytics): require real durable database backups; docs(api): clarify backup verification;
 docs(constraints): record backup fail-closed rules; docs(progress): record backup defect fixes.
 
+## UI-TEST-SCENARIOS-1102 — Bộ kịch bản test giao diện phủ toàn bộ API — 2026-11-02 (Asia/Saigon, UTC+07:00)
+- File mới: `docs/ui-test-scenarios.md`.
+  - 20 kịch bản KB-00 → KB-19 theo vai trò và theo luồng: khách, tài khoản/phiên, IT_ADMIN, Procedure Manager, Knowledge Base, công dân nộp hồ sơ, Manager điều phối, cán bộ thụ lý, bổ sung/nộp lại, sẵn sàng/PDF/QR/tiếp nhận/đánh giá, route cũ DocumentForm, chuyển giao, lịch làm/nghỉ phép, lịch nghỉ phường/lễ, tham vấn, thông báo, thống kê, phân quyền âm, lỗi AI.
+  - Mỗi bước ghi API dùng, kết quả kỳ vọng và cột KQ (Đ / L / UI / B) để tách lỗi BE với màn hình FE còn thiếu.
+  - Ma trận phủ: 184 API công khai (IAM 46, Catalog 28, Workflow 45, DocumentForm 31, AIOCR 20, Analytics 14), SignalR hub và 5 API nội bộ.
+- Kiểm tra: script tạm (scratchpad) đọc toàn bộ controller trong `src`, so với ma trận trong tài liệu: 189/189 route khớp, không thiếu, không thừa.
+- Chỉ tài liệu, không đổi code nên không build lại. Chưa chạy kịch bản nào trên Azure; kết quả do FE và chủ dự án ghi.
+- Commit gợi ý:
+  1. docs: add ui test scenarios covering all apis
+  2. docs: record ui test scenarios in progress and claude handoff
+
+## UI-TEST-RUN-1102 — Đợt test giao diện ngày 1 (KB-00 → KB-03) — 2026-11-02 (Asia/Saigon, UTC+07:00)
+- Môi trường: Azure (gateway `wardmate-gateway`), FE do chủ dự án thao tác; Claude hướng dẫn, đối chiếu code và ghi kết quả. Không đổi code, không chạy Git/az.
+- Dữ liệu chuẩn bị: chủ dự án chạy SQL seed trên DB IAM (2 phường `TEST_A`, `TEST_B`; 8 tài khoản `test_*` theo mục 2.1, mật khẩu bcrypt qua pgcrypto). SQL chỉ nằm trong chat, không thêm vào repo. Trong test KB-03 đã tạo thêm phường `TEST_C` và tài khoản `kb03_off`, `kb03_mgr`, `kb03_pm` qua giao diện.
+- Kết quả (ghi trong cột KQ và mục 6 của `docs/ui-test-scenarios.md`):
+  - KB-00 hạ tầng: 3/3 Đ (6 service `/health/ready` 200, Workflow/Analytics `rabbitmq` connected; API bảo vệ không token → 401).
+  - KB-01 khách: 6/8 Đ; bước 6 UI (FE chưa có ô chọn phường khi tạo hồ sơ); bước 8 bỏ qua (tốn hạn mức Gemini, chờ mock).
+  - KB-02 tài khoản/phiên: 13/15 Đ; bước 9 UI tùy chọn; bước 10 (tự làm mới token) để sau.
+  - KB-03 IT_ADMIN: 20/24 Đ; bước 7, 8, 12, 14 UI (API quản trị phụ chưa dùng).
+  - Không có lỗi BE (cột L = 0).
+- Sửa tài liệu theo code: KB-01 bước 6 (đăng ký không chọn phường; phường chọn khi tạo hồ sơ, BE bắt buộc `wardCode`), KB-01 bước 8 (giới hạn khách là 10 câu/ngày/IP, không phải 5 câu/phút), KB-02 bước 1 (đăng ký không có CCCD). Thêm mục 6.1 "Việc FE cần làm sau đợt test" FE-01 → FE-06.
+- Ghi nhận cho BE (chưa sửa, chờ chủ dự án quyết):
+  - Bộ đếm khách 10 câu/IP của chatbot nằm trong bộ nhớ AIOCR; AIOCR `minReplicas=0` nên mỗi lần khởi động lạnh bộ đếm về 0. Giới hạn tổng 200 câu khách/ngày (đếm trong DB) vẫn giữ.
+  - Cookie `refreshToken` mặc định `SameSite=Strict`; nếu FE gọi gateway khác domain thì refresh có thể 401. Kiểm tra ở KB-02 bước 10 (FE-05); nếu lỗi, Anti đặt `RefreshCookie__SameSite=None` trên IAM.
+  - API danh sách delivery thông báo mặc định chỉ trả trạng thái cần xử lý (Dead/Blocked/Unknown/Dispatching); FE cần bộ lọc `state` nếu muốn xem lịch sử.
+- Việc tiếp theo: KB-04 (đăng nhập `test_pm`, cần 1 PDF thủ tục có lớp chữ và 1 DOCX mẫu đơn), sau đó KB-05 → KB-19. FE-01 phải xong trước KB-06.
+- Commit gợi ý:
+  1. docs: record ui test results for kb-00 to kb-03
+  2. docs: record ui test run day 1 in progress and claude handoff
+
+## UC-DIAGRAM-FIX — Sửa Use Case Diagram trong DiagramSEP.drawio — 2026-11-03 (Asia/Saigon, UTC+07:00)
+- Yêu cầu chủ dự án: kiểm tra rồi sửa trang UseCasesDiagram của docs/diagrams/DiagramSEP.drawio cho đúng và đủ theo hệ thống.
+- File sửa: docs/diagrams/DiagramSEP.drawio — chỉ trang UseCasesDiagram; 6 trang còn lại giữ nguyên từng byte.
+- Sửa nghiệp vụ: Approve Application → Confirm Documents Ready; View Approved QR Code → View QR Code; Edit Comment → Withdraw Comment; bỏ Delete Comment; Delete Procedure → Activate/Deactivate Procedure; View Audit Logs → View RBAC Audit Logs; bỏ Request Edit Approve Application và nhóm Manage Legal References (5 use case); bỏ liên kết Guest–Download Blank Form (API cần đăng nhập).
+- Sửa ký hiệu: đảo chiều «extend» View Checklist Progress và Search by Natural Language; Complete E-form «include» Auto Update; Cancel/Submit/Revise «extend» View Application Detail (trước là tổng quát hóa); View Application Detail «extend» Manage Application; Create Request Revision «include» Add Comment; Withdraw Comment nối với Front-desk Officer.
+- Sửa nối dây: 6 đường thiếu đầu nối vào Registered Citizen; bỏ đường tự nối ở View Feedback Reports; tên 3 actor gắn vào hình actor.
+- Thêm 34 use case theo API hiện có: Guest (Forgot Password, Verify QR Code, View Featured Procedures); Authenticated User (Change Password, View Notifications); Front-desk Officer (Claim «extend» View Pending Applications, Release, Record Official Receipt, Annotate Submitted DOCX, Request / Answer Consultation, Request Leave); Registered Citizen (AI Document Pre-check, Upload Filled DOCX, Submit Feedback, View Chat History, Track Application Status); Manager (Assign / Transfer Application, Assign Officer Categories, View Ward Applications, Manage Shifts, Decide Leave Requests, Manage Ward Closures); Procedure Manager (Upload Procedure PDF, Review Extracted Draft, Publish Procedure «include» Review Extracted Draft, Manage Categories, Sync to Knowledge Base, Edit Procedure Checklist và View Versions / Rollback là con của Manage Procedure); IT Administrator (Manage Wards, Assign Staff to Ward, Manage Failed Notifications, Rebuild Analytics, Manage National Holidays).
+- Bố cục: khung hệ thống nới lên 130 và xuống dưới; actor Authenticated User và Manager dời theo; vị trí use case mới chọn để đường nối ít cắt hình nhất.
+- Kiểm tra: render bằng viewer diagrams.net và xem ảnh; 125 cạnh, 0 cạnh thiếu đầu, 0 tham chiếu sai, 0 id trùng. Chưa mở bằng draw.io desktop.
+- Giới hạn: thuộc tính mermaidData (nguồn mermaid cũ nhúng trong nhóm) chưa cập nhật, không hiển thị trên hình. Staffing/consultation chỉ đối chiếu theo route và policy, chưa đọc kỹ nghiệp vụ. Chưa thêm secondary actor (AI service, Email service).
+- Chỉ tài liệu; không build backend, không đổi API/DTO/ràng buộc. Không chạy Git.
+- Commit gợi ý: docs(diagrams): fix use case diagram to match implemented features; docs: record use case diagram fix in progress.
+
+## UC-DIAGRAM-FIX-2 — Rà lại use case và include/extend — 2026-11-03 (Asia/Saigon, UTC+07:00)
+- Yêu cầu chủ dự án: không thêm secondary actor; xóa use case không hợp lý, sửa include/extend sai, ghi chú lại thay đổi. Sửa trên bản chủ dự án đã lưu bằng draw.io lúc 22:37.
+- File sửa: docs/diagrams/DiagramSEP.drawio — chỉ trang UseCasesDiagram; 6 trang khác giữ nguyên.
+- Xóa use case (không có chức năng tương ứng): Search by Natural Language (danh sách thủ tục chỉ lọc theo từ khóa/lĩnh vực; hỏi bằng câu tự nhiên đã là Chat with AI Assistant); Replace Supporting Document (API chỉ có tải lên và xóa); Auto Update và Manual Update (checklist chỉ đổi khi công dân cập nhật; DocumentForm không tự cập nhật checklist Workflow); Preview Generated PDF (không có API xem trước PDF kết xuất, chỉ tải về); Delete Form Template (API không có xóa mẫu); Track Application Status (trùng View Application Detail).
+- Xóa liên kết: Guest – View Sample Form (mẫu tờ khai cần đăng nhập).
+- Sửa quan hệ: Confirm Documents Ready «include» Generate QR Code → Generate PDF «include» Generate QR Code (QR được tạo cùng lúc xuất PDF, GeneratePdfDocumentCommand dùng IApprovedQrService); Generate QR Code dời tới cạnh Generate PDF. Complete E-form: tổng quát hóa sang Save E-form → Complete E-form «extend» Save E-form.
+- Giữ nguyên sau khi rà (khớp API): các «extend»/«include» còn lại, gồm Create Application «include» Generate Checklist «include» Load Required E-forms, Scan Identity Document «include» Extract Document Data «include» Confirm Extracted Data, Revise «include» Resubmit, Filter «extend» các trang thống kê/hàng đợi.
+- Kiểm tra: render bằng viewer diagrams.net và xem ảnh; 116 cạnh, 0 cạnh thiếu đầu, 0 tham chiếu sai. Chưa mở lại bằng draw.io desktop.
+- Chỉ tài liệu; không build backend. Không chạy Git.
+- Commit gợi ý: docs(diagrams): remove unsupported use cases and fix include/extend relations; docs: record use case review in progress.
+
+## DIAGRAMS-FIX — Sửa Context, Architecture, State Machine, Activity theo code — 2026-11-04 (Asia/Saigon, UTC+07:00)
+- Yêu cầu chủ dự án: kiểm tra rồi sửa tất cả Context Diagram, System Architecture, State Machine và Activity cho đúng hệ thống.
+- docs/diagrams/DiagramSEP.drawio (chỉ trang ContextDiagram và Architecture; 5 trang khác giữ nguyên):
+  - Context: Guest gửi/nhận "Search Keywords, User Questions, QR Codes to Verify" / "Procedure Guides, AI Answers, Verified Application PDF" (bỏ Form Requests, Blank Templates); Officer gửi "Review Comments, Revision Requests, Readiness and Receipt Records" (bỏ Approval Statuses); IT Admin gửi "Staff Accounts, Roles and Permissions, Wards and Holidays, Notification Replays", nhận "RBAC Audit Logs, Failed Notification Deliveries, Analytics Job Status" (bỏ System Settings, Audit Logs, System Health Metrics); bỏ chữ "Legal" ở AI/LLM và Procedure Manager; nối 2 đường Officer vào hộp Officer.
+  - Architecture: khung "Azure Container Apps" → "Microsoft Azure"; PostgreSQL (Supabase) và RabbitMQ (CloudAMQP) chuyển sang khung mới "External managed services"; Gateway "+ SignalR proxy"; ô Gemini thứ hai ghi "CCCD OCR · procedure PDF structuring"; nối đường "extracted data" vào Gemini; xóa 1 cạnh rỗng tự nối.
+- Google Drive (lưu qua diagrams.net bằng tài khoản của chủ dự án, cùng link; bản cũ còn trong lịch sử phiên bản):
+  - wardmate-state-machines.drawio (8 trang dựng lại): Application Record (bỏ Approved/Rejected; thêm Documents Ready, Officially Received, release, hủy từ Need Revision); Procedure Draft (upload khi tắt extraction, Failed sau 3 lần, lưu tay, discard); User Submission (Approved → Ready For Download); Checklist Item (công dân cập nhật PENDING/COMPLETED/REJECTED); User Account (Active ⇄ Inactive); Review Comment (thêm Withdrawn); Procedure Lifecycle (bỏ deprecate); Notification Delivery (thêm IT Admin replay Dead/Blocked → Pending).
+  - wardmate-activities.drawio (8 trang dựng lại, giữ AIOCR - Answer Questions): Authenticate User (refresh token, RBAC audit chỉ khi đổi quyền), Publish Procedure (nhánh Failed/retry, đồng bộ Knowledge Base thủ công), Review Application (Claim/Assign, Confirm Documents Ready, Official Receipt), Generate Result PDF (Documents Ready?, QR, Gotenberg, Blob; bỏ Publish Result Event), Extract Identity Data (bỏ Record Scan Metadata), Deliver Notifications (bỏ SMS, retry 10 lần → Dead), Process Results and Feedback (bỏ tạo QR ở Analytics), Run System Operations (chỉ chức năng có thật: replay thông báo, rebuild analytics, /health/ready).
+- Kiểm tra: render từng trang bằng viewer diagrams.net; tham chiếu cạnh hợp lệ; tải lại 2 file từ Drive xác nhận không còn Approved, Send SMS, Record Scan Metadata. Chưa mở DiagramSEP.drawio bằng draw.io desktop.
+- Còn lại: docs/diagrams/activities/wardmate-activities.drawio trong repo là bản khác (tên trang khác) và chưa sửa. File "UseCaseDiagram+Context.drawio" trên Drive (bản Drive của DiagramSEP) chưa được cập nhật theo repo.
+- Chỉ tài liệu; không build backend. Không chạy Git.
+- Commit gợi ý: docs(diagrams): align context and architecture diagrams with deployment; docs: record diagram fixes in progress.
+
+## DIAGRAMS-DRIVE-SYNC — Đồng bộ UseCaseDiagram+Context.drawio trên Drive — 2026-11-04 (Asia/Saigon, UTC+07:00)
+- Yêu cầu chủ dự án: cập nhật file Drive "UseCaseDiagram+Context.drawio" theo bản sửa trong repo.
+- So sánh trước khi ghi: trên Drive, trang UseCasesDiagram có chỉnh sửa riêng của chủ dự án lúc 01:51 (dời 8 ô, chỉnh điểm nối/kiểu của 83 đường), mới hơn repo; Context và Architecture trên Drive vẫn là bản cũ.
+- Đã ghép: giữ nguyên trang UseCasesDiagram và 4 trang khác của Drive, chỉ thay ContextDiagram và Architecture bằng bản đã sửa. Lưu qua diagrams.net bằng tài khoản chủ dự án (cùng link; bản trước còn trong lịch sử phiên bản).
+- docs/diagrams/DiagramSEP.drawio trong repo được đồng bộ theo đúng bản ghép (nhận các chỉnh sửa Use Case của chủ dự án; thứ tự trang theo bản Drive).
+- Kiểm tra: tải lại file từ Drive, so từng ô/vị trí/điểm nối với bản ghép: 0 khác biệt ở UseCasesDiagram, ContextDiagram, Architecture.
+- Không chạy Git.
+
+## DETAILED-DESIGN — Class + Sequence Diagram cho 13 luồng chính — 2026-11-04 (Asia/Saigon, UTC+07:00)
+- Yêu cầu chủ dự án: vẽ Class Diagram và Sequence Diagram (phần Detailed Design của báo cáo, theo mẫu FreeDriver SP25SE136).
+- File mới: docs/diagrams/detailed-design/wardmate-detailed-design.drawio (26 trang: 13 Class + 13 Sequence); docs/diagrams/detailed-design/png/*.png (26 ảnh); docs/diagrams/detailed-design/README.md.
+- 13 luồng: Login; Forgot Password OTP; Create Application; Submit Application; Claim Application; Comment and Request Revision; Confirm Documents Ready; Record Official Receipt; Generate PDF and QR; Publish Procedure from PDF; Chat with AI Assistant; Scan Identity Card (OCR); Notification Delivery. Tên lớp, phương thức, điều kiện lỗi (mã ProblemDetails) đối chiếu từ source các service.
+- Phát hiện khi đọc code: GeneratePdfDocumentCommandHandler không chèn QR vào PDF (QR lưu ở approved_qrs, trả qua approved-qr). Đã sửa trên Drive: wardmate-activities.drawio trang "Document Form - Generate Result PDF" ("Stamp Verification QR Code" → "Create or Refresh QR Code Record" và ghi chú); wardmate-state-machines.drawio trang "Procedure Catalog - Procedure Draft" (nhãn chuyển Failed → "extraction error or 3 attempts used"). Sửa từng ô qua diagrams.net, không ghi đè file; file state machines đã có người sửa lúc 19:05 UTC nên giữ nguyên các thay đổi đó.
+- Kiểm tra: render từng trang bằng viewer diagrams.net và xem ảnh; sửa tràn chữ ở class, khoảng cách nhãn alt/note và tên actor. Chưa mở bằng draw.io desktop.
+- Chỉ tài liệu; không build backend, không đổi API. Không chạy Git.
+- Commit gợi ý (mỗi file mới một commit): docs(diagrams): add detailed design class and sequence diagrams; docs(diagrams): add detailed design diagram images; docs(diagrams): explain detailed design diagrams; docs: record detailed design in progress.
+
+## UI-TEST-RUN-1105 — Đợt test giao diện KB-04 (Procedure Manager) — 2026-11-05 (UTC+07)
+
+- Môi trường: Azure qua gateway, tài khoản `test_pm`. Người test: chủ dự án; Claude soạn hướng dẫn và ghi kết quả.
+- Kết quả KB-04: 22/25 Đ, 2 UI (bước 7, 12), bước 22 không phát sinh; không có lỗi BE. Dữ liệu tạo thêm trên Azure: lĩnh vực `KB04 Hộ tịch test`, mẫu `KB04 Tờ khai`, thủ tục `KB04-KS` (nhập tay) và `KB04-AI` (từ PDF) — dọn cùng dữ liệu test khác.
+- Đối chiếu code (chỉ đọc): checklist (`ChecklistItemSchema`) không có trường liên kết mẫu; liên kết mẫu nằm ở `formDefinitions`, chỉ đổi qua `PUT /procedures/{id}`. Xuất bản bản nháp không bắt buộc `formTemplateId`. Rollback không so ngày hiệu lực với phiên bản trước. `feeSummary`/`processingTimeSummary` bắt buộc; `results` được rỗng. Prompt bóc tách không dặn lấy mọi mẫu ở cột "Mẫu đơn, tờ khai".
+- File đổi: `docs/ui-test-scenarios.md` (KQ KB-04, dòng tổng hợp, FE-07..FE-09, mục mới 6.2 BE-01..BE-05), `docs/CLAUDE_HANDOFF.md`, `PROGRESS.md`.
+- Không đổi code/API/ràng buộc; không build; không chạy Git.
+- Chưa xong: BE-01..BE-05 chờ chủ dự án quyết; FE-07 nên làm trước KB-06 (tạm dùng `KB04-AI`). Tiếp theo: KB-05.
+- Commit gợi ý: `docs: record ui test results for kb-04`; `docs: record kb-04 test run in progress and claude handoff`.
+
+## BE-04 — AI bỏ sót tờ khai khi bóc tách thủ tục từ PDF — 2026-11-05 (UTC+07)
+
+- Nguyên nhân: prompt bóc tách chỉ liệt kê cấu trúc `formDefinitions`, không dặn lấy mọi tệp trong cột "Mẫu đơn, tờ khai". Thủ tục đăng ký biến động đất đai: AI chỉ lấy Mẫu số 25 (được nhắc trong tên giấy tờ), bỏ sót 01.LPTB và 01.TK-SDDPNN.
+- Sửa (AIOCR, dùng chung cho đọc lớp chữ PDF và OCR):
+  - `src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Extraction/AzureProcedureDocumentExtractor.cs`: thêm quy tắc prompt — mỗi tệp/mẫu trong cột mẫu đơn là một `formDefinitions` (nhiều tệp một dòng → nhiều phần tử), "theo Mẫu số …" cũng tạo mẫu, cách đặt formName/formCode, `.doc/.docx` → `DOCX_TEMPLATE`, "nếu có" → `isMandatory=false`, đếm lại trước khi trả.
+  - `.../Extraction/ProcedureAiContract.cs`: `CheckFormCoverage` đếm số `.doc/.docx` trong văn bản nguồn; nếu nhiều hơn số `formDefinitions` thì thêm cảnh báo cho cán bộ (kiểm tra cố định, không phụ thuộc AI).
+- Không đổi API, DTO, DB, migration hay cấu hình. `docs/api-guide.md` (API extract-preview) thêm ghi chú cảnh báo biểu mẫu. `system-constraints.md` không đổi (không thêm ràng buộc chặn).
+- Build: `dotnet build WardMate.sln -c Release -warnaserror -m:1` → 0 lỗi, 0 cảnh báo. Chưa chạy thử với Gemini thật (chưa deploy).
+- Giới hạn: AI vẫn có thể sót; cảnh báo đếm dựa vào đuôi `.doc/.docx` trong lớp chữ PDF — mẫu không ghi tên tệp sẽ không được đếm; tệp lặp lại có thể gây cảnh báo thừa.
+- Bước tiếp theo: Anti deploy lại AIOCR (theo runbook); test lại KB-04 bước 17 với chính PDF thủ tục đất đai, kỳ vọng 3 biểu mẫu.
+- Commit gợi ý: `fix(aiocr): extract every form template from procedure pdf`; `docs: note form coverage warning for procedure extraction`; `docs: record be-04 fix in progress`.
