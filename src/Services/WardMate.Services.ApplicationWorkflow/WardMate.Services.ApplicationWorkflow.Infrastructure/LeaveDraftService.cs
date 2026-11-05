@@ -52,11 +52,9 @@ public sealed class LeaveDraftService(WorkflowDbContext db, IConfiguration confi
     public WorkflowResult<LeaveTemplateDescriptor> Template(ReviewActor actor)
     {
         if (!Owner(actor)) return Fail<LeaveTemplateDescriptor>(403,"forbidden");
-        var section = config.GetSection($"WorkSchedule:Wards:{actor.WardCode}");
-        var hash = section["TemplateSha256"];
-        return Guid.TryParse(section["TemplateVersionId"],out var id) && id != Guid.Empty &&
-            hash is { Length: 64 } && hash.All(Uri.IsHexDigit)
-            ? WorkflowResult<LeaveTemplateDescriptor>.Ok(new(id,hash.ToUpperInvariant()))
+        var template = LeaveTemplateSettings.Read(config, actor.WardCode!).Template;
+        return template is not null
+            ? WorkflowResult<LeaveTemplateDescriptor>.Ok(template)
             : Fail<LeaveTemplateDescriptor>(503,"template_unavailable");
     }
     private static async Task<byte[]?> Bounded(Stream stream, CancellationToken ct)
