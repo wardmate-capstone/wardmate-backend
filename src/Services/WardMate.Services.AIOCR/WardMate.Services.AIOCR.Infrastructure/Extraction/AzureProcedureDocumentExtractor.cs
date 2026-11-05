@@ -93,6 +93,7 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
             throw new InvalidDataException("Kết quả AI thiếu payload hoặc payload không phải object JSON.");
         var warnings = NormalizeWarnings(output.RootElement).ToList();
         payload = ProcedureAiContract.Normalize(payload, warnings);
+        ProcedureAiContract.CheckFormCoverage(content, payload, warnings);
         return new(payload.Clone(), content, warnings.Append("Dữ liệu do AI đề xuất; cán bộ phải kiểm tra PDF gốc. CategoryId phải chọn từ danh mục hệ thống.").ToArray());
         }
         catch (Exception e) when (attempt < 1 && e is JsonException or InvalidDataException or KeyNotFoundException or InvalidOperationException)
@@ -153,5 +154,12 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         documentCopyType: ORIGINAL, CERTIFIED_COPY, REGULAR_COPY. formType: DOCX_TEMPLATE hoặc ONLINE_INTERACTIVE.
         Các mảng không có dữ liệu để []; trường cần xác nhận phải có cảnh báo tiếng Việt kèm đường dẫn trường.
         Chỉ nêu formType nếu nguồn đủ bằng chứng, nếu không để null và cảnh báo.
+        Thành phần hồ sơ thường là bảng có các cột "Tên giấy tờ", "Mẫu đơn, tờ khai", "Số lượng"; một ô có thể bị ngắt xuống nhiều dòng.
+        Mỗi dòng giấy tờ tạo đúng một phần tử checklistSchema, kể cả dòng có mẫu đơn.
+        Mỗi tệp hoặc mẫu trong cột "Mẫu đơn, tờ khai" tạo một phần tử formDefinitions riêng. Một dòng có nhiều tệp thì tạo nhiều phần tử. Không chỉ lấy các mẫu được nhắc trong tên giấy tờ.
+        Giấy tờ ghi "theo Mẫu số ..." cũng tạo formDefinitions dù không có tên tệp.
+        formName lấy theo tên mẫu, bỏ đuôi tệp. formCode lấy số hiệu mẫu nếu có (ví dụ "01.LPTB", "Mẫu số 25"), không có thì đặt FORM-n và cảnh báo.
+        Tệp .doc hoặc .docx là bằng chứng formType DOCX_TEMPLATE. Mẫu dùng chung cho mọi trường hợp để caseCode null; giấy tờ ghi "nếu có" thì isMandatory false.
+        Trước khi trả kết quả, đếm lại số mẫu và số tệp trong cột "Mẫu đơn, tờ khai" và bảo đảm không bỏ sót mẫu nào.
         """;
 }

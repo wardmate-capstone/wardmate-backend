@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace WardMate.Services.AIOCR.Infrastructure.Extraction;
 
@@ -57,6 +58,17 @@ internal static class ProcedureAiContract
                     warnings.Add($"{list}[{i}].caseCode: Không khớp trường hợp nào; cần sửa liên kết trước khi xuất bản.");
             }
         return JsonSerializer.SerializeToElement(normalized);
+    }
+
+    // Deterministic guard: template file names (.doc/.docx) in the source text are counted, never trusted to the AI alone.
+    private static readonly Regex TemplateFile = new(@"\.docx?\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+    public static void CheckFormCoverage(string source, JsonElement payload, List<string> warnings)
+    {
+        var files = TemplateFile.Matches(source).Count;
+        var forms = payload.TryGetProperty("formDefinitions", out var list) && list.ValueKind == JsonValueKind.Array ? list.GetArrayLength() : 0;
+        if (files > forms)
+            warnings.Add($"formDefinitions: Văn bản nguồn có {files} tệp mẫu (.doc/.docx) nhưng chỉ bóc tách được {forms} biểu mẫu; kiểm tra cột \"Mẫu đơn, tờ khai\" và bổ sung mẫu còn thiếu.");
     }
 
     private static JsonNode? Read(JsonNode template, JsonNode? value, string path, List<string> warnings)
