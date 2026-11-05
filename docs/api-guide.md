@@ -12,7 +12,7 @@
 | Method và đường dẫn sau tiền tố | Người gọi, đầu vào, kết quả và cách xử lý |
 |---|---|
 | GET /capabilities | Khi vào màn hình, xem `wordRequired`, `templateConfigured`, `maxDocxBytes`. configured chỉ xác nhận cấu hình ID/hash. Nếu tải mẫu trả 503 hãy kiểm tra object, hash và quyền storage. |
-| GET /leave-templates/current | Cán bộ lấy `versionId,sha256` của mẫu phường. Thiếu mẫu trả 503. |
+| GET /leave-templates/current | Cán bộ lấy `versionId,sha256` của mẫu dùng chung. Phường mới có wardCode từ IAM tự dùng cùng mẫu. Thiếu cấu hình hợp lệ trả 503. |
 | GET /leave-templates/{id}/docx | Cán bộ mở bản mẫu đang áp dụng. Trả DOCX binary; nếu version cũ trả 404 thì tải lại thông tin mẫu. |
 | POST /leave-drafts | Cán bộ gửi JSON `{startsAt,endsAt,reason,templateVersionId}` và header `Idempotency-Key` là UUID. Nhận `id,version,metadataVersion,documentRevisionId` và bản sao riêng của mẫu. Mất response thì gửi lại cùng key/body. |
 | GET /leave-drafts | Danh sách nháp cá nhân chưa nộp; `page=1&pageSize=20`, tối đa 100 dòng/trang; trả items/page/pageSize/total. |
