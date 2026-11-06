@@ -14,7 +14,7 @@
   1. Đăng ký `services.AddHttpContextAccessor()` trong `WardMate.Services.ProcedureCatalog.Infrastructure.DependencyInjection`.
   2. Cập nhật `DocumentFormsClient` nhận `IHttpContextAccessor` và nạp header `Authorization` của caller vào outgoing request.
   3. Release build toàn solution: 0 errors, 0 warnings.
-  4. Chuẩn bị push branch `kha` và build/deploy image mới `catalog-20261106-02`.
+  4. Đã push branch kha (HEAD: e0a7684), build ACR `catalog-20261106-02` (Run ID: `ce19`, digest: `sha256:6b99d0cbb886e253c6165329e393780273295e0f7e0f829da47dc11f7e8e62cc`) và deploy thành công lên Container App `wardmate-procedure-catalog` (replica mới: `wardmate-procedure-catalog--latest-98a9845f...`, created 09:53:56 UTC+7). Health check 200 Healthy.
 
 ## HOTFIX / Azure ProcedureCatalog: Bổ sung DocumentForm__BaseUrl & Deploy Image mới (06/11/2026 09:43 UTC+7)
 
