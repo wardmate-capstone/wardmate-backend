@@ -1,11 +1,12 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using WardMate.Services.ProcedureCatalog.Application.Management;
 
 namespace WardMate.Services.ProcedureCatalog.Infrastructure;
 
-public sealed class DocumentFormsClient(HttpClient http, IConfiguration configuration) : IDocumentFormsClient
+public sealed class DocumentFormsClient(HttpClient http, IConfiguration configuration, IHttpContextAccessor httpContextAccessor) : IDocumentFormsClient
 {
     private sealed record Template(Guid Id, string Code, string Title, string? FileDocxUrl, bool IsActive);
     private sealed record Page(Template[]? Items);
@@ -19,7 +20,13 @@ public sealed class DocumentFormsClient(HttpClient http, IConfiguration configur
         {
             var url = new Uri(new Uri(address.AbsoluteUri.TrimEnd('/') + "/"),
                 $"api/v1/form-templates?page={query.Page}&pageSize={query.PageSize}&isActive=true&searchCode={Uri.EscapeDataString(query.SearchCode ?? string.Empty)}");
-            using var response = await http.GetAsync(url, ct);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var auth = httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
+            if (!string.IsNullOrWhiteSpace(auth))
+            {
+                request.Headers.TryAddWithoutValidation("Authorization", auth);
+            }
+            using var response = await http.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode) return Unavailable();
             var page = await response.Content.ReadFromJsonAsync<Page>(cancellationToken: ct);
             if (page?.Items is null || page.Items.Any(x => x is null || x.Id == Guid.Empty || string.IsNullOrWhiteSpace(x.Code) || string.IsNullOrWhiteSpace(x.Title)))
