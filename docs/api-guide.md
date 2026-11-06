@@ -1481,7 +1481,7 @@ Không xóa/sửa các version cũ. FE tải lại chi tiết và lịch sử sa
 **Mục đích:** Cán bộ chọn formTemplateId từ dropdown, không nhập GUID thủ công.
 
 **Cách dùng:** Không body. Page từ 1 đến 1000000, pageSize 1–100; searchCode tùy chọn, tối đa 100 ký tự.
-Procedure gọi DocumentForm qua HTTP và chỉ lấy biểu mẫu active. Cấu hình DocumentForm__BaseUrl phải trỏ
+Procedure gọi DocumentForm qua HTTP và chỉ lấy biểu mẫu active; tự động chuyển tiếp header Authorization của người gọi sang DocumentForm (yêu cầu policy DocumentUser). Cấu hình DocumentForm__BaseUrl phải trỏ
 đúng service (Compose dùng http://document-form:8080/, local mặc định http://localhost:5004/).
 
 **Kết quả:** 200 mảng `{id, formCode, formName, formType}` của trang yêu cầu; dùng id làm formTemplateId.
