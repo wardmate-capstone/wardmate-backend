@@ -16,6 +16,7 @@ public static class DependencyInjection
             configuration.GetConnectionString("ProcedureDatabase")
                 ?? throw new InvalidOperationException("Chưa cấu hình kết nối database của Procedure Catalog."))
             .UseSnakeCaseNamingConvention());
+        services.AddHttpContextAccessor();
         services.AddScoped<IProcedureRepository, ProcedureRepository>();
         services.AddScoped<IProcedureManagementStore, ProcedureManagementStore>();
         services.AddScoped<WardMate.Services.ProcedureCatalog.Application.Management.IProcedureAdministration, ProcedureAdministration>();
