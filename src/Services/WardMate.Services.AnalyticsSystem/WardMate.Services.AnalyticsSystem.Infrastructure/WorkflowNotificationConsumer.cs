@@ -12,6 +12,11 @@ public sealed class WorkflowNotificationConsumer(IServiceScopeFactory scopes, Ra
 {
     public static bool Valid(WorkflowEvent? e)
     {
+        if(e is {Version:3,Kind:"STAFFING",Staffing:{} notice})
+            return e.EventId!=Guid.Empty && notice.ResourceId!=Guid.Empty && notice.OfficerId!=Guid.Empty &&
+                e.ApplicationId==Guid.Empty && e.ApplicantId==Guid.Empty && e.OccurredAt.Kind==DateTimeKind.Utc &&
+                !string.IsNullOrWhiteSpace(e.WardCode) && e.WardCode.Length<=50 &&
+                e.Status is "LEAVE_SUBMITTED" or "LEAVE_DECIDED" or "SHIFT_CHANGED" or "SCHEDULE_PUBLISHED" or "SHIFT_CHANGE_REQUESTED" or "SHIFT_CHANGE_DECIDED";
         if (e is null || e.EventId == Guid.Empty || e.ApplicationId == Guid.Empty || e.ApplicantId == Guid.Empty
             || e.AssignedOfficerId == Guid.Empty || e.OccurredAt == default || e.OccurredAt.Kind != DateTimeKind.Utc
             || string.IsNullOrWhiteSpace(e.WardCode) || e.WardCode.Length > 50

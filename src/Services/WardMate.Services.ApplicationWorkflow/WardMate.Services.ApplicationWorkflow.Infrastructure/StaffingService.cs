@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using WardMate.Services.ApplicationWorkflow.Application;
 using WardMate.Services.ApplicationWorkflow.Domain;
 
@@ -20,7 +21,7 @@ internal static class StaffingLocks
     }
 }
 
-public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory directory, TimeProvider clock) : IStaffingService
+public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory directory, TimeProvider clock, IConfiguration config) : IStaffingService
 {
     private static bool Manager(ReviewActor a) => a.IsManager && !string.IsNullOrWhiteSpace(a.WardCode);
     private static bool Officer(ReviewActor a) => a.CanMutate && !string.IsNullOrWhiteSpace(a.WardCode);
@@ -48,7 +49,9 @@ public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory dir
             await db.Leaves.AnyAsync(x => x.WardCode == a.WardCode && x.OfficerId == target.Id && x.Status == "APPROVED" && x.StartsAtUtc < end && x.EndsAtUtc > start, ct))
             return Fail<OfficerShift>(409, "overlap", "Ca làm trùng lịch hoặc nghỉ đã duyệt.");
         var item = new OfficerShift { OfficerId = target.Id, WardCode = a.WardCode!, StartsAtUtc = start, EndsAtUtc = end, CreatedBy = a.Id, CreatedAtUtc = clock.GetUtcNow().UtcDateTime };
-        db.Shifts.Add(item); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        db.Shifts.Add(item);
+        WorkflowOutboxCapture.Staffing(db,item.WardCode,item.Id,item.OfficerId,"SHIFT_CHANGED",false,item.CreatedAtUtc);
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return WorkflowResult<OfficerShift>.Ok(item);
     }
     public async Task<WorkflowResult<OfficerShift>> CancelShift(ReviewActor a, Guid id, StaffingReason input, CancellationToken ct)
@@ -60,6 +63,8 @@ public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory dir
         if (item is null) return Fail<OfficerShift>(404, "not_found", "Không tìm thấy ca làm trong phường.");
         if (item.CancelledAtUtc != null || item.EndsAtUtc <= clock.GetUtcNow().UtcDateTime) return Fail<OfficerShift>(409, "invalid_status", "Ca đã hủy hoặc đã kết thúc.");
         item.CancelledBy = a.Id; item.CancelledAtUtc = clock.GetUtcNow().UtcDateTime; item.CancellationReason = input.Reason.Trim();
+        item.Version++;
+        WorkflowOutboxCapture.Staffing(db,item.WardCode,item.Id,item.OfficerId,"SHIFT_CHANGED",false,item.CancelledAtUtc.Value);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return WorkflowResult<OfficerShift>.Ok(item);
     }
     public async Task<WorkflowResult<OfficerLeave[]>> Leaves(ReviewActor a, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
@@ -68,9 +73,37 @@ public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory dir
         if (!Range(from, to)) return Fail<OfficerLeave[]>(400, "invalid_range", "Khoảng thời gian phải tăng dần, tối đa 93 ngày.");
         return WorkflowResult<OfficerLeave[]>.Ok(await db.Leaves.AsNoTracking().Where(x => x.WardCode == a.WardCode && (a.IsManager || x.OfficerId == a.Id) && x.StartsAtUtc < to.UtcDateTime && x.EndsAtUtc > from.UtcDateTime).OrderBy(x => x.StartsAtUtc).ToArrayAsync(ct));
     }
+    public async Task<WorkflowResult<LeaveDetailView>> LeaveDetail(ReviewActor a, Guid id, CancellationToken ct)
+    {
+        if (!Manager(a) && !Officer(a)) return Fail<LeaveDetailView>(403, "forbidden", "Không có quyền xem đơn nghỉ.");
+        var leave = await db.Leaves.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.WardCode == a.WardCode &&
+            (a.IsManager || x.OfficerId == a.Id), ct);
+        if (leave is null) return Fail<LeaveDetailView>(404, "not_found", "Không tìm thấy đơn trong phạm vi.");
+        var revision = await (from draft in db.LeaveDrafts.AsNoTracking()
+            join file in db.LeaveRevisions on draft.CurrentRevisionId equals file.Id
+            where draft.SubmittedLeaveId == leave.Id select new { file.Id, file.Sha256 }).SingleOrDefaultAsync(ct);
+        return WorkflowResult<LeaveDetailView>.Ok(new(leave, revision != null, revision?.Id, revision?.Sha256));
+    }
+
+    public async Task<WorkflowResult<LeaveShiftImpact[]>> ShiftImpact(ReviewActor a, Guid id, CancellationToken ct)
+    {
+        if (!Manager(a)) return Fail<LeaveShiftImpact[]>(403, "forbidden", "Chỉ Manager xem ca cần bố trí lại.");
+        var leave = await db.Leaves.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.WardCode == a.WardCode, ct);
+        if (leave is null) return Fail<LeaveShiftImpact[]>(404, "not_found", "Không tìm thấy đơn trong phạm vi.");
+        var shifts = await db.Shifts.AsNoTracking().Where(x => x.WardCode == leave.WardCode && x.OfficerId == leave.OfficerId &&
+                x.CancelledAtUtc == null && x.StartsAtUtc < leave.EndsAtUtc && x.EndsAtUtc > leave.StartsAtUtc)
+            .OrderBy(x => x.StartsAtUtc).ThenBy(x => x.Id)
+            .Select(x => new LeaveShiftImpact(x.Id, x.StartsAtUtc, x.EndsAtUtc,
+                x.StartsAtUtc > leave.StartsAtUtc ? x.StartsAtUtc : leave.StartsAtUtc,
+                x.EndsAtUtc < leave.EndsAtUtc ? x.EndsAtUtc : leave.EndsAtUtc)).ToArrayAsync(ct);
+        return WorkflowResult<LeaveShiftImpact[]>.Ok(shifts);
+    }
+
     public async Task<WorkflowResult<OfficerLeave>> RequestLeave(ReviewActor a, LeaveInput input, CancellationToken ct)
     {
         if (!Officer(a)) return Fail<OfficerLeave>(403, "forbidden", "Chỉ cán bộ gửi yêu cầu nghỉ của mình.");
+        if (LeaveTemplateSettings.Read(config, a.WardCode!).WordRequired)
+            return Fail<OfficerLeave>(409, "word_required", "Phường yêu cầu soạn và nộp đơn nghỉ Word từ bản nháp.");
         if (!Range(input.StartsAt, input.EndsAt) || input.EndsAt.UtcDateTime <= clock.GetUtcNow().UtcDateTime || !Reason(input.Reason))
             return Fail<OfficerLeave>(400, "invalid_input", "Cần khoảng nghỉ chưa kết thúc, tối đa 93 ngày và lý do tối đa 2000 ký tự.");
         await using var tx = await db.Database.BeginTransactionAsync(ct); await StaffingLocks.Ward(db, a.WardCode!, ct);
@@ -78,7 +111,9 @@ public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory dir
         if (await db.Leaves.AnyAsync(x => x.OfficerId == a.Id && x.WardCode == a.WardCode && (x.Status == "PENDING" || x.Status == "APPROVED") && x.StartsAtUtc < end && x.EndsAtUtc > start, ct))
             return Fail<OfficerLeave>(409, "overlap", "Đã có yêu cầu nghỉ đang chờ hoặc đã duyệt trùng thời gian.");
         var item = new OfficerLeave { OfficerId = a.Id, WardCode = a.WardCode!, StartsAtUtc = start, EndsAtUtc = end, Reason = input.Reason.Trim(), CreatedAtUtc = clock.GetUtcNow().UtcDateTime };
-        db.Leaves.Add(item); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return WorkflowResult<OfficerLeave>.Ok(item);
+        db.Leaves.Add(item);
+        WorkflowOutboxCapture.Staffing(db,item.WardCode,item.Id,item.OfficerId,"LEAVE_SUBMITTED",true,item.CreatedAtUtc);
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return WorkflowResult<OfficerLeave>.Ok(item);
     }
     public async Task<WorkflowResult<OfficerLeave>> DecideLeave(ReviewActor a, Guid id, LeaveDecisionInput input, CancellationToken ct)
     {
@@ -94,6 +129,7 @@ public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory dir
         db.LeaveDecisions.Add(new OfficerLeaveDecision { LeaveId = item.Id, ActorId = a.Id, Version = item.Version + 1, FromStatus = item.Status,
             ToStatus = input.Decision, Reason = input.Reason.Trim(), CreatedAtUtc = clock.GetUtcNow().UtcDateTime });
         item.Status = input.Decision; item.Version++; item.DecidedBy = a.Id; item.DecidedAtUtc = clock.GetUtcNow().UtcDateTime; item.DecisionReason = input.Reason.Trim();
+        WorkflowOutboxCapture.Staffing(db,item.WardCode,item.Id,item.OfficerId,"LEAVE_DECIDED",!a.IsManager,item.DecidedAtUtc.Value);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return WorkflowResult<OfficerLeave>.Ok(item);
     }
     public async Task<WorkflowResult<DispatchApplication[]>> Impact(ReviewActor a, Guid id, CancellationToken ct)

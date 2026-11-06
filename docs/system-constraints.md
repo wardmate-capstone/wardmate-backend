@@ -1,5 +1,17 @@
 # WardMate — Sổ tay ràng buộc hệ thống
 
+## WF-WS — 05/11/2026, Asia/Saigon
+
+| ID | Phạm vi, quy tắc, lỗi và cách khắc phục |
+|---|---|
+| WF-WS-01 | Workflow sở hữu nháp, revision, leave và audit. Nháp chỉ của cán bộ trong phường đang đăng nhập; Manager cùng phường chỉ đọc bản đã nộp. Nộp yêu cầu revision đã lưu theo metadata hiện tại, cùng khóa phường với quyết định/dispatch. 409 thì tải lại. Unique key theo actor chống tạo/nộp trùng; không gửi UUID cho người khác dùng. |
+| WF-WS-02 | Cập nhật 05/11/2026: WorkSchedule:SharedLeaveTemplate:TemplateVersionId và TemplateSha256 áp dụng cho mọi wardCode hợp lệ, kể cả phường vừa tạo. Nếu chưa khai báo cả hai key chung thì giữ cấu hình cũ WorkSchedule:Wards:{ward}. Nếu chỉ khai báo một key chung hoặc cặp chung sai, không ghép với giá trị cũ; GET current trả 503. RequireWord chung ưu tiên khi khai báo, nếu bỏ trống dùng policy cũ của phường (mặc định false). Quyền truy cập nháp và đơn vẫn kiểm tra chủ sở hữu/phường. Đổi mẫu bằng version mới. Provision mẫu bất biến tại templates/{versionId dạng N}.docx trong container private workflow-leave-documents, cấu hình AzureBlob:ConnectionString bằng secret. Thiếu/sai mẫu, file hoặc Blob ->503; không đánh dấu đã lưu. DOCX ≤10 MiB, tối đa 2.000 entry và 64 MiB giải nén theo metadata ZIP; kiểm tra main part/body, từ chối quan hệ External và macro đã nhận diện. Không suy thời gian nghỉ từ nội dung Word. CleanupOrphans mặc định tắt; khi bật, chỉ xóa object revision không có bản ghi sau 7 ngày, có điều kiện ETag; không xóa template hoặc revision được tham chiếu. |
+| WF-WS-03 | Tháng theo UTC+7, thuộc tháng bắt đầu ca. Preview không giữ chỗ; khi publish kiểm tra lại dưới khóa phường và khóa đọc lịch đóng cửa. Ca nháp không tham gia availability. Fingerprint được tính từ ca chính thức nên sửa qua API cũ cũng làm nháp lỗi thời. 409 phải lấy lại ca/nháp; không tự ghi đè. Manager chỉ công bố ca tương lai hoặc giữ nguyên ca đã bắt đầu. Xác nhận là dấu nhận lịch cá nhân, không tính chấm công. |
+| WF-WS-04 | Đổi ca chỉ đổi giờ của chính cán bộ. Một yêu cầu PENDING/ca; lúc duyệt kiểm tra lại version, trùng ca, nghỉ đã duyệt, đóng cửa và chuyên môn tài khoản theo vai trò/phường. Đổi ca và quyết định cùng transaction. Không tự bàn giao hồ sơ. |
+| WF-WS-05 | Event STAFFING v3 vào workflow_outbox cùng giao dịch. Analytics dedup theo EventId, lọc người nhận qua IAM theo phường, chỉ phát IN_APP, không gửi lý do nghỉ/DOCX. Rollout IAM → Analytics → Workflow để consumer hiểu v3 trước khi producer phát. |
+
+Nguồn: LeaveDraftService, LeaveBlobMaintenance, MonthlyScheduleService, StaffingService, WorkflowOutbox, WorkflowNotificationConsumer, NotificationInboxWorker, IAM NotificationRecipients. Lịch sử 05/11: thêm WF-WS-01..05. Các kiểm tra publisher/consumer local dùng RabbitMQ thật và danh bạ fixture; chưa có nghiệm thu FE hoặc Azure.
+
 ## Bổ sung TASK-31–33 — 21/10/2026 (Asia/Saigon)
 
 Các luật sau đã triển khai trong source local. Chưa xác nhận Azure. Luật cũ vẫn giữ nguyên;
