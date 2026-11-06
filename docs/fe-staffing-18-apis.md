@@ -1,7 +1,5 @@
 # Tài liệu Bàn giao 22 API: Điều phối Hồ sơ, Ca làm, Nghỉ phép & Tham vấn Chuyên môn (Dành cho Frontend)
 
-**Bổ sung ngày 05/11/2026:** 22 thao tác trong tài liệu này vẫn là bộ API gốc. Hợp đồng **25 thao tác mới trong source local** (đơn nghỉ Word, ca bị ảnh hưởng, lịch tháng, xác nhận và đổi ca) ở mục “WF-WS — Lịch cán bộ và đơn nghỉ Word” trong [hướng dẫn API](api-guide.md). Chưa xác nhận bản Azure có 25 thao tác mới. FE đọc capabilities của phường trước khi chọn cách gửi đơn nghỉ.
-
 Tài liệu này bàn giao **18 API điều phối/ca làm/nghỉ phép/tham vấn và 4 API lịch đóng cửa mới**. Giữ tên file để FE không mất liên kết cũ. Bốn API mới đã kiểm tra local Docker và **đã triển khai Azure ngày 2026-11-01**; Swagger/health và yêu cầu đăng nhập đã xác minh, nghiệp vụ bằng token production chưa xác minh. Không dùng trạng thái tài liệu làm bằng chứng bản production đã cập nhật.
 
 Bản bổ sung ngày 2026-11-01: API 19–22 nằm trong `CalendarClosuresController`; không thay thế API 1–18. Hợp đồng chung được duy trì trong `docs/api-guide.md`.

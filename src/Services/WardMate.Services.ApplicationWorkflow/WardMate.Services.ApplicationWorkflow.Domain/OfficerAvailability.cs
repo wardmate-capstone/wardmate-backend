@@ -2,7 +2,6 @@ namespace WardMate.Services.ApplicationWorkflow.Domain;
 
 public sealed class OfficerShift
 {
-    public int Version { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid OfficerId { get; set; }
     public string WardCode { get; set; } = "";

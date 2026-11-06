@@ -23,10 +23,6 @@ public sealed class StaffingController(IStaffingService service) : ReviewControl
     public Task<IActionResult> Leaves([FromQuery] DateTimeOffset from, [FromQuery] DateTimeOffset to, CancellationToken ct) => Safe(() => service.Leaves(Actor, from, to, ct));
     [HttpPost("leaves"), Authorize(Policy = "workflow.leave.request")]
     public Task<IActionResult> RequestLeave(LeaveInput input, CancellationToken ct) => Safe(() => service.RequestLeave(Actor, input, ct));
-    [HttpGet("leaves/{id:guid}"), ProducesResponseType<LeaveDetailView>(200)]
-    public Task<IActionResult> LeaveDetail(Guid id, CancellationToken ct) => Safe(() => service.LeaveDetail(Actor, id, ct));
-    [HttpGet("leaves/{id:guid}/shift-impact"), Authorize(Policy = "workflow.staffing.manage"), ProducesResponseType<LeaveShiftImpact[]>(200)]
-    public Task<IActionResult> ShiftImpact(Guid id, CancellationToken ct) => Safe(() => service.ShiftImpact(Actor, id, ct));
     [HttpPost("leaves/{id:guid}/decision"), Authorize(Policy = "workflow.staffing.decide")]
     public Task<IActionResult> Decide(Guid id, LeaveDecisionInput input, CancellationToken ct) => Safe(() => service.DecideLeave(Actor, id, input, ct));
     [HttpGet("leaves/{id:guid}/impact"), Authorize(Policy = "workflow.staffing.manage")]

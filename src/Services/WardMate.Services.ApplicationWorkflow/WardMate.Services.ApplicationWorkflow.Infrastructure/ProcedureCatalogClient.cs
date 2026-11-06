@@ -1,5 +1,4 @@
 using WardMate.Auditing;
-using WardMate.SharedKernel.Blob;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -48,13 +47,6 @@ public static class WorkflowInfrastructureRegistration
         services.AddScoped<ICalendarClosureService, CalendarClosureService>();
         services.AddScoped<IDispatchService, DispatchService>();
         services.AddScoped<IStaffingService, StaffingService>();
-        services.AddScoped<ILeaveDrafts, LeaveDraftService>();
-        services.AddScoped<IMonthlySchedules, MonthlyScheduleService>();
-        if (!string.IsNullOrWhiteSpace(config["AzureBlob:ConnectionString"]))
-        {
-            services.AddAzureBlobStorage(config);
-            services.AddHostedService<LeaveBlobMaintenance>();
-        }
         services.AddScoped<IConsultationService, ConsultationService>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(config.GetSection("RabbitMq").Get<WardMate.EventBus.RabbitOptions>() ?? new());

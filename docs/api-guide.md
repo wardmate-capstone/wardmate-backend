@@ -5,40 +5,6 @@
 
 # WardMate — Chức năng và hướng dẫn sử dụng API theo Service
 
-## WF-WS — Lịch cán bộ và đơn nghỉ Word (source local 05/11/2026)
-
-25 thao tác mới dưới `/api/v1/staffing`. Dùng JWT IAM. FE lấy phường và vai trò từ phiên đăng nhập. Thành công trả 200; lỗi nghiệp vụ có `code`, `title`, `traceId`. Các thao tác quản lý lịch cần MANAGER và `workflow.staffing.manage`; các thao tác nháp, xác nhận và đề nghị đổi ca cần FRONT_DESK_OFFICER và `workflow.leave.request`. Cả hai nhóm đều cần `workflow.staffing.read`. Giờ gửi kèm offset, ví dụ `2026-12-02T08:00:00+07:00`.
-
-| Method và đường dẫn sau tiền tố | Người gọi, đầu vào, kết quả và cách xử lý |
-|---|---|
-| GET /capabilities | Khi vào màn hình, xem `wordRequired`, `templateConfigured`, `maxDocxBytes`. configured chỉ xác nhận cấu hình ID/hash. Nếu tải mẫu trả 503 hãy kiểm tra object, hash và quyền storage. |
-| GET /leave-templates/current | Cán bộ lấy `versionId,sha256` của mẫu dùng chung. Phường mới có wardCode từ IAM tự dùng cùng mẫu. Thiếu cấu hình hợp lệ trả 503. |
-| GET /leave-templates/{id}/docx | Cán bộ mở bản mẫu đang áp dụng. Trả DOCX binary; nếu version cũ trả 404 thì tải lại thông tin mẫu. |
-| POST /leave-drafts | Cán bộ gửi JSON `{startsAt,endsAt,reason,templateVersionId}` và header `Idempotency-Key` là UUID. Nhận `id,version,metadataVersion,documentRevisionId` và bản sao riêng của mẫu. Mất response thì gửi lại cùng key/body. |
-| GET /leave-drafts | Danh sách nháp cá nhân chưa nộp; `page=1&pageSize=20`, tối đa 100 dòng/trang; trả items/page/pageSize/total. |
-| GET /leave-drafts/{id} | Chủ đơn đọc metadata/version trước khi sửa. Nháp khác người/phường trả 404. |
-| PATCH /leave-drafts/{id} | JSON `{startsAt,endsAt,reason,expectedVersion}`; trả version và metadataVersion mới. Phải lưu lại Word trước khi nộp. 409 thì mở lại nháp. |
-| DELETE /leave-drafts/{id}?expectedVersion=… | Chủ đơn xóa nháp chưa nộp bằng version hiện tại. Trả thông tin nháp đã xử lý. Không cho xóa bản đã nộp. |
-| GET /leave-drafts/{id}/docx | Chủ đơn lấy binary riêng cho editor, tải cùng metadata trước khi chỉnh sửa. |
-| PUT /leave-drafts/{id}/docx | Multipart `file,expectedVersion,metadataVersion`. Trả revision và version mới. 413 quá 10 MiB, 415 DOCX không hợp lệ, 409 nháp đã thay đổi. Giữ nội dung trên editor khi lưu lỗi. |
-| POST /leave-drafts/{id}/submit | JSON `{expectedVersion,documentRevisionId,metadataVersion}` và header `Idempotency-Key`. Trả `leaveId,status=PENDING,version,submittedAtUtc`. Bản sao mẫu chưa chỉnh sửa hoặc metadata cũ trả 409. Dùng cùng key/body để lấy lại biên nhận sau mất kết nối. |
-| GET /leaves/{id} | Chủ đơn hoặc Manager cùng phường đọc `leave,hasSubmittedDocx,submittedRevisionId,sha256`. Dùng leaveId, không dùng draftId. Đơn cũ có hasSubmittedDocx=false. |
-| GET /leaves/{id}/submitted-docx | Chủ đơn hoặc Manager đọc đúng binary đã nộp. Có thể so SHA-256 với detail. Không hiển thị nút tải cho đơn cũ không có Word. |
-| GET /leaves/{id}/shift-impact | Manager xem các ca chưa hủy và phần thời gian giao với kỳ nghỉ, trả mảng rỗng nếu không giao. API /impact vẫn trả các hồ sơ cán bộ đang giữ. |
-| GET /schedules/{month} | Dùng ngày đầu tháng như 2026-12-01. Manager đọc ca chính thức, draft, nghỉ đã duyệt, ngày đóng cửa, xác nhận và baseFingerprint; cán bộ chỉ xem lịch của mình. |
-| GET /week-pattern | Manager đọc version và entries của mẫu tuần. Phiên bản 0 nếu phường chưa lưu. |
-| PUT /week-pattern | Manager gửi `{expectedVersion,entries:[{day,start,end,officerId}]}`; day theo .NET DayOfWeek (0 Chủ nhật), start/end là giờ địa phương. Tối đa 200 dòng. 409 thì tải lại. |
-| GET /schedules/{month}/preview | Manager xem trước ca từ mẫu tuần; thêm `copyFrom=2026-11-01` để sao chép theo ngày trong tháng. Trả slots, closures, conflicts, baseFingerprint; chưa ghi ca. |
-| PUT /schedules/{month}/draft | Manager gửi `{expectedVersion,baseFingerprint,slots,reason}`; mỗi slot có shiftId, officerId, startsAt, endsAt, shiftVersion. Dùng ID ổn định từ preview hoặc UUID mới khi thêm ca, giữ ID/version ca cũ. Gửi toàn bộ danh sách dự kiến; tối đa 500 ca. Ca cũ bị bỏ khỏi danh sách sẽ được hủy lúc công bố. |
-| POST /schedules/{month}/publish | JSON `{revisionId,expectedVersion,allowClosure,reason}`. Manager kiểm tra preview trước khi gửi. 200 khi cả đợt đã ghi; 409 nếu ca/nghỉ/phiên bản đã đổi, 422 khi cán bộ không đủ điều kiện. |
-| GET /schedules/{month}/history | Manager xem revision PUBLISHED và BASELINE của ca có sẵn lúc migrate. BASELINE có actorId rỗng (UUID toàn 0) vì không phải lần công bố của người dùng. |
-| POST /schedules/{month}/confirm | Cán bộ gửi `{fingerprint}` từ baseFingerprint của **lịch cá nhân**. Trả biên nhận; gửi lại cùng lịch không nhân đôi. 409 thì tải lại. |
-| GET /shift-change-requests | Manager xem trong phường; cán bộ xem của mình; page/pageSize như danh sách nháp. |
-| POST /shift-change-requests | Cán bộ gửi `{shiftId,expectedVersion,startsAt,endsAt,reason}` của ca tương lai. Trả yêu cầu PENDING. Ca cũ còn hiệu lực. |
-| POST /shift-change-requests/{id}/decision | Manager gửi `{decision,reason}`, decision là APPROVED hoặc REJECTED. Duyệt sẽ kiểm tra lại người, ca gốc, nghỉ và ngày đóng cửa; xung đột trả 409, FE đọc lại yêu cầu. |
-
-Cho FE: 401 đăng nhập lại, 403 kiểm tra quyền, 404 kiểm tra đúng ID và phạm vi, 409 tải lại version và giữ nội dung người dùng. Với 503 không thông báo đã lưu/nộp. `POST /leaves` cũ trả 409 `staffing.word_required` khi phường đã bật Word bắt buộc. Quyết định và lịch sử nghỉ dùng API cũ. Thông báo staffing là SYSTEM_ALERT trong ứng dụng, không giả lập đường dẫn đến hồ sơ công dân.
-
 ## Cập nhật backup sau phản hồi FE — 03/11/2026
 
 Áp dụng code local mới, Azure cần deploy và nghiệm thu riêng. Các route/quyền IT_ADMIN giữ nguyên.

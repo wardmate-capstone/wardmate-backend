@@ -21,13 +21,6 @@ public sealed class WorkflowOutbox
 
 public static class WorkflowOutboxCapture
 {
-    public static void Staffing(WorkflowDbContext db,string ward,Guid resourceId,Guid officerId,string status,bool managers,DateTime now)
-    {
-        var id=Guid.NewGuid();
-        var message=new WorkflowEvent(id,3,Guid.Empty,Guid.Empty,null,ward,"","STAFFING",status,now,
-            Staffing:new StaffingNotice(resourceId,officerId,managers));
-        db.Outbox.Add(new WorkflowOutbox {Id=id,CreatedAt=now,NextAttemptAt=now,Payload=JsonSerializer.Serialize(message)});
-    }
     public static void Capture(WorkflowDbContext db)
     {
         db.ChangeTracker.DetectChanges();

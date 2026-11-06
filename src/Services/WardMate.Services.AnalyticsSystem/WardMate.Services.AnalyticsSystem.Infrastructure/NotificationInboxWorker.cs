@@ -65,28 +65,6 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
         {
             var e = JsonSerializer.Deserialize<WorkflowEvent>(row.Payload)!;
             if (!WorkflowNotificationConsumer.Valid(e)) throw new InvalidOperationException("Sự kiện không hợp lệ.");
-            if(e is { Version:3, Kind:"STAFFING", Staffing:{} staffing })
-            {
-                var audience=await scope.ServiceProvider.GetRequiredService<IRecipientContacts>().Find(
-                    staffing.NotifyManagers?[]:[staffing.OfficerId], staffing.NotifyManagers?e.WardCode:null,ct,staffing.NotifyManagers);
-                foreach(var recipient in audience.DistinctBy(x=>x.UserId).Where(x=>x.WardCode==e.WardCode &&
-                    (staffing.NotifyManagers ? x.IsStaffingManager : x.UserId==staffing.OfficerId && x.IsStaffingOfficer)))
-                {
-                    var notification=new Notification {Id=Guid.NewGuid(),SourceEventId=e.EventId,RecipientUserId=recipient.UserId,
-                        RecipientWardCode=e.WardCode,Type="SYSTEM_ALERT",Title="Cập nhật lịch và nghỉ phép",
-                        Content=e.Status switch {
-                            "LEAVE_SUBMITTED"=>"Có đơn nghỉ mới cần xem xét.",
-                            "LEAVE_DECIDED"=>"Trạng thái đơn nghỉ đã thay đổi.",
-                            "SHIFT_CHANGE_REQUESTED"=>"Có đề nghị đổi giờ ca cần xem xét.",
-                            "SHIFT_CHANGE_DECIDED"=>"Đề nghị đổi giờ ca đã có kết quả.",
-                            _=>"Lịch trực của bạn đã thay đổi."
-                        }, CreatedAt=e.OccurredAt};
-                    db.Notifications.Add(notification);
-                    db.Deliveries.Add(new() {NotificationId=notification.Id});
-                }
-                row.State="Processed";row.ErrorCode=null;
-                await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);return true;
-            }
             var assignment = e.Kind == "APPLICATION_ASSIGNED";
             var contacts = await scope.ServiceProvider.GetRequiredService<IRecipientContacts>().Find(
                 assignment ? AssignmentLookup(e)

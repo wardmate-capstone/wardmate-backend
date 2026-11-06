@@ -11,12 +11,6 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
     // Staffing tables (local feature)
     public DbSet<OfficerShift> Shifts => Set<OfficerShift>();
     public DbSet<OfficerLeave> Leaves => Set<OfficerLeave>();
-    public DbSet<LeaveDraft> LeaveDrafts => Set<LeaveDraft>();
-    public DbSet<LeaveDocumentRevision> LeaveRevisions => Set<LeaveDocumentRevision>();
-    public DbSet<ScheduleRevision> ScheduleRevisions => Set<ScheduleRevision>();
-    public DbSet<WeekPattern> WeekPatterns => Set<WeekPattern>();
-    public DbSet<OfficerScheduleReceipt> ScheduleReceipts => Set<OfficerScheduleReceipt>();
-    public DbSet<ShiftChangeRequest> ShiftChanges => Set<ShiftChangeRequest>();
     public DbSet<OfficerLeaveDecision> LeaveDecisions => Set<OfficerLeaveDecision>();
     public DbSet<ApplicationConsultation> Consultations => Set<ApplicationConsultation>();
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -33,43 +27,6 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        var draft = b.Entity<LeaveDraft>();
-        var log=b.Entity<LeaveDraftAudit>();
-        log.ToTable("officer_leave_draft_audit");
-        log.HasIndex(x=>new {x.DraftId,x.Version}).IsUnique();
-        log.HasOne<LeaveDraft>().WithMany().HasForeignKey(x=>x.DraftId).OnDelete(DeleteBehavior.Restrict);
-        var schedule = b.Entity<ScheduleRevision>();
-        schedule.ToTable("ward_schedule_revisions");
-        schedule.HasKey(x=>x.Id);
-        schedule.HasIndex(x=>new { x.WardCode,x.Month }).IsUnique().HasFilter("status = 'DRAFT'");
-        schedule.Property(x=>x.SlotsJson).HasColumnType("jsonb");
-        var week=b.Entity<WeekPattern>();
-        week.ToTable("ward_week_patterns");
-        week.HasKey(x=>x.WardCode);
-        week.Property(x=>x.EntriesJson).HasColumnType("jsonb");
-        var receipt=b.Entity<OfficerScheduleReceipt>();
-        receipt.ToTable("officer_schedule_receipts");
-        receipt.HasIndex(x=>new { x.WardCode,x.Month,x.OfficerId,x.Fingerprint }).IsUnique();
-        var change=b.Entity<ShiftChangeRequest>();
-        change.ToTable("officer_shift_change_requests");
-        change.HasOne<OfficerShift>().WithMany().HasForeignKey(x=>x.ShiftId).OnDelete(DeleteBehavior.Restrict);
-        change.HasIndex(x=>x.ShiftId).IsUnique().HasFilter("status = 'PENDING'");
-        draft.ToTable("officer_leave_drafts");
-        draft.HasKey(x => x.Id);
-        draft.Property(x => x.Reason).HasMaxLength(2000);
-        draft.Property(x => x.Version).IsConcurrencyToken();
-        draft.HasIndex(x => new { x.OfficerId, x.CreationKey }).IsUnique();
-        draft.HasIndex(x => new { x.OfficerId, x.SubmissionKey }).IsUnique();
-        draft.HasIndex(x => new { x.WardCode, x.OfficerId, x.UpdatedAtUtc });
-        draft.HasIndex(x => x.SubmittedLeaveId).IsUnique();
-        draft.HasOne<OfficerLeave>().WithMany().HasForeignKey(x => x.SubmittedLeaveId).OnDelete(DeleteBehavior.Restrict);
-        var rev = b.Entity<LeaveDocumentRevision>();
-        rev.ToTable("officer_leave_document_revisions");
-        rev.HasKey(x => x.Id);
-        rev.HasAlternateKey(x => new { x.DraftId, x.Id });
-        rev.HasOne<LeaveDraft>().WithMany().HasForeignKey(x => x.DraftId).OnDelete(DeleteBehavior.Restrict);
-        draft.HasOne<LeaveDocumentRevision>().WithMany().HasForeignKey(x => new { x.Id, x.CurrentRevisionId })
-            .HasPrincipalKey(x => new { x.DraftId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         var o = b.Entity<WorkflowOutbox>();
         o.ToTable("workflow_outbox"); o.HasKey(x => x.Id);
         o.Property(x => x.Payload).HasColumnType("jsonb"); o.Property(x => x.LastError).HasMaxLength(100);
