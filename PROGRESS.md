@@ -3,6 +3,18 @@
 
 # WardMate — Nhật ký phát triển
 
+## HOTFIX / Azure ProcedureCatalog: Bổ sung DocumentForm__BaseUrl & Deploy Image mới (06/11/2026 09:43 UTC+7)
+
+- **Hiện tượng:** FE gọi `GET /api/v1/procedure-manager/document-forms?page=1&pageSize=50` nhận lỗi `503 Service Unavailable` (`document_form.unavailable`).
+- **Nguyên nhân:** 
+  1. Thiếu biến môi trường `DocumentForm__BaseUrl` trên Container App `wardmate-procedure-catalog`, dẫn đến code fallback về `http://localhost:5004/api/v1/form-templates...` và bị lỗi kết nối 503.
+  2. Trên môi trường ACA Express (Consumption), khi chỉ cập nhật biến môi trường, pod cũ từ 08:58 sáng (`wardmate-procedure-catalog--latest-ff5b4412...`) vẫn tiếp tục chạy và không tự nạp biến mới.
+- **Hành động khắc phục:**
+  1. Bổ sung `DocumentForm__BaseUrl=https://wardmate-documentform.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/`.
+  2. Build ACR image mới: `acrwardmate2026.azurecr.io/wardmate-procedure-catalog:catalog-20261106-01` (Run ID: `ce18`, digest: `sha256:f9e31aa62d9d7e4e0647f55a7472687b17aa7bb8e119bacb75f4255186bf381e`).
+  3. Deploy image tag mới lên `wardmate-procedure-catalog`, hủy thành công pod cũ và khởi tạo replica mới (`wardmate-procedure-catalog--latest-3a972d00...`, created 09:42:28 UTC+7).
+  4. Nghiệm thu: `/health/ready` trả về `200 Healthy`, API đã trỏ chính xác sang `DocumentForm` service.
+
 ## WF-WS — Azure Deploy: Shared Leave Template + 47 APIs (05/11/2026 23:56 UTC+7)
 
 ### Image & Build
