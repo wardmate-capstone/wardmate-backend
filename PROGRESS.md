@@ -3,6 +3,19 @@
 
 # WardMate — Nhật ký phát triển
 
+## HOTFIX / Azure ProcedureCatalog: Chuyển tiếp Authorization Bearer sang DocumentForm (06/11/2026 09:50 UTC+7)
+
+- **Hiện tượng:** Swagger gọi `GET /api/v1/procedure-manager/document-forms?page=1&pageSize=50` trả `503 document_form.unavailable` (traceId: `0HNPRLUDI9VAI:00000006`).
+- **Nguyên nhân:** 
+  1. `DocumentFormsClient` gửi request HTTP GET sang `DocumentForm` service (`https://.../api/v1/form-templates`) mà **không chuyển tiếp header `Authorization: Bearer <token>`** của người gọi.
+  2. Endpoint `/api/v1/form-templates` trên `DocumentForm` có thuộc tính `[Authorize(Policy = "DocumentUser")]` nên từ chối với mã `401 Unauthorized`.
+  3. `DocumentFormsClient` thấy response không thành công nên trả về `503 document_form.unavailable`.
+- **Hành động khắc phục:**
+  1. Đăng ký `services.AddHttpContextAccessor()` trong `WardMate.Services.ProcedureCatalog.Infrastructure.DependencyInjection`.
+  2. Cập nhật `DocumentFormsClient` nhận `IHttpContextAccessor` và nạp header `Authorization` của caller vào outgoing request.
+  3. Release build toàn solution: 0 errors, 0 warnings.
+  4. Chuẩn bị push branch `kha` và build/deploy image mới `catalog-20261106-02`.
+
 ## HOTFIX / Azure ProcedureCatalog: Bổ sung DocumentForm__BaseUrl & Deploy Image mới (06/11/2026 09:43 UTC+7)
 
 - **Hiện tượng:** FE gọi `GET /api/v1/procedure-manager/document-forms?page=1&pageSize=50` nhận lỗi `503 Service Unavailable` (`document_form.unavailable`).
