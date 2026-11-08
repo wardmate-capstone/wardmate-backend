@@ -4608,3 +4608,29 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - `docs(sql): add workflow applicant name backfill script`
 - `docs: document display name snapshots and single-role rbac`
 - `docs: record fe name display requests in progress`
+
+---
+
+## AZURE-ROLLOUT-1108 — Deploy thành công 4 service IAM, Workflow, Analytics, AIOCR — 2026-11-09 01:40 (UTC+07)
+
+- **Trạng thái Git:** 18 commits đã push lên nhánh `origin/kha` (HEAD: `75068fc`). Chưa merge/push lên `main` hay `deploy`.
+- **Database Migrations đã áp dụng:**
+  1. `docs/sql/workflow-calendar-closures.sql` & `docs/sql/workflow-display-name-snapshots.sql` trên Workflow DB (10 cột snapshot tên: phân công, tham vấn, lịch đóng cửa).
+  2. `docs/sql/analytics-feedback-display-snapshots.sql` trên Analytics DB (3 cột snapshot: application_code, applicant_name, procedure_title).
+- **Azure Container Apps Deployment:**
+  - `wardmate-iam`: image `acrwardmate2026.azurecr.io/wardmate-iam:iam-20261108-01` (Run ID: `ce1a`, digest `sha256:14305271b...`).
+  - `wardmate-application-workflow`: image tag `workflow-20261108-01`.
+  - `wardmate-analytics-system`: image tag `analytics-20261108-01`.
+  - `wardmate-aiocr`: image tag `aiocr-20261108-01` (vá BE-04 prompt và đếm biểu mẫu; vá BE-06 KnowledgeBase AddRange chunks).
+- **Nghiệm thu sức khỏe (Health Verification):**
+  - Trực tiếp `analytics-system` `/health/ready` trả `200 Healthy` (3/3: notifications-database, analytics-database, rabbitmq).
+  - Cả 6 service qua Gateway `/api/{service}/health/ready` đều trả `200 Healthy`:
+    - `iam`: 200
+    - `procedure-catalog`: 200
+    - `application-workflow`: 200
+    - `document-form`: 200
+    - `ai-ocr`: 200
+    - `analytics-system`: 200
+  - Unauthenticated probe qua Gateway: `GET /api/v1/admin/users` trả về `401 Unauthorized` (`iam.unauthorized`).
+- **Kế hoạch tiếp theo:** FE có thể bắt đầu tích hợp các trường hiển thị họ tên thay cho GUID, dùng API đổi role nguyên tử `PUT /api/v1/rbac/users/{userId}/role`, và test lại các ca kiểm thử KB-04 (#17) và KB-05 (#5, #7).
+
