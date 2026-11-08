@@ -32,5 +32,8 @@ public static class RbacErrors
     public static readonly Error AssignedRole = new("iam.role_in_use", "Vai trò đang được gán cho người dùng. Hãy thu hồi trước khi xóa.", ErrorKind.Conflict);
     public static readonly Error LastAdmin = new("iam.last_admin", "Phải duy trì ít nhất một IT_ADMIN đang hoạt động.", ErrorKind.Conflict);
     public static readonly Error AdminPermission = new("iam.admin_permission_protected", "Không thể thu hồi quyền quản trị hệ thống của IT_ADMIN.", ErrorKind.Conflict);
+    public static readonly Error AdminRoleProtected = new("iam.admin_role_protected", "Không gán vai trò IT_ADMIN qua phân quyền nhân sự.", ErrorKind.Conflict);
+    public static readonly Error SingleRoleRequired = new("iam.single_role_required", "Mỗi tài khoản chỉ có một vai trò. Dùng chức năng đổi vai trò để thay vai trò hiện tại.", ErrorKind.Conflict);
+    public static readonly Error SelfRoleChange = new("iam.self_role_change", "Không thể tự đổi vai trò của chính mình.", ErrorKind.Conflict);
     public static readonly Error Duplicate = new("iam.rbac_conflict", "Tên vai trò hoặc liên kết phân quyền đã tồn tại.", ErrorKind.Conflict);
 }

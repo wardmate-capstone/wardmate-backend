@@ -13,3 +13,5 @@ public sealed record UpdateRoleCommand(Guid ActorId, int RoleId, RoleInput Input
 public sealed record DeleteRoleCommand(Guid ActorId, int RoleId) : IRequest<Result<bool>>;
 public sealed record SetRolePermissionCommand(Guid ActorId, int RoleId, int PermissionId, bool Grant) : IRequest<Result<bool>>;
 public sealed record SetUserRoleCommand(Guid ActorId, Guid UserId, int RoleId, bool Grant) : IRequest<Result<bool>>;
+public sealed record ReplaceUserRoleInput(int RoleId);
+public sealed record ReplaceUserRoleCommand(Guid ActorId, Guid UserId, int RoleId) : IRequest<Result<RoleDto>>;

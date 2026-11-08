@@ -9,7 +9,8 @@ namespace WardMate.Services.IAM.Application.Rbac;
 
 public sealed class RbacCommandHandlers(IRbacStore store, IManagementScope scope) : IRequestHandler<CreateRoleCommand, Result<RoleDto>>,
     IRequestHandler<UpdateRoleCommand, Result<RoleDto>>, IRequestHandler<DeleteRoleCommand, Result<bool>>,
-    IRequestHandler<SetRolePermissionCommand, Result<bool>>, IRequestHandler<SetUserRoleCommand, Result<bool>>
+    IRequestHandler<SetRolePermissionCommand, Result<bool>>, IRequestHandler<SetUserRoleCommand, Result<bool>>,
+    IRequestHandler<ReplaceUserRoleCommand, Result<RoleDto>>
 {
     private Task<Result<T>> Run<T>(Guid actor, Func<Task<Result<T>>> operation, CancellationToken ct) =>
         store.Exclusive(async () => await store.IsAdministrator(actor, ct)
@@ -74,6 +75,12 @@ public sealed class RbacCommandHandlers(IRbacStore store, IManagementScope scope
             return Result<bool>.Failure(RbacErrors.Forbidden);
         if (!await store.UserExists(request.UserId, ct)) return Result<bool>.Failure(RbacErrors.UserNotFound);
         var link = await store.FindAssignment(request.UserId, request.RoleId, ct);
+        if (request.Grant && link is null)
+        {
+            // IT_ADMIN is never granted through staff role management; each account holds exactly one role.
+            if (role.RoleName == RoleNames.ItAdmin) return Result<bool>.Failure(RbacErrors.AdminRoleProtected);
+            if ((await store.UserRoles(request.UserId, ct)).Length > 0) return Result<bool>.Failure(RbacErrors.SingleRoleRequired);
+        }
         if (!request.Grant && link is not null && role.RoleName == RoleNames.ItAdmin && await store.IsLastActiveAdministrator(request.UserId, ct))
             return Result<bool>.Failure(RbacErrors.LastAdmin);
         if (request.Grant && link is null) store.AddAssignment(new UserRole { UserId = request.UserId, RoleId = request.RoleId });
@@ -81,6 +88,32 @@ public sealed class RbacCommandHandlers(IRbacStore store, IManagementScope scope
         else return Result<bool>.Success(true);
         store.Audit(request.ActorId, request.Grant ? "role.assigned" : "role.revoked", request.UserId, request.RoleId, null, "{}");
         return Result<bool>.Success(true);
+    }, ct);
+
+    public Task<Result<RoleDto>> Handle(ReplaceUserRoleCommand request, CancellationToken ct) => store.Exclusive(async () =>
+    {
+        var role = await store.FindRole(request.RoleId, ct);
+        if (role is null) return Result<RoleDto>.Failure(RbacErrors.RoleNotFound);
+        if (!await store.IsAdministrator(request.ActorId, ct)
+            && (role.RoleName != RoleNames.FrontDeskOfficer || !await scope.CanAssignFrontDesk(request.ActorId, request.UserId, ct)))
+            return Result<RoleDto>.Failure(RbacErrors.Forbidden);
+        if (!await store.UserExists(request.UserId, ct)) return Result<RoleDto>.Failure(RbacErrors.UserNotFound);
+        if (request.ActorId == request.UserId) return Result<RoleDto>.Failure(RbacErrors.SelfRoleChange);
+        if (role.RoleName == RoleNames.ItAdmin) return Result<RoleDto>.Failure(RbacErrors.AdminRoleProtected);
+        var current = await store.UserRoles(request.UserId, ct);
+        if (current.Length == 1 && current[0].Id == role.Id) return Result<RoleDto>.Success(current[0]);
+        if (current.Any(x => x.RoleName == RoleNames.ItAdmin) && await store.IsLastActiveAdministrator(request.UserId, ct))
+            return Result<RoleDto>.Failure(RbacErrors.LastAdmin);
+        // Revoke every other role and grant the new one under the same RBAC lock and transaction.
+        foreach (var old in current.Where(x => x.Id != role.Id))
+        {
+            var link = await store.FindAssignment(request.UserId, old.Id, ct);
+            if (link is not null) store.DeleteAssignment(link);
+        }
+        if (current.All(x => x.Id != role.Id)) store.AddAssignment(new UserRole { UserId = request.UserId, RoleId = role.Id });
+        store.Audit(request.ActorId, "role.replaced", request.UserId, role.Id, null,
+            JsonSerializer.Serialize(new { previousRoles = current.Select(x => x.RoleName).ToArray(), newRole = role.RoleName }));
+        return Result<RoleDto>.Success(RoleDto.From(role));
     }, ct);
 
     private static string? Description(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

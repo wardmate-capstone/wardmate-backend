@@ -106,6 +106,15 @@ public sealed class RbacController(ISender sender) : ControllerBase
         return result.IsSuccess ? NoContent() : result.ToProblem(HttpContext);
     }
 
+    /// <summary>Đổi vai trò duy nhất của tài khoản: thu hồi vai trò cũ và gán vai trò mới trong cùng giao dịch.</summary>
+    [Authorize(Policy = AccountManagementRequirement.Policy), Authorize(Policy = "iam.accounts.manage")]
+    [HttpPut("users/{userId:guid}/role"), ProducesResponseType<RoleDto>(200)]
+    public async Task<IActionResult> ReplaceRole(Guid userId, ReplaceUserRoleInput input, CancellationToken ct)
+    {
+        var result = await sender.Send(new ReplaceUserRoleCommand(ActorId, userId, input.RoleId), ct);
+        return result.IsSuccess ? Ok(result.Value) : result.ToProblem(HttpContext);
+    }
+
     [Authorize(Policy = AccountManagementRequirement.Policy), Authorize(Policy = "iam.accounts.manage")]
     [HttpDelete("users/{userId:guid}/roles/{roleId:int}"), ProducesResponseType(204)]
     public async Task<IActionResult> RevokeRole(Guid userId, int roleId, CancellationToken ct)

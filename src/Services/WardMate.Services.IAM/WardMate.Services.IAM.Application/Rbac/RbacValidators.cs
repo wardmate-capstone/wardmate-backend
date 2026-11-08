@@ -55,6 +55,15 @@ public sealed class SetUserRoleValidator : AbstractValidator<SetUserRoleCommand>
         RuleFor(x => x.RoleId).GreaterThan(0).WithMessage("Mã vai trò phải lớn hơn 0.");
     }
 }
+public sealed class ReplaceUserRoleValidator : AbstractValidator<ReplaceUserRoleCommand>
+{
+    public ReplaceUserRoleValidator()
+    {
+        RuleFor(x => x.ActorId).NotEmpty().WithMessage("Mã người thực hiện không hợp lệ.");
+        RuleFor(x => x.UserId).NotEmpty().WithMessage("Mã người dùng không hợp lệ.");
+        RuleFor(x => x.RoleId).GreaterThan(0).WithMessage("Mã vai trò phải lớn hơn 0.");
+    }
+}
 public sealed class ListRolesValidator : AbstractValidator<ListRolesQuery>
 {
     public ListRolesValidator()
