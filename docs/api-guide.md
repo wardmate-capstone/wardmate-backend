@@ -924,6 +924,8 @@ dùng API 24 để gán quyền và API 27 để gán người.
 
 **Kết quả:** Nhận 204; API 26 có role vừa thêm. Không tự gỡ các role cũ.
 
+**Từ 08/11/2026 (FE-REQ BE-C):** mỗi tài khoản chỉ có **một** vai trò. Nếu tài khoản đã có vai trò khác → 409 `iam.single_role_required`; dùng API 27b để đổi vai trò. Gán `IT_ADMIN` qua API này → 409 `iam.admin_role_protected`.
+
 **Trường hợp sai và cách xử lý:**
 
 - Người/role không tồn tại → 404.
@@ -935,6 +937,25 @@ Manager không được gán IT_ADMIN, MANAGER hoặc role khác. Chỉ cấp/g�
 cho tài khoản cùng phường chưa có role đặc quyền; vượt phạm vi trả 403. Sau khi gỡ role,
 người đó không còn xuất hiện trong danh sách Front Desk của Manager. Admin có thể đổi
 phường; Manager không tự chuyển người sang phường mình.
+
+#### API 27b — Đổi vai trò của tài khoản (thay vai trò duy nhất)
+
+`PUT /api/v1/rbac/users/{userId}/role` — body `{"roleId": 3}`
+
+**Quyền / Header:** như API 27: RBAC Admin, hoặc Manager chỉ đổi sang FRONT_DESK_OFFICER cho tài khoản cùng phường.
+
+**Mục đích:** Ví dụ chuyển một cán bộ từ FRONT_DESK_OFFICER sang MANAGER, hoặc chuyển công dân thành cán bộ, trong **một** lệnh.
+
+**Cách dùng:** Lấy `userId` và `roleId` (API 14), gọi PUT với body. BE thu hồi mọi vai trò cũ và gán vai trò mới trong cùng giao dịch, ghi audit `role.replaced` kèm danh sách vai trò cũ và vai trò mới. Người được đổi phải lấy token mới (refresh hoặc đăng nhập lại).
+
+**Kết quả:** 200 RoleDto của vai trò mới. Đã đúng vai trò đó → 200, không đổi gì.
+
+**Trường hợp sai và cách xử lý:**
+
+- 409 `iam.admin_role_protected`: không đổi sang IT_ADMIN qua luồng nhân sự. Tài khoản IT_ADMIN mới chỉ tạo bằng thao tác vận hành (SQL/seed) do chủ dự án duyệt.
+- 409 `iam.self_role_change`: không tự đổi vai trò của chính mình.
+- 409 `iam.last_admin`: không đổi IT_ADMIN cuối cùng đang hoạt động sang vai trò khác.
+- 403: Manager đổi sang vai trò khác FRONT_DESK_OFFICER hoặc ngoài phường; 404: người/vai trò không tồn tại; 400: `roleId` ≤ 0.
 
 #### API 28 — Gỡ vai trò khỏi tài khoản
 
@@ -2952,7 +2973,7 @@ Lọc sang phường khác trả danh sách rỗng; phạm vi áp dụng trướ
 
 **Quyền:** IT_ADMIN có `iam.accounts.read`. Manager không dùng API này.
 
-**Cách gọi:** không body; query `search` tìm chuỗi trong họ tên, email hoặc CCCD,
+**Cách gọi:** không body; query `search` tìm chuỗi trong username, họ tên, email hoặc CCCD (từ 08/11; bỏ ký tự `@` ở đầu, `@frontdesk` = `frontdesk`),
 `role=FRONT_DESK_OFFICER`, `page`, `pageSize`; có thể thêm wardCode/assignedCategory.
 Search không phân biệt hoa thường; `%` và `_` được hiểu là ký tự tìm kiếm, không là wildcard.
 
@@ -4919,4 +4940,21 @@ POST backups/{id}/verify chỉ thành công sau tải Blob, so kích thước/SH
 Không dùng file local làm fallback. Thiếu storage/verifier trả 503; thiếu file 404;
 size/checksum/archive sai 400. FE không tự retry POST; đọc lại bản ghi sau lỗi.
 Verified chỉ là kiểm tra archive, không đồng nghĩa restore drill đã đạt.
+
+## Cập nhật 08/11/2026 — Hiển thị tên thay cho mã ID (FE-REQ BE-A → BE-E)
+
+Nguồn: yêu cầu FE ngày 06–07/11. Tất cả trường mới là **snapshot họ tên** lưu tại thời điểm thao tác, cho phép null; dữ liệu cũ trả `null` và FE tiếp tục hiện mã rút gọn. Chỉ trả họ tên, không trả email/số điện thoại/CCCD. Không mở thêm quyền đọc danh bạ cho Front Desk.
+
+| Mã | API | Thay đổi | Ghi chú cho FE |
+|---|---|---|---|
+| BE-B | `GET /api/v1/admin/users`, `GET /api/v1/manager/officers` | `search` tìm thêm theo **username**; ký tự `@` ở đầu được bỏ | Ký tự `%`, `_`, `\` vẫn được hiểu là chữ, không phải wildcard |
+| BE-C | `PUT /api/v1/rbac/users/{userId}/roles/{roleId}`, mới `PUT /api/v1/rbac/users/{userId}/role` | Mỗi tài khoản một vai trò; không gán IT_ADMIN qua luồng nhân sự | Xem API 27 và 27b. Tài khoản cũ đang có nhiều vai trò giữ nguyên cho đến khi được đổi bằng API 27b |
+| BE-A | Chi tiết hồ sơ của cán bộ/Manager (`assignmentHistory[]`), `GET /api/v1/manager/applications/{id}/assignments`, response của `POST /api/v1/manager/applications/{id}/assignments` | Thêm `fromOfficerName`, `toOfficerName`, `actorName` | Áp dụng cho CLAIM, RELEASE, ASSIGN, TRANSFER ghi từ 08/11. Công dân vẫn nhận `assignmentHistory: null` |
+| BE-D | `GET /api/v1/analytics/feedback`, `GET/POST /api/v1/citizen/feedback/{applicationId}` | FeedbackDto thêm `applicationCode`, `procedureTitle`, `applicantName` | Lấy từ hồ sơ của chính công dân lúc đánh giá. Phản hồi cũ trả null; FE có thể tự tra chi tiết hồ sơ như hiện tại |
+| BE-E | `GET /api/v1/staffing/consultations`, `GET /api/v1/applications/{id}/consultations` và các API tạo/trả lời/đóng tham vấn | Thêm `applicationCode`, `specialistName`, `requestedByName`, `closedByName` | Lưu khi Manager tạo và khi đóng tham vấn |
+| BE-E | `GET/POST /api/v1/staffing/closures`, `POST /api/v1/staffing/closures/national`, `POST /api/v1/staffing/closures/{id}/cancel` | ClosureDto thêm `wardName`, `createdByName`, `cancelledByName` | `wardName` null với ngày lễ toàn quốc; nếu IAM không trả được danh sách phường lúc khai báo thì `wardName` null, việc khai báo vẫn thành công |
+
+**Hồ sơ cũ thiếu tên người nộp (BE-D):** từ 29/10 Workflow đã lưu `applicantName` khi nộp/nộp lại cho mọi vai trò, lấy họ tên từ hồ sơ cá nhân IAM. Hồ sơ nộp trước đó được điền bù bằng `docs/sql/workflow-applicant-name-backfill.sql` (vận hành chạy 2 bước: IAM rồi Workflow). Công dân chưa có hồ sơ cá nhân vẫn có `applicantName = null`.
+
+**Triển khai:** Workflow cần `docs/sql/workflow-display-name-snapshots.sql` (10 cột) **trước** khi deploy image mới; Analytics cần `docs/sql/analytics-feedback-display-snapshots.sql` (3 cột). IAM không có migration. Deploy lại IAM, Workflow, Analytics.
 

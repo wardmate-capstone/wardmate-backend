@@ -181,7 +181,7 @@ IAM Infrastructure `Security/JwtOptions.cs`, Workflow API `WorkflowAccessMiddlew
 
 ### IAM-05 — Danh sách và lĩnh vực phụ trách
 
-- Tìm kiếm user hỗ trợ các trường theo API directory; Search tối đa 255,
+- Tìm kiếm user hỗ trợ các trường theo API directory (username, email, họ tên, CCCD; từ 08/11 có username và bỏ `@` ở đầu từ khóa); Search tối đa 255,
   Role/WardCode tối đa 50; AssignedCategory nếu có phải lớn hơn 0.
 - Gán danh mục nhận mảng không null, tối đa 100 ID dương và không trùng.
 - Bộ lọc phường không mở rộng quyền của Manager sang phường khác.
@@ -195,6 +195,9 @@ IAM Infrastructure `Security/JwtOptions.cs`, Workflow API `WorkflowAccessMiddlew
 - RoleId/PermissionId phải dương; user/actor ID không được rỗng ở command tương ứng.
 - Không đổi tên hoặc xóa năm role hệ thống. Role tùy chỉnh đã gán cho user không được xóa.
 - Không thu hồi `iam.manage` khỏi IT_ADMIN. Không gỡ IT_ADMIN cuối cùng đang hoạt động.
+- **IAM-06a (08/11/2026):** mỗi tài khoản chỉ có một vai trò. Gán thêm vai trò cho tài khoản đã có vai trò khác → 409 `iam.single_role_required`; đổi vai trò dùng `PUT /api/v1/rbac/users/{userId}/role` (thu hồi và gán trong cùng giao dịch, audit `role.replaced`). Không tự đổi vai trò của chính mình → 409 `iam.self_role_change`; không đổi IT_ADMIN cuối cùng → 409 `iam.last_admin`.
+- **IAM-06b (08/11/2026):** không gán IT_ADMIN qua API gán/đổi vai trò → 409 `iam.admin_role_protected`. Tài khoản IT_ADMIN mới chỉ tạo bằng thao tác vận hành (SQL/seed) được chủ dự án duyệt.
+- Giới hạn: quy tắc một vai trò chỉ chặn ở API RBAC; tài khoản cũ đã có nhiều vai trò giữ nguyên đến khi được đổi; các luồng tạo tài khoản (đăng ký, tạo Manager/PM/Front Desk) vốn chỉ gán một vai trò.
 - Không tạo liên kết role/permission trùng; cấp lại hoặc thu hồi liên kết đã ở đúng
   trạng thái được xử lý idempotent. Thay đổi RBAC có audit.
 - Danh sách role/audit: page 1..1.000.000, pageSize 1..100.
@@ -1219,3 +1222,13 @@ Retention days phải dương. RestoreTestedAtUtc không tự được gán khi 
 Lịch sử cập nhật 2026-11-03: bổ sung giới hạn, lock, recovery, kiểm tra Docker local; Azure chưa nghiệm thu.
 Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 
+## NAME-SNAP-01 — Snapshot họ tên để hiển thị (2026-11-08)
+
+- Phạm vi: lịch sử phân công hồ sơ (`application_assignment_history`: `from_officer_name`, `to_officer_name`, `actor_name`), tham vấn (`application_consultations`: `application_code`, `specialist_name`, `requested_by_name`, `closed_by_name`), ngày đóng cửa (`calendar_closures`: `ward_name`, `created_by_name`, `cancelled_by_name`), đánh giá (`citizen_feedback`: `ApplicationCode`, `ProcedureTitle`, `ApplicantName`).
+- Điều kiện: lưu tại thời điểm thao tác, lấy từ IAM access context (`officer_name`), danh bạ cán bộ của Manager, danh sách phường công khai của IAM, hoặc hồ sơ của chính công dân. Không đọc DB chéo service. Tối đa 255 ký tự (mã hồ sơ 50, tên thủ tục 500).
+- Chỉ lưu họ tên, không lưu email, số điện thoại, CCCD. Không mở quyền danh bạ (`iam.accounts.read`) cho Front Desk.
+- Snapshot không cập nhật khi người dùng đổi tên sau đó. Dữ liệu trước 08/11 để null.
+- Lấy tên phường thất bại không chặn việc khai báo ngày đóng cửa (`wardName` null).
+- Điền bù `applications.applicant_name` cho hồ sơ cũ: `docs/sql/workflow-applicant-name-backfill.sql`, vận hành chạy hai bước (IAM → Workflow), chỉ cập nhật dòng còn null.
+- Nguồn: Workflow `AssignmentRequests.cs`, `ReviewHandlers.cs`, `DispatchService.cs`, `ConsultationService.cs`, `CalendarClosureService.cs`, `WorkflowDirectory.cs`, migration `20261108142645_DisplayNameSnapshots`; Analytics `AnalyticsService.cs`, migration `20261108142818_FeedbackDisplaySnapshots`.
+- Lịch sử: 2026-11-08 thêm NAME-SNAP-01, IAM-06a, IAM-06b và mở rộng IAM-05 theo yêu cầu FE (BE-A → BE-E). Build local pass; chưa chạy với DB thật, chưa deploy.
