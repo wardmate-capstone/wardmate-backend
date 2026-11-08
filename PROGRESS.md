@@ -4517,3 +4517,94 @@ docs(constraints): record backup fail-closed rules; docs(progress): record backu
 - Đối chiếu code khi viết: `PUT /procedure-manager/procedures/{id}` ghi đè cả `checklistSchema` và `formDefinitions` (`ProcedureInput.ApplyTo`) nên FE-07 phải gửi đủ object.
 - Chỉ tài liệu; không đổi code/API; không build; không chạy Git.
 - Commit gợi ý: `docs: add frontend handoff for 2026-11-05`; `docs: record fe handoff 1105 in progress and claude handoff`.
+
+## UI-TEST-RUN-1107 + BE-06 — Test KB-05 (Knowledge Base) và sửa lỗi chia đoạn lại — 2026-11-07 (UTC+07)
+
+- Test trên Azure bằng `test_pm`: KB-05 được 11/13 Đ, 1 L (bước 7), 1 UI (bước 13, FE chưa có màn thống kê → FE-10). Bước 11, 12 nhận 503 `knowledge.embedding_disabled` là đúng thiết kế (RAG tắt).
+- Sửa tài liệu test: kỳ vọng bước 9, 11, 12 ghi 409/202 sai so với code; code thật trả 200 (bước 9) và 503 `knowledge.embedding_disabled` (bước 11, 12).
+- **BE-06 (lỗi BE):** `POST /api/v1/ai/knowledge/documents/{id}/rechunk` trả 503 `knowledge.database_unavailable`.
+  - Nguyên nhân: `Replace` gán đoạn mới (khóa `Guid.NewGuid()` sẵn từ khi khởi tạo) vào tài liệu đang được EF theo dõi. EF coi đó là dòng cũ, chạy UPDATE 0 dòng → `DbUpdateConcurrencyException` → bị đổi thành 503.
+  - Cùng lỗi ở `PUT /documents/{id}` khi có `content` và ở đồng bộ lại một thủ tục đã thay đổi (kết quả UPDATED).
+  - Sửa `src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/Knowledge/KnowledgeBaseService.cs`: `db.KnowledgeChunks.AddRange(doc.Chunks)` sau khi xóa đoạn cũ trong `Mutate` và ở nhánh UPDATED của `SyncProcedure`.
+  - Không đổi API, DB, migration hay cấu hình.
+- Build: `dotnet build WardMate.sln -c Release -warnaserror -m:1` → 0 lỗi. Chưa chạy với DB thật (chưa deploy).
+- Tài liệu: `docs/ui-test-scenarios.md` (KQ KB-05, tổng hợp, FE-10, BE-06), `docs/fe-handoff-2026-11-05.md` (KB-05, FE-10, test lại BE-06), `docs/CLAUDE_HANDOFF.md`.
+- Bước tiếp theo: Anti deploy AIOCR (gồm BE-04 và BE-06) theo runbook; test lại KB-04 #17, KB-05 #5 (sửa nội dung), #7. Sau đó KB-06 (cần FE-01).
+- Commit gợi ý: `fix(aiocr): insert rebuilt knowledge chunks instead of updating`; tài liệu đi theo các commit docs đã liệt kê (ui-test-scenarios, fe-handoff, CLAUDE_HANDOFF, PROGRESS).
+
+## UI-TEST-RUN-1108 — Test KB-16 (Thông báo) không qua luồng chính — 2026-11-08 (UTC+07)
+
+- Chủ dự án tạm hoãn các KB luồng chính. KB-16 được test bằng thông báo tạo qua SQL trên DB Analytics (`notifications` + `notification_deliveries` trạng thái `Pending`); worker Azure xử lý như thông báo thật.
+- Kết quả: 9/11 Đ, 2 B, 0 lỗi code.
+  - Đạt: hub `/hubs/notifications`, `GetNotifications`, `GetUnreadCount`, realtime `ReceiveNotification`/`UpdateUnreadCount`, `MarkRead`, phạm vi phường (`recipient_ward_code`), danh sách/lọc/chi tiết/audit delivery, không còn nút đối soát SMS.
+  - Bước 7 và 10a bị chặn: delivery EMAIL thành `Blocked`, gửi lại trả 409. Đây là cấu hình (`ExternalNotificationSender` trả `Blocked` khi `Email:Enabled` tắt hoặc thiếu Host/Username/Password/From; replay EMAIL khi tắt → 409 `notifications.channel_disabled`).
+- Sửa tài liệu test: KB-16 bước 8 (danh sách mặc định chỉ có trạng thái cần xử lý), bước 10 (chỉ gửi lại `Dead`/`Blocked`, trả 202, sai trạng thái → `notifications.invalid_state`).
+- Dữ liệu test để lại trên DB Analytics: các thông báo tiêu đề `KB16*` và delivery của chúng — dọn sau đợt test.
+- File đổi: `docs/ui-test-scenarios.md`, `docs/CLAUDE_HANDOFF.md`, `PROGRESS.md`. Không đổi code; không build; không chạy Git.
+- Bước tiếp theo: Anti bật Email trên Analytics Azure (mật khẩu ứng dụng Gmail mới, lưu secret), rồi test lại KB-16 #7, #10a.
+- Commit: các file tài liệu đi theo các commit docs đã liệt kê.
+
+## UI-TEST-SCENARIOS-1108 — Cập nhật kịch bản test theo API mới nhất — 2026-11-08 (UTC+07)
+
+- Quét lại route của toàn bộ controller rồi so với ma trận mục 4 của `docs/ui-test-scenarios.md`. Không API nào bị xóa. Có 40 API công khai mới chưa có kịch bản và 1 API nội bộ mới:
+  - Workflow (đợt WF-WS, BE lịch làm việc): 25 API — `staffing/capabilities`, mẫu và nháp đơn nghỉ Word (`leave-templates`, `leave-drafts`), `leaves/{id}`, `leaves/{id}/submitted-docx`, `leaves/{id}/shift-impact`, lịch tháng (`schedules/{month}` + preview/draft/publish/history/confirm), `week-pattern`, `shift-change-requests`.
+  - Analytics (TASK-34/35): 15 API — `system/settings`, `system/audit-logs`, `system/audit-events`, `system/health/*`, `system/backups/*`.
+  - Nội bộ: `POST /internal/audit/events`.
+- Cập nhật tài liệu: KB-13 viết lại thành 27 bước (ca lẻ, mẫu tuần, lịch tháng, xác nhận lịch, đổi ca, đơn nghỉ Word, duyệt nghỉ); thêm KB-20 Quản trị hệ thống (11 bước); ma trận 224 API công khai (Workflow 70, Analytics 29) + 6 nội bộ; dòng tổng hợp mục 6; giới hạn mục 7. Đối chiếu lại bằng script: 224/224 route công khai có trong ma trận.
+- Giới hạn: kỳ vọng KB-13 lấy từ `docs/Lịch làm việc Front Desk và đơn nghỉ Word.md`; chỉ đối chiếu route và một phần mã lỗi với code. Chưa xác nhận các API mới đã deploy lên Azure.
+- File đổi: `docs/ui-test-scenarios.md`, `docs/CLAUDE_HANDOFF.md`, `PROGRESS.md`. Không đổi code; không build; không chạy Git.
+- Commit: đi theo các commit docs đã liệt kê cho ba file này.
+
+## FE-REQ-1108 — Hiển thị tên thay cho mã ID (yêu cầu FE BE-A → BE-E) — 2026-11-08 (UTC+07)
+
+Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên thay cho mã ID…"). Chủ dự án yêu cầu làm tất cả. Mã BE-A…E là của FE, khác mã BE-01…06 trong `docs/ui-test-scenarios.md`.
+
+**BE-B — IAM tìm theo username**
+- `GET /api/v1/admin/users`, `GET /api/v1/manager/officers`: `search` tìm thêm `username`; bỏ `@` ở đầu từ khóa; escape `%`, `_`, `\` giữ nguyên.
+- File: `src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/Persistence/UserDirectory.cs`.
+
+**BE-C — IAM mỗi người một vai trò, bảo vệ IT_ADMIN**
+- `PUT /api/v1/rbac/users/{userId}/roles/{roleId}`: tài khoản đã có vai trò khác → 409 `iam.single_role_required`; gán IT_ADMIN → 409 `iam.admin_role_protected`.
+- API mới `PUT /api/v1/rbac/users/{userId}/role`, body `{"roleId": n}` → 200 RoleDto. Thu hồi mọi vai trò cũ và gán vai trò mới trong cùng giao dịch, dưới RBAC lock; audit `role.replaced` kèm `previousRoles` và `newRole`. Lỗi: 409 `iam.admin_role_protected`, 409 `iam.self_role_change`, 409 `iam.last_admin`, 403 (Manager chỉ đổi sang FRONT_DESK_OFFICER cùng phường), 404, 400.
+- Quyết định đã chọn (chủ dự án giao "làm tất cả", chưa chọn riêng): dùng API đổi vai trò nguyên tử; IT_ADMIN mới chỉ tạo bằng SQL/seed. Nếu cần luồng tạo admin trên giao diện thì làm task riêng.
+- File: IAM `Application/Rbac/RbacModels.cs`, `RbacRequests.cs`, `RbacValidators.cs`, `RbacCommandHandlers.cs`; `API/Controllers/RbacController.cs`.
+
+**BE-A — Workflow tên trong lịch sử phân công**
+- `assignmentHistory[]` (chi tiết hồ sơ của cán bộ/Manager) thêm `fromOfficerName`, `toOfficerName`, `actorName`. `GET /api/v1/manager/applications/{id}/assignments` và response giao/chuyển thêm cùng 3 trường. Áp dụng cho cả CLAIM, RELEASE, ASSIGN, TRANSFER (`AssignmentHandlers.Record` nhận thêm `actorName`).
+- File: Workflow Domain `ApplicationAssignmentHistory.cs`, `AssignmentRecord.cs`; Application `AssignmentRequests.cs`, `ReviewHandlers.cs`, `WorkflowContracts.cs`; Infrastructure `DispatchService.cs`, `WorkflowDbContext.cs`.
+
+**BE-E — Workflow tên trong tham vấn và lịch đóng cửa** (thuộc phần lịch làm việc của Codex; làm theo yêu cầu của chủ dự án)
+- Tham vấn (entity trả thẳng) thêm `applicationCode`, `specialistName`, `requestedByName`, `closedByName`.
+- ClosureDto thêm `wardName`, `createdByName`, `cancelledByName`. `CalendarActor` nhận thêm `FullName` từ claim `officer_name`. Tên phường lấy từ `GET /api/v1/wards` của IAM (`IWorkflowDirectory.WardName`), gọi ngoài transaction; lỗi thì để null, không chặn khai báo.
+- File: Domain `ApplicationConsultation.cs`, `CalendarClosure.cs`; Application `CalendarContracts.cs`, `IWorkflowDirectory.cs`; Infrastructure `ConsultationService.cs`, `CalendarClosureService.cs`, `WorkflowDirectory.cs`, `WorkflowDbContext.cs`; API `CalendarClosuresController.cs`.
+
+**BE-D — Analytics phản hồi kèm thông tin hồ sơ + điền bù tên**
+- FeedbackDto thêm `applicationCode`, `procedureTitle`, `applicantName`, lấy từ hồ sơ của chính công dân lúc đánh giá (`FeedbackApplication` đọc thêm 3 trường của ApplicationDto). Phản hồi cũ trả null.
+- Ý 2 của FE (hồ sơ mới luôn có tên) đã đúng từ 29/10: Workflow lấy `officer_name` từ IAM access context cho mọi vai trò khi nộp/nộp lại. Không cần sửa code.
+- Mới `docs/sql/workflow-applicant-name-backfill.sql`: vận hành chạy hai bước (IAM sinh lệnh UPDATE → chạy trong Workflow), chỉ điền dòng `applicant_name` null, chỉ họ tên.
+- File: Analytics Application `AnalyticsContracts.cs`; Domain `AnalyticsModels.cs`; Infrastructure `AnalyticsDbContext.cs`, `AnalyticsService.cs`.
+
+**Migration / SQL**
+- Workflow: `20261108142645_DisplayNameSnapshots` (+ Designer, snapshot), 10 cột nullable. Script idempotent mới `docs/sql/workflow-display-name-snapshots.sql`.
+- Analytics: `Migrations/Analytics/20261108142818_FeedbackDisplaySnapshots` (+ Designer, snapshot), 3 cột nullable. Script idempotent mới `docs/sql/analytics-feedback-display-snapshots.sql`.
+- IAM: không migration.
+
+**Tài liệu:** `docs/api-guide.md` (API 27, API 27b mới, `/admin/users` search, mục mới "Cập nhật 08/11/2026 — Hiển thị tên thay cho mã ID"); `docs/system-constraints.md` (IAM-05 mở rộng, IAM-06a, IAM-06b, NAME-SNAP-01).
+
+**Kiểm tra:** `dotnet build WardMate.sln -c Release -warnaserror -m:1` → 0 lỗi, 0 cảnh báo. Migration sinh ra chỉ chứa các cột dự định. Chưa chạy với DB thật, chưa gọi API, chưa deploy.
+
+**Còn lại / triển khai (Anti):** chạy `workflow-display-name-snapshots.sql` trên DB Workflow và `analytics-feedback-display-snapshots.sql` trên DB Analytics **trước** khi deploy; deploy lại IAM, Workflow, Analytics theo runbook; chạy script điền bù tên nếu chủ dự án đồng ý. FE: thêm trường vào schema, dùng API 27b khi đổi vai trò.
+
+**Commit gợi ý** (mỗi file mới một commit; file có sẵn theo từng chức năng):
+- `feat(iam): search directory users by username`
+- `feat(iam): enforce single role per account and protect it_admin grant`
+- `feat(workflow): snapshot officer names in assignment history`
+- `feat(workflow): snapshot names in consultations and calendar closures`
+- `feat(workflow): add display name snapshots migration` (2 file migration mới + snapshot)
+- `docs(sql): add workflow display name snapshots script`
+- `feat(analytics): snapshot application info in citizen feedback`
+- `feat(analytics): add feedback display snapshots migration`
+- `docs(sql): add analytics feedback display snapshots script`
+- `docs(sql): add workflow applicant name backfill script`
+- `docs: document display name snapshots and single-role rbac`
+- `docs: record fe name display requests in progress`
