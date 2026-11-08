@@ -9,5 +9,9 @@ public sealed class ApplicationAssignmentHistory
     public Guid? ToOfficerId { get; set; }
     public Guid ActorId { get; set; }
     public string? Reason { get; set; }
+    // Display-name snapshots taken when the row is written; null for rows written before 2026-11-08.
+    public string? FromOfficerName { get; set; }
+    public string? ToOfficerName { get; set; }
+    public string? ActorName { get; set; }
     public DateTime CreatedAt { get; set; }
 }

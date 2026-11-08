@@ -84,7 +84,7 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
         }
         var reasonText = $"[{input.ReasonCode}] {input.Reason.Trim()}";
         if (reasonText.Length > 500) reasonText = reasonText[..500];
-        AssignmentHandlers.Record(a, initial ? "ASSIGN" : "TRANSFER", actor.Id, officer.Id, officer.FullName, reasonText, now);
+        AssignmentHandlers.Record(a, initial ? "ASSIGN" : "TRANSFER", actor.Id, actor.FullName, officer.Id, officer.FullName, reasonText, now);
         a.CategoryId = category;
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
 
@@ -96,6 +96,9 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
             FromOfficerId = h.FromOfficerId,
             ToOfficerId = h.ToOfficerId ?? officer.Id,
             ActorId = actor.Id,
+            FromOfficerName = h.FromOfficerName,
+            ToOfficerName = h.ToOfficerName,
+            ActorName = h.ActorName,
             Version = a.AssignmentVersion,
             ReasonCode = input.ReasonCode,
             Reason = input.Reason.Trim(),
@@ -127,6 +130,9 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
                 FromOfficerId = h.FromOfficerId,
                 ToOfficerId = h.ToOfficerId ?? Guid.Empty,
                 ActorId = h.ActorId,
+                FromOfficerName = h.FromOfficerName,
+                ToOfficerName = h.ToOfficerName,
+                ActorName = h.ActorName,
                 Version = i + 1,
                 ReasonCode = reasonCode,
                 Reason = reason,

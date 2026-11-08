@@ -80,6 +80,9 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         assignment.HasKey(x => x.Id);
         assignment.Property(x => x.Action).HasMaxLength(20);
         assignment.Property(x => x.Reason).HasMaxLength(500);
+        assignment.Property(x => x.FromOfficerName).HasMaxLength(255);
+        assignment.Property(x => x.ToOfficerName).HasMaxLength(255);
+        assignment.Property(x => x.ActorName).HasMaxLength(255);
         assignment.HasIndex(x => new { x.ApplicationId, x.CreatedAt });
         assignment.HasIndex(x => new { x.ActorId, x.CreatedAt });
         var a = b.Entity<ApplicationRecord>();
@@ -179,6 +182,9 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         closure.Property(x=>x.WardCode).HasMaxLength(50);
         closure.Property(x=>x.Reason).HasMaxLength(500).IsRequired();
         closure.Property(x=>x.CancellationReason).HasMaxLength(500);
+        closure.Property(x=>x.WardName).HasMaxLength(255);
+        closure.Property(x=>x.CreatedByName).HasMaxLength(255);
+        closure.Property(x=>x.CancelledByName).HasMaxLength(255);
         closure.HasIndex(x=>new { x.WardCode, x.ClosureDate }).IsUnique().HasFilter("cancelled_at_utc IS NULL AND ward_code IS NOT NULL");
         closure.HasIndex(x=>x.ClosureDate).HasDatabaseName("ux_calendar_closures_national").IsUnique().HasFilter("cancelled_at_utc IS NULL AND ward_code IS NULL");
         closure.HasIndex(x=>new { x.ClosureDate, x.Id });
@@ -215,6 +221,10 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         consultation.Property(x => x.Question).HasMaxLength(4000);
         consultation.Property(x => x.Answer).HasMaxLength(4000);
         consultation.Property(x => x.CloseReason).HasMaxLength(4000);
+        consultation.Property(x => x.ApplicationCode).HasMaxLength(50);
+        consultation.Property(x => x.SpecialistName).HasMaxLength(255);
+        consultation.Property(x => x.RequestedByName).HasMaxLength(255);
+        consultation.Property(x => x.ClosedByName).HasMaxLength(255);
         consultation.HasOne<ApplicationRecord>().WithMany().HasForeignKey(x => x.ApplicationId).OnDelete(DeleteBehavior.Restrict);
         consultation.HasIndex(x => new { x.ApplicationId, x.SpecialistId }).IsUnique().HasFilter("status <> 'CLOSED'");
     }

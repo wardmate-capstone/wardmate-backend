@@ -15,10 +15,12 @@ public sealed class AssignmentHandlers(IApplicationReviewStore store, TimeProvid
 {
     private static WorkflowResult<ReviewResultDto> Fail(int status, string code, string text) => WorkflowResult<ReviewResultDto>.Fail(status, "workflow." + code, text);
     public static bool ValidReason(string? reason) => reason?.Trim().Length is >= 5 and <= 500;
-    public static void Record(ApplicationRecord a, string action, Guid actor, Guid? target, string? name, string? reason, DateTime now)
+    public static void Record(ApplicationRecord a, string action, Guid actor, string? actorName, Guid? target, string? name, string? reason, DateTime now)
     {
-        a.AssignmentHistory.Add(new() { ApplicationId = a.Id, Action = action, ActorId = actor,
-            FromOfficerId = a.AssignedOfficerId, ToOfficerId = target, Reason = reason, CreatedAt = now });
+        // Names are snapshots so the current assignee can see who handed over the case without directory access.
+        a.AssignmentHistory.Add(new() { ApplicationId = a.Id, Action = action, ActorId = actor, ActorName = actorName,
+            FromOfficerId = a.AssignedOfficerId, FromOfficerName = a.AssignedOfficerId is null ? null : a.AssignedOfficerName,
+            ToOfficerId = target, ToOfficerName = target is null ? null : name, Reason = reason, CreatedAt = now });
         a.AssignedOfficerId = target; a.AssignedOfficerName = name; a.AssignedAt = target is null ? null : now;
         a.AssignmentVersion++; a.UpdatedAt = now;
     }
@@ -34,7 +36,7 @@ public sealed class AssignmentHandlers(IApplicationReviewStore store, TimeProvid
         var now = clock.GetUtcNow().UtcDateTime;
         a.History.Add(new() { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.Submitted, ChangedBy = r.Actor.Id, CreatedAt = now });
         a.Status = ApplicationStates.Submitted;
-        Record(a, "RELEASE", r.Actor.Id, null, null, r.Input.Reason.Trim(), now);
+        Record(a, "RELEASE", r.Actor.Id, r.Actor.FullName, null, null, r.Input.Reason.Trim(), now);
         return Ok(a);
     }, ct);
     public Task<WorkflowResult<ReviewResultDto>> Handle(ManageAssigneeCommand r, CancellationToken ct) => store.Mutate(r.Id, a =>
@@ -57,7 +59,7 @@ public sealed class AssignmentHandlers(IApplicationReviewStore store, TimeProvid
             a.History.Add(new() { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.UnderReview, ChangedBy = r.Actor.Id, CreatedAt = now });
             a.Status = ApplicationStates.UnderReview;
         }
-        Record(a, initial ? "ASSIGN" : "TRANSFER", r.Actor.Id, r.Target.Id, r.Target.FullName, r.Input.Reason.Trim(), now);
+        Record(a, initial ? "ASSIGN" : "TRANSFER", r.Actor.Id, r.Actor.FullName, r.Target.Id, r.Target.FullName, r.Input.Reason.Trim(), now);
         return Ok(a);
     }, ct);
 }

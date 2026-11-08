@@ -36,7 +36,7 @@ public sealed class ReviewHandlers(IApplicationReviewStore store, TimeProvider c
         if (a.Status != ApplicationStates.Submitted || (a.AssignedOfficerId is not null && a.AssignedOfficerId != r.Actor.Id))
             return Fail(409, "invalid_status", "Hồ sơ không còn chờ tiếp nhận hoặc đã có cán bộ khác thụ lý.");
         if (a.Versions.Count == 0) return Fail(409, "snapshot_missing", "Hồ sơ cũ chưa có snapshot nộp; cần kiểm tra dữ liệu trước khi thụ lý.");
-        AssignmentHandlers.Record(a, "CLAIM", r.Actor.Id, r.Actor.Id, r.Actor.FullName, null, Now);
+        AssignmentHandlers.Record(a, "CLAIM", r.Actor.Id, r.Actor.FullName, r.Actor.Id, r.Actor.FullName, null, Now);
         Transition(a, ApplicationStates.UnderReview, r.Actor.Id, Now);
         return Ok(a);
     }, ct);

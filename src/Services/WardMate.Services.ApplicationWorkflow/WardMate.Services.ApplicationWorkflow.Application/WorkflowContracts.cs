@@ -16,7 +16,8 @@ public sealed record ChecklistDto(Guid Id, string Code, string Title, bool IsReq
     string? FileUrl, string? Note, DateTime CreatedAt, DateTime UpdatedAt, Guid? FormTemplateId = null,
     int SortOrder = 0, string? CaseCode = null, string? SubmissionType = null,
     string? DocumentCopyType = null, int Quantity = 1, string? ConditionNote = null);
-public sealed record AssignmentHistoryDto(Guid Id, string Action, Guid? FromOfficerId, Guid? ToOfficerId, Guid ActorId, string? Reason, DateTime CreatedAt);
+public sealed record AssignmentHistoryDto(Guid Id, string Action, Guid? FromOfficerId, Guid? ToOfficerId, Guid ActorId, string? Reason, DateTime CreatedAt,
+    string? FromOfficerName = null, string? ToOfficerName = null, string? ActorName = null);
 public sealed record HistoryDto(Guid Id, string? FromStatus, string ToStatus, Guid ChangedBy, string? Reason, DateTime CreatedAt);
 public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserId, Guid ProcedureId,
     string ProcedureTitle, string? CaseCode, string Status, JsonElement FormData, DateTime? SubmittedAt,
@@ -45,7 +46,7 @@ public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserI
             x.SortOrder, x.CaseCode, x.SubmissionType, x.DocumentCopyType, x.Quantity, x.ConditionNote)).ToArray(),
         a.History.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new HistoryDto(x.Id,
             x.FromStatus, x.ToStatus, x.ChangedBy, x.Reason, x.CreatedAt)).ToArray(),
-        a.AssignedOfficerId, a.ResubmitCount, a.SubmittedAt is null ? 0 : a.ResubmitCount + 1, a.Notes, a.DocumentsReadyAt, a.WardCode, a.ReceiptNumber, a.ReceivedAt, a.AppointmentDate, a.FirstSubmittedAtUtc, a.DueAtUtc, a.DocumentsReadyAt, a.DeadlineStatus, a.DeadlinePolicyCode, a.DeadlinePolicyVersion, a.DeadlineCalendarCode, a.DeadlineCalendarVersion, a.DeadlinePausedAtUtc, JsonSerializer.Deserialize<DeadlineEvent[]>(a.DeadlineHistory), a.CategoryId, a.CategoryName, a.AssignedOfficerName, a.AssignedAt, a.AssignmentVersion, a.AssignmentHistory.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new AssignmentHistoryDto(x.Id, x.Action, x.FromOfficerId, x.ToOfficerId, x.ActorId, x.Reason, x.CreatedAt)).ToArray(), a.ApplicantName);
+        a.AssignedOfficerId, a.ResubmitCount, a.SubmittedAt is null ? 0 : a.ResubmitCount + 1, a.Notes, a.DocumentsReadyAt, a.WardCode, a.ReceiptNumber, a.ReceivedAt, a.AppointmentDate, a.FirstSubmittedAtUtc, a.DueAtUtc, a.DocumentsReadyAt, a.DeadlineStatus, a.DeadlinePolicyCode, a.DeadlinePolicyVersion, a.DeadlineCalendarCode, a.DeadlineCalendarVersion, a.DeadlinePausedAtUtc, JsonSerializer.Deserialize<DeadlineEvent[]>(a.DeadlineHistory), a.CategoryId, a.CategoryName, a.AssignedOfficerName, a.AssignedAt, a.AssignmentVersion, a.AssignmentHistory.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new AssignmentHistoryDto(x.Id, x.Action, x.FromOfficerId, x.ToOfficerId, x.ActorId, x.Reason, x.CreatedAt, x.FromOfficerName, x.ToOfficerName, x.ActorName)).ToArray(), a.ApplicantName);
 }
 public sealed record ApplicationSummaryDto(Guid Id, string? ApplicationCode, Guid ProcedureId,
     string ProcedureTitle, string Status, DateTime CreatedAt, DateTime? SubmittedAt, string? WardCode = null, Guid? AssignedOfficerId = null, DateTime? FirstSubmittedAtUtc = null, DateTime? DueAtUtc = null, DateTime? DocumentsReadyAtUtc = null, string DeadlineStatus = "UNKNOWN", DateTime? DeadlinePausedAtUtc = null, int? CategoryId = null, string? CategoryName = null, string? AssignedOfficerName = null, DateTime? AssignedAt = null, int ResubmitCount = 0, long AssignmentVersion = 0, string? ApplicantName = null);

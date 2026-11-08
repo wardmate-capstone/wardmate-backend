@@ -12,4 +12,7 @@ public sealed class AssignmentRecord
     public string Reason { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public string Action { get; set; } = string.Empty;
+    public string? FromOfficerName { get; set; }
+    public string? ToOfficerName { get; set; }
+    public string? ActorName { get; set; }
 }
