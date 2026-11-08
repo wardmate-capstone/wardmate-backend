@@ -8,7 +8,8 @@ public sealed record OfficerDay(Guid OfficerId, Guid ProcedureId, string WardCod
     int RevisionRequestedCount, int DurationSampleCount, double TotalProcessingMinutes);
 public sealed record AnalyticsDay(int ContractVersion, DateOnly Date, DateTime GeneratedAtUtc, string TimeZone,
     ProcedureDay[] Procedures, OfficerDay[] Officers);
-public sealed record FeedbackApplication(Guid Id, Guid UserId, Guid ProcedureId, string Status, string? WardCode);
+public sealed record FeedbackApplication(Guid Id, Guid UserId, Guid ProcedureId, string Status, string? WardCode,
+    string? ApplicationCode = null, string? ProcedureTitle = null, string? ApplicantName = null);
 public interface IAnalyticsWorkflowClient
 {
     Task<DeadlineFacts> ReadDeadlines(string ward, AnalyticsQuery query, CancellationToken ct);
@@ -42,7 +43,8 @@ public sealed record OfficerStatistics(Guid OfficerId, long ReadyCount, long Rev
 public sealed record AnalyticsPage<T>(T[] Items, int Page, int PageSize, int TotalCount, Coverage? Coverage = null, DeadlineStatistics? UnassignedDeadlines = null);
 public sealed record CreateFeedback([Range(1, 5)] int Rating,
     [StringLength(2000)] string? Comment);
-public sealed record FeedbackDto(Guid Id, Guid ApplicationId, int Rating, string? Comment, DateTime CreatedAtUtc);
+public sealed record FeedbackDto(Guid Id, Guid ApplicationId, int Rating, string? Comment, DateTime CreatedAtUtc,
+    string? ApplicationCode = null, string? ProcedureTitle = null, string? ApplicantName = null);
 public sealed record FeedbackSummary(int TotalCount, double? AverageRating, double? SatisfactionRate,
     Dictionary<int, int> RatingCounts);
 public interface IAnalyticsService

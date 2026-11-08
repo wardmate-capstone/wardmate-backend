@@ -96,6 +96,9 @@ public sealed class AnalyticsDbContext(DbContextOptions<AnalyticsDbContext> opti
         f.HasIndex(x => new { x.CitizenId, x.ApplicationId });
         f.Property(x => x.WardCode).HasMaxLength(50);
         f.Property(x => x.Comment).HasMaxLength(2000);
+        f.Property(x => x.ApplicationCode).HasMaxLength(50);
+        f.Property(x => x.ProcedureTitle).HasMaxLength(500);
+        f.Property(x => x.ApplicantName).HasMaxLength(255);
     }
 }
 public sealed class AnalyticsDbContextFactory : IDesignTimeDbContextFactory<AnalyticsDbContext>

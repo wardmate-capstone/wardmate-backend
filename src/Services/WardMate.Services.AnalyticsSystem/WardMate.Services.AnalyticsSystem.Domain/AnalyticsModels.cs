@@ -43,4 +43,8 @@ public sealed class CitizenFeedback
     public int Rating { get; set; }
     public string? Comment { get; set; }
     public DateTime CreatedAtUtc { get; set; }
+    // Display snapshots read from the citizen's own application when rating (2026-11-08); null on older rows.
+    public string? ApplicationCode { get; set; }
+    public string? ProcedureTitle { get; set; }
+    public string? ApplicantName { get; set; }
 }

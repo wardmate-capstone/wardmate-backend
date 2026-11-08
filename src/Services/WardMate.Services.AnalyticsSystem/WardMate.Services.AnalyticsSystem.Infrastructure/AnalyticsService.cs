@@ -92,7 +92,8 @@ public sealed class AnalyticsService(AnalyticsDbContext db, IAnalyticsWorkflowCl
             throw new AnalyticsException(503, "feedback.invalid_source", "Hồ sơ thiếu thông tin thủ tục/phường hợp lệ.");
         var row = new CitizenFeedback { ApplicationId = id, CitizenId = citizen, ProcedureId = application.ProcedureId,
             WardCode = application.WardCode, Rating = input.Rating, Comment = string.IsNullOrWhiteSpace(input.Comment) ? null : input.Comment.Trim(),
-            CreatedAtUtc = clock.GetUtcNow().UtcDateTime };
+            CreatedAtUtc = clock.GetUtcNow().UtcDateTime, ApplicationCode = Clip(application.ApplicationCode, 50),
+            ProcedureTitle = Clip(application.ProcedureTitle, 500), ApplicantName = Clip(application.ApplicantName, 255) };
         db.Feedback.Add(row);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
@@ -126,5 +127,8 @@ public sealed class AnalyticsService(AnalyticsDbContext db, IAnalyticsWorkflowCl
             .Skip((q.Page - 1) * q.PageSize).Take(q.PageSize).ToArrayAsync(ct);
         return new(items.Select(Dto).ToArray(), q.Page, q.PageSize, count);
     }
-    private static FeedbackDto Dto(CitizenFeedback f) => new(f.Id, f.ApplicationId, f.Rating, f.Comment, f.CreatedAtUtc);
+    private static FeedbackDto Dto(CitizenFeedback f) => new(f.Id, f.ApplicationId, f.Rating, f.Comment, f.CreatedAtUtc,
+        f.ApplicationCode, f.ProcedureTitle, f.ApplicantName);
+    private static string? Clip(string? value, int max) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim() is var v && v.Length > max ? v[..max] : value.Trim();
 }
