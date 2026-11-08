@@ -21,10 +21,12 @@ public sealed class UserDirectory(IamDbContext db, ManagementScope scope, IRbacS
         if (!string.IsNullOrWhiteSpace(f.WardCode)) { var ward = f.WardCode.Trim().ToUpperInvariant(); q = q.Where(x => x.Ward != null && x.Ward.Code == ward); }
         if (f.AssignedCategory is not null) q = q.Where(x => x.AssignedCategories.Contains(f.AssignedCategory.Value));
         if (!string.IsNullOrWhiteSpace(f.Role)) { var role = f.Role.Trim().ToUpperInvariant(); q = q.Where(x => x.UserRoles.Any(ur => ur.Role.RoleName == role)); }
-        if (!string.IsNullOrWhiteSpace(f.Search))
+        // "@username" is a common way to type a login name; the leading '@' is not part of any stored username.
+        var search = f.Search?.Trim().TrimStart('@').Trim();
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            var pattern = "%" + f.Search.Trim().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
-            q = q.Where(x => EF.Functions.ILike(x.Email, pattern, "\\") || x.Profile != null &&
+            var pattern = "%" + search.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+            q = q.Where(x => EF.Functions.ILike(x.Username, pattern, "\\") || EF.Functions.ILike(x.Email, pattern, "\\") || x.Profile != null &&
                 (EF.Functions.ILike(x.Profile.FullName, pattern, "\\") || x.Profile.IdentityNumber != null && EF.Functions.ILike(x.Profile.IdentityNumber, pattern, "\\")));
         }
         var total = await q.CountAsync(ct);
