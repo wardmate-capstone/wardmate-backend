@@ -130,7 +130,7 @@ public sealed class KnowledgeBaseService(ChatDbContext db, IProcedureCatalogSour
                 // Content follows the catalog, but IsActive stays a manager decision: sync never re-enables a document.
                 doc.Title = title; doc.SourceReference = procedure.ProcedureCode; doc.SourceVersion = version;
                 await db.KnowledgeChunks.Where(x => x.DocumentId == doc.Id).ExecuteDeleteAsync(ct);
-                Replace(doc, content); Touch(doc, actor); outcome = "UPDATED";
+                Replace(doc, content); db.KnowledgeChunks.AddRange(doc.Chunks); Touch(doc, actor); outcome = "UPDATED";
             }
         }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
@@ -218,7 +218,12 @@ public sealed class KnowledgeBaseService(ChatDbContext db, IProcedureCatalogSour
         if (doc.Revision != expectedRevision) Fail(409, "knowledge.revision_conflict", "Tài liệu đã thay đổi. Hãy tải lại trước khi thao tác.");
         change(doc);
         // Chunks are not loaded here, so any chunk present now was produced by Replace: drop the stored set first.
-        if (doc.Chunks.Count > 0) await db.KnowledgeChunks.Where(x => x.DocumentId == doc.Id).ExecuteDeleteAsync(ct);
+        if (doc.Chunks.Count > 0)
+        {
+            await db.KnowledgeChunks.Where(x => x.DocumentId == doc.Id).ExecuteDeleteAsync(ct);
+            // New chunks carry client-generated Guid keys; without an explicit Add EF would treat them as existing rows and UPDATE (0 rows).
+            db.KnowledgeChunks.AddRange(doc.Chunks);
+        }
         else if (clearEmbeddings) await db.KnowledgeChunks.Where(x => x.DocumentId == doc.Id)
             .ExecuteUpdateAsync(u => u.SetProperty(x => x.Embedding, (float[]?)null).SetProperty(x => x.EmbeddingModel, (string?)null).SetProperty(x => x.EmbeddedAt, (DateTime?)null), ct);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
