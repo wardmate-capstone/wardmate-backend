@@ -41,6 +41,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("actor_id");
 
+                    b.Property<string>("ActorName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("actor_name");
+
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid")
                         .HasColumnName("application_id");
@@ -53,6 +58,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("from_officer_id");
 
+                    b.Property<string>("FromOfficerName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("from_officer_name");
+
                     b.Property<string>("Reason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -61,6 +71,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                     b.Property<Guid?>("ToOfficerId")
                         .HasColumnType("uuid")
                         .HasColumnName("to_officer_id");
+
+                    b.Property<string>("ToOfficerName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("to_officer_name");
 
                     b.HasKey("Id")
                         .HasName("pk_application_assignment_history");
@@ -275,6 +290,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("answered_at_utc");
 
+                    b.Property<string>("ApplicationCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("application_code");
+
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid")
                         .HasColumnName("application_id");
@@ -300,6 +320,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("closed_by");
 
+                    b.Property<string>("ClosedByName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("closed_by_name");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
@@ -314,9 +339,19 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("requested_by");
 
+                    b.Property<string>("RequestedByName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("requested_by_name");
+
                     b.Property<Guid>("SpecialistId")
                         .HasColumnType("uuid")
                         .HasColumnName("specialist_id");
+
+                    b.Property<string>("SpecialistName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("specialist_name");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -668,6 +703,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("cancelled_by");
 
+                    b.Property<string>("CancelledByName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("cancelled_by_name");
+
                     b.Property<DateOnly>("ClosureDate")
                         .HasColumnType("date")
                         .HasColumnName("closure_date");
@@ -679,6 +719,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("created_by_name");
 
                     b.Property<DateTime>("EffectiveFromUtc")
                         .HasColumnType("timestamp with time zone")
@@ -694,6 +739,11 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("ward_code");
+
+                    b.Property<string>("WardName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("ward_name");
 
                     b.HasKey("Id")
                         .HasName("pk_calendar_closures");
