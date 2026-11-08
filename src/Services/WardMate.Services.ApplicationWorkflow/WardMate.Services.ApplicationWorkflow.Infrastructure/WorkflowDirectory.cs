@@ -23,6 +23,12 @@ public sealed class WorkflowDirectory(HttpClient http) : IWorkflowDirectory
             ?? throw new HttpRequestException("IAM trả danh sách phường rỗng.");
         return wards.Any(w => w.Code == code);
     }
+    public async Task<string?> WardName(string code, CancellationToken ct)
+    {
+        var wards = await http.GetFromJsonAsync<WardReference[]>("api/v1/wards", ct)
+            ?? throw new HttpRequestException("IAM trả danh sách phường rỗng.");
+        return wards.FirstOrDefault(w => w.Code == code)?.Name;
+    }
     public async Task<OfficerTarget?> Officer(Guid id, string token, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/manager/officers/{id}/assignment-context");
@@ -33,5 +39,5 @@ public sealed class WorkflowDirectory(HttpClient http) : IWorkflowDirectory
         return await response.Content.ReadFromJsonAsync<OfficerTarget>(cancellationToken: ct)
             ?? throw new HttpRequestException("IAM trả cán bộ rỗng.");
     }
-    private sealed record WardReference(string Code);
+    private sealed record WardReference(string Code, string? Name = null);
 }

@@ -13,5 +13,9 @@ public sealed class CalendarClosure
     public Guid? CancelledBy { get; set; }
     public DateTime? CancelledAtUtc { get; set; }
     public string? CancellationReason { get; set; }
+    // Display snapshots (2026-11-08); null on rows created earlier and WardName null for national days.
+    public string? WardName { get; set; }
+    public string? CreatedByName { get; set; }
+    public string? CancelledByName { get; set; }
     public ClosureInterval Interval() => new(EffectiveFromUtc, DateTime.SpecifyKind(ClosureDate.AddDays(1).ToDateTime(TimeOnly.MinValue).AddHours(-7), DateTimeKind.Utc));
 }

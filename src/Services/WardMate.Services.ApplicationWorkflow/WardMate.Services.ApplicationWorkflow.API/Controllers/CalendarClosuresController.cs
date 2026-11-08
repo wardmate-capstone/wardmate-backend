@@ -10,7 +10,7 @@ public sealed class CalendarClosuresController(ICalendarClosureService service) 
     private CalendarActor CalendarUser => new(Guid.Parse(User.FindFirstValue("sub")!),User.FindFirstValue("ward_code"),
         (User.IsInRole("MANAGER") || User.IsInRole("FRONT_DESK_OFFICER")) && User.HasClaim("permissions","workflow.staffing.read"),
         User.IsInRole("MANAGER") && User.HasClaim("permissions","workflow.staffing.manage"),
-        User.IsInRole("IT_ADMIN") && User.HasClaim("permissions","workflow.calendar.manage"));
+        User.IsInRole("IT_ADMIN") && User.HasClaim("permissions","workflow.calendar.manage"), User.FindFirstValue("officer_name"));
     [HttpGet, Authorize(Policy="workflow.calendar.read")]
     public async Task<IActionResult> List([FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken ct) => Respond(await service.List(CalendarUser,from,to,ct));
     [HttpPost, Authorize(Policy="workflow.staffing.manage")]

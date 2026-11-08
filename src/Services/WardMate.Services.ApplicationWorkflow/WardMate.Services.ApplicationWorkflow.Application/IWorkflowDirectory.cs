@@ -5,4 +5,5 @@ public interface IWorkflowDirectory
 {
     Task<WorkflowAccess?> Access(string token, CancellationToken ct);
     Task<OfficerTarget?> Officer(Guid id, string token, CancellationToken ct); Task<bool> WardExists(string code, CancellationToken ct);
+    Task<string?> WardName(string code, CancellationToken ct);
 }

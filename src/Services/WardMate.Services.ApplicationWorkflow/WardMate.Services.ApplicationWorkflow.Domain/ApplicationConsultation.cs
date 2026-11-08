@@ -17,4 +17,9 @@ public sealed class ApplicationConsultation
     public DateTime? ClosedAtUtc { get; set; }
     public Guid? ClosedBy { get; set; }
     public string? CloseReason { get; set; }
+    // Display snapshots (2026-11-08); null on rows created earlier.
+    public string? ApplicationCode { get; set; }
+    public string? SpecialistName { get; set; }
+    public string? RequestedByName { get; set; }
+    public string? ClosedByName { get; set; }
 }

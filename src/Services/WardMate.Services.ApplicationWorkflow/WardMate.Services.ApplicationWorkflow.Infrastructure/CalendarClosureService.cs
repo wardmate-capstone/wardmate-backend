@@ -11,7 +11,7 @@ internal static class CalendarLocks
     public static async Task Load(WorkflowDbContext db, ApplicationRecord a, CancellationToken ct) =>
         a.CalendarClosures = (await db.CalendarClosures.AsNoTracking().Where(x => x.CancelledAtUtc == null && (x.WardCode == null || x.WardCode == a.WardCode)).ToArrayAsync(ct)).Select(x => x.Interval()).ToArray();
 }
-public sealed class CalendarClosureService(WorkflowDbContext db, TimeProvider clock) : ICalendarClosureService
+public sealed class CalendarClosureService(WorkflowDbContext db, IWorkflowDirectory directory, TimeProvider clock) : ICalendarClosureService
 {
     private static WorkflowResult<T> Fail<T>(int status,string code,string text) => WorkflowResult<T>.Fail(status,"staffing."+code,text);
     private static bool Ward(CalendarActor a) => !string.IsNullOrWhiteSpace(a.WardCode);
@@ -28,6 +28,11 @@ public sealed class CalendarClosureService(WorkflowDbContext db, TimeProvider cl
     {
         if (national ? !a.CanManageNational : !a.CanManageWard || !Ward(a)) return Fail<ClosureChange>(403,"forbidden","Không có quyền khai báo lịch trong phạm vi này.");
         if (!Reason(input.Reason)) return Fail<ClosureChange>(400,"reason_required","Cần lý do từ 1 đến 500 ký tự sau khi bỏ khoảng trắng.");
+        // Ward name is a display snapshot only: an IAM hiccup must not block declaring a closure. HTTP stays outside the transaction.
+        string? wardName = null;
+        if (!national)
+            try { wardName = await directory.WardName(a.WardCode!, ct); }
+            catch (Exception e) when (e is HttpRequestException or System.Text.Json.JsonException) { wardName = null; }
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await CalendarLocks.Write(db,ct);
         var now = clock.GetUtcNow().UtcDateTime;
@@ -37,7 +42,7 @@ public sealed class CalendarClosureService(WorkflowDbContext db, TimeProvider cl
         if (await db.CalendarClosures.AnyAsync(x=>x.WardCode==ward && x.ClosureDate==input.Date && x.CancelledAtUtc==null,ct))
             return Fail<ClosureChange>(409,"closure_exists","Đã có ngày đóng cửa đang hiệu lực.");
         var old = await db.CalendarClosures.AsNoTracking().Where(x=>x.CancelledAtUtc==null).ToArrayAsync(ct);
-        var row = new CalendarClosure { WardCode=ward, ClosureDate=input.Date, Reason=input.Reason.Trim(), CreatedBy=a.Id, CreatedAtUtc=now,
+        var row = new CalendarClosure { WardCode=ward, ClosureDate=input.Date, Reason=input.Reason.Trim(), CreatedBy=a.Id, CreatedByName=a.FullName, WardName=wardName, CreatedAtUtc=now,
             EffectiveFromUtc=input.Date==today ? now : DateTime.SpecifyKind(input.Date.ToDateTime(TimeOnly.MinValue).AddHours(-7),DateTimeKind.Utc) };
         db.CalendarClosures.Add(row);
         var count = await Reschedule(a,row,old,old.Append(row).ToArray(),now,false,ct);
@@ -58,7 +63,7 @@ public sealed class CalendarClosureService(WorkflowDbContext db, TimeProvider cl
         if (row.ClosureDate <= DateOnly.FromDateTime(now.AddHours(7))) return Fail<ClosureChange>(409,"closure_started","Chỉ hủy được ngày chưa bắt đầu.");
         var old = await db.CalendarClosures.AsNoTracking().Where(x=>x.CancelledAtUtc==null).ToArrayAsync(ct);
         var count = await Reschedule(a,row,old,old.Where(x=>x.Id!=id).ToArray(),now,true,ct);
-        row.CancelledBy=a.Id; row.CancelledAtUtc=now; row.CancellationReason=input.Reason.Trim();
+        row.CancelledBy=a.Id; row.CancelledByName=a.FullName; row.CancelledAtUtc=now; row.CancellationReason=input.Reason.Trim();
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return WorkflowResult<ClosureChange>.Ok(new(ClosureDto.From(row),count));
     }

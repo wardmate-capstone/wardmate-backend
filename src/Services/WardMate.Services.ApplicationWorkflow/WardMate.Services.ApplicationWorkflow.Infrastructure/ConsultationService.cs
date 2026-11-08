@@ -61,6 +61,7 @@ public sealed class ConsultationService(WorkflowDbContext db, IDispatchDirectory
         if (version is null) return Fail<ApplicationConsultation>(409, "snapshot_missing", "Hồ sơ thiếu phiên bản đã nộp.");
         app.CategoryId = category;
         var item = new ApplicationConsultation { ApplicationId = applicationId, SpecialistId = officer.Id, RequestedBy = actor.Id, ApplicationVersion = version.Value,
+            ApplicationCode = app.ApplicationCode, SpecialistName = officer.FullName, RequestedByName = actor.FullName,
             AssignmentVersion = app.AssignmentVersion, Question = input.Question.Trim(), CreatedAtUtc = clock.GetUtcNow().UtcDateTime };
         db.Consultations.Add(item); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return WorkflowResult<ApplicationConsultation>.Ok(item);
     }
@@ -79,7 +80,7 @@ public sealed class ConsultationService(WorkflowDbContext db, IDispatchDirectory
             return Fail<ApplicationConsultation>(409, "application_changed", "Hồ sơ hoặc phân công đã thay đổi; Manager cần tạo tham vấn mới.");
         if (!close && app.CategoryId is int category && actor.AssignedCategories?.Contains(category) != true)
             return Fail<ApplicationConsultation>(403, "category_mismatch", "Cán bộ không còn phụ trách lĩnh vực này.");
-        if (close) { item.Status = "CLOSED"; item.CloseReason = input.Text.Trim(); item.ClosedAtUtc = clock.GetUtcNow().UtcDateTime; item.ClosedBy = actor.Id; }
+        if (close) { item.Status = "CLOSED"; item.CloseReason = input.Text.Trim(); item.ClosedAtUtc = clock.GetUtcNow().UtcDateTime; item.ClosedBy = actor.Id; item.ClosedByName = actor.FullName; }
         else { item.Status = "ANSWERED"; item.Answer = input.Text.Trim(); item.AnsweredAtUtc = clock.GetUtcNow().UtcDateTime; }
         item.Version++; await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return WorkflowResult<ApplicationConsultation>.Ok(item);
     }
