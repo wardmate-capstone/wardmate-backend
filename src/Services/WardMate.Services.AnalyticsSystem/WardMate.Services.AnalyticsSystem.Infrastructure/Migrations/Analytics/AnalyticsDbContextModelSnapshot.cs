@@ -85,6 +85,14 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations.Analytics
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ApplicantName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ApplicationCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
 
@@ -100,6 +108,10 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations.Analytics
 
                     b.Property<Guid>("ProcedureId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ProcedureTitle")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<int>("Rating")
                         .HasColumnType("integer");
