@@ -15,13 +15,14 @@ Tài liệu này bổ sung cho `docs/fe-handoff-2026-11-01.md`, không thay th�
 | KB-02 | Tài khoản, phiên | 13/15 | Bước 9 là tùy chọn; bước 10 chưa test được |
 | KB-03 | Quản trị IT_ADMIN | 20/24 | 4 API phụ chưa dùng |
 | KB-04 | Procedure Manager | 22/25 | Không liên kết được mẫu đơn; bước 22 không phát sinh |
+| KB-05 | Knowledge Base (07/11) | 11/13 | Bước 7 lỗi BE (đã sửa source); bước 13 chưa có màn thống kê |
 
-Không bước nào lỗi do BE. Các mục dưới đây là việc FE còn thiếu hoặc nên chỉnh.
+Đến KB-04 không bước nào lỗi do BE. KB-05 bước 7 là lỗi BE, đã sửa trong source và đang chờ deploy AIOCR. Các mục dưới đây là việc FE còn thiếu hoặc nên chỉnh.
 
 **Thứ tự làm đề xuất:**
 1. Ưu tiên cao: FE-01, FE-07, FE-05.
 2. Trung bình: FE-02, FE-04, FE-09.
-3. Thấp: FE-03, FE-06, FE-08.
+3. Thấp: FE-03, FE-06, FE-08, FE-10.
 
 **FE-01 phải xong trước khi test KB-06** (công dân nộp hồ sơ).
 
@@ -127,6 +128,11 @@ Các API này không chặn luồng chính. Chỉ cần làm nếu muốn đủ 
 - FE đang bắt chọn biểu mẫu trước khi xuất bản. BE cho phép `formTemplateId = null`, tức là liên kết mẫu sau.
 - **Đề xuất:** cho xuất bản, kèm cảnh báo "Biểu mẫu chưa có file". Bước xác nhận "đã đối soát PDF" (`confirmed: true`) vẫn giữ bắt buộc.
 
+### FE-10: Màn thống kê lượt dùng AI (KB-05 #13)
+- `GET /api/v1/ai/knowledge/usage?from=yyyy-MM-dd&to=yyyy-MM-dd`. Mặc định lấy 7 ngày gần nhất.
+- Dữ liệu tính theo ngày (giờ UTC+07) và theo loại thao tác, kèm hạn mức đang áp dụng.
+- Chỉ PM/ADMIN dùng được. Màn này giúp theo dõi hạn mức Gemini miễn phí.
+
 ## 5. Những điểm FE đã làm đúng, giữ nguyên
 - **Chặn ngay trên giao diện:**
   - KB-02 #1a: mật khẩu yếu.
@@ -157,4 +163,5 @@ Chi tiết ở mục 6.2 của `docs/ui-test-scenarios.md`. Nếu chủ dự án
 - **FE-07:** chạy lại KB-04 #7 và #12 với thủ tục `KB04-KS`.
 - **FE-05:** chạy KB-02 #10.
 - **BE-04:** sau khi Anti deploy AIOCR, chạy lại KB-04 #17 bằng PDF thủ tục đăng ký biến động đất đai. Kỳ vọng đủ 3 biểu mẫu (Mẫu số 25, 01.LPTB, 01.TK-SDDPNN), hoặc có cảnh báo thiếu mẫu.
+- **BE-06:** sau khi Anti deploy AIOCR, chạy lại KB-05 #7 (chia đoạn lại) và #5 (sửa **nội dung** tài liệu FAQ). Kỳ vọng nhận 200, không còn 503 `knowledge.database_unavailable`.
 - Báo kết quả theo mẫu cũ (`1 Đ`, `2 L - …`) để BE ghi vào `docs/ui-test-scenarios.md`.

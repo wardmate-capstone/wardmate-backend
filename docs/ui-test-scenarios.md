@@ -2,9 +2,9 @@
 
 Người viết: Backend (Claude). Người dùng: chủ dự án và FE, để test trên giao diện thật xem chức năng nào đã chạy, chức năng nào lỗi, chức năng nào FE chưa có màn hình.
 
-- Danh sách API lấy trực tiếp từ controller trong source ngày 02/11/2026: **184 API công khai** (IAM 46, ProcedureCatalog 28, Workflow 45, DocumentForm 31, AIOCR 20, Analytics 14), cộng 1 SignalR hub và 5 API nội bộ.
+- Danh sách API lấy trực tiếp từ controller trong source ngày 02/11/2026: **224 API công khai** (IAM 46, ProcedureCatalog 28, Workflow 70, DocumentForm 31, AIOCR 20, Analytics 29), cộng 1 SignalR hub và 6 API nội bộ. Cập nhật 08/11: thêm 25 API lịch làm/đơn nghỉ Word (KB-13) và 15 API quản trị hệ thống (KB-20).
 - Hợp đồng chi tiết (body, DTO, mã lỗi) xem `docs/api-guide.md`; quy tắc nghiệp vụ xem `docs/system-constraints.md`.
-- Mục 4 là **ma trận phủ API**: mỗi API đều thuộc ít nhất một kịch bản. Chạy hết KB-00 → KB-19 là đã gọi qua toàn bộ API.
+- Mục 4 là **ma trận phủ API**: mỗi API đều thuộc ít nhất một kịch bản. Chạy hết KB-00 → KB-20 là đã gọi qua toàn bộ API.
 - Tài liệu này không chứa URL nội bộ, mật khẩu hay token. Tài khoản test do chủ dự án cấp riêng.
 
 ---
@@ -180,19 +180,19 @@ ADMIN, PM, MGR-A, OFF-A1, OFF-A2 và OFF-B1 có thể được **tạo ngay tron
 
 | # | Bước | API | Kỳ vọng | KQ |
 |---|---|---|---|---|
-| 1 | Danh sách tài liệu tri thức | `GET /api/v1/ai/knowledge/documents` | 200 | |
-| 2 | Thêm tài liệu văn bản / FAQ | `POST /api/v1/ai/knowledge/documents` | 201 | |
-| 3 | Thêm tài liệu PDF có lớp chữ | `POST /api/v1/ai/knowledge/documents/pdf` | 201; PDF scan không có chữ → 422 | |
-| 4 | Xem chi tiết và các đoạn đã chia | `GET /api/v1/ai/knowledge/documents/{id}`, `GET /api/v1/ai/knowledge/documents/{id}/chunks` | 200 | |
-| 5 | Sửa tài liệu | `PUT /api/v1/ai/knowledge/documents/{id}` | 200 | |
-| 6 | Tắt rồi bật tài liệu | `POST /api/v1/ai/knowledge/documents/{id}/activation` | 200 | |
-| 7 | Chia đoạn lại | `POST /api/v1/ai/knowledge/documents/{id}/rechunk` | 200 | |
-| 8 | Đồng bộ 1 thủ tục từ Catalog vào tri thức | `POST /api/v1/ai/knowledge/procedures/{procedureId}/sync` | 200 | |
-| 9 | Đồng bộ toàn bộ thủ tục | `POST /api/v1/ai/knowledge/procedures/sync` | 200/202 | |
-| 10 | Xem trạng thái chỉ mục vector | `GET /api/v1/ai/knowledge/index-status` | 200 (có thể báo đang tắt) | |
-| 11 | Yêu cầu tạo lại vector cho 1 tài liệu | `POST /api/v1/ai/knowledge/documents/{id}/reindex` | 200/202 hoặc 409 khi embedding tắt | |
-| 12 | Thử tìm kiếm tri thức | `POST /api/v1/ai/knowledge/search` | 200 (rỗng nếu chưa có vector) hoặc 409 khi tắt | |
-| 13 | Xem thống kê lượt dùng AI theo ngày | `GET /api/v1/ai/knowledge/usage` | 200, có số lượt theo operation | |
+| 1 | Danh sách tài liệu tri thức | `GET /api/v1/ai/knowledge/documents` | 200 | Đ (07/11) |
+| 2 | Thêm tài liệu văn bản / FAQ | `POST /api/v1/ai/knowledge/documents` | 201 | Đ (07/11). 2a FAQ 201 Đ; 2b nội dung/tiêu đề quá ngắn: FE chặn — chấp nhận (BE vẫn trả 400) |
+| 3 | Thêm tài liệu PDF có lớp chữ | `POST /api/v1/ai/knowledge/documents/pdf` | 201; PDF scan không có chữ → 422 | Đ (07/11). 3a PDF có chữ 201; 3b PDF scan 422 `knowledge.pdf_no_text`; 3c sai loại/quá lớn bị chặn; 3d PDF không sửa được nội dung |
+| 4 | Xem chi tiết và các đoạn đã chia | `GET /api/v1/ai/knowledge/documents/{id}`, `GET /api/v1/ai/knowledge/documents/{id}/chunks` | 200 | Đ (07/11) |
+| 5 | Sửa tài liệu | `PUT /api/v1/ai/knowledge/documents/{id}` | 200 | Đ (07/11) |
+| 6 | Tắt rồi bật tài liệu | `POST /api/v1/ai/knowledge/documents/{id}/activation` | 200 | Đ (07/11) |
+| 7 | Chia đoạn lại | `POST /api/v1/ai/knowledge/documents/{id}/rechunk` | 200 | L (07/11) → **đã sửa source (BE-06)**. Trả 503 `knowledge.database_unavailable`: đoạn mới có sẵn khóa Guid nên EF cập nhật thay vì thêm mới. Chờ deploy AIOCR rồi test lại bước 7 (và bước 5 khi sửa **nội dung**) |
+| 8 | Đồng bộ 1 thủ tục từ Catalog vào tri thức | `POST /api/v1/ai/knowledge/procedures/{procedureId}/sync` | 200 | Đ (07/11). 8a đồng bộ `KB04-KS` 200; 8b sửa tài liệu PROCEDURE → 409 `knowledge.source_not_editable` |
+| 9 | Đồng bộ toàn bộ thủ tục | `POST /api/v1/ai/knowledge/procedures/sync` | 200 | Đ (07/11) |
+| 10 | Xem trạng thái chỉ mục vector | `GET /api/v1/ai/knowledge/index-status` | 200 (có thể báo đang tắt) | Đ (07/11) |
+| 11 | Yêu cầu tạo lại vector cho 1 tài liệu | `POST /api/v1/ai/knowledge/documents/{id}/reindex` | 200; embedding tắt → 503 `knowledge.embedding_disabled` | Đ (07/11). FE hiện "Vector đang tắt" thay vì gọi API — chấp nhận (embedding tắt theo quyết định chủ dự án) |
+| 12 | Thử tìm kiếm tri thức | `POST /api/v1/ai/knowledge/search` | 200 (rỗng nếu chưa có vector); embedding tắt → 503 `knowledge.embedding_disabled` | Đ (07/11). 503 `knowledge.embedding_disabled` đúng khi embedding tắt |
+| 13 | Xem thống kê lượt dùng AI theo ngày | `GET /api/v1/ai/knowledge/usage` | 200, có số lượt theo operation | UI (07/11). FE chưa có màn thống kê lượt dùng AI (FE-10) |
 
 ### KB-06 — Công dân tạo và nộp hồ sơ (luồng chính)
 
@@ -310,20 +310,41 @@ Dùng `{appD}`.
 | 5 | OFF-A2 | Mở lại `{appD}` sau khi bị chuyển | `GET /api/v1/officer/applications/{id}` | 404 hoặc chỉ đọc; không thao tác được | |
 | 6 | MGR-A | Thử bấm "Xác nhận sẵn sàng" trên `{appD}` | `POST /api/v1/officer/applications/{id}/confirm-readiness` | 403 (Manager chỉ giám sát) | |
 
-### KB-13 — Lịch làm và nghỉ phép
+### KB-13 — Lịch làm, lịch tháng, đổi ca và đơn nghỉ Word
+
+**Cập nhật 08/11:** viết lại theo đợt WF-WS (25 API mới, xem `docs/Lịch làm việc Front Desk và đơn nghỉ Word.md`). Trước khi test, gọi bước 1. Nếu nhận **404**, bản Workflow trên Azure chưa có đợt WF-WS: ghi **B** cho các bước dùng API mới.
+
+`{month}` là ngày đầu tháng, ví dụ `2026-12-01`. Giờ gửi kèm offset `+07:00`. Các bước 1–26 không cần hồ sơ (không thuộc luồng chính).
 
 | # | Vai trò | Bước | API | Kỳ vọng | KQ |
 |---|---|---|---|---|---|
-| 1 | OFF-A1 | Gửi đơn xin nghỉ 1 ngày tuần sau | `POST /api/v1/staffing/leaves` | 200 `PENDING`; trùng khoảng nghỉ → 409 | |
-| 2 | OFF-A1 | Xem đơn nghỉ của tôi | `GET /api/v1/staffing/leaves` | 200, chỉ thấy của mình | |
-| 3 | MGR-A | Xem đơn nghỉ của phường | `GET /api/v1/staffing/leaves` | 200, thấy cả phường | |
-| 4 | MGR-A | Xem hồ sơ bị ảnh hưởng nếu duyệt | `GET /api/v1/staffing/leaves/{id}/impact` | 200 danh sách hồ sơ OFF-A1 đang giữ | |
-| 5 | MGR-A | Duyệt đơn nghỉ | `POST /api/v1/staffing/leaves/{id}/decision` | 200 `APPROVED`; `expectedVersion` cũ → 409 | |
-| 6 | OFF-A1 | Tự duyệt đơn của mình | `POST /api/v1/staffing/leaves/{id}/decision` | 403 (cán bộ chỉ được hủy đơn PENDING của mình) | |
-| 7 | OFF-A1 | Gửi đơn nghỉ thứ hai rồi tự hủy | `POST /api/v1/staffing/leaves`, `POST /api/v1/staffing/leaves/{id}/decision` (`CANCELLED`) | 200 | |
-| 8 | MGR-A | Xem lịch sử quyết định của đơn | `GET /api/v1/staffing/leaves/{id}/history` | 200 | |
-| 9 | MGR-A | Tạo 1 ca thử rồi hủy (có lý do) | `POST /api/v1/staffing/shifts`, `POST /api/v1/staffing/shifts/{id}/cancel` | 200 | |
-| 10 | MGR-A | Thử giao hồ sơ cho cán bộ đang nghỉ đã duyệt (trong khoảng nghỉ) | `GET /api/v1/manager/applications/{id}/assignment-candidates` | Cán bộ đó `eligible=false` kèm lý do | |
+| 1 | OFF-A1 | Mở màn nghỉ phép, đọc cấu hình mẫu Word | `GET /api/v1/staffing/capabilities` | 200 `wordRequired`, `templateConfigured`, `maxDocxBytes` | |
+| 2 | MGR-A | Thêm 2 ca sáng 08:00–11:00 và chiều 13:00–16:00 cho OFF-A1 cùng một ngày tương lai | `POST /api/v1/staffing/shifts` (2 lần) | 200 cả hai; ca trùng giờ cùng người → 409; ca quá khứ hoặc dài hơn 24 giờ → 400 | |
+| 3 | MGR-A, OFF-A1 | Xem lịch ca trong tuần | `GET /api/v1/staffing/shifts` | 200; Manager thấy cả phường, OFF-A1 chỉ thấy ca của mình | |
+| 4 | MGR-A | Tạo 1 ca thử rồi hủy (có lý do) | `POST /api/v1/staffing/shifts`, `POST /api/v1/staffing/shifts/{id}/cancel` | 200; ca có `cancelledAtUtc` | |
+| 5 | MGR-A | Mở và lưu mẫu tuần: thứ Hai (`day=1`) 2 ca cho OFF-A1 | `GET /api/v1/staffing/week-pattern`, `PUT /api/v1/staffing/week-pattern` | 200, `version` tăng; gửi `expectedVersion` cũ → 409 | |
+| 6 | MGR-A | Xem trước lịch tháng sau từ mẫu tuần; thử thêm `copyFrom` tháng này | `GET /api/v1/staffing/schedules/{month}/preview` | 200 `slots`, `conflicts`, `closures`, `baseFingerprint`; chưa tạo ca thật | |
+| 7 | MGR-A | Lưu nháp lịch tháng | `PUT /api/v1/staffing/schedules/{month}/draft` | 200 có revision nháp; `baseFingerprint` cũ → 409 | |
+| 8 | MGR-A | Công bố lịch tháng. Thử trước: sau khi lưu nháp, thêm 1 ca lẻ trong tháng đó rồi công bố nháp cũ | `POST /api/v1/staffing/schedules/{month}/publish` | Nháp cũ → 409; tải lại, lưu nháp mới, công bố → 200; ca trong tháng thành ca chính thức | |
+| 9 | MGR-A | Xem lịch tháng và lịch sử công bố | `GET /api/v1/staffing/schedules/{month}`, `GET /api/v1/staffing/schedules/{month}/history` | 200; lịch sử có revision `PUBLISHED` | |
+| 10 | OFF-A1 | Mở lịch tháng của mình, bấm xác nhận | `GET /api/v1/staffing/schedules/{month}`, `POST /api/v1/staffing/schedules/{month}/confirm` | 200 có biên nhận; lịch đã đổi (fingerprint cũ) → 409, tải lại rồi xác nhận | |
+| 11 | OFF-A1 | Đề nghị đổi giờ 1 ca tương lai | `POST /api/v1/staffing/shift-change-requests` | 200 `PENDING`; ca gốc vẫn hiệu lực trong lúc chờ | |
+| 12 | MGR-A | Xem đề nghị và duyệt | `GET /api/v1/staffing/shift-change-requests`, `POST /api/v1/staffing/shift-change-requests/{id}/decision` | 200 `APPROVED`; ca đổi sang giờ mới; OFF-A1 nhận thông báo | |
+| 13 | OFF-A1 | Bấm "Xin nghỉ": lấy mẫu đơn hiện hành, tải xem | `GET /api/v1/staffing/leave-templates/current`, `GET /api/v1/staffing/leave-templates/{id}/docx` | 200, file mở được bằng Word. Chưa cấu hình mẫu (`templateConfigured=false`) → ghi **B** cho bước 13–18 | |
+| 14 | OFF-A1 | Tạo nháp đơn nghỉ 1 ngày tuần sau | `POST /api/v1/staffing/leave-drafts` (header `Idempotency-Key`) | 200 có `id`, `version`, `documentRevisionId` | |
+| 15 | OFF-A1 | Mở "Nháp của tôi", mở lại nháp, tải bản Word của nháp | `GET /api/v1/staffing/leave-drafts`, `GET /api/v1/staffing/leave-drafts/{id}`, `GET /api/v1/staffing/leave-drafts/{id}/docx` | 200; MGR-A mở nháp của OFF-A1 → 403/404 | |
+| 16 | OFF-A1 | Sửa ngày/lý do, điền và lưu Word | `PATCH /api/v1/staffing/leave-drafts/{id}`, `PUT /api/v1/staffing/leave-drafts/{id}/docx` (multipart) | 200 `version` mới; file không phải DOCX → 415; lớn hơn 10 MiB → 413 | |
+| 17 | OFF-A1 | Nộp đơn; bấm nộp 2 lần liên tiếp | `POST /api/v1/staffing/leave-drafts/{id}/submit` (header `Idempotency-Key`) | 200 `leaveId`, `PENDING`; lần 2 cùng key trả **cùng** `leaveId` | |
+| 18 | OFF-A1 | Tạo thêm 1 nháp rồi xóa | `DELETE /api/v1/staffing/leave-drafts/{id}?expectedVersion=…` | 200, biến khỏi "Nháp của tôi" | |
+| 19 | OFF-A1 | Gửi đơn nghỉ trực tiếp (không qua Word) cho một ngày khác | `POST /api/v1/staffing/leaves` | 200 `PENDING`; nếu bắt buộc Word → 409 `staffing.word_required`; trùng khoảng nghỉ → 409 | |
+| 20 | OFF-A1, MGR-A | Xem danh sách đơn nghỉ | `GET /api/v1/staffing/leaves` | 200; cán bộ chỉ thấy của mình, Manager thấy cả phường | |
+| 21 | MGR-A | Mở chi tiết đơn ở bước 17, tải bản Word đã nộp | `GET /api/v1/staffing/leaves/{id}`, `GET /api/v1/staffing/leaves/{id}/submitted-docx` | 200, `hasSubmittedDocx=true`; OFF-B1 (phường khác) mở → 403/404 | |
+| 22 | MGR-A | Xem ca và hồ sơ bị ảnh hưởng nếu duyệt | `GET /api/v1/staffing/leaves/{id}/shift-impact`, `GET /api/v1/staffing/leaves/{id}/impact` | 200; `shift-impact` liệt kê phần ca bị giao; `impact` rỗng nếu OFF-A1 chưa giữ hồ sơ | |
+| 23 | MGR-A | Duyệt đơn | `POST /api/v1/staffing/leaves/{id}/decision` | 200 `APPROVED`; `expectedVersion` cũ → 409; OFF-A1 nhận thông báo | |
+| 24 | OFF-A1 | Tự duyệt đơn của mình | `POST /api/v1/staffing/leaves/{id}/decision` | 403 (cán bộ chỉ được hủy đơn `PENDING` của mình) | |
+| 25 | OFF-A1 | Tự hủy đơn `PENDING` ở bước 19 | `POST /api/v1/staffing/leaves/{id}/decision` (`CANCELLED`) | 200 | |
+| 26 | MGR-A | Xem lịch sử quyết định của đơn | `GET /api/v1/staffing/leaves/{id}/history` | 200 | |
+| 27 | MGR-A | *(luồng chính, làm sau)* Giao hồ sơ cho cán bộ đang nghỉ đã duyệt | `GET /api/v1/manager/applications/{id}/assignment-candidates` | Cán bộ đó `eligible=false` kèm lý do | |
 
 ### KB-14 — Lịch nghỉ phường và ngày lễ toàn quốc
 
@@ -357,17 +378,17 @@ Kết nối SignalR `/hubs/notifications` kèm access token. Kiểm tra song son
 
 | # | Vai trò | Bước | API / Hub | Kỳ vọng | KQ |
 |---|---|---|---|---|---|
-| 1 | CIT-1 | Đăng nhập, FE kết nối hub | Hub `/hubs/notifications` | Kết nối thành công; token sai → bị từ chối | |
-| 2 | CIT-1 | Mở chuông thông báo | Hub `GetNotifications(page, pageSize)` | Danh sách thông báo | |
-| 3 | CIT-1 | Xem số chưa đọc | Hub `GetUnreadCount()` | Số nguyên | |
-| 4 | OFF-A1 | Thực hiện 1 thao tác đổi trạng thái `{appA}` (KB-08/KB-10) | — | Sau ~10 giây CIT-1 nhận sự kiện `ReceiveNotification` và `UpdateUnreadCount` không cần tải lại trang | |
-| 5 | OFF-A1 | Được Manager giao hồ sơ (KB-08 bước 4) | — | OFF-A1 nhận thông báo phân công | |
-| 6 | CIT-1 | Bấm vào 1 thông báo | Hub `MarkRead(notificationId)` | Số chưa đọc giảm | |
-| 7 | CIT-1 | Kiểm tra hộp thư Email (nếu Analytics bật Email) | — | Có email trạng thái hồ sơ | |
-| 8 | ADMIN | Mở trang "Phát thông báo": danh sách delivery | `GET /api/v1/admin/notification-deliveries` | 200; có dòng `IN_APP` trạng thái `Sent`/`Pending` | |
-| 9 | ADMIN | Mở chi tiết và lịch sử xử lý 1 delivery | `GET /api/v1/admin/notification-deliveries/{id}`, `GET /api/v1/admin/notification-deliveries/{id}/audit` | 200 | |
-| 10 | ADMIN | Gửi lại 1 delivery `Dead`/`Unknown` (nếu có) | `POST /api/v1/admin/notification-deliveries/{id}/replay` | 200; delivery SMS cũ → 409 `notifications.channel_removed`; delivery đã `Sent` → 409 | |
-| 11 | ADMIN | Kiểm tra giao diện không còn nút "Đối soát SMS" | — | Không có nút | |
+| 1 | CIT-1 | Đăng nhập, FE kết nối hub | Hub `/hubs/notifications` | Kết nối thành công; token sai → bị từ chối | Đ (08/11). 1b đăng xuất → kết nối hub đóng Đ |
+| 2 | CIT-1 | Mở chuông thông báo | Hub `GetNotifications(page, pageSize)` | Danh sách thông báo | Đ (08/11). Rỗng vì CIT-1 chưa có thông báo |
+| 3 | CIT-1 | Xem số chưa đọc | Hub `GetUnreadCount()` | Số nguyên | Đ (08/11) |
+| 4 | OFF-A1 | Thực hiện 1 thao tác đổi trạng thái `{appA}` (KB-08/KB-10) | — | Sau ~10 giây CIT-1 nhận sự kiện `ReceiveNotification` và `UpdateUnreadCount` không cần tải lại trang | Đ (08/11). Thông báo tạo bằng SQL (không chạy luồng chính); CIT-1 nhận realtime, không cần tải lại |
+| 5 | OFF-A1 | Được Manager giao hồ sơ (KB-08 bước 4) | — | OFF-A1 nhận thông báo phân công | Đ (08/11). Thông báo phạm vi phường `TEST_A` tạo bằng SQL; OFF-A1 nhận realtime |
+| 6 | CIT-1 | Bấm vào 1 thông báo | Hub `MarkRead(notificationId)` | Số chưa đọc giảm | Đ (08/11) |
+| 7 | CIT-1 | Kiểm tra hộp thư Email (nếu Analytics bật Email) | — | Có email trạng thái hồ sơ | B (08/11). Không có thư: delivery EMAIL thành `Blocked` — `Email:Enabled` đang tắt hoặc thiếu Host/Username/Password/From trên Analytics Azure (cấu hình, không phải lỗi code). Chờ Anti bật Email (mật khẩu ứng dụng Gmail mới) rồi test lại |
+| 8 | ADMIN | Mở trang "Phát thông báo": danh sách delivery | `GET /api/v1/admin/notification-deliveries` | 200. Mặc định **chỉ** hiện delivery cần xử lý (`Dead`, `Blocked`, `Unknown`, `Dispatching`); muốn thấy `Sent` phải lọc `state=Sent` | Đ (08/11). 8a thấy 2 dòng `Dead` + 1 dòng `Blocked` (từ bước 7); 8b lọc `Sent` Đ |
+| 9 | ADMIN | Mở chi tiết và lịch sử xử lý 1 delivery | `GET /api/v1/admin/notification-deliveries/{id}`, `GET /api/v1/admin/notification-deliveries/{id}/audit` | 200 | Đ (08/11) |
+| 10 | ADMIN | Gửi lại 1 delivery `Dead`/`Blocked` (chỉ 2 trạng thái này được gửi lại) | `POST /api/v1/admin/notification-deliveries/{id}/replay` | 202, delivery về `Pending` rồi được gửi; delivery SMS cũ → 409 `notifications.channel_removed`; delivery khác `Dead`/`Blocked` → 409 `notifications.invalid_state` | B (08/11). 10a gửi lại EMAIL → 409 (do Email tắt, kỳ vọng `notifications.channel_disabled`) — test lại sau khi bật Email; 10b FE ẩn nút gửi lại SMS — chấp nhận (BE vẫn trả 409 `channel_removed`) |
+| 11 | ADMIN | Kiểm tra giao diện không còn nút "Đối soát SMS" | — | Không có nút | Đ (08/11) |
 
 ### KB-17 — Thống kê Manager và job tổng hợp
 
@@ -413,7 +434,27 @@ Mỗi dòng: đăng nhập vai trò ghi bên trái, gọi chức năng không đ
 
 ---
 
-## 4. Ma trận phủ API (184 API công khai)
+### KB-20 — Quản trị hệ thống IT_ADMIN: cấu hình, nhật ký, sức khỏe, sao lưu
+
+**Thêm 08/11** (TASK-34/35: 15 API trong AnalyticsSystem, xem `docs/fe-handoff-task34-35-36-management-portal.md`). Vai trò: ADMIN. Không cần hồ sơ.
+
+Nếu một phần trả 503 `system.administration_disabled`, `system.health_disabled`, `system.backups_disabled`, `system.backup_runner_unavailable` hoặc `system.backup_storage_unavailable` thì phần đó **chưa bật trên Azure**: ghi **B**, không phải lỗi FE.
+
+| # | Vai trò | Bước | API | Kỳ vọng | KQ |
+|---|---|---|---|---|---|
+| 1 | ADMIN | Mở bảng cấu hình, xem chi tiết `analytics.lookbackDays` | `GET /api/v1/system/settings`, `GET /api/v1/system/settings/{key}` | 200, có `version` | |
+| 2 | ADMIN | Sửa giá trị thành 14, nhập lý do | `PUT /api/v1/system/settings/{key}` | 200, `version` tăng; giá trị ngoài 1–366 hoặc lý do dưới 3 ký tự → 400 `system.invalid_setting`; `expectedVersion` cũ → 409 `system.setting_conflict`; key lạ → 404 `system.setting_not_found` | |
+| 3 | ADMIN | Xem nhật ký thay đổi cấu hình, mở 1 dòng | `GET /api/v1/system/audit-logs`, `GET /api/v1/system/audit-logs/{id}` | 200; thấy thao tác ở bước 2 kèm giá trị cũ/mới và lý do | |
+| 4 | ADMIN | Xem nhật ký nghiệp vụ, lọc nguồn `iam`, mở chi tiết JSON | `GET /api/v1/system/audit-events?source=iam`, `GET /api/v1/system/audit-events/{id}` | 200 (có thể rỗng nếu service nguồn chưa gửi sự kiện); id lạ → 404 `system.audit_not_found` | |
+| 5 | ADMIN | Mở bảng sức khỏe, xem chi tiết 1 service | `GET /api/v1/system/health/services`, `GET /api/v1/system/health/services/{serviceName}` | 200, mỗi service có trạng thái, mã HTTP, thời gian phản hồi; tên lạ → 404 `system.service_not_found` | |
+| 6 | ADMIN | Bấm "Kiểm tra ngay", vài giây sau tải lại | `POST /api/v1/system/health/check-now` | **202** `status=Queued`; sau đó thời gian kiểm tra được cập nhật | |
+| 7 | ADMIN | Xem lịch sử sức khỏe theo service | `GET /api/v1/system/health/history?service=iam` | 200 | |
+| 8 | ADMIN | Tạo bản sao lưu cho 1 service, có lý do | `POST /api/v1/system/backups` | **202** `Queued`; tạo lần 2 khi đang chờ → 409 `system.backup_in_progress`; service chưa cấu hình → 404 `system.backup_target_not_found` | |
+| 9 | ADMIN | Xem danh sách, lọc trạng thái, mở chi tiết | `GET /api/v1/system/backups`, `GET /api/v1/system/backups/{id}` | 200; trạng thái chuyển `Running` → `Succeeded` (hoặc `Failed` kèm mã lỗi) | |
+| 10 | ADMIN | Xác minh bản `Succeeded` | `POST /api/v1/system/backups/{id}/verify` | 200 `Verified`; xác minh bản đang `Queued`/`Running` → 409 `system.backup_in_progress` | |
+| 11 | MGR-A | Gọi trang quản trị hệ thống | `GET /api/v1/system/settings` | 403; FE ẩn menu | |
+
+## 4. Ma trận phủ API (224 API công khai)
 
 Dùng bảng này để đánh dấu **API nào đã được gọi thành công trên giao diện**. Cột "KB" là kịch bản dùng API đó. Một API được tính "đã có" khi ít nhất một bước trong các kịch bản đó đạt.
 
@@ -501,7 +542,7 @@ Dùng bảng này để đánh dấu **API nào đã được gọi thành công
 | 27 | GET | `/api/v1/procedure-manager/drafts/{id}/source` | KB-04 | |
 | 28 | DELETE | `/api/v1/procedure-manager/drafts/{id}` | KB-04 | |
 
-### 4.3 ApplicationWorkflow (45)
+### 4.3 ApplicationWorkflow (70)
 
 | # | Method | Route | KB | Đã test |
 |---|---|---|---|---|
@@ -550,6 +591,31 @@ Dùng bảng này để đánh dấu **API nào đã được gọi thành công
 | 43 | GET | `/api/v1/applications/{applicationId}/consultations/document-access` | KB-15 | |
 | 44 | POST | `/api/v1/applications/{applicationId}/consultations/{id}/answer` | KB-15 | |
 | 45 | POST | `/api/v1/applications/{applicationId}/consultations/{id}/close` | KB-15 | |
+| 46 | GET | `/api/v1/staffing/capabilities` | KB-13 | |
+| 47 | GET | `/api/v1/staffing/leave-templates/current` | KB-13 | |
+| 48 | GET | `/api/v1/staffing/leave-templates/{id}/docx` | KB-13 | |
+| 49 | POST | `/api/v1/staffing/leave-drafts` | KB-13 | |
+| 50 | GET | `/api/v1/staffing/leave-drafts` | KB-13 | |
+| 51 | GET | `/api/v1/staffing/leave-drafts/{id}` | KB-13 | |
+| 52 | PATCH | `/api/v1/staffing/leave-drafts/{id}` | KB-13 | |
+| 53 | DELETE | `/api/v1/staffing/leave-drafts/{id}` | KB-13 | |
+| 54 | GET | `/api/v1/staffing/leave-drafts/{id}/docx` | KB-13 | |
+| 55 | PUT | `/api/v1/staffing/leave-drafts/{id}/docx` | KB-13 | |
+| 56 | POST | `/api/v1/staffing/leave-drafts/{id}/submit` | KB-13 | |
+| 57 | GET | `/api/v1/staffing/leaves/{id}` | KB-13 | |
+| 58 | GET | `/api/v1/staffing/leaves/{id}/submitted-docx` | KB-13 | |
+| 59 | GET | `/api/v1/staffing/leaves/{id}/shift-impact` | KB-13 | |
+| 60 | GET | `/api/v1/staffing/schedules/{month}` | KB-13 | |
+| 61 | GET | `/api/v1/staffing/week-pattern` | KB-13 | |
+| 62 | PUT | `/api/v1/staffing/week-pattern` | KB-13 | |
+| 63 | GET | `/api/v1/staffing/schedules/{month}/preview` | KB-13 | |
+| 64 | PUT | `/api/v1/staffing/schedules/{month}/draft` | KB-13 | |
+| 65 | POST | `/api/v1/staffing/schedules/{month}/publish` | KB-13 | |
+| 66 | GET | `/api/v1/staffing/schedules/{month}/history` | KB-13 | |
+| 67 | POST | `/api/v1/staffing/schedules/{month}/confirm` | KB-13 | |
+| 68 | GET | `/api/v1/staffing/shift-change-requests` | KB-13 | |
+| 69 | POST | `/api/v1/staffing/shift-change-requests` | KB-13 | |
+| 70 | POST | `/api/v1/staffing/shift-change-requests/{id}/decision` | KB-13 | |
 
 ### 4.4 DocumentForm (31)
 
@@ -612,7 +678,7 @@ Dùng bảng này để đánh dấu **API nào đã được gọi thành công
 | 19 | POST | `/api/v1/ai/knowledge/procedures/sync` | KB-05 | |
 | 20 | GET | `/api/v1/ai/knowledge/usage` | KB-05 | |
 
-### 4.6 AnalyticsSystem (14 + hub)
+### 4.6 AnalyticsSystem (29 + hub)
 
 | # | Method | Route | KB | Đã test |
 |---|---|---|---|---|
@@ -630,6 +696,21 @@ Dùng bảng này để đánh dấu **API nào đã được gọi thành công
 | 12 | GET | `/api/v1/admin/notification-deliveries/{id}` | KB-16 | |
 | 13 | GET | `/api/v1/admin/notification-deliveries/{id}/audit` | KB-16 | |
 | 14 | POST | `/api/v1/admin/notification-deliveries/{id}/replay` | KB-16 | |
+| 15 | GET | `/api/v1/system/settings` | KB-20 | |
+| 16 | GET | `/api/v1/system/settings/{key}` | KB-20 | |
+| 17 | PUT | `/api/v1/system/settings/{key}` | KB-20 | |
+| 18 | GET | `/api/v1/system/audit-logs` | KB-20 | |
+| 19 | GET | `/api/v1/system/audit-logs/{id}` | KB-20 | |
+| 20 | GET | `/api/v1/system/audit-events` | KB-20 | |
+| 21 | GET | `/api/v1/system/audit-events/{id}` | KB-20 | |
+| 22 | GET | `/api/v1/system/health/services` | KB-20 | |
+| 23 | GET | `/api/v1/system/health/services/{serviceName}` | KB-20 | |
+| 24 | POST | `/api/v1/system/health/check-now` | KB-20 | |
+| 25 | GET | `/api/v1/system/health/history` | KB-20 | |
+| 26 | POST | `/api/v1/system/backups` | KB-20 | |
+| 27 | GET | `/api/v1/system/backups` | KB-20 | |
+| 28 | GET | `/api/v1/system/backups/{id}` | KB-20 | |
+| 29 | POST | `/api/v1/system/backups/{id}/verify` | KB-20 | |
 | Hub | WS | `/hubs/notifications`: `GetNotifications`, `GetUnreadCount`, `MarkRead`; server đẩy `ReceiveNotification`, `UpdateUnreadCount` | KB-16 | |
 
 ### 4.7 API nội bộ (FE không gọi; được kiểm tra gián tiếp)
@@ -641,6 +722,7 @@ Dùng bảng này để đánh dấu **API nào đã được gọi thành công
 | GET | `/internal/analytics/v1/daily` | Workflow | Job tổng hợp số liệu theo ngày | KB-17 bước 7–8 |
 | GET | `/internal/analytics/v1/deadlines` | Workflow | Thống kê hạn xử lý | KB-17 bước 1–4 |
 | POST | `/internal/v1/procedure-extractions` | AIOCR | Catalog gửi PDF cho AI bóc tách | KB-04 bước 17–22 |
+| POST | `/internal/audit/events` | Analytics | Các service gửi sự kiện kiểm toán nghiệp vụ về trung tâm | KB-20 bước 4 |
 
 Ngoài ra mỗi service có `GET /`, `GET /health`, `GET /health/ready` cho vận hành (KB-00).
 
@@ -673,7 +755,7 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | KB-02 | Tài khoản, phiên | 15 | 13 | 0 | 1 | 0 | Bước 9: xóa hồ sơ cá nhân là tùy chọn (FE-03). Bước 10 để sau (FE-05) |
 | KB-03 | Quản trị IT_ADMIN | 24 | 20 | 0 | 4 | 0 | Bước 7, 8, 12, 14: FE chưa dùng các API phụ (FE-06) |
 | KB-04 | Thủ tục | 25 | 22 | 0 | 2 | 0 | 05/11. Bước 7, 12: không liên kết được mẫu đơn từ màn checklist (FE-07). Bước 22 không phát sinh. Góp ý nghiệp vụ ghi ở 6.2 (BE-01..BE-05) |
-| KB-05 | Knowledge Base | 13 | | | | | |
+| KB-05 | Knowledge Base | 13 | 11 | 1 | 1 | 0 | 07/11. Bước 7 lỗi BE, đã sửa source (BE-06), chờ deploy. Bước 13: FE chưa có màn thống kê (FE-10) |
 | KB-06 | Công dân nộp hồ sơ | 20 | | | | | |
 | KB-07 | Manager chuẩn bị | 5 | | | | | |
 | KB-08 | Điều phối, thụ lý | 17 | | | | | |
@@ -681,13 +763,14 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | KB-10 | Sẵn sàng, PDF, QR, tiếp nhận | 10 | | | | | |
 | KB-11 | Route cũ DocumentForm | 3 | | | | | |
 | KB-12 | Trả lại, chuyển giao | 6 | | | | | |
-| KB-13 | Lịch làm, nghỉ phép | 10 | | | | | |
+| KB-13 | Lịch làm, lịch tháng, đơn nghỉ Word | 27 | | | | | |
 | KB-14 | Lịch nghỉ phường, lễ | 6 | | | | | |
 | KB-15 | Tham vấn | 8 | | | | | |
-| KB-16 | Thông báo | 11 | | | | | |
+| KB-16 | Thông báo | 11 | 9 | 0 | 0 | 2 | 08/11, thông báo tạo bằng SQL (chưa chạy luồng chính). Bước 7, 10a chặn do Email tắt trên Azure — chờ Anti bật Email |
 | KB-17 | Thống kê | 8 | | | | | |
 | KB-18 | Phân quyền (test âm) | 11 | | | | | |
 | KB-19 | Lỗi AI (mock) | 6 | | | | | |
+| KB-20 | Quản trị hệ thống | 11 | | | | | |
 
 ### 6.1 Việc FE cần làm sau đợt test
 
@@ -702,6 +785,7 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | FE-07 | KB-04 #7, #12 | Màn sửa thủ tục nhập tay cần phần **"Biểu mẫu, tờ khai"**: chọn mẫu từ `GET /api/v1/procedure-manager/document-forms`, lưu vào `formDefinitions` (`formTemplateId`, `formCode`, `formName`, `formType` = `DOCX_TEMPLATE`) qua `PUT /api/v1/procedure-manager/procedures/{id}` (kèm số quyết định, ngày hiệu lực). `PUT .../checklist` chỉ lưu danh sách giấy tờ, **không** có chỗ liên kết mẫu | Cao — KB-06 cần thủ tục có mẫu DOCX; tạm dùng thủ tục `KB04-AI` |
 | FE-08 | KB-04 #23 | FE đang bắt chọn mẫu trước khi xuất bản bản nháp; BE cho phép `formTemplateId` = null (liên kết sau). Nên cho xuất bản khi chưa có mẫu, kèm cảnh báo "Biểu mẫu chưa có file" | Thấp |
 | FE-09 | KB-04 góp ý | Trên màn bản nháp AI, với mỗi biểu mẫu AI đọc được mà chưa có mẫu: nút **"Tạo phôi và tải DOCX"** gọi lần lượt `POST /api/v1/form-templates` → `POST /api/v1/form-templates/{id}/upload-docx`, rồi gán `formTemplateId` vào bản nháp (`PUT .../drafts/{id}`). Dùng API sẵn có, BE không cần sửa | Trung bình |
+| FE-10 | KB-05 #13 | (Tùy chọn) Màn thống kê lượt dùng AI cho PM/ADMIN: `GET /api/v1/ai/knowledge/usage?from=yyyy-MM-dd&to=yyyy-MM-dd` (mặc định 7 ngày gần nhất, theo ngày UTC+07 và loại thao tác, kèm hạn mức). Giúp theo dõi hạn mức Gemini miễn phí | Thấp |
 
 ### 6.2 Góp ý nghiệp vụ cho BE (chờ chủ dự án quyết)
 
@@ -712,11 +796,13 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | BE-03 | KB-04 góp ý | Bản nháp AI luôn để `categoryId = 0` cho cán bộ chọn; lĩnh vực phải tạo trước bằng tay | Khi xuất bản, cho phép gửi tên lĩnh vực mới: chưa có thì tạo và gán luôn (cần quyết: trùng tên khác dấu/hoa thường xử lý thế nào) |
 | BE-04 | KB-04 #23 | Prompt bóc tách (`AzureProcedureDocumentExtractor`) không dặn rõ phải lấy **mọi** tên file trong cột "Mẫu đơn, tờ khai". Thử với thủ tục đăng ký biến động đất đai: AI chỉ lấy Mẫu số 25, bỏ sót tờ khai lệ phí trước bạ (01.LPTB) và tờ khai thuế TNCN (01.TK-SDDPNN) | **Đã sửa source 05/11** (prompt + cảnh báo đếm tệp `.doc/.docx`), chờ deploy AIOCR rồi test lại KB-04 #17 bằng chính PDF này |
 | BE-05 | KB-04 #15 | Rollback nhận số quyết định và ngày hiệu lực mới, **không** so với ngày của phiên bản trước. Phiên bản cũ giữ nguyên trong lịch sử. Nội dung được áp dụng ngay, ngày hiệu lực chỉ để ghi nhận | Nếu cần, chặn ngày hiệu lực lùi so với phiên bản đang dùng, hoặc hiện cảnh báo ở FE |
+| BE-06 | KB-05 #7 | **Lỗi BE.** Chia đoạn lại (và sửa nội dung tài liệu, đồng bộ lại thủ tục đã đổi) tạo đoạn mới có sẵn khóa Guid; EF coi là dòng cũ, chạy UPDATE 0 dòng → 503 `knowledge.database_unavailable` | **Đã sửa source 07/11** (`KnowledgeBaseService`: thêm rõ các đoạn mới vào context). Chờ deploy AIOCR, test lại KB-05 #5 (sửa nội dung), #7 |
 
 **Cách đọc:** cột **UI** = việc FE còn thiếu; cột **L** = lỗi cần BE/FE sửa; API trong mục 4 chưa có dấu "Đã test" sau khi chạy hết = chức năng chưa được dùng trên giao diện.
 
 ## 7. Giới hạn của tài liệu
 
+- KB-13 (viết lại) và KB-20 (mới) ngày 08/11: route đã đối chiếu với controller; kỳ vọng chi tiết của KB-13 lấy từ `docs/Lịch làm việc Front Desk và đơn nghỉ Word.md` (bàn giao của BE lịch làm việc), của KB-20 đối chiếu mã lỗi trong `SystemAdministration`, `SystemHealth`, `SystemBackups`. Chưa xác nhận các API này đã có trên Azure.
 - Kỳ vọng mã HTTP lấy từ source và `api-guide.md`; một số mã lỗi phụ (ví dụ 200 hay 204 cho thao tác xóa) có thể khác nhẹ. Khi thấy khác, đối chiếu `api-guide.md` trước khi ghi lỗi.
 - Các ghi chú "giới hạn đã biết" (ví dụ chuyên viên tham vấn không gọi được AI, RAG đang tắt) **không phải lỗi**.
 - Tài liệu chưa được chạy thử trên Azure. Người viết chỉ đối chiếu với source; kết quả thật do FE và chủ dự án ghi.
