@@ -4812,7 +4812,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Kết luận:** `docs/sql/catalog-procedure-optional-fields.sql` đã được áp dụng; image `catalog-20261109-03` dùng được các trường optional (PROC-01b). Chưa gọi thử API tạo thủ tục với trường trống.
 ---
 
-### TASK-34/35 — Analytics admin MVC record validation | 2026-11-09 17:14 +07:00
+### TASK-34/35 — Analytics admin MVC record validation & Deploy Azure | 2026-11-09 17:40 +07:00
 - Azure log confirms PUT settings failed during MVC validation of UpdateSystemSetting.Reason before controller execution. Local changes: src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Application/SystemAdministration.cs and SystemBackupContracts.cs move validation attributes to constructor parameters. Preserve existing ranges/lengths, authorization and DB rules.
 - PUT /api/v1/system/settings/{key}: {value,expectedVersion,reason}, expects 200 or 400/409. POST /api/v1/system/backups: {serviceName,reason}, expects 202 when configured or 400 on invalid input. IT_ADMIN bearer token, existing error contracts. Backup POST has the same DTO issue in source; GET backups unaffected.
-- WardMate.sln Release build passed, 0 warnings/errors. HTTP scenarios executed: 0. Local only, authenticated Azure retest pending.
+- WardMate.sln Release build passed, 0 warnings/errors.
+- **Deploy Azure AnalyticsSystem:**
+  - Image mới: `acrwardmate2026.azurecr.io/wardmate-analyticssystem:analytics-20261109-01` (Run ID: `ce1k`, digest: `sha256:2d4ee06cd237661721c2bf16af150205ae2b357c5de6867344b2bbfed0e6d448`).
+  - Image cũ (rollback): `acrwardmate2026.azurecr.io/wardmate-analyticssystem:analytics-20261108-01`.
+  - Container App: `wardmate-analytics-system` (`ProvisioningState: Succeeded`, replica mới: `wardmate-analytics-system--latest-e2b36e73...` running).
+  - Health check: `/api/analytics-system/health/ready` → `Healthy` (notifications-database, analytics-database, rabbitmq connected).
