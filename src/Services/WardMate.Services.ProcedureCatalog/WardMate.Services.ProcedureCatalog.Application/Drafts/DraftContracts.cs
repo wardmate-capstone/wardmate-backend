@@ -22,6 +22,7 @@ public interface IProcedureDraftService
     Task<ProcedureResult<DraftDto>> Retry(Guid id, Guid revision, CancellationToken ct);
     Task<ProcedureResult<string>> ReadUrl(Guid id, CancellationToken ct);
     Task<ProcedureResult<string>> PublishedReadUrl(Guid procedureId, CancellationToken ct);
+    Task<ProcedureResult<ProcedureDetailDto>> AttachSource(Guid procedureId, Stream pdf, string fileName, string actor, CancellationToken ct);
     Task<ProcedureResult<ProcedureDetailDto>> Publish(Guid id, ConfirmDraftInput input, string actor, CancellationToken ct);
 }
 

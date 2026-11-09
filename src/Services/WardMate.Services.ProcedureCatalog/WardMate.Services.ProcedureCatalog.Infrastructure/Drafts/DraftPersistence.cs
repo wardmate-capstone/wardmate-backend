@@ -28,6 +28,7 @@ public sealed class DraftPersistence(ProcedureDbContext db) : IDraftPersistence
             .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(d => new DraftSummaryDto(d.Id, d.Status, d.PdfFileName, d.FailureCode, d.Revision,
                 d.PublishedProcedureId, d.CreatedAt, d.UpdatedAt)).ToListAsync(ct);
+    public void Add(ProcedureDraft draft) => db.ProcedureDrafts.Add(draft);
     public async Task Insert(ProcedureDraft draft, CancellationToken ct)
     {
         db.ProcedureDrafts.Add(draft); await db.SaveChangesAsync(ct);

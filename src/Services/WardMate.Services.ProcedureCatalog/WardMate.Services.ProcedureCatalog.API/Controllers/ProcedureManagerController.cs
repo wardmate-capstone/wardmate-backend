@@ -103,6 +103,22 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
     [Authorize(Policy = "procedure.update")]
     public async Task<IActionResult> Checklist(Guid id, ChecklistUpdateInput input, CancellationToken ct) =>
         Respond(await sender.Send(new UpdateProcedureChecklistCommand(id, input), ct));
+    /// <summary>Gắn hoặc thay PDF gốc cho thủ tục đã có (ví dụ thủ tục nhập tay). Tạo một phiên bản lưu trạng thái trước khi đổi.</summary>
+    [HttpPost("{id:guid}/source"), Consumes("multipart/form-data"), RequestSizeLimit(21 * 1024 * 1024)]
+    [ProducesResponseType(typeof(ProcedureDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    [Authorize(Policy = "procedure.update")]
+    public async Task<IActionResult> AttachSource(Guid id, [FromForm] UploadPdfInput input,
+        [FromServices] WardMate.Services.ProcedureCatalog.Application.Drafts.IProcedureDraftService drafts, CancellationToken ct)
+    {
+        if (input.File is null || input.File.Length is < 5 or > 20971520)
+            return Failure(new ProcedureError("draft.invalid_pdf", "Cần file PDF dung lượng tối đa 20 MB.", 400));
+        await using var stream = input.File.OpenReadStream();
+        return Respond(await drafts.AttachSource(id, stream, input.File.FileName, User.FindFirstValue("sub") ?? "unknown", ct));
+    }
+
     private IActionResult Respond<T>(ProcedureResult<T> result) => result.IsSuccess ? Ok(result.Value) : Failure(result.Error!);
 
     private ObjectResult Failure(ProcedureError error)

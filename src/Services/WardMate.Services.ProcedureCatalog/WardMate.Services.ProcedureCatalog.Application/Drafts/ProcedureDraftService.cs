@@ -7,6 +7,7 @@ using WardMate.Services.ProcedureCatalog.Domain.Entities;
 namespace WardMate.Services.ProcedureCatalog.Application.Drafts;
 
 public sealed class ProcedureDraftService(IDraftPersistence store, IDraftFileStorage blobs, ISender sender,
+    WardMate.Services.ProcedureCatalog.Application.Interfaces.IProcedureManagementStore procedures,
     DraftProcessingOptions configuration) : IProcedureDraftService
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -16,16 +17,8 @@ public sealed class ProcedureDraftService(IDraftPersistence store, IDraftFileSto
 
     public async Task<ProcedureResult<DraftDto>> Upload(Stream pdf, string fileName, string actor, CancellationToken ct)
     {
-        if (!blobs.IsConfigured)
-            return ProcedureResult<DraftDto>.Fail("draft.storage_not_configured", "Chưa cấu hình lưu trữ PDF Azure Blob.", 503);
-        var name = Path.GetFileName(fileName.Replace('\\', '/'));
-        if (name.Length is 0 or > 255 || !name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-            return ProcedureResult<DraftDto>.Fail("draft.invalid_pdf", "Vui lòng tải file PDF có tên tối đa 255 ký tự.", 400);
-        var signature = new byte[5];
-        if (!pdf.CanSeek || pdf.Length is < 5 or > 20971520 || await pdf.ReadAsync(signature, ct) != 5 ||
-            !signature.AsSpan().SequenceEqual("%PDF-"u8))
-            return ProcedureResult<DraftDto>.Fail("draft.invalid_pdf", "File phải là PDF, dung lượng tối đa 20 MB.", 400);
-        pdf.Position = 0;
+        var (name, invalid) = await CheckPdf(pdf, fileName, ct);
+        if (invalid is not null) return ProcedureResult<DraftDto>.Fail(invalid.Code, invalid.Message, invalid.Status);
         var now = DateTime.UtcNow;
         var d = new ProcedureDraft { Id = Guid.NewGuid(), CreatedBy = actor, PdfFileName = name, CreatedAt = now, UpdatedAt = now };
         var enabled = configuration.ExtractionEnabled;
@@ -117,6 +110,55 @@ public sealed class ProcedureDraftService(IDraftPersistence store, IDraftFileSto
             return result;
         }, ct);
     }
+    /// <summary>
+    /// Gắn PDF gốc cho thủ tục đã có (thường là thủ tục nhập tay). PDF được lưu như một bản nháp
+    /// trạng thái Published trỏ tới thủ tục, nên GET /procedures/{id}/source và nguồn phiên bản dùng lại luồng ký SAS sẵn có.
+    /// </summary>
+    public async Task<ProcedureResult<ProcedureDetailDto>> AttachSource(Guid procedureId, Stream pdf, string fileName, string actor, CancellationToken ct)
+    {
+        var (name, invalid) = await CheckPdf(pdf, fileName, ct);
+        if (invalid is not null) return ProcedureResult<ProcedureDetailDto>.Fail(invalid.Code, invalid.Message, invalid.Status);
+        if (!await procedures.Exists(procedureId, ct)) return ProcedureResult<ProcedureDetailDto>.NotFound();
+        var now = DateTime.UtcNow;
+        var d = new ProcedureDraft
+        {
+            Id = Guid.NewGuid(), Status = "Published", CreatedBy = actor, ReviewedBy = actor, PdfFileName = name,
+            PublishedProcedureId = procedureId, CreatedAt = now, UpdatedAt = now,
+            WarningsJson = JsonSerializer.Serialize(new[] { "PDF được gắn trực tiếp cho thủ tục; không qua bước đọc AI/OCR." })
+        };
+        d.BlobName = $"drafts/{d.Id}/source.pdf";
+        // Blob trước, DB sau: nếu DB lỗi chỉ còn blob mồ côi, không có thủ tục trỏ tới file không tồn tại.
+        d.OriginalPdfUrl = await blobs.Upload(pdf, d.BlobName, ct);
+        return await procedures.Transaction(async () =>
+        {
+            var procedure = await procedures.LockProcedure(procedureId, ct);
+            if (procedure is null) return ProcedureResult<ProcedureDetailDto>.NotFound();
+            procedures.AddVersion(ProcedureVersion.Capture(procedure, await procedures.NextVersion(procedureId, ct),
+                DateOnly.FromDateTime(now), procedure.ContentPayload.DecisionNumber, now));
+            store.Add(d);
+            procedure.OriginalPdfUrl = d.OriginalPdfUrl;
+            procedure.PdfFileName = name;
+            procedure.UpdatedAt = now;
+            return ProcedureResult<ProcedureDetailDto>.Ok(ProcedureDetailDto.From(procedure));
+        }, ct);
+    }
+
+    private sealed record PdfProblem(string Code, string Message, int Status);
+    private async Task<(string Name, PdfProblem? Problem)> CheckPdf(Stream pdf, string fileName, CancellationToken ct)
+    {
+        if (!blobs.IsConfigured)
+            return (string.Empty, new("draft.storage_not_configured", "Chưa cấu hình lưu trữ PDF Azure Blob.", 503));
+        var name = Path.GetFileName(fileName.Replace('\\', '/'));
+        if (name.Length is 0 or > 255 || !name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            return (name, new("draft.invalid_pdf", "Vui lòng tải file PDF có tên tối đa 255 ký tự.", 400));
+        var signature = new byte[5];
+        if (!pdf.CanSeek || pdf.Length is < 5 or > 20971520 || await pdf.ReadAsync(signature, ct) != 5 ||
+            !signature.AsSpan().SequenceEqual("%PDF-"u8))
+            return (name, new("draft.invalid_pdf", "File phải là PDF, dung lượng tối đa 20 MB.", 400));
+        pdf.Position = 0;
+        return (name, null);
+    }
+
     private static ProcedureResult<T> Missing<T>() => ProcedureResult<T>.Fail("draft.not_found", "Không tìm thấy bản nháp.", 404);
     private static ProcedureResult<T> Conflict<T>() => ProcedureResult<T>.Fail("draft.conflict", "Bản nháp đã thay đổi hoặc trạng thái không cho phép thao tác. Vui lòng tải lại.", 409);
 }

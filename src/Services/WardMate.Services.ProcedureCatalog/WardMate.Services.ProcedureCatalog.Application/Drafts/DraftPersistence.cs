@@ -16,6 +16,7 @@ public interface IDraftPersistence
     Task<ProcedureDraft?> Find(Guid id, CancellationToken ct);
     Task<IReadOnlyList<DraftSummaryDto>> List(int page, int pageSize, CancellationToken ct);
     Task Insert(ProcedureDraft draft, CancellationToken ct);
+    void Add(ProcedureDraft draft);
     Task<bool> Save(CancellationToken ct);
     Task<Guid?> FindPublishedDraftId(Guid procedureId, CancellationToken ct);
     Task<ProcedureResult<ProcedureDetailDto>> PublishLocked(Guid id,
