@@ -14,8 +14,9 @@ Tài liệu này liệt kê các thay đổi BE ngày 09/11 để sửa các v�
 | 4 | Tạo thủ tục mặc định ẩn (`isActive`) | ProcedureCatalog | **Có nhưng còn lỗi** — gửi `false` vẫn thành công khai; bản sửa chưa deploy |
 | 5 | Chỉ bắt buộc mã, tên, lĩnh vực | ProcedureCatalog | **Chưa** — cần chạy SQL rồi deploy |
 | 6 | Nhiều loại bản (bản chính + bản sao) và tên trường hợp | ProcedureCatalog, AIOCR | **Chưa** — deploy cùng mục 5 (không cần SQL riêng) |
+| 7 | Danh bạ cán bộ trả `permissions[]` — sửa phân công/tham vấn luôn bị chặn (BE-G) | IAM (+ Workflow) | **Chưa** — deploy IAM trước, không cần SQL |
 
-Khi Anti deploy xong mục 1, 4, 5, 6, BE sẽ báo lại. Trước đó FE có thể code theo tài liệu này nhưng chỉ test được mục 2, 3 trên Azure.
+Khi Anti deploy xong mục 1, 4, 5, 6, 7, BE sẽ báo lại. Trước đó FE có thể code theo tài liệu này nhưng chỉ test được mục 2, 3 trên Azure.
 
 ## 1. Mã QR không tạo được sau khi cán bộ xác nhận giấy tờ sẵn sàng
 
@@ -140,6 +141,14 @@ Mọi trường khác được gửi `null` hoặc bỏ trống: `levelOfImpleme
 - Thêm khu "Trường hợp" (ví dụ ở bước 1 hoặc bước 3 "Quy trình"): mỗi dòng gồm mã + tên, bước thực hiện là tùy chọn.
 - Ở "Thành phần hồ sơ" và "Biểu mẫu", ô `caseCode` chọn từ danh sách trường hợp đã khai (hiện **tên**, gửi **mã**). Mã không thuộc danh sách → 400.
 - Thủ tục chỉ có một trường hợp chung thì để trống `caseCode` ở các dòng (áp dụng mọi trường hợp).
+
+## 6b. Phân công và tham vấn luôn báo cán bộ không đủ quyền (BE-G)
+
+**Vấn đề:** `assignment-candidates` trả mọi cán bộ `eligible=false` với `ASSIGN_PERMISSION_MISSING`; phân công tay và mời tham vấn (422 `specialist_ineligible`) đều thất bại dù cán bộ có quyền.
+
+**Nguyên nhân:** danh bạ IAM không trả quyền của cán bộ nên Workflow coi như thiếu quyền.
+
+**Đã sửa:** `GET /api/v1/manager/officers` và `GET /api/v1/admin/users` trả thêm `items[].permissions` (mảng mã quyền của chính cán bộ đó, không bao giờ `null`). FE **không cần đổi** gì để luồng phân công/tham vấn chạy; có thể dùng `permissions` để hiển thị. Sau deploy, các lý do thật (`CATEGORY_MISMATCH`, `NO_ACTIVE_SHIFT`, ...) vẫn hiện khi điều kiện chưa đạt — đó là đúng.
 
 ## 7. Kiểm tra sau khi BE deploy đủ
 

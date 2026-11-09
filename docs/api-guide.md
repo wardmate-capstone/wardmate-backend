@@ -2983,7 +2983,7 @@ page mặc định 1, pageSize mặc định 20 (tối đa 100).
 AssignedCategory lọc metadata lĩnh vực, không giới hạn cán bộ chỉ được thụ lý lĩnh vực đó.
 
 **Kết quả:** 200 `{items,page,pageSize,total}`. Mỗi item: id, username, email, fullName,
-identityNumber, isActive, wardCode, roles[], assignedCategories[]. Không trả passwordHash/token.
+identityNumber, isActive, wardCode, roles[], assignedCategories[], permissions[] (từ 09/11/2026, BE-G: mã quyền của **chính người được liệt kê**, bỏ trùng, không có quyền thì `[]`, không bao giờ `null`; dùng chung cho `GET /api/v1/admin/users`). Không trả passwordHash/token.
 Chỉ cán bộ thuộc phường Manager và không kiêm vai trò đặc quyền ngoài FD/Citizen được hiển thị.
 Lọc sang phường khác trả danh sách rỗng; phạm vi áp dụng trước total/phân trang.
 

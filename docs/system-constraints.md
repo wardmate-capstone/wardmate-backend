@@ -187,6 +187,7 @@ IAM Infrastructure `Security/JwtOptions.cs`, Workflow API `WorkflowAccessMiddlew
 - Bộ lọc phường không mở rộng quyền của Manager sang phường khác.
 - AssignedCategories dùng cho thông tin/lọc cán bộ; không coi nó là hàng rào đã
   kiểm tra mọi thao tác hồ sơ theo lĩnh vực. Phạm vi phường/người thụ lý vẫn độc lập.
+- **IAM-05a (09/11/2026, BE-G):** danh bạ `GET /api/v1/manager/officers` và `GET /api/v1/admin/users` trả `permissions[]` của từng người được liệt kê (UserRoles → Role → RolePermissions → PermissionCode, bỏ trùng, rỗng thì `[]`), trong cùng một câu SQL (LEFT JOIN LATERAL, không truy vấn riêng từng người). Không dùng quyền của người gọi. Quyền đọc, phạm vi phường, phân trang, bộ lọc giữ nguyên. Workflow dùng trường này để xét `workflow.assign` (gợi ý và phân công tay) và `workflow.consultation.respond` (tham vấn); trước bản sửa IAM không trả trường này nên Workflow chặn mọi cán bộ (`ASSIGN_PERMISSION_MISSING`, 422 `specialist_ineligible`). Workflow `DispatchDirectory` coi `permissions` null là dữ liệu IAM không hợp lệ (lỗi kết nối IAM, thường 503) thay vì âm thầm chặn. Nguồn: `IAM.Application/Accounts/UserDirectory.cs`, `IAM.Infrastructure/Persistence/UserDirectory.cs`, `ApplicationWorkflow.Infrastructure/DispatchDirectory.cs`.
 
 ### IAM-06 — Quản lý role và permission
 
