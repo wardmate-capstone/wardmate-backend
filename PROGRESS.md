@@ -4875,3 +4875,13 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **AIOCR:** run ACR `ce1n` → `wardmate-aiocr:aiocr-20261109-01`, digest `sha256:e373dbc60d4e2747561a08e9f304d0b30d73cb5deb8f98097796285e9aa123db`; `Succeeded`; `/health/ready` 200 Healthy. Rollback: `aiocr-20261108-01`.
 - **SQL:** không có SQL mới (checklist lưu JSONB).
 - **Chưa kiểm:** chưa gọi thử API tạo thủ tục với `copyRequirements` hay trường hợp không có bước; chưa thử chatbot.
+
+---
+
+## DEPLOY-1109d — Deploy IAM + Workflow (BE-G-1109) — 2026-11-09 (UTC+07)
+
+- **Nguồn:** `kha` @ `76fbe32` (tar.gz từ GitHub). Chủ dự án tự chạy lệnh trong Cloud Shell, Claude soạn lệnh và ghi nhận kết quả được dán lại.
+- **IAM (trước):** run ACR `ce1p` → `wardmate-iam:iam-20261109-01`, Container App `wardmate-iam` cập nhật bằng digest → `Succeeded`; `/health/ready` 200 Healthy (database reachable). Rollback: `wardmate-iam:iam-20261108-01`.
+- **Workflow (sau):** run ACR `ce1q` → `wardmate-application-workflow:workflow-20261109-01`, `wardmate-application-workflow` → `Succeeded`; `/health/ready` 200 Healthy (database reachable, rabbitmq connected). Rollback: `workflow-20261108-01`.
+- **SQL:** không có.
+- **Chưa kiểm:** các bước nghiệm thu BE-G (danh bạ trả `permissions[]`, gợi ý phân công, phân công, tham vấn) chưa chạy trên Azure.
