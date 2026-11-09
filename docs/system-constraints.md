@@ -253,7 +253,7 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 
 ### PROC-03 — Version, xuất bản, trạng thái và khôi phục
 
-- Tạo thủ tục sinh version 1 và IsActive = true.
+- Tạo thủ tục sinh version 1. PROC-03b (09/11/2026): `IsActive` lấy từ trường `isActive` của body tạo, mặc định `false` (ẩn); trước đây luôn `true`. Chỉ thủ tục active hiện ở API công khai. Sửa (PUT) và rollback không đổi IsActive; bật/tắt qua API status. Nguồn: `CreateProcedureInput` (ProcedureInput.cs), `CreateProcedureCommandHandler`.
 - Cập nhật chụp trạng thái trước thay đổi vào version tiếp theo, rồi cập nhật bản hiện tại.
   Cặp ProcedureId/VersionNumber phải duy nhất.
 - Publish bản đã đối soát upsert theo ProcedureCode trong transaction: chưa có thì tạo,

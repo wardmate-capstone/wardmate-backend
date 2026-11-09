@@ -4728,3 +4728,16 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - Ghi chú cho luồng chính: Manager chỉ giao hồ sơ được cho cán bộ đang có ca tại thời điểm giao (422 `staffing.officer_unavailable`); khi test tháng 11 cần thêm ca lẻ hôm đó cho OFF-A1/A2.
 - File đổi: `docs/ui-test-scenarios.md`, `docs/CLAUDE_HANDOFF.md`, `PROGRESS.md`. Không đổi code; không build; không chạy Git.
 - Còn lại ngoài luồng chính: KB-19 bước 1–4. Luồng chính (KB-06 → KB-12, KB-15) chờ FE-01.
+
+---
+
+## PROC-CREATE-HIDDEN-1109 — Tạo thủ tục nhập tay mặc định ẩn — 2026-11-09 (UTC+07)
+
+- **Vấn đề:** `POST /api/v1/procedure-manager/procedures` gán cứng `IsActive = true`, thủ tục vừa lưu là công khai ngay.
+- **Sửa (ProcedureCatalog):** thêm `CreateProcedureInput : ProcedureInput` với `bool IsActive` (mặc định `false`) trong `Application/Management/ProcedureInput.cs`; `CreateProcedureCommand` nhận `CreateProcedureInput`; handler dùng `request.Input.IsActive`; `ProcedureManagerController.Create` nhận `CreateProcedureInput`. Không migration.
+- **API:** body tạo thêm `isActive` (tùy chọn). Không gửi → tạo ẩn (**thay đổi hành vi**). 201 trả `isActive` đúng giá trị. PUT/rollback/publish bản nháp không đổi.
+- **Docs:** `api-guide.md` API 34; `system-constraints.md` PROC-03 (PROC-03b).
+- **Build:** `dotnet build WardMate.sln -c Release -warnaserror -m:1 --no-incremental` → 0 cảnh báo, 0 lỗi. Chưa gọi thử API, chưa deploy.
+- **FE:** map ô "xác nhận công khai" vào `isActive`; đổi câu "Thủ tục sẽ được công khai khi lưu thành công". FE chưa sửa thì mọi thủ tục tạo tay sẽ ẩn cho tới khi bật bằng API status.
+- **Anti:** deploy lại ProcedureCatalog (gộp cùng PROC-SUMMARY-SOURCE-1109), không cần SQL.
+- **Commit gợi ý:** `feat(procedure-catalog): create manual procedures hidden unless isActive is set`

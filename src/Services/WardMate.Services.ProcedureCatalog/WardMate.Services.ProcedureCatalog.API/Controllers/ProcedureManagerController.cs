@@ -41,7 +41,7 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Policy = "procedure.create")]
-    public async Task<IActionResult> Create(ProcedureInput input, CancellationToken ct)
+    public async Task<IActionResult> Create(CreateProcedureInput input, CancellationToken ct)
     {
         var result = await sender.Send(new CreateProcedureCommand(input), ct);
         return result.IsSuccess ? Created($"/api/v1/procedures/{result.Value!.Id}", result.Value) : Failure(result.Error!);

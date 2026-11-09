@@ -1139,15 +1139,15 @@ hai.
 
 **Mục đích:** Cán bộ tạo thủ tục mới khi đã có dữ liệu đầy đủ, không cần đi qua upload PDF.
 
-**Cách dùng:** Gửi payload mục 4.3, chọn categoryId đã tồn tại và mã thủ tục chưa có.
+**Cách dùng:** Gửi payload mục 4.3, chọn categoryId đã tồn tại và mã thủ tục chưa có. Từ 09/11/2026 có thêm trường `isActive` (boolean, mặc định `false`): không gửi hoặc gửi `false` → thủ tục được tạo ở trạng thái **ẩn**, người dân chưa thấy; gửi `true` → công khai ngay. Bật/tắt sau bằng `PATCH /api/v1/procedure-manager/procedures/{id}/status`.
 
-**Kết quả:** Nhận 201 với thủ tục active và version 1. Dữ liệu có thể xuất hiện ở cổng công dân ngay.
+**Kết quả:** Nhận 201 với version 1 và `isActive` đúng như đã gửi (mặc định `false`). Chỉ thủ tục `isActive = true` xuất hiện ở cổng công dân.
 
 **Trường hợp sai và cách xử lý:**
 
 - Trùng mã → 409; tên quá ngắn/thiếu dữ liệu/danh mục không tồn tại → lỗi validation/nghiệp vụ, sửa theo
   response.
-- Không gửi dữ liệu đang đối soát vào API này nếu chưa muốn công khai; dùng draft để chuẩn bị trước.
+- FE cũ không gửi `isActive` sẽ tạo thủ tục ẩn (thay đổi so với trước 09/11/2026). Ô "Tôi đã kiểm tra thông tin và xác nhận công khai" nên map vào `isActive`: tick → `true`, không tick → `false` (đổi câu hướng dẫn "Thủ tục sẽ được công khai khi lưu thành công").
 
 #### API 35 — Sửa thủ tục và lưu lịch sử
 

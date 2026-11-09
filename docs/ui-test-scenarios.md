@@ -769,7 +769,7 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | KB-16 | Thông báo | 11 | 9 | 0 | 0 | 2 | 08/11, thông báo tạo bằng SQL (chưa chạy luồng chính). Bước 7, 10a chặn do Email tắt trên Azure — chờ Anti bật Email |
 | KB-17 | Thống kê | 8 | 8 | 0 | 0 | 0 | 09/11, chưa có hồ sơ nên số liệu rỗng; kiểm tra quyền, lọc ngày, giao diện rỗng và job tổng hợp |
 | KB-18 | Phân quyền (test âm) | 11 | 8 | 0 | 0 | 3 | 09/11. FE ẩn hầu hết chức năng không được phép. Bước 4–6 cần hồ sơ (luồng chính) |
-| KB-19 | Lỗi AI (mock) | 6 | | | | | |
+| KB-19 | Lỗi AI (mock) | 6 | 0 | 0 | 0 | 6 | 09/11 hoãn: FE chưa deploy phần xử lý lỗi AI. Bước 1–3 giả lập bằng script Console khi FE deploy; bước 4–6 cần luồng chính |
 | KB-20 | Quản trị hệ thống | 11 | 7 | 2 | 0 | 2 | 09/11. Phần Codex làm. Bước 2a và 8a trả 500 khi ghi DB (BE2-01, BE2-02); bước 9, 10 bị chặn theo |
 
 ### 6.1 Việc FE cần làm sau đợt test
@@ -819,6 +819,7 @@ Chủ dự án quyết định (09/11): **chỉ test lại sau khi đã chạy x
 | KB-20 #2, #3, #8, #9, #10 | Sau khi sửa BE2-01, BE2-02 | Codex/Anti xử lý xong |
 | KB-13 #27 | Giao hồ sơ cho cán bộ đang nghỉ | Sau khi chạy luồng chính |
 | KB-14 #5 | Hạn xử lý hồ sơ lùi theo ngày nghỉ | Sau khi chạy luồng chính |
+| KB-19 #1–#6 | FE chưa deploy phần xử lý lỗi AI; bước 4–6 cần hồ sơ | FE deploy, luồng chính |
 | Các bước UI/L phát sinh sau | Ghi thêm vào đây khi test các KB còn lại | — |
 
 **Cách đọc:** cột **UI** = việc FE còn thiếu; cột **L** = lỗi cần BE/FE sửa; API trong mục 4 chưa có dấu "Đã test" sau khi chạy hết = chức năng chưa được dùng trên giao diện.

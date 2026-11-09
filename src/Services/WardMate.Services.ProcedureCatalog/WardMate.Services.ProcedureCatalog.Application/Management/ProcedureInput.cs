@@ -40,6 +40,12 @@ public class ProcedureInput
     }
 }
 
+/// <summary>Body tạo thủ tục nhập tay. Mặc định tạo ở trạng thái ẩn; gửi isActive=true để công khai ngay (PROC-03b).</summary>
+public sealed class CreateProcedureInput : ProcedureInput
+{
+    public bool IsActive { get; set; }
+}
+
 public sealed class UpdateProcedureInput : ProcedureInput
 {
     public string DecisionNumber { get; set; } = string.Empty;

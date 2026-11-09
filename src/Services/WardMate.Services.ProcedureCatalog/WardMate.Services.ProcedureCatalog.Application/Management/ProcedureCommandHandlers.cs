@@ -20,7 +20,7 @@ public sealed class CreateProcedureCommandHandler(IProcedureManagementStore stor
             if (await store.CodeExists(request.Input.ProcedureCode.Trim(), null, ct))
                 return ProcedureResult<ProcedureDetailDto>.Fail("procedure.code_exists", "Mã thủ tục đã tồn tại.", 409);
             var now = DateTime.UtcNow;
-            var procedure = new Procedure { Id = Guid.NewGuid(), IsActive = true, CreatedAt = now, UpdatedAt = now, Category = category };
+            var procedure = new Procedure { Id = Guid.NewGuid(), IsActive = request.Input.IsActive, CreatedAt = now, UpdatedAt = now, Category = category };
             request.Input.ApplyTo(procedure);
             store.Add(procedure);
             store.AddVersion(ProcedureVersion.Capture(procedure, 1, DateOnly.FromDateTime(now), procedure.ContentPayload.DecisionNumber, now));
