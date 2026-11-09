@@ -4810,3 +4810,9 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 
 - **Kiểm tra (Claude, Cloud Shell, chỉ đọc; connection string lấy vào biến, không in ra):** `__EFMigrationsHistory` của DB `ConnectionStrings__ProcedureDatabase` có `20261109093503_ProcedureOptionalFields`; cột `public.procedures.level_of_implementation`, `target_audience`, `fee_summary`, `processing_time_summary` đều `is_nullable = YES`, không có default.
 - **Kết luận:** `docs/sql/catalog-procedure-optional-fields.sql` đã được áp dụng; image `catalog-20261109-03` dùng được các trường optional (PROC-01b). Chưa gọi thử API tạo thủ tục với trường trống.
+---
+
+### TASK-34/35 — Analytics admin MVC record validation | 2026-11-09 17:14 +07:00
+- Azure log confirms PUT settings failed during MVC validation of UpdateSystemSetting.Reason before controller execution. Local changes: src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Application/SystemAdministration.cs and SystemBackupContracts.cs move validation attributes to constructor parameters. Preserve existing ranges/lengths, authorization and DB rules.
+- PUT /api/v1/system/settings/{key}: {value,expectedVersion,reason}, expects 200 or 400/409. POST /api/v1/system/backups: {serviceName,reason}, expects 202 when configured or 400 on invalid input. IT_ADMIN bearer token, existing error contracts. Backup POST has the same DTO issue in source; GET backups unaffected.
+- WardMate.sln Release build passed, 0 warnings/errors. HTTP scenarios executed: 0. Local only, authenticated Azure retest pending.
