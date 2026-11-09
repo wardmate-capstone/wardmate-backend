@@ -22,9 +22,11 @@ public sealed class ProcedureInputValidator : AbstractValidator<ProcedureInput>
             .MaximumLength(50).WithMessage("Cấp thực hiện không được vượt quá 50 ký tự.");
         RuleFor(x => x.TargetAudience).NotEmpty().WithMessage("Đối tượng thực hiện không được để trống.")
             .MaximumLength(255).WithMessage("Đối tượng thực hiện không được vượt quá 255 ký tự.");
-        RuleFor(x => x.FeeSummary).NotEmpty().WithMessage("Tóm tắt lệ phí không được để trống.")
+        RuleFor(x => x.FeeSummary).Must((x, v) => !string.IsNullOrWhiteSpace(v) || ProcedureSummaries.HasMethods(x.ContentPayload))
+            .WithMessage("Nhập tóm tắt lệ phí hoặc ít nhất một cách nộp ở phần Thời hạn & lệ phí để hệ thống tự tóm tắt.")
             .MaximumLength(255).WithMessage("Tóm tắt lệ phí không được vượt quá 255 ký tự.");
-        RuleFor(x => x.ProcessingTimeSummary).NotEmpty().WithMessage("Thời gian xử lý không được để trống.")
+        RuleFor(x => x.ProcessingTimeSummary).Must((x, v) => !string.IsNullOrWhiteSpace(v) || ProcedureSummaries.HasMethods(x.ContentPayload))
+            .WithMessage("Nhập tóm tắt thời hạn hoặc ít nhất một cách nộp ở phần Thời hạn & lệ phí để hệ thống tự tóm tắt.")
             .MaximumLength(255).WithMessage("Thời gian xử lý không được vượt quá 255 ký tự.");
         RuleFor(x => x.ContentPayload).NotNull().WithMessage("Nội dung thủ tục không được để trống.");
         When(x => x.ContentPayload is not null, () =>

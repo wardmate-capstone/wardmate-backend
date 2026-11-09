@@ -14,8 +14,9 @@ public class ProcedureInput
     public string? ExecutingAgency { get; set; }
     public string LevelOfImplementation { get; set; } = "Cấp Xã";
     public string TargetAudience { get; set; } = "Công dân Việt Nam";
-    public string FeeSummary { get; set; } = "Miễn phí";
-    public string ProcessingTimeSummary { get; set; } = "1 ngày";
+    // Để trống: BE tự sinh từ contentPayload.submissionMethods (ProcedureSummaries).
+    public string FeeSummary { get; set; } = string.Empty;
+    public string ProcessingTimeSummary { get; set; } = string.Empty;
     public ProcedureContentPayload ContentPayload { get; set; } = new();
     public List<ChecklistItemSchema>? ChecklistSchema { get; set; }
     public List<FormDefinitionSchema>? FormDefinitions { get; set; }
@@ -31,8 +32,8 @@ public class ProcedureInput
         procedure.ExecutingAgency = ExecutingAgency;
         procedure.LevelOfImplementation = LevelOfImplementation;
         procedure.TargetAudience = TargetAudience;
-        procedure.FeeSummary = FeeSummary;
-        procedure.ProcessingTimeSummary = ProcessingTimeSummary;
+        procedure.FeeSummary = ProcedureSummaries.Fee(FeeSummary, ContentPayload);
+        procedure.ProcessingTimeSummary = ProcedureSummaries.ProcessingTime(ProcessingTimeSummary, ContentPayload);
         procedure.ContentPayload = ContentPayload;
         procedure.ChecklistSchema = ChecklistSchema;
         procedure.FormDefinitions = FormDefinitions;

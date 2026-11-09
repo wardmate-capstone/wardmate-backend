@@ -10,7 +10,7 @@ public sealed class ReviewedProcedureInput : ProcedureInput
 {
     public ReviewedProcedureInput()
     {
-        // A reviewed draft must supply these values; do not silently invent fees or processing times.
+        // Không dùng giá trị mặc định cố định; để trống thì tóm tắt được sinh từ submissionMethods đã đối soát.
         FeeSummary = string.Empty;
         ProcessingTimeSummary = string.Empty;
     }
