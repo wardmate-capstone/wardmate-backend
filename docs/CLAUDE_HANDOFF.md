@@ -155,6 +155,7 @@ Bộ EF model kiểm kê ngày 24/10: 41 bảng ứng dụng, 410 cột, 22 FK t
 
 | Ưu tiên | Việc | Trạng thái và bước tiếp theo |
 |---|---|---|
+| Gần nhất | Test ngoài luồng chính 09/11 (UI-TEST-RUN-1109) | KB-13 26 Đ, KB-14 5 Đ, KB-17 8 Đ, KB-18 8 Đ, KB-20 7 Đ + **2 lỗi BE2-01/BE2-02 (Codex, 500 khi ghi DB Analytics, cần log theo traceId)**. Test lại dồn cuối đợt (mục 6.3 `ui-test-scenarios.md`). Còn KB-19 #1–4; luồng chính chờ FE-01. |
 | Gần nhất | Tóm tắt tự sinh + gắn PDF thủ tục nhập tay (PROC-SUMMARY-SOURCE-1109, 09/11) | ProcedureCatalog: feeSummary/processingTimeSummary tự sinh từ submissionMethods khi trống; API mới `POST /api/v1/procedure-manager/procedures/{id}/source`. Build 0/0; chưa test runtime; Anti deploy ProcedureCatalog, không cần SQL. |
 | Gần nhất | QR tạo ngay khi sẵn sàng (DOC-QR-05, 09/11) | **Đã deploy thành công lên Azure (09/11):** Đã chạy `docs/sql/documentform-approved-qr-optional-submission.sql` trên `wardmate-db`; DocumentForm cập nhật revision `wardmate-documentform--latest` (1 replica, Healthy); `/api/document-form/health/ready` trả 200 Healthy; cả 6 service qua Gateway đều 200 Healthy. FE cho phép `submissionId` nullable trong schema. |
 | Gần nhất | Dọn tài liệu cũ (DOCS-CLEANUP-1109, 09/11) | Đã xóa 16 file docs đã xong việc (bàn giao 31/10–01/11, TASK-34/35, đặc tả lịch đóng cửa, TASK-32, hướng dẫn test 10/2026, runbook SMS). Giữ `sql/notification-esms-delivery.sql` vì là baseline bắt buộc của `notification-delivery-administration.sql`. Chi tiết trong PROGRESS. |

@@ -4710,3 +4710,17 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - `feat(procedure-catalog): derive fee and processing summaries from submission methods`
   - `feat(procedure-catalog): attach source pdf to existing procedure`
   - `docs: document summary derivation and procedure source upload (PROC-01a, PROC-03a)`
+
+## UI-TEST-RUN-1109 — Test các KB ngoài luồng chính (KB-13, 14, 17, 18, 20) — 2026-11-09 (UTC+07)
+
+- Chủ dự án quyết định: chỉ test lại sau khi chạy xong mọi KB và sửa hết lỗi. Thêm mục 6.3 "Test lại cuối đợt" trong `docs/ui-test-scenarios.md` gom các bước cần test lại.
+- Phân người sửa: lỗi phần Claude làm giữ mã `BE-xx`; lỗi phần Codex làm (KB-13, KB-14, KB-20) ghi mã `BE2-xx (Codex)` trong mục 6.2.
+- Kết quả (Azure):
+  - KB-18 Phân quyền (Claude): 8 Đ, 3 B (bước 4–6 cần hồ sơ). FE ẩn hầu hết chức năng không được phép.
+  - KB-17 Thống kê (Claude): 8/8 Đ, số liệu rỗng vì chưa có hồ sơ; rebuild job 202 + trạng thái job Đ.
+  - KB-20 Quản trị hệ thống (Codex): 7 Đ, 2 L, 2 B. **BE2-01**: `PUT /api/v1/system/settings/{key}` 500; **BE2-02**: `POST /api/v1/system/backups` 500. Cả hai lỗi ở đoạn ghi DB Analytics (đọc vẫn 200); nghi thiếu migration audit/backup trên Azure, chưa xác nhận — cần log theo traceId (ghi trong 6.2).
+  - KB-13 Lịch làm, lịch tháng, đơn nghỉ Word (Codex): 26 Đ, 1 B (bước 27 luồng chính). Dữ liệu: ca lẻ, mẫu tuần, lịch tháng 12/2026 đã công bố cho OFF-A1, đơn nghỉ đã duyệt.
+  - KB-14 Lịch nghỉ phường, lễ (Codex): 5 Đ, 1 B (bước 5 cần hồ sơ). Ngày nghỉ 15/12 và lễ 16/12 đã hủy sau test.
+- Ghi chú cho luồng chính: Manager chỉ giao hồ sơ được cho cán bộ đang có ca tại thời điểm giao (422 `staffing.officer_unavailable`); khi test tháng 11 cần thêm ca lẻ hôm đó cho OFF-A1/A2.
+- File đổi: `docs/ui-test-scenarios.md`, `docs/CLAUDE_HANDOFF.md`, `PROGRESS.md`. Không đổi code; không build; không chạy Git.
+- Còn lại ngoài luồng chính: KB-19 bước 1–4. Luồng chính (KB-06 → KB-12, KB-15) chờ FE-01.
