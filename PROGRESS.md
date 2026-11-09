@@ -4782,3 +4782,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - `feat(procedure-catalog): add procedure optional fields migration` (file migration mới)
   - `docs(sql): add catalog procedure optional fields script`
   - `docs: document optional procedure fields (PROC-01b)`
+
+---
+
+## FE-HANDOFF-1109 — Bàn giao FE các sửa đổi ngày 09/11 — 2026-11-09 (UTC+07)
+
+- **Mới:** `docs/fe-handoff-2026-11-09.md` — 5 mục: QR tạo ngay khi sẵn sàng (DOC-QR-05), tự sinh tóm tắt (PROC-01a), API 32a gắn PDF, tạo thủ tục mặc định ẩn (PROC-03b, kèm lỗi isActive trên bản đang chạy), chỉ bắt buộc mã/tên/lĩnh vực (PROC-01b); bảng trạng thái triển khai và 6 bước test sau deploy.
+- **Sửa:** `AGENTS.md` (thêm handoff FE 09/11 vào danh sách hiện hành).
+- Không đổi code, không build.
+- **Commit gợi ý:** `docs: add fe handoff for 2026-11-09 fixes` (file mới) và `docs: reference 2026-11-09 fe handoff in agents guide`.
