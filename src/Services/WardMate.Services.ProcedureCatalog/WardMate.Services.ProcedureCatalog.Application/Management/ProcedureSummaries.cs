@@ -15,9 +15,10 @@ public static class ProcedureSummaries
     public static bool HasMethods(ProcedureContentPayload? payload) =>
         payload?.SubmissionMethods is { Count: > 0 } methods && methods.All(x => x is not null);
 
-    public static string Fee(string? summary, ProcedureContentPayload? payload)
+    public static string? Fee(string? summary, ProcedureContentPayload? payload)
     {
-        if (!string.IsNullOrWhiteSpace(summary) || !HasMethods(payload)) return summary?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(summary)) return summary.Trim();
+        if (!HasMethods(payload)) return null;
         var methods = payload!.SubmissionMethods;
         if (methods.All(x => x.FeeAmount == 0)) return "Miễn phí";
         var parts = methods
@@ -26,9 +27,10 @@ public static class ProcedureSummaries
         return Clip(string.Join("; ", parts));
     }
 
-    public static string ProcessingTime(string? summary, ProcedureContentPayload? payload)
+    public static string? ProcessingTime(string? summary, ProcedureContentPayload? payload)
     {
-        if (!string.IsNullOrWhiteSpace(summary) || !HasMethods(payload)) return summary?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(summary)) return summary.Trim();
+        if (!HasMethods(payload)) return null;
         var days = payload!.SubmissionMethods.Select(x => x.EstimatedDays).ToArray();
         var min = days.Min();
         var max = days.Max();

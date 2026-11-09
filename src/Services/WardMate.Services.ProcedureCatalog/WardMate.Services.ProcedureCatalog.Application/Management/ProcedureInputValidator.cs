@@ -14,25 +14,19 @@ public sealed class ProcedureInputValidator : AbstractValidator<ProcedureInput>
         RuleFor(x => x.CategoryId).GreaterThan(0).WithMessage("Danh mục phải là số nguyên lớn hơn 0.");
         RuleFor(x => x.ProcedureCode).NotEmpty().WithMessage("Mã thủ tục không được để trống.")
             .MaximumLength(50).WithMessage("Mã thủ tục không được vượt quá 50 ký tự.");
-        RuleFor(x => x.Title).Must(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length >= 10)
-            .WithMessage("Tên thủ tục phải có ít nhất 10 ký tự.")
+        // PROC-01b: chỉ mã, tên, lĩnh vực bắt buộc; các trường còn lại chỉ kiểm độ dài khi có giá trị.
+        RuleFor(x => x.Title).Must(x => !string.IsNullOrWhiteSpace(x))
+            .WithMessage("Tên thủ tục không được để trống.")
             .MaximumLength(500).WithMessage("Tên thủ tục không được vượt quá 500 ký tự.");
         RuleFor(x => x.IssuingAuthority).MaximumLength(255).WithMessage("Cơ quan ban hành không được vượt quá 255 ký tự.");
-        RuleFor(x => x.LevelOfImplementation).NotEmpty().WithMessage("Cấp thực hiện không được để trống.")
-            .MaximumLength(50).WithMessage("Cấp thực hiện không được vượt quá 50 ký tự.");
-        RuleFor(x => x.TargetAudience).NotEmpty().WithMessage("Đối tượng thực hiện không được để trống.")
-            .MaximumLength(255).WithMessage("Đối tượng thực hiện không được vượt quá 255 ký tự.");
-        RuleFor(x => x.FeeSummary).Must((x, v) => !string.IsNullOrWhiteSpace(v) || ProcedureSummaries.HasMethods(x.ContentPayload))
-            .WithMessage("Nhập tóm tắt lệ phí hoặc ít nhất một cách nộp ở phần Thời hạn & lệ phí để hệ thống tự tóm tắt.")
-            .MaximumLength(255).WithMessage("Tóm tắt lệ phí không được vượt quá 255 ký tự.");
-        RuleFor(x => x.ProcessingTimeSummary).Must((x, v) => !string.IsNullOrWhiteSpace(v) || ProcedureSummaries.HasMethods(x.ContentPayload))
-            .WithMessage("Nhập tóm tắt thời hạn hoặc ít nhất một cách nộp ở phần Thời hạn & lệ phí để hệ thống tự tóm tắt.")
-            .MaximumLength(255).WithMessage("Thời gian xử lý không được vượt quá 255 ký tự.");
-        RuleFor(x => x.ContentPayload).NotNull().WithMessage("Nội dung thủ tục không được để trống.");
+        RuleFor(x => x.LevelOfImplementation).MaximumLength(50).WithMessage("Cấp thực hiện không được vượt quá 50 ký tự.");
+        RuleFor(x => x.TargetAudience).MaximumLength(255).WithMessage("Đối tượng thực hiện không được vượt quá 255 ký tự.");
+        RuleFor(x => x.FeeSummary).MaximumLength(255).WithMessage("Tóm tắt lệ phí không được vượt quá 255 ký tự.");
+        RuleFor(x => x.ProcessingTimeSummary).MaximumLength(255).WithMessage("Thời gian xử lý không được vượt quá 255 ký tự.");
         When(x => x.ContentPayload is not null, () =>
         {
-            RuleFor(x => x.ContentPayload.DecisionNumber).MaximumLength(100).WithMessage("Số quyết định không được vượt quá 100 ký tự.");
-            RuleFor(x => x.ContentPayload).Custom(ValidateContent);
+            RuleFor(x => x.ContentPayload!.DecisionNumber).MaximumLength(100).WithMessage("Số quyết định không được vượt quá 100 ký tự.");
+            RuleFor(x => x.ContentPayload!).Custom(ValidateContent);
         });
         RuleFor(x => x.ChecklistSchema).Custom((items, context) =>
         {
@@ -89,22 +83,22 @@ public sealed class ProcedureInputValidator : AbstractValidator<ProcedureInput>
 
     private static void ValidateContent(ProcedureContentPayload payload, ValidationContext<ProcedureInput> context)
     {
-        if (payload.Cases is null || payload.SubmissionMethods is null || payload.LegalReferences is null || payload.Results is null)
-        {
-            context.AddFailure("ContentPayload", "Các danh sách trong nội dung thủ tục không được là null; hãy gửi mảng rỗng khi không có dữ liệu.");
-            return;
-        }
-        if (payload.Cases.Any(x => x is null || string.IsNullOrWhiteSpace(x.CaseCode) ||
+        // Danh sách null được coi là rỗng (ProcedureInput.NormalizedContent khi lưu); chỉ kiểm phần tử có gửi lên.
+        var cases = payload.Cases ?? [];
+        var methods = payload.SubmissionMethods ?? [];
+        var legal = payload.LegalReferences ?? [];
+        var results = payload.Results ?? [];
+        if (cases.Any(x => x is null || string.IsNullOrWhiteSpace(x.CaseCode) ||
             string.IsNullOrWhiteSpace(x.CaseName) || x.Steps is null ||
             x.Steps.Any(step => step is null || step.StepOrder <= 0 || string.IsNullOrWhiteSpace(step.StepName))))
             context.AddFailure("ContentPayload.Cases", "Trường hợp phải có mã, tên và danh sách bước hợp lệ (thứ tự lớn hơn 0, tên không trống).");
-        var caseCodes = payload.Cases.Where(x => x is not null).Select(x => x.CaseCode).ToArray();
+        var caseCodes = cases.Where(x => x is not null).Select(x => x.CaseCode).ToArray();
         if (caseCodes.Any(x => x is not null && (x.Length > 100 || x != x.Trim()))
             || caseCodes.Distinct(StringComparer.Ordinal).Count() != caseCodes.Length)
             context.AddFailure("ContentPayload.Cases", "Mã trường hợp phải duy nhất, tối đa 100 ký tự và không có khoảng trắng đầu/cuối.");
-        if (payload.SubmissionMethods.Any(x => x is null || string.IsNullOrWhiteSpace(x.MethodName) || x.FeeAmount < 0 || x.EstimatedDays < 0))
+        if (methods.Any(x => x is null || string.IsNullOrWhiteSpace(x.MethodName) || x.FeeAmount < 0 || x.EstimatedDays < 0))
             context.AddFailure("ContentPayload.SubmissionMethods", "Phương thức nộp phải có tên, lệ phí và thời gian không âm.");
-        if (payload.LegalReferences.Any(x => x is null) || payload.Results.Any(string.IsNullOrWhiteSpace))
+        if (legal.Any(x => x is null) || results.Any(string.IsNullOrWhiteSpace))
             context.AddFailure("ContentPayload", "Căn cứ pháp lý và kết quả không được chứa phần tử trống.");
     }
 }

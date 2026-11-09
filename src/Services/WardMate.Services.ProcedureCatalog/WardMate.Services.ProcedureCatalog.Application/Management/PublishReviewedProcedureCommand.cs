@@ -41,7 +41,7 @@ public sealed class PublishReviewedProcedureHandler(IProcedureManagementStore st
             else
             {
                 store.AddVersion(ProcedureVersion.Capture(procedure, await store.NextVersion(procedure.Id, ct),
-                    DateOnly.FromDateTime(now), request.Input.ContentPayload.DecisionNumber, now));
+                    DateOnly.FromDateTime(now), request.Input.ContentPayload?.DecisionNumber, now));
                 request.Input.ApplyTo(procedure);
                 procedure.Category = category;
                 procedure.UpdatedAt = now;

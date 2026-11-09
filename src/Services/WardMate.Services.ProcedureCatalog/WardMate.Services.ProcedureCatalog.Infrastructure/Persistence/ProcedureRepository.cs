@@ -53,12 +53,12 @@ public sealed class ProcedureRepository(ProcedureDbContext db) : IProcedureRepos
         if (!string.IsNullOrWhiteSpace(query.LevelOfImplementation))
         {
             var level = Escape(query.LevelOfImplementation.Trim());
-            source = source.Where(x => EF.Functions.ILike(ProcedureDbContext.Unaccent(x.LevelOfImplementation), ProcedureDbContext.Unaccent(level), "\\"));
+            source = source.Where(x => EF.Functions.ILike(ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? ""), ProcedureDbContext.Unaccent(level), "\\"));
         }
         // Prefer commune/ward entries for default title ordering, without excluding other levels.
         var ordered = source.OrderBy(x => query.SortBy.ToLower() == "title" && string.IsNullOrWhiteSpace(query.LevelOfImplementation) &&
-            (ProcedureDbContext.Unaccent(x.LevelOfImplementation).ToLower() == "cap xa" ||
-             ProcedureDbContext.Unaccent(x.LevelOfImplementation).ToLower() == "cap phuong") ? 0 : 1);
+            (ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? "").ToLower() == "cap xa" ||
+             ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? "").ToLower() == "cap phuong") ? 0 : 1);
         ordered = query.SortBy.ToLowerInvariant() switch
         {
             "procedurecode" => query.IsAscending ? ordered.ThenBy(x => x.ProcedureCode) : ordered.ThenByDescending(x => x.ProcedureCode),

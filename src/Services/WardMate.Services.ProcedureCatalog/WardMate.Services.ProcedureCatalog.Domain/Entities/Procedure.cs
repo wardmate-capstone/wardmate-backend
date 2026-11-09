@@ -12,10 +12,10 @@ public sealed class Procedure
     public string? PdfFileName { get; set; }
     public string? IssuingAuthority { get; set; }
     public string? ExecutingAgency { get; set; }
-    public string LevelOfImplementation { get; set; } = "Cấp Xã";
-    public string TargetAudience { get; set; } = "Công dân Việt Nam";
-    public string FeeSummary { get; set; } = "Miễn phí";
-    public string ProcessingTimeSummary { get; set; } = "1 ngày";
+    public string? LevelOfImplementation { get; set; }
+    public string? TargetAudience { get; set; }
+    public string? FeeSummary { get; set; }
+    public string? ProcessingTimeSummary { get; set; }
     public bool IsActive { get; set; } = true;
     public string? StatusChangeReason { get; set; }
     public ProcedureContentPayload ContentPayload { get; set; } = new();

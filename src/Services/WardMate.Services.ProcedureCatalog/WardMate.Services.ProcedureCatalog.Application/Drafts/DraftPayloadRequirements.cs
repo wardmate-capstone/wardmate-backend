@@ -14,7 +14,8 @@ public static class DraftPayloadRequirements
                 if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(field, out var property) || property.ValueKind == JsonValueKind.Null)
                     errors[prefix + field] = ["Cần đối soát và cung cấp giá trị; không tự áp dụng giá trị mặc định."];
         }
-        Require(payload, "", "categoryId", "procedureCode", "title", "levelOfImplementation", "targetAudience", "feeSummary", "processingTimeSummary", "contentPayload");
+        // PROC-01b: chỉ mã, tên, lĩnh vực bắt buộc; trường khác được null.
+        Require(payload, "", "categoryId", "procedureCode", "title");
         void Items(JsonElement parent, string name, string prefix, params string[] fields)
         {
             if (parent.ValueKind != JsonValueKind.Object || !parent.TryGetProperty(name, out var items) || items.ValueKind != JsonValueKind.Array) return;
@@ -23,7 +24,7 @@ public static class DraftPayloadRequirements
         }
         if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("contentPayload", out var content))
         {
-            Require(content, "contentPayload.", "cases", "submissionMethods", "legalReferences", "results");
+            // Danh sách nội dung được null (coi là rỗng); phần tử có gửi vẫn phải đủ trường số liệu.
             Items(content, "submissionMethods", "contentPayload.", "feeAmount", "feeUnit", "estimatedDays");
         }
         Items(payload, "checklistSchema", "", "submissionType", "documentCopyType", "quantity", "isMandatory");

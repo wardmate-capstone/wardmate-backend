@@ -4,8 +4,8 @@ using WardMate.Services.ProcedureCatalog.Domain.JsonModels;
 namespace WardMate.Services.ProcedureCatalog.Application.DTOs;
 
 public sealed record ProcedureDetailDto(Guid Id, int CategoryId, string CategoryName, string ProcedureCode,
-    string Title, string? IssuingAuthority, string? ExecutingAgency, string LevelOfImplementation,
-    string TargetAudience, string FeeSummary, string ProcessingTimeSummary, bool IsActive,
+    string Title, string? IssuingAuthority, string? ExecutingAgency, string? LevelOfImplementation,
+    string? TargetAudience, string? FeeSummary, string? ProcessingTimeSummary, bool IsActive,
     ProcedureContentPayload ContentPayload, List<ChecklistItemSchema>? ChecklistSchema,
     List<FormDefinitionSchema>? FormDefinitions, DateTime CreatedAt, DateTime UpdatedAt,
     string? OriginalPdfUrl, string? PdfFileName)
