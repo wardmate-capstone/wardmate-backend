@@ -350,12 +350,12 @@ Dùng `{appD}`.
 
 | # | Vai trò | Bước | API | Kỳ vọng | KQ |
 |---|---|---|---|---|---|
-| 1 | MGR-A | Xem lịch nghỉ từ hôm nay đến cuối năm | `GET /api/v1/staffing/closures` | 200 | |
-| 2 | MGR-A | Khai báo phường A nghỉ 1 ngày trong tương lai | `POST /api/v1/staffing/closures` | 200 có `rescheduledApplications`; trùng ngày → 409 `staffing.closure_exists`; ngày đã qua → 400 | |
-| 3 | ADMIN | Khai báo 1 ngày lễ toàn quốc | `POST /api/v1/staffing/closures/national` | 200 `wardCode=null`; MGR-A gọi → 403 | |
-| 4 | OFF-A1 | Xem lịch nghỉ | `GET /api/v1/staffing/closures` | 200 thấy cả ngày phường và ngày lễ | |
-| 5 | CIT-1/OFF-A1 | Mở hồ sơ đang xử lý, kiểm tra hạn xử lý | `GET /api/v1/applications/{id}` | Hạn lùi đúng số ngày nghỉ (nếu hồ sơ bị ảnh hưởng) | |
-| 6 | MGR-A, ADMIN | Hủy ngày nghỉ phường và ngày lễ vừa tạo | `POST /api/v1/staffing/closures/{id}/cancel` | 200; MGR-A hủy ngày lễ toàn quốc → 403 | |
+| 1 | MGR-A | Xem lịch nghỉ từ hôm nay đến cuối năm | `GET /api/v1/staffing/closures` | 200 | Đ (09/11) |
+| 2 | MGR-A | Khai báo phường A nghỉ 1 ngày trong tương lai | `POST /api/v1/staffing/closures` | 200 có `rescheduledApplications`; trùng ngày → 409 `staffing.closure_exists`; ngày đã qua → 400 | Đ (09/11). 2a tạo 15/12 Đ; 2b trùng ngày 409, 2c ngày đã qua 400, 2d thiếu lý do 400 Đ |
+| 3 | ADMIN | Khai báo 1 ngày lễ toàn quốc | `POST /api/v1/staffing/closures/national` | 200 `wardCode=null`; MGR-A gọi → 403 | Đ (09/11). 3a ADMIN tạo lễ 16/12 Đ; 3b MGR-A bị chặn Đ |
+| 4 | OFF-A1 | Xem lịch nghỉ | `GET /api/v1/staffing/closures` | 200 thấy cả ngày phường và ngày lễ | Đ (09/11) |
+| 5 | CIT-1/OFF-A1 | Mở hồ sơ đang xử lý, kiểm tra hạn xử lý | `GET /api/v1/applications/{id}` | Hạn lùi đúng số ngày nghỉ (nếu hồ sơ bị ảnh hưởng) | B (09/11). Cần hồ sơ thật (luồng chính) — xem 6.3 |
+| 6 | MGR-A, ADMIN | Hủy ngày nghỉ phường và ngày lễ vừa tạo | `POST /api/v1/staffing/closures/{id}/cancel` | 200; MGR-A hủy ngày lễ toàn quốc → 403 | Đ (09/11). 6a MGR-A hủy lễ toàn quốc bị chặn; 6b hủy ngày phường; 6c hủy lại → 409; 6d ADMIN hủy lễ Đ |
 
 ### KB-15 — Tham vấn chuyên môn
 
@@ -764,7 +764,7 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | KB-11 | Route cũ DocumentForm | 3 | | | | | |
 | KB-12 | Trả lại, chuyển giao | 6 | | | | | |
 | KB-13 | Lịch làm, lịch tháng, đơn nghỉ Word | 27 | 26 | 0 | 0 | 1 | 09/11. Phần Codex làm, không có lỗi. Bước 27 thuộc luồng chính |
-| KB-14 | Lịch nghỉ phường, lễ | 6 | | | | | |
+| KB-14 | Lịch nghỉ phường, lễ | 6 | 5 | 0 | 0 | 1 | 09/11. Phần Codex làm, không có lỗi. Bước 5 cần hồ sơ (luồng chính) |
 | KB-15 | Tham vấn | 8 | | | | | |
 | KB-16 | Thông báo | 11 | 9 | 0 | 0 | 2 | 08/11, thông báo tạo bằng SQL (chưa chạy luồng chính). Bước 7, 10a chặn do Email tắt trên Azure — chờ Anti bật Email |
 | KB-17 | Thống kê | 8 | 8 | 0 | 0 | 0 | 09/11, chưa có hồ sơ nên số liệu rỗng; kiểm tra quyền, lọc ngày, giao diện rỗng và job tổng hợp |
@@ -818,6 +818,7 @@ Chủ dự án quyết định (09/11): **chỉ test lại sau khi đã chạy x
 | KB-17 #1–#5 | Số liệu và đánh giá thật | Sau khi chạy luồng chính |
 | KB-20 #2, #3, #8, #9, #10 | Sau khi sửa BE2-01, BE2-02 | Codex/Anti xử lý xong |
 | KB-13 #27 | Giao hồ sơ cho cán bộ đang nghỉ | Sau khi chạy luồng chính |
+| KB-14 #5 | Hạn xử lý hồ sơ lùi theo ngày nghỉ | Sau khi chạy luồng chính |
 | Các bước UI/L phát sinh sau | Ghi thêm vào đây khi test các KB còn lại | — |
 
 **Cách đọc:** cột **UI** = việc FE còn thiếu; cột **L** = lỗi cần BE/FE sửa; API trong mục 4 chưa có dấu "Đã test" sau khi chạy hết = chức năng chưa được dùng trên giao diện.
