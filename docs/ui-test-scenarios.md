@@ -85,7 +85,7 @@ ADMIN, PM, MGR-A, OFF-A1, OFF-A2 và OFF-B1 có thể được **tạo ngay tron
 | 3 | Tìm kiếm thủ tục theo từ khóa, lọc lĩnh vực, sang trang 2 | `GET /api/v1/procedures` | 200, có phân trang | Đ (02/11) |
 | 4 | Mở chi tiết một thủ tục (checklist, phí, thời hạn) | `GET /api/v1/procedures/{id}` | 200; id sai → 404 | Đ (02/11) |
 | 5 | Bấm xem văn bản nguồn PDF của thủ tục (nếu có) | `GET /api/v1/procedures/{id}/source` | 200 file PDF, hoặc 404 nếu thủ tục không có nguồn | Đ (02/11) |
-| 6 | Danh sách phường công khai. Đăng ký **không** chọn phường; công dân chọn phường **khi tạo hồ sơ** (`wardCode` trong `POST /api/v1/applications`, KB-06). Khi chưa đăng nhập: mở thẳng URL API trên trình duyệt | `GET /api/v1/wards` | 200 `[{id,code,name}]`, có TEST_A, TEST_B | UI (02/11: FE chưa có ô chọn phường khi tạo hồ sơ. BE đã bắt buộc: thiếu `wardCode` → 400 "Phải chọn phường/xã tiếp nhận."; mã không tồn tại → 400 `application.invalid_ward`. Việc của FE, ghi lại để làm sau đợt test) |
+| 6 | Danh sách phường công khai. Đăng ký **không** chọn phường; công dân chọn phường **khi tạo hồ sơ** (`wardCode` trong `POST /api/v1/applications`, KB-06). Khi chưa đăng nhập: mở thẳng URL API trên trình duyệt | `GET /api/v1/wards` | 200 `[{id,code,name}]`, có TEST_A, TEST_B | Đ (09/11: FE-01 xong, công dân chọn phường khi tạo hồ sơ ở KB-06. Lần 02/11: UI vì thiếu ô chọn phường) |
 | 7 | Hỏi chatbot 1 câu khi chưa đăng nhập | `POST /api/v1/ai/chat/completions` | 200 có câu trả lời. Lần đầu có thể 503 `App port is not ready` vì AIOCR đang khởi động lạnh (0 replica) | Đ (02/11: lần đầu 503 do khởi động lạnh, FE vẫn hiện trả lời) |
 | 8 | Khách hỏi quá **10 câu trong ngày** trên cùng IP (`Assistant:DailyGuestRequestsPerIp`, mặc định 10; dùng mock nếu có) | `POST /api/v1/ai/chat/completions` | Câu thứ 11 → 429 `ai.guest_quota_exceeded`; FE hiện thông báo mời đăng nhập | Bỏ qua (02/11: tốn hạn mức Gemini, chờ FE có mock. Lần thử cũ: câu 6 bị trình duyệt hủy `(canceled)`, cần FE kiểm tra) |
 
@@ -200,26 +200,26 @@ ADMIN, PM, MGR-A, OFF-A1, OFF-A2 và OFF-B1 có thể được **tạo ngay tron
 
 | # | Bước | API | Kỳ vọng | KQ |
 |---|---|---|---|---|
-| 1 | Chọn thủ tục ở KB-04, chọn phường A, bấm "Tạo hồ sơ" | `POST /api/v1/applications` | 201, trạng thái `DRAFT`, có checklist snapshot | |
-| 2 | Đọc CCCD bằng AI (ảnh mặt trước và sau) để điền sẵn thông tin | `POST /api/v1/ai-ocr/cccd/extract` | 200; ảnh không đọc được → trường null; quá hạn mức → 429 | |
-| 3 | Mở mục checklist có mẫu đơn: xem mẫu, tải mẫu | `GET /api/v1/form-templates/{templateId}`, `GET /api/v1/form-templates/{templateId}/download-docx` | 200 | |
-| 4 | Điền đơn online và lưu nháp | `POST /api/v1/citizen/submissions/draft` | 201/200, có `submissionId` = `{subA}` | |
-| 5 | Sửa đơn nháp | `PUT /api/v1/citizen/submissions/{submissionId}/draft` | 200 | |
-| 6 | (Cách thứ hai) Tải lên DOCX đã điền offline cho một hồ sơ khác | `POST /api/v1/citizen/submissions/upload-filled-docx` | 201/200; thiếu ApplicationId/ChecklistId → 400 | |
-| 7 | Chốt đơn | `POST /api/v1/citizen/submissions/{submissionId}/submit` | 200 | |
-| 8 | Xem danh sách đơn của tôi, chi tiết, tải lại DOCX | `GET /api/v1/citizen/submissions`, `GET /api/v1/citizen/submissions/{submissionId}`, `GET /api/v1/citizen/submissions/{submissionId}/download-docx` | 200 | |
-| 9 | Tải ảnh/PDF giấy tờ minh chứng cho mục checklist còn lại | `POST /api/v1/applications/{applicationId}/supporting-documents` | 201; file quá lớn / sai định dạng → 400/413 | |
-| 10 | Xem danh sách giấy tờ, xem trước, tải về | `GET /api/v1/applications/{applicationId}/supporting-documents`, `GET /api/v1/supporting-documents/{documentId}/preview`, `GET /api/v1/supporting-documents/{documentId}/download` | 200 | |
-| 11 | Tải nhầm 1 file rồi xóa | `DELETE /api/v1/supporting-documents/{documentId}` | 204; chỉ xóa được khi hồ sơ `DRAFT`/`NEED_REVISION` | |
-| 12 | Bấm "Kiểm tra giấy tờ bằng AI" cho 1 giấy tờ | `POST /api/v1/ai-ocr/documents/verify` | 200 kết quả tham khảo; documentId sai → 404 | |
-| 13 | Đánh dấu từng mục checklist đã hoàn thành | `PATCH /api/v1/applications/{id}/checklists/{checklistId}` | 200 | |
-| 14 | Xem tổng hợp đơn + giấy tờ của hồ sơ trước khi nộp | `GET /api/v1/applications/{applicationId}/contents` | 200 | |
-| 15 | Bấm "Nộp hồ sơ" khi còn thiếu 1 mục bắt buộc | `POST /api/v1/applications/{id}/submit` | 409/422 nêu mục còn thiếu | |
-| 16 | Hoàn tất mục thiếu rồi nộp lại | `POST /api/v1/applications/{id}/submit` | 200, trạng thái `SUBMITTED`, có hạn xử lý | |
-| 17 | Mở "Hồ sơ của tôi", mở chi tiết hồ sơ | `GET /api/v1/applications`, `GET /api/v1/applications/{id}` | 200; có trạng thái và hạn | |
-| 18 | Tạo `{appB}` rồi bấm "Hủy hồ sơ" khi còn DRAFT | `POST /api/v1/applications/{id}/cancel` | 200 `CANCELLED`; hủy hồ sơ đã nộp → 409 | |
-| 19 | Mở chatbot khi đã đăng nhập, hỏi 1 câu, xem lịch sử | `POST /api/v1/ai/chat/completions`, `GET /api/v1/ai/chat/sessions`, `GET /api/v1/ai/chat/sessions/{sessionId}/messages` | 200; có phiên chat được lưu | |
-| 20 | CIT-2 mở link hồ sơ của CIT-1 | `GET /api/v1/applications/{id}` | 404/403, không lộ dữ liệu | |
+| 1 | Chọn thủ tục ở KB-04, chọn phường A, bấm "Tạo hồ sơ" | `POST /api/v1/applications` | 201, trạng thái `DRAFT`, có checklist snapshot | Đ (09/11: có ô chọn phường TEST_A, FE-01 đã xong) |
+| 2 | Đọc CCCD bằng AI (ảnh mặt trước và sau) để điền sẵn thông tin | `POST /api/v1/ai-ocr/cccd/extract` | 200; ảnh không đọc được → trường null; quá hạn mức → 429 | Đ (09/11) |
+| 3 | Mở mục checklist có mẫu đơn: xem mẫu, tải mẫu | `GET /api/v1/form-templates/{templateId}`, `GET /api/v1/form-templates/{templateId}/download-docx` | 200 | Đ (09/11) |
+| 4 | Điền đơn online và lưu nháp | `POST /api/v1/citizen/submissions/draft` | 201/200, có `submissionId` = `{subA}` | Đ (09/11) |
+| 5 | Sửa đơn nháp | `PUT /api/v1/citizen/submissions/{submissionId}/draft` | 200 | Đ (09/11) |
+| 6 | (Cách thứ hai) Tải lên DOCX đã điền offline cho một hồ sơ khác | `POST /api/v1/citizen/submissions/upload-filled-docx` | 201/200; thiếu ApplicationId/ChecklistId → 400 | Đ (09/11) |
+| 7 | Chốt đơn | `POST /api/v1/citizen/submissions/{submissionId}/submit` | 200 | Đ (09/11) |
+| 8 | Xem danh sách đơn của tôi, chi tiết, tải lại DOCX | `GET /api/v1/citizen/submissions`, `GET /api/v1/citizen/submissions/{submissionId}`, `GET /api/v1/citizen/submissions/{submissionId}/download-docx` | 200 | Đ (09/11) |
+| 9 | Tải ảnh/PDF giấy tờ minh chứng cho mục checklist còn lại | `POST /api/v1/applications/{applicationId}/supporting-documents` | 201; file quá lớn / sai định dạng → 400/413 | Đ (09/11) |
+| 10 | Xem danh sách giấy tờ, xem trước, tải về | `GET /api/v1/applications/{applicationId}/supporting-documents`, `GET /api/v1/supporting-documents/{documentId}/preview`, `GET /api/v1/supporting-documents/{documentId}/download` | 200 | Đ (09/11) |
+| 11 | Tải nhầm 1 file rồi xóa | `DELETE /api/v1/supporting-documents/{documentId}` | 204; chỉ xóa được khi hồ sơ `DRAFT`/`NEED_REVISION` | Đ (09/11) |
+| 12 | Bấm "Kiểm tra giấy tờ bằng AI" cho 1 giấy tờ | `POST /api/v1/ai-ocr/documents/verify` | 200 kết quả tham khảo; documentId sai → 404 | Đ (09/11) |
+| 13 | Đánh dấu từng mục checklist đã hoàn thành | `PATCH /api/v1/applications/{id}/checklists/{checklistId}` | 200 | Đ (09/11) |
+| 14 | Xem tổng hợp đơn + giấy tờ của hồ sơ trước khi nộp | `GET /api/v1/applications/{applicationId}/contents` | 200 | Đ (09/11) |
+| 15 | Bấm "Nộp hồ sơ" khi còn thiếu 1 mục bắt buộc | `POST /api/v1/applications/{id}/submit` | 409/422 nêu mục còn thiếu | Đ (09/11: FE chặn nộp trên giao diện khi còn mục bắt buộc chưa xong; chưa thấy 422 từ BE) |
+| 16 | Hoàn tất mục thiếu rồi nộp lại | `POST /api/v1/applications/{id}/submit` | 200, trạng thái `SUBMITTED`, có hạn xử lý | Đ (09/11) |
+| 17 | Mở "Hồ sơ của tôi", mở chi tiết hồ sơ | `GET /api/v1/applications`, `GET /api/v1/applications/{id}` | 200; có trạng thái và hạn | Đ (09/11) |
+| 18 | Tạo `{appB}` rồi bấm "Hủy hồ sơ" khi còn DRAFT | `POST /api/v1/applications/{id}/cancel` | 200 `CANCELLED`; hủy hồ sơ đã nộp → 409 | Đ (09/11) |
+| 19 | Mở chatbot khi đã đăng nhập, hỏi 1 câu, xem lịch sử | `POST /api/v1/ai/chat/completions`, `GET /api/v1/ai/chat/sessions`, `GET /api/v1/ai/chat/sessions/{sessionId}/messages` | 200; có phiên chat được lưu | Đ (09/11) |
+| 20 | CIT-2 mở link hồ sơ của CIT-1 | `GET /api/v1/applications/{id}` | 404/403, không lộ dữ liệu | Đ (09/11) |
 
 ### KB-07 — Manager: cán bộ, lĩnh vực, ca làm (chuẩn bị điều phối)
 
@@ -751,12 +751,12 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | KB | Tên | Số bước | Đ | L | UI | B | Ghi chú |
 |---|---|---|---|---|---|---|---|
 | KB-00 | Hạ tầng | 3 | 3 | 0 | 0 | 0 | 02/11 trên Azure |
-| KB-01 | Khách | 8 | 6 | 0 | 1 | 0 | Bước 6: FE thiếu chọn phường (FE-01). Bước 8 bỏ qua (chờ mock) |
+| KB-01 | Khách | 8 | 7 | 0 | 0 | 0 | Bước 6 đạt khi chạy KB-06 (09/11, FE-01 xong). Bước 8 bỏ qua (chờ mock) |
 | KB-02 | Tài khoản, phiên | 15 | 13 | 0 | 1 | 0 | Bước 9: xóa hồ sơ cá nhân là tùy chọn (FE-03). Bước 10 để sau (FE-05) |
 | KB-03 | Quản trị IT_ADMIN | 24 | 20 | 0 | 4 | 0 | Bước 7, 8, 12, 14: FE chưa dùng các API phụ (FE-06) |
 | KB-04 | Thủ tục | 25 | 22 | 0 | 2 | 0 | 05/11. Bước 7, 12: không liên kết được mẫu đơn từ màn checklist (FE-07). Bước 22 không phát sinh. Góp ý nghiệp vụ ghi ở 6.2 (BE-01..BE-05) |
 | KB-05 | Knowledge Base | 13 | 11 | 1 | 1 | 0 | 07/11. Bước 7 lỗi BE, đã sửa source (BE-06), chờ deploy. Bước 13: FE chưa có màn thống kê (FE-10) |
-| KB-06 | Công dân nộp hồ sơ | 20 | | | | | |
+| KB-06 | Công dân nộp hồ sơ | 20 | 20 | 0 | 0 | 0 | 09/11. Bước 15 FE chặn trên giao diện (BE trả 422 `application.checklist_incomplete` nếu gọi thẳng). Đã có `{appA}` SUBMITTED, `{appB}` CANCELLED |
 | KB-07 | Manager chuẩn bị | 5 | | | | | |
 | KB-08 | Điều phối, thụ lý | 17 | | | | | |
 | KB-09 | Bổ sung, nộp lại | 6 | | | | | |
@@ -776,7 +776,7 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 
 | Mã | Từ bước | Việc | Ưu tiên |
 |---|---|---|---|
-| FE-01 | KB-01 #6 | Thêm ô **chọn phường tiếp nhận** vào form tạo hồ sơ, lấy danh sách từ `GET /api/v1/wards`, gửi `wardCode` trong `POST /api/v1/applications`. BE đã bắt buộc: thiếu → 400 "Phải chọn phường/xã tiếp nhận.", sai mã → 400 `application.invalid_ward`. Không có ô này thì công dân không tạo được hồ sơ | Cao — chặn KB-06 |
+| FE-01 | KB-01 #6 | Thêm ô **chọn phường tiếp nhận** vào form tạo hồ sơ, lấy danh sách từ `GET /api/v1/wards`, gửi `wardCode` trong `POST /api/v1/applications`. BE đã bắt buộc: thiếu → 400 "Phải chọn phường/xã tiếp nhận.", sai mã → 400 `application.invalid_ward`. Không có ô này thì công dân không tạo được hồ sơ | Cao — **đã xong 09/11** (đạt ở KB-06 #1) |
 | FE-02 | KB-01 #8 | Kiểm tra vì sao request chatbot bị trình duyệt hủy `(canceled)` khi hỏi liên tiếp (gửi câu mới khi câu trước chưa xong, AbortController, timeout quá ngắn). Hiện thông báo 429 `ai.guest_quota_exceeded` thành lời mời đăng nhập | Trung bình |
 | FE-03 | KB-02 #9 | (Tùy chọn) Nút "Xóa thông tin cá nhân" gọi `DELETE /api/v1/users/me/profile`: hỏi xác nhận trước; sau khi xóa `profile` trong `/users/me` là `null` nên phải hiện form **tạo** (`POST /api/v1/users/me/profile`) thay cho form sửa | Thấp |
 | FE-04 | KB-02 #13 | Màn "Quên mật khẩu": **hiện nguyên thông báo trung tính của BE** ("Nếu tài khoản hợp lệ…, mã OTP sẽ được gửi qua Email…"), **không** hiện "Đã gửi mã thành công" và không đoán email có tồn tại hay không. BE luôn trả 202 dù email có trong hệ thống hay không (chống dò tài khoản). Thêm gợi ý: kiểm tra cả thư Spam; chờ 60 giây mới xin lại mã (xin sớm hơn vẫn 202 nhưng không có thư mới); mã hết hạn sau 5 phút; sai 5 lần phải xin mã mới. Có thể khóa nút "Gửi lại mã" 60 giây | Trung bình |
@@ -807,7 +807,7 @@ Chủ dự án quyết định (09/11): **chỉ test lại sau khi đã chạy x
 
 | KB / bước | Lý do test lại | Điều kiện |
 |---|---|---|
-| KB-01 #6 | FE-01 ô chọn phường | FE xong FE-01 |
+| ~~KB-01 #6~~ | FE-01 ô chọn phường | Đã đạt 09/11 khi chạy KB-06 |
 | KB-01 #8 | 429 chatbot khách | Hạ tạm `Assistant__DailyGuestRequestsPerIp` xuống 2 rồi trả về 10 |
 | KB-02 #10 | Tự làm mới token (FE-05) | FE xong FE-05 |
 | KB-04 #7, #12 | Liên kết mẫu đơn (FE-07) | FE xong FE-07 |
