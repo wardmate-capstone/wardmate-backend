@@ -4846,3 +4846,32 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - `feat(procedure-catalog): allow procedure cases without steps`
   - `feat(aiocr): show copy requirements and case names in procedure knowledge`
   - `docs: document multiple copy types and case rules (PROC-02a)`
+
+---
+
+## BE-G-1109 — Danh bạ IAM trả quyền cán bộ (sửa phân công/tham vấn bị chặn) — 2026-11-09 (UTC+07)
+
+- **Lỗi (đã đối chiếu code):** `DirectoryUser` IAM không có `Permissions`; Workflow `DispatchDirectory` đọc `GET /api/v1/manager/officers` vào `DispatchOfficer.Permissions` = null → mọi cán bộ bị chặn ở gợi ý phân công (`ASSIGN_PERMISSION_MISSING`), **phân công tay** (`POST /api/v1/manager/applications/{id}/assignments`, cùng hàm `Reasons`) và tham vấn (422 `specialist_ineligible`).
+- **Sửa:**
+  - `IAM.Application/Accounts/UserDirectory.cs`: `DirectoryUser` thêm `string[] Permissions`.
+  - `IAM.Infrastructure/Persistence/UserDirectory.cs`: projection `List` thêm quyền của từng người (UserRoles → RolePermissions → PermissionCode, Distinct). Đã in SQL bằng `ToQueryString` (Npgsql, không kết nối DB): một câu với `LEFT JOIN LATERAL (SELECT DISTINCT p.permission_code ...)`, không N+1.
+  - `ApplicationWorkflow.Infrastructure/DispatchDirectory.cs`: `Permissions` null → `HttpRequestException` (dữ liệu IAM không hợp lệ) thay vì âm thầm chặn.
+- **API:** `GET /api/v1/manager/officers`, `GET /api/v1/admin/users` thêm `items[].permissions` (luôn mảng). Trường cũ, phân trang, bộ lọc, quyền, phạm vi phường giữ nguyên. Không migration/SQL.
+- **Docs:** `api-guide.md` (mục GET /manager/officers), `system-constraints.md` (IAM-05a).
+- **Build:** `dotnet build WardMate.sln -c Release -warnaserror -m:1 --no-incremental` → 0 cảnh báo, 0 lỗi. Chưa chạy với DB thật, chưa Docker, chưa deploy; chưa chạy 6 bước nghiệm thu BE-G.
+- **Thứ tự deploy:** **IAM trước, Workflow sau.** Nếu Workflow mới lên trước IAM cũ, mọi API dùng danh bạ (gợi ý/phân công/tham vấn/lịch) sẽ lỗi IAM thay vì chặn im lặng. Chỉ deploy IAM cũng đủ sửa lỗi.
+- **Nghiệm thu sau deploy (theo BE-G):** bước 1 (access-context A khớp `permissions` trong danh bạ) và bước 3 (assignment-candidates hết `ASSIGN_PERMISSION_MISSING`) trên Azure; bước 4–5 phân công/tham vấn bằng dữ liệu thử.
+- **Commit gợi ý:**
+  - `fix(iam): return officer permissions in user directory`
+  - `fix(workflow): treat missing directory permissions as invalid iam data`
+  - `docs: document directory permissions field (IAM-05a)`
+
+---
+
+## DEPLOY-1109c — Deploy ProcedureCatalog + AIOCR (PROC-COPIES-1109) — 2026-11-09 (UTC+07)
+
+- **Nguồn:** `kha` @ `69b3bbe` (tải tar.gz từ GitHub, không dùng git trên Cloud Shell). Claude commit/push và deploy theo yêu cầu chủ dự án.
+- **ProcedureCatalog:** run ACR `ce1m` → `wardmate-procedure-catalog:catalog-20261109-04`, digest `sha256:0974e11c2d234439fa74d1d851abf5c35676c06c1eca966822af29674159fbe3`; Container App cập nhật bằng digest → `Succeeded`; `/health/ready` 200 Healthy (database reachable). Rollback: `catalog-20261109-03`.
+- **AIOCR:** run ACR `ce1n` → `wardmate-aiocr:aiocr-20261109-01`, digest `sha256:e373dbc60d4e2747561a08e9f304d0b30d73cb5deb8f98097796285e9aa123db`; `Succeeded`; `/health/ready` 200 Healthy. Rollback: `aiocr-20261108-01`.
+- **SQL:** không có SQL mới (checklist lưu JSONB).
+- **Chưa kiểm:** chưa gọi thử API tạo thủ tục với `copyRequirements` hay trường hợp không có bước; chưa thử chatbot.
