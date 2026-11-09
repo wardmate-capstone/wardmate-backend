@@ -17,7 +17,8 @@ public sealed class DispatchDirectory(HttpClient http) : IDispatchDirectory
             response.EnsureSuccessStatusCode();
             var batch = await response.Content.ReadFromJsonAsync<DispatchOfficerPage>(cancellationToken: ct)
                 ?? throw new HttpRequestException("IAM trả danh sách rỗng.");
-            if (batch.Items is null || batch.Items.Any(x => x.Roles is null || x.AssignedCategories is null))
+            // BE-G: thiếu permissions phải báo lỗi rõ, không âm thầm chặn mọi cán bộ.
+            if (batch.Items is null || batch.Items.Any(x => x.Roles is null || x.AssignedCategories is null || x.Permissions is null))
                 throw new HttpRequestException("IAM trả dữ liệu không hợp lệ.");
             result.AddRange(batch.Items);
             if (result.Count >= batch.Total) return result.DistinctBy(x => x.Id).ToArray();
