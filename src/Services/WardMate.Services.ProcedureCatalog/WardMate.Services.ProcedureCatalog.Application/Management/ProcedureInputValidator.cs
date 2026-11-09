@@ -49,9 +49,17 @@ public sealed class ProcedureInputValidator : AbstractValidator<ProcedureInput>
                 item.RuleFor(x => x.ItemName).NotEmpty().WithMessage("Tên giấy tờ không được để trống.")
                     .MaximumLength(255).WithMessage("Tên giấy tờ không được vượt quá 255 ký tự.");
                 item.RuleFor(x => x.SubmissionType).Must(x => x is "NOP" or "XUAT_TRINH").WithMessage("Hình thức giấy tờ phải là NOP hoặc XUAT_TRINH.");
-                item.RuleFor(x => x.DocumentCopyType).Must(x => x is "ORIGINAL" or "CERTIFIED_COPY" or "REGULAR_COPY")
-                    .WithMessage("Loại bản giấy tờ phải là ORIGINAL, CERTIFIED_COPY hoặc REGULAR_COPY.");
+                item.RuleFor(x => x.DocumentCopyType).Must(x => x is null || IsCopyType(x))
+                    .WithMessage("Loại bản giấy tờ phải là ORIGINAL, CERTIFIED_COPY, REGULAR_COPY hoặc null.");
                 item.RuleFor(x => x.Quantity).GreaterThan(0).WithMessage("Số lượng giấy tờ phải lớn hơn 0.");
+                // PROC-02a: nhiều loại bản (1 bản chính + 1 bản sao...). Mỗi loại một dòng, không trùng.
+                item.RuleFor(x => x.CopyRequirements).Custom((copies, ctx) =>
+                {
+                    if (copies is null || copies.Count == 0) return;
+                    if (copies.Count > 3 || copies.Any(c => c is null || !IsCopyType(c.DocumentCopyType) || c.Quantity < 1 || c.Quantity > 100)
+                        || copies.Select(c => c!.DocumentCopyType).Distinct(StringComparer.Ordinal).Count() != copies.Count)
+                        ctx.AddFailure("CopyRequirements", "Mỗi loại bản (ORIGINAL, CERTIFIED_COPY, REGULAR_COPY) chỉ khai một dòng, số lượng từ 1 đến 100.");
+                });
             });
         RuleFor(x => x.FormDefinitions).Custom((forms, context) =>
         {
@@ -81,6 +89,8 @@ public sealed class ProcedureInputValidator : AbstractValidator<ProcedureInput>
             });
     }
 
+    private static bool IsCopyType(string? value) => value is "ORIGINAL" or "CERTIFIED_COPY" or "REGULAR_COPY";
+
     private static void ValidateContent(ProcedureContentPayload payload, ValidationContext<ProcedureInput> context)
     {
         // Danh sách null được coi là rỗng (ProcedureInput.NormalizedContent khi lưu); chỉ kiểm phần tử có gửi lên.
@@ -88,10 +98,11 @@ public sealed class ProcedureInputValidator : AbstractValidator<ProcedureInput>
         var methods = payload.SubmissionMethods ?? [];
         var legal = payload.LegalReferences ?? [];
         var results = payload.Results ?? [];
-        if (cases.Any(x => x is null || string.IsNullOrWhiteSpace(x.CaseCode) ||
-            string.IsNullOrWhiteSpace(x.CaseName) || x.Steps is null ||
-            x.Steps.Any(step => step is null || step.StepOrder <= 0 || string.IsNullOrWhiteSpace(step.StepName))))
-            context.AddFailure("ContentPayload.Cases", "Trường hợp phải có mã, tên và danh sách bước hợp lệ (thứ tự lớn hơn 0, tên không trống).");
+        // Trường hợp cần mã và tên; danh sách bước được bỏ trống (null coi là rỗng), bước có gửi thì phải hợp lệ.
+        if (cases.Any(x => x is null || string.IsNullOrWhiteSpace(x.CaseCode) || string.IsNullOrWhiteSpace(x.CaseName)
+            || (x.CaseName?.Length ?? 0) > 500
+            || (x.Steps ?? []).Any(step => step is null || step.StepOrder <= 0 || string.IsNullOrWhiteSpace(step.StepName))))
+            context.AddFailure("ContentPayload.Cases", "Trường hợp phải có mã và tên (tối đa 500 ký tự); bước nếu có phải có thứ tự lớn hơn 0 và tên không trống.");
         var caseCodes = cases.Where(x => x is not null).Select(x => x.CaseCode).ToArray();
         if (caseCodes.Any(x => x is not null && (x.Length > 100 || x != x.Trim()))
             || caseCodes.Distinct(StringComparer.Ordinal).Count() != caseCodes.Length)

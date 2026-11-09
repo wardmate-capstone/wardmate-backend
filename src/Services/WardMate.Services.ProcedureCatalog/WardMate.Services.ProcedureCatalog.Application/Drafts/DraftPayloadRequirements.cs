@@ -27,7 +27,8 @@ public static class DraftPayloadRequirements
             // Danh sách nội dung được null (coi là rỗng); phần tử có gửi vẫn phải đủ trường số liệu.
             Items(content, "submissionMethods", "contentPayload.", "feeAmount", "feeUnit", "estimatedDays");
         }
-        Items(payload, "checklistSchema", "", "submissionType", "documentCopyType", "quantity", "isMandatory");
+        // documentCopyType được null khi giấy tờ có nhiều loại bản (copyRequirements, PROC-02a).
+        Items(payload, "checklistSchema", "", "submissionType", "quantity", "isMandatory");
         Items(payload, "formDefinitions", "", "formType", "quantity", "isMandatory");
         return errors;
     }

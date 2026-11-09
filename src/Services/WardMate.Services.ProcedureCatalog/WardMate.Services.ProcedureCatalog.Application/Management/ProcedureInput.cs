@@ -37,7 +37,7 @@ public class ProcedureInput
         procedure.FeeSummary = ProcedureSummaries.Fee(FeeSummary, content);
         procedure.ProcessingTimeSummary = ProcedureSummaries.ProcessingTime(ProcessingTimeSummary, content);
         procedure.ContentPayload = content;
-        procedure.ChecklistSchema = ChecklistSchema;
+        procedure.ChecklistSchema = NormalizedChecklist(ChecklistSchema);
         procedure.FormDefinitions = FormDefinitions;
     }
 
@@ -51,7 +51,33 @@ public class ProcedureInput
         payload.LegalReferences ??= [];
         payload.Results ??= [];
         payload.Cases ??= [];
+        foreach (var item in payload.Cases.Where(x => x is not null)) item.Steps ??= [];
         return payload;
+    }
+
+    /// <summary>
+    /// PROC-02a: đồng bộ loại bản. Có CopyRequirements: 1 dòng → DocumentCopyType/Quantity theo dòng đó;
+    /// nhiều dòng → DocumentCopyType = null (Workflow chấp nhận mọi loại bản) và Quantity = tổng.
+    /// Không có CopyRequirements mà có DocumentCopyType → sinh 1 dòng để client luôn đọc được danh sách.
+    /// </summary>
+    public static List<ChecklistItemSchema>? NormalizedChecklist(List<ChecklistItemSchema>? items)
+    {
+        if (items is null) return null;
+        foreach (var item in items.Where(x => x is not null))
+        {
+            if (item.CopyRequirements is { Count: > 0 } copies)
+            {
+                item.DocumentCopyType = copies.Count == 1 ? copies[0].DocumentCopyType : null;
+                item.Quantity = copies.Sum(x => x.Quantity);
+            }
+            else
+            {
+                item.CopyRequirements = item.DocumentCopyType is null
+                    ? null
+                    : [new CopyRequirement { DocumentCopyType = item.DocumentCopyType, Quantity = item.Quantity }];
+            }
+        }
+        return items;
     }
 }
 

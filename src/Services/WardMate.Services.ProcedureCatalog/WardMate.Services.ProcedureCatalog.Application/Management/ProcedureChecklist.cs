@@ -38,7 +38,7 @@ public sealed class UpdateProcedureChecklistHandler(IProcedureManagementStore st
             var utc = DateTime.UtcNow;
             var now = new DateTime(utc.Ticks - utc.Ticks % 10, DateTimeKind.Utc);
             store.AddVersion(ProcedureVersion.Capture(p, await store.NextVersion(p.Id, ct), input.EffectiveDate, input.DecisionNumber.Trim(), now));
-            p.ChecklistSchema = input.Items;
+            p.ChecklistSchema = ProcedureInput.NormalizedChecklist(input.Items);
             p.ContentPayload.DecisionNumber = input.DecisionNumber.Trim();
             p.UpdatedAt = now;
             return ProcedureResult<ProcedureDetailDto>.Ok(ProcedureDetailDto.From(p));
