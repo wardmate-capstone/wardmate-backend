@@ -20,11 +20,13 @@
 
 ## A. Mở màn hình và thiết lập ngày đóng cửa — 5 API
 
-Workflow dùng **một mẫu Word chung cho mọi phường** khi operator cấu hình một lần `WorkSchedule__SharedLeaveTemplate__TemplateVersionId` và `WorkSchedule__SharedLeaveTemplate__TemplateSha256`. Upload mẫu vào container private `workflow-leave-documents`, tên object `templates/{UUID không gạch ngang}.docx`. Có thể đặt `WorkSchedule__SharedLeaveTemplate__RequireWord=true` để yêu cầu nộp Word cho mọi phường. FE tiếp tục gọi 01, 17 và 19 bằng token hiện tại, không cần gửi mã phường hay URL Blob. Khi thay mẫu, dùng UUID mới; nháp đã tạo có bản sao riêng.
+**Khi người dùng bấm “Xin nghỉ”, FE dùng mẫu chung.** Phường vừa tạo trong IAM dùng cùng phiên bản mẫu với các phường hiện có, ngay khi cán bộ đăng nhập với mã phường hợp lệ. FE không cần màn hình chọn mẫu theo phường. Cán bộ chỉnh sửa bản riêng của nháp; Manager chỉ mở tài liệu sau khi đơn đã nộp trong phường mình.
+
+**Thiết lập một lần trước nghiệm thu (Antigravity):** upload DOCX vào container private `workflow-leave-documents`, object `templates/{UUID không gạch ngang}.docx`. Trên ApplicationWorkflow, đặt `WorkSchedule__SharedLeaveTemplate__TemplateVersionId` bằng UUID có gạch ngang và `WorkSchedule__SharedLeaveTemplate__TemplateSha256` bằng SHA-256 của đúng file đã upload. Đặt `WorkSchedule__SharedLeaveTemplate__RequireWord=true` nếu mọi phường phải nộp Word. Khi thay mẫu, upload object với UUID mới và cập nhật cả ID lẫn hash; các nháp đã tạo vẫn mở bản riêng của chúng. Nếu môi trường chưa khai báo cặp cấu hình chung, backend còn hỗ trợ cấu hình phường cũ: cần đối chiếu hai phường trước khi xác nhận rollout.
 
 | # | Loại | Method + route | Khi gọi, dữ liệu gửi → kết quả FE dùng |
 |---|---|---|---|
-| 01 | Mới | GET `/staffing/capabilities` | Mở màn hình nghỉ → đọc `wordRequired, templateConfigured, maxDocxBytes`. Mẫu có cấu hình vẫn cần tải thử để biết file đọc được. |
+| 01 | Mới | GET `/staffing/capabilities` | Mở màn hình nghỉ → đọc `wordRequired, templateConfigured, maxDocxBytes`. Nếu Word bắt buộc nhưng mẫu chưa sẵn sàng, hiển thị lỗi và giữ nội dung đang soạn; không chuyển sang API 27. `templateConfigured=true` xác nhận ID/hash có cấu hình hợp lệ; dùng 18 để kiểm tra khả năng tải file. |
 | 02 | Cũ | GET `/staffing/closures` | Lọc `from,to` dạng ngày, tối đa 400 ngày kể cả hai đầu → danh sách ngày đóng cửa theo quyền. Kiểm tra trạng thái hủy trước khi hiển thị ngày đang có hiệu lực. |
 | 03 | Cũ | POST `/staffing/closures` | Manager khai báo ngày đóng cửa phường: `date,reason` → `closure,rescheduledApplications` (số hồ sơ được tính lại hạn). |
 | 04 | Cũ | POST `/staffing/closures/national` | IT_ADMIN khai báo ngày toàn quốc với cùng body → closure có `wardCode=null`. |
@@ -56,9 +58,9 @@ Luồng editor: **mẫu → nháp riêng → lưu Word → mở lại → nộp*
 
 | # | Loại | Method + route | Khi gọi, dữ liệu gửi → kết quả FE dùng |
 |---|---|---|---|
-| 17 | Mới | GET `/staffing/leave-templates/current` | Cán bộ chọn **Xin nghỉ** → lấy `versionId,sha256` của mẫu áp dụng cho phường. |
-| 18 | Mới | GET `/staffing/leave-templates/{id}/docx` | Xem trước mẫu gốc bằng versionId của 17 → binary DOCX. Nếu mẫu đã đổi, đọc lại 17. |
-| 19 | Mới | POST `/staffing/leave-drafts` | Header `Idempotency-Key` (UUID); JSON `startsAt,endsAt,reason,templateVersionId` → draft có `id,version,metadataVersion,documentRevisionId`. Backend đã tạo bản sao mẫu riêng. |
+| 17 | Mới | GET `/staffing/leave-templates/current` | Cán bộ chọn **Xin nghỉ** → lấy `versionId,sha256`. Khi đã cấu hình mẫu chung, cán bộ ở phường mới và cũ nhận cùng hai giá trị. FE dùng `versionId` này làm `templateVersionId` ở 19. |
+| 18 | Mới | GET `/staffing/leave-templates/{id}/docx` | Xem trước **mẫu chung** (tùy chọn), hoặc tải binary để kiểm tra hash khi nghiệm thu. Nếu UUID không còn là phiên bản hiện tại, đọc lại 17. Để mở bản có thể sửa, dùng 22 với draftId. |
+| 19 | Mới | POST `/staffing/leave-drafts` | Header `Idempotency-Key` (UUID); JSON `startsAt,endsAt,reason,templateVersionId` → `id,version,metadataVersion,documentRevisionId`. Cùng templateVersionId nhưng hai cán bộ tạo hai draftId riêng. Giữ id để mở editor ở 22. |
 | 20 | Mới | GET `/staffing/leave-drafts` | Màn **Nháp của tôi**; query `page,pageSize` (mặc định 1/20) → `items,page,pageSize,total`; chỉ nháp cá nhân chưa nộp. |
 | 21 | Mới | GET `/staffing/leave-drafts/{id}` | Mở lại nháp → đọc metadata và version mới nhất trước khi sửa. Manager không được đọc nháp người khác. |
 | 22 | Mới | GET `/staffing/leave-drafts/{id}/docx` | Mở **bản riêng của nháp** trong editor → binary DOCX. Dùng API này để khôi phục nội dung đã lưu. |
@@ -66,7 +68,7 @@ Luồng editor: **mẫu → nháp riêng → lưu Word → mở lại → nộp*
 | 24 | Mới | PUT `/staffing/leave-drafts/{id}/docx` | “Lưu Word”: multipart `file,expectedVersion,metadataVersion` → draft với documentRevisionId và version mới. Dùng FormData để trình duyệt đặt boundary. |
 | 25 | Mới | DELETE `/staffing/leave-drafts/{id}` | “Xóa nháp”: query `expectedVersion` → 200. Chỉ xóa được nháp của mình chưa nộp. |
 | 26 | Mới | POST `/staffing/leave-drafts/{id}/submit` | Header `Idempotency-Key`; JSON `expectedVersion,documentRevisionId,metadataVersion` lấy từ lần lưu Word → `leaveId,status,version,submittedAtUtc`. Trạng thái ban đầu PENDING. |
-| 27 | Cũ | POST `/staffing/leaves` | Luồng gửi trực tiếp: `startsAt,endsAt,reason` → đơn PENDING. Nếu phường bắt buộc Word, BE trả 409 `staffing.word_required`; chuyển sang 17–26. |
+| 27 | Cũ | POST `/staffing/leaves` | Gửi trực tiếp `startsAt,endsAt,reason` khi chính sách cho phép. Khi đã bật RequireWord chung, cả phường cũ và phường mới nhận 409 `staffing.word_required`; FE chuyển sang 17–26. |
 
 **Xử lý mất mạng:** sinh một key cho thao tác tạo nháp, một key riêng cho thao tác nộp; giữ nguyên key **và body** khi gửi lại cùng thao tác. Sau 24, lấy version trong response mới để gọi 26. Chỉ có bản sao mẫu ban đầu thì chưa đủ điều kiện nộp. Nếu lưu lỗi, giữ nội dung đang mở trong editor.
 
@@ -123,7 +125,19 @@ Duyệt nghỉ ở 33 chỉ thay đổi trạng thái đơn và khả dụng tro
 **Ba kịch bản để FE chạy cùng Antigravity:**
 
 1. Tạo hai ca sáng/chiều → soạn lịch tháng → thay đổi ca riêng sau preview → xác nhận publish nháp cũ trả 409 → tải lại, công bố → cán bộ xác nhận đúng lịch mới.
-2. Front Desk soạn/lưu Word → đăng nhập lại mở đúng nháp → nộp hai lần cùng key → nhận một leaveId → Manager tải đúng hash → duyệt → xem ca và hồ sơ bị ảnh hưởng. Thử bằng tài khoản khác phường, không được đọc file.
+2. Chạy kịch bản hai phường dưới đây, sau đó Manager P01 duyệt ở 33 và xem ca/hồ sơ bị ảnh hưởng ở 31–32.
 3. Cán bộ đề nghị đổi giờ → kiểm tra ca cũ còn hiệu lực → Manager duyệt → xem giờ mới và thông báo. Khi hồ sơ khó chỉ cần ý kiến, dùng luồng tham vấn; chỉ dùng 37 khi thực sự chuyển người phụ trách.
+
+### Nghiệm thu mẫu chung trên hai phường
+
+Chuẩn bị cán bộ A ở P01, cán bộ C ở P02 mới tạo **không có cấu hình mẫu riêng**, và Manager của mỗi phường. Dùng phiên đăng nhập riêng cho từng người.
+
+| Bước | Thao tác | Kết quả đạt |
+|---|---|---|
+| 1. Cấu hình | A và C gọi 01 → 17 → 18. | Cả hai nhận cùng `versionId`, cùng `sha256` và tải được DOCX có hash khớp 17. P02 không cần thêm biến riêng hoặc deploy lại. |
+| 2. Tạo bản riêng | A và C gọi 19 với cùng `templateVersionId` nhưng key riêng. A dùng 22 mở file, thêm câu “P01 – nghỉ ca sáng”, rồi lưu qua 24. | Hai `draftId` khác nhau. Tải lại 22 bằng A thấy câu mới; tải 22 bằng C và tải mẫu gốc qua 18 đều không có câu đó. C dùng ID nháp của A bị từ chối. |
+| 3. Mở lại và nộp | A đăng nhập lại, mở 21–22, nộp ở 26; gửi lại cùng key và body. | File của A vẫn có câu đã lưu; hai response trả về cùng một `leaveId`. |
+| 4. Kiểm tra phạm vi | Manager P01 gọi 29–30 bằng leaveId của A. Manager P02 thử cùng leaveId. | P01 tải đúng file, SHA-256 khớp trường `sha256` ở 29. P02 không đọc được đơn hoặc file. Hash ở 29 thuộc file đã điền, khác mục đích với hash của mẫu gốc ở 17. |
+| 5. Đường nộp cũ | Nếu RequireWord chung đã bật, A và C gọi 27 với body hợp lệ. | Cả hai nhận `409 staffing.word_required`. Nếu chính sách chưa bật, ghi rõ điều kiện này khi báo kết quả. |
 
 Thông báo staffing được backend phát qua outbox. FE đọc thông báo qua luồng thông báo hiện có; không gọi thêm một POST gửi thông báo sau khi công bố/duyệt. Đối chiếu chi tiết backend tại [hướng dẫn API](api-guide.md) và [ràng buộc WF-WS](system-constraints.md).
