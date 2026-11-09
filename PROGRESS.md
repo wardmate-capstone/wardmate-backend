@@ -4803,3 +4803,10 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Migration SQL:** `docs/sql/catalog-procedure-optional-fields.sql` — cần chạy trên DB `wardmate-db` trước khi dùng các trường optional
 - **Health check:** `/api/procedure-catalog/health/ready` → `Healthy` (DB reachable, 2026-11-09T16:54 UTC+07)
 - **Commit gợi ý:** `docs: record procedure catalog deployment catalog-20261109-03`
+
+---
+
+## CATALOG-DB-CHECK-1109 — Kiểm tra migration trường optional trên DB ProcedureCatalog — 2026-11-09 (UTC+07)
+
+- **Kiểm tra (Claude, Cloud Shell, chỉ đọc; connection string lấy vào biến, không in ra):** `__EFMigrationsHistory` của DB `ConnectionStrings__ProcedureDatabase` có `20261109093503_ProcedureOptionalFields`; cột `public.procedures.level_of_implementation`, `target_audience`, `fee_summary`, `processing_time_summary` đều `is_nullable = YES`, không có default.
+- **Kết luận:** `docs/sql/catalog-procedure-optional-fields.sql` đã được áp dụng; image `catalog-20261109-03` dùng được các trường optional (PROC-01b). Chưa gọi thử API tạo thủ tục với trường trống.
