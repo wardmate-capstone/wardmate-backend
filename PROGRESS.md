@@ -4676,6 +4676,11 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Build:** `dotnet build WardMate.sln -c Release -warnaserror -m:1 --no-incremental` → 0 cảnh báo, 0 lỗi. Chưa chạy với DB thật, chưa gọi thử API, chưa deploy.
 - **Giới hạn còn lại:** QR không in vào PDF (DOC-QR-04); quét QR khi chưa có PDF ra 404 `qr.pdf_not_found`; thông điệp `QrLookupQuery` vẫn ghi "đã được phê duyệt và đóng dấu" và status mặc định "APPROVED" — trái quy tắc DOCUMENTS_READY không phải phê duyệt, chưa sửa (ngoài phạm vi).
 - **Anti:** chạy `docs/sql/documentform-approved-qr-optional-submission.sql` trên DB DocumentForm **trước** khi deploy DocumentForm (code mới ghi `submission_id` NULL sẽ lỗi nếu cột còn NOT NULL).
+- **Triển khai Azure (2026-11-09 15:00 UTC+07):**
+  - Đã chạy SQL migration `docs/sql/documentform-approved-qr-optional-submission.sql` trên DB DocumentForm (`wardmate-db`).
+  - Container App `wardmate-documentform` cập nhật revision mới `wardmate-documentform--latest` (1 replica, HealthState Healthy, Provisioned).
+  - Nghiệm thu `/health/ready`: `/api/document-form/health/ready` trả `200 Healthy` (database: Healthy).
+  - Kiểm tra toàn diện 6 service qua Gateway: `iam` (200), `procedure-catalog` (200), `application-workflow` (200), `document-form` (200), `ai-ocr` (200), `analytics-system` (200) đều `200 Healthy`.
 - **Commit gợi ý:**
   - `fix(documentform): create reference qr when application becomes documents ready`
   - `feat(documentform): add approved qr optional submission migration` (file migration mới)
