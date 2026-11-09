@@ -156,6 +156,7 @@ Bộ EF model kiểm kê ngày 24/10: 41 bảng ứng dụng, 410 cột, 22 FK t
 | Ưu tiên | Việc | Trạng thái và bước tiếp theo |
 |---|---|---|
 | Gần nhất | Test ngoài luồng chính 09/11 (UI-TEST-RUN-1109) | KB-13 26 Đ, KB-14 5 Đ, KB-17 8 Đ, KB-18 8 Đ, KB-20 7 Đ + **2 lỗi BE2-01/BE2-02 (Codex, 500 khi ghi DB Analytics, cần log theo traceId)**. Test lại dồn cuối đợt (mục 6.3 `ui-test-scenarios.md`). Còn KB-19 #1–4; luồng chính chờ FE-01. |
+| Gần nhất | Nhiều loại bản + trường hợp (PROC-COPIES-1109, 09/11) | `copyRequirements` cho checklist; trường hợp không bắt buộc bước; AIOCR hiện tên trường hợp. Build 0/0; chưa test runtime; deploy Catalog + AIOCR. |
 | Gần nhất | Bàn giao FE 09/11 (FE-HANDOFF-1109) | `docs/fe-handoff-2026-11-09.md`: 5 thay đổi hôm nay, trạng thái deploy từng mục, bước test. Dùng cùng `fe-handoff-2026-11-05.md`. |
 | Gần nhất | Trường thủ tục được null (PROC-OPTIONAL-1109, 09/11) | Chỉ mã/tên/lĩnh vực bắt buộc; sửa isActive=false bị EF bỏ qua. Cần chạy `docs/sql/catalog-procedure-optional-fields.sql` trước rồi deploy ProcedureCatalog. Build 0/0; chưa test runtime. |
 | Gần nhất | Deploy ProcedureCatalog 09/11 (CATALOG-DEPLOY-1109) | Đang chạy image `wardmate-procedure-catalog@sha256:342c836e…` (tag catalog-20261109-02, nhánh kha) — chủ dự án báo thành công. Gồm PROC-01a, PROC-03a, PROC-03b. Rollback: catalog-20261109-01. DocumentForm (DOC-QR-05) chưa deploy, cần SQL trước. |

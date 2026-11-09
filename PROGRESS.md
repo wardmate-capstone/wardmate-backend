@@ -4821,3 +4821,28 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - Image cũ (rollback): `acrwardmate2026.azurecr.io/wardmate-analyticssystem:analytics-20261108-01`.
   - Container App: `wardmate-analytics-system` (`ProvisioningState: Succeeded`, replica mới: `wardmate-analytics-system--latest-e2b36e73...` running).
   - Health check: `/api/analytics-system/health/ready` → `Healthy` (notifications-database, analytics-database, rabbitmq connected).
+
+---
+
+## PROC-COPIES-1109 — Nhiều loại bản cho một giấy tờ; trường hợp không bắt buộc bước — 2026-11-09 (UTC+07)
+
+- **Yêu cầu:** giấy tờ cần "1 bản chính + 1 bản sao" nhưng chỉ chọn được 1 loại bản; tạo tay thiếu tên các trường hợp.
+- **ProcedureCatalog:**
+  - **Mới:** `Domain/JsonModels/CopyRequirement.cs` (`DocumentCopyType`, `Quantity`).
+  - `ChecklistItemSchema.cs`: `DocumentCopyType` → `string?`; thêm `CopyRequirements` (bỏ qua khi null trong JSON để không đổi dữ liệu seed → không cần migration).
+  - `ProcedureInput.cs`: `NormalizedChecklist` (1 dòng → loại đó; ≥2 dòng → loại null, quantity = tổng; kiểu cũ → sinh 1 dòng); `NormalizedContent` đặt `steps ??= []`.
+  - `ProcedureChecklist.cs`: API cập nhật checklist cũng qua `NormalizedChecklist`.
+  - `ProcedureInputValidator.cs`: `DocumentCopyType` cho null; kiểm `CopyRequirements` (≤3, không trùng loại, 1–100); trường hợp chỉ bắt buộc mã + tên (≤500), bước tùy chọn.
+  - `DraftPayloadRequirements.cs`: không còn bắt buộc `documentCopyType` trong checklist.
+- **AIOCR:** `KnowledgeContracts.cs` thêm `CatalogCopy` và `CopyRequirements`; `ProcedureKnowledgeText.cs` hiển thị "01 bản chính + 01 bản sao" và tên trường hợp thay mã.
+- **Không đổi Workflow:** `documentCopyType = null` đã được Workflow hiểu là chấp nhận mọi loại bản; giới hạn: chỉ kiểm tổng số bản.
+- **Ghi chú kỹ thuật:** lần thử đầu sinh migration `ChecklistCopyRequirements` chỉ để UpdateData JSON checklist của thủ tục mẫu; đã xóa migration đó, khôi phục snapshot từ Designer của `ProcedureOptionalFields` và dùng `JsonIgnore(WhenWritingNull)`; `has-pending-model-changes` báo không còn thay đổi.
+- **Docs:** `system-constraints.md` (PROC-02 sửa, PROC-02a mới, quy tắc trường hợp), `api-guide.md` (mục 4.3 + ví dụ), `fe-handoff-2026-11-09.md` (mục 6 mới, bảng trạng thái, bước test 7–8).
+- **Build:** `dotnet build WardMate.sln -c Release -warnaserror -m:1 --no-incremental` → 0 cảnh báo, 0 lỗi. Chưa gọi thử API, chưa deploy.
+- **Triển khai:** ProcedureCatalog (cùng đợt PROC-OPTIONAL-1109, SQL `catalog-procedure-optional-fields.sql` trước) và AIOCR. Không SQL mới.
+- **Commit gợi ý:**
+  - `feat(procedure-catalog): add copy requirement model` (file mới `CopyRequirement.cs`)
+  - `feat(procedure-catalog): support multiple copy types per checklist item`
+  - `feat(procedure-catalog): allow procedure cases without steps`
+  - `feat(aiocr): show copy requirements and case names in procedure knowledge`
+  - `docs: document multiple copy types and case rules (PROC-02a)`
