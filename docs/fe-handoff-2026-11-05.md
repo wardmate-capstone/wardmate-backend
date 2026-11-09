@@ -4,7 +4,7 @@ Người viết: Backend (Claude), 05/11/2026.
 
 Nguồn: kết quả chủ dự án test trên Azure ngày 02/11 (KB-00 → KB-03) và 05/11 (KB-04). Chi tiết từng bước nằm ở `docs/ui-test-scenarios.md`, mục 3 (cột KQ), 6.1 và 6.2. Hợp đồng API đầy đủ xem `docs/api-guide.md`.
 
-Tài liệu này bổ sung cho `docs/fe-handoff-2026-11-01.md`, không thay thế.
+Đây là bản bàn giao FE hiện hành; các bản 31/10 và 01/11 đã gỡ ngày 09/11/2026, nội dung hợp đồng API vẫn ở `docs/api-guide.md`.
 
 ## 1. Tóm tắt
 
