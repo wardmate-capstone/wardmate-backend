@@ -4741,3 +4741,44 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **FE:** map ô "xác nhận công khai" vào `isActive`; đổi câu "Thủ tục sẽ được công khai khi lưu thành công". FE chưa sửa thì mọi thủ tục tạo tay sẽ ẩn cho tới khi bật bằng API status.
 - **Anti:** deploy lại ProcedureCatalog (gộp cùng PROC-SUMMARY-SOURCE-1109), không cần SQL.
 - **Commit gợi ý:** `feat(procedure-catalog): create manual procedures hidden unless isActive is set`
+
+---
+
+## CATALOG-DEPLOY-1109 — Build lại image ProcedureCatalog trên Azure — 2026-11-09 16:20 (UTC+07)
+
+- **Nguyên nhân lần deploy lỗi trước:** Cloud Shell hết token (`Timeout waiting for token from portal`) nên `az acr build` không chạy; lệnh `containerapp update` vẫn chạy tiếp và trỏ template tới tag chưa tồn tại → revision `Failed` (app vẫn phục vụ bằng image cũ, Healthy).
+- **Đã làm (Claude qua Cloud Shell theo yêu cầu chủ dự án):** xác nhận nhánh `kha` trên GitHub đã có ProcedureSummaries/AttachSource/CreateProcedureInput; tải mã `kha` dạng tar.gz (không dùng git); `az acr build` run `ce1g` **Succeeded** — `wardmate-procedure-catalog:catalog-20261109-02`, digest `sha256:a32f395bbaa55e758bdd9d42569d14f7aca4444c828a51e0b30705b2c8cf8db4`.
+- **Chưa làm:** `az containerapp update` sang image mới — bị chặn bởi kiểm soát quyền (deploy production), cần chủ dự án tự chạy. Ảnh quay lại đề xuất: `catalog-20261109-01`.
+- **Ghi chú:** có một ACR run khác `ce1h` (QuickRun, tạo 09:15 UTC) đang chạy không phải của Claude; chưa rõ build service nào.
+- **Cập nhật 2026-11-09 (UTC+07):** tag `catalog-20261109-02` bị build `ce1h` (lệnh build từ URL `#kha` của chủ dự án, chạy trễ do treo token) ghi đè, digest hiện tại `sha256:342c836e13a635f0ec40b81795f8a63403d910ebb1d869ea1cf706849632d7f6`, cùng nhánh `kha`. Update bằng tag báo `not found` vì template đã giữ chuỗi image của lần lỗi 08:58; chủ dự án update bằng **digest** và báo thành công ("Ok rồi"). Claude chưa tự kiểm tra `/health/ready` hay gọi API mới. Quay lại nếu cần: `catalog-20261109-01`.
+- **FE có thể test:** tự sinh tóm tắt lệ phí/thời hạn (PROC-01a), `POST /api/v1/procedure-manager/procedures/{id}/source` (API 32a), tạo thủ tục mặc định ẩn với `isActive` (PROC-03b).
+
+---
+
+## PROC-OPTIONAL-1109 — Cho phép để trống các trường thủ tục + sửa isActive=false bị bỏ qua — 2026-11-09 (UTC+07)
+
+- **Yêu cầu:** thủ tục có nhiều dạng/trường hợp; chỉ giữ bắt buộc mã, tên, lĩnh vực (chủ dự án đồng ý).
+- **Đã làm (ProcedureCatalog):**
+  - `Domain/Entities/Procedure.cs`: `LevelOfImplementation`, `TargetAudience`, `FeeSummary`, `ProcessingTimeSummary` → `string?`, bỏ giá trị mặc định.
+  - `Application/Management/ProcedureInput.cs`: các trường trên `string?`, `ContentPayload` nullable; `ApplyTo` trim, chuỗi trống → null; `NormalizedContent` đổi null → object/mảng rỗng.
+  - `ProcedureInputValidator.cs`: bỏ bắt buộc cấp/đối tượng/tóm tắt/contentPayload và luật tên ≥10 ký tự; danh sách null coi là rỗng.
+  - `ProcedureSummaries.cs`: trả null khi không có tóm tắt lẫn cách nộp.
+  - `Drafts/DraftPayloadRequirements.cs`: chỉ bắt buộc `categoryId`, `procedureCode`, `title`.
+  - `DTOs/PagedResult.cs`, `DTOs/ProcedureDetailDto.cs`: 4 trường → `string?`.
+  - `PublishReviewedProcedureCommand.cs`: `ContentPayload?.DecisionNumber`.
+  - `Infrastructure/.../ProcedureConfiguration.cs`: 4 cột `IsRequired(false)`, bỏ `HasDefaultValue`; **`IsActive` thêm `ValueGeneratedNever()`** — sửa lỗi EF bỏ qua `false` khiến DB tự điền true (PROC-03b chưa có tác dụng trên bản `catalog-20261109-02` đang chạy).
+  - `ProcedureRepository.cs`: lọc/sắp xếp theo cấp dùng `?? ""`.
+  - `ProcedureSeed.cs`: ghi rõ 4 giá trị của thủ tục mẫu để migration không đổi dữ liệu seed.
+  - **Mới:** migration `Persistence/Migrations/20261109093503_ProcedureOptionalFields` (+ Designer, snapshot); `docs/sql/catalog-procedure-optional-fields.sql` (idempotent: DROP NOT NULL + DROP DEFAULT 4 cột).
+  - Ghi chú kỹ thuật: `dotnet ef migrations remove --force` đã đặt lại snapshot sai (migration sinh lại tạo toàn bộ schema); đã giữ snapshot/Designer sinh từ model hiện tại và viết lại tay `Up/Down` chỉ gồm 4 AlterColumn; `has-pending-model-changes` báo không còn thay đổi.
+- **AIOCR:** không cần sửa (`CatalogProcedure` đã nullable, `ProcedureKnowledgeText` bỏ qua trường trống).
+- **Docs:** `api-guide.md` (giới hạn mục 4.3), `system-constraints.md` (PROC-01 sửa, PROC-01b mới, PROC-03b bổ sung).
+- **Build:** `dotnet build WardMate.sln -c Release -warnaserror -m:1 --no-incremental` → 0 cảnh báo, 0 lỗi. Chưa chạy migration trên DB thật, chưa gọi thử API, chưa deploy.
+- **Anti / triển khai:** chạy `docs/sql/catalog-procedure-optional-fields.sql` trên DB ProcedureCatalog **trước**, rồi deploy ProcedureCatalog (code mới ghi null vào cột còn NOT NULL sẽ lỗi 500). Code cũ vẫn chạy được trên DB đã chạy script.
+- **FE:** xử lý `null` ở cấp thực hiện, đối tượng, tóm tắt lệ phí/thời hạn, cơ quan; bỏ dấu `*` ngoài mã, tên, lĩnh vực.
+- **Commit gợi ý:**
+  - `feat(procedure-catalog): allow optional procedure fields except code, title and category`
+  - `fix(procedure-catalog): persist isActive false on procedure creation`
+  - `feat(procedure-catalog): add procedure optional fields migration` (file migration mới)
+  - `docs(sql): add catalog procedure optional fields script`
+  - `docs: document optional procedure fields (PROC-01b)`

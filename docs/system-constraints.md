@@ -211,10 +211,12 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 ### PROC-01 — Thông tin thủ tục
 
 - CategoryId phải dương và tồn tại. ProcedureCode bắt buộc, tối đa 50, không trùng.
-- Title sau trim ít nhất 10 ký tự, tối đa 500. IssuingAuthority tối đa 255.
-- LevelOfImplementation bắt buộc, tối đa 50.
-- TargetAudience bắt buộc, tối đa 255. FeeSummary, ProcessingTimeSummary tối đa 255; từ 09/11/2026 (PROC-01a) được để trống nếu `contentPayload.submissionMethods` có ít nhất một cách nộp — BE tự sinh tóm tắt. Cả tóm tắt lẫn cách nộp đều trống → 400 `validation.failed`.
+- Title bắt buộc (không rỗng sau trim), tối đa 500; từ 09/11/2026 bỏ luật tối thiểu 10 ký tự (PROC-01b). IssuingAuthority tối đa 255.
+- LevelOfImplementation tối đa 50, được null từ 09/11/2026 (PROC-01b).
+- TargetAudience, FeeSummary, ProcessingTimeSummary tối đa 255, đều được null (PROC-01b). Tóm tắt trống mà có `submissionMethods` thì BE tự sinh (PROC-01a); không có cách nộp thì lưu null.
 - PROC-01a — Tự sinh tóm tắt (ProcedureSummaries.cs, áp dụng tạo/sửa/publish bản nháp/rollback qua `ProcedureInput.ApplyTo`): lệ phí mọi cách nộp = 0 → "Miễn phí"; cùng mức → "10.000 VND"; khác mức → "10.000 – 20.000 VND" (nhóm theo `feeUnit`, nối bằng "; "). Thời hạn mọi cách nộp = 0 → "Trong ngày"; còn lại "7 ngày" hoặc "3 – 7 ngày". Tóm tắt do người nhập gửi lên luôn được giữ nguyên. Giá trị mặc định cũ "Miễn phí"/"1 ngày" khi client bỏ trường đã bỏ. Kết quả giải quyết (`contentPayload.results`) không bắt buộc, cho phép mảng rỗng.
+- PROC-01b (09/11/2026) — Trường bắt buộc tối thiểu: chỉ `categoryId` (>0, tồn tại), `procedureCode` (không rỗng, ≤50, duy nhất), `title` (không rỗng, ≤500). Mọi trường khác được null hoặc để trống: chuỗi chỉ có khoảng trắng lưu thành null; `contentPayload` null hoặc các danh sách `cases`/`submissionMethods`/`legalReferences`/`results` null được lưu thành object/mảng rỗng; phần tử có gửi lên vẫn được kiểm (ví dụ cách nộp phải có tên, số không âm; kết quả không được là chuỗi rỗng). Áp dụng cho tạo, sửa, publish bản nháp (DraftPayloadRequirements chỉ còn bắt buộc 3 trường), rollback. DB: migration `20261109093503_ProcedureOptionalFields` bỏ NOT NULL và DEFAULT của `level_of_implementation`, `target_audience`, `fee_summary`, `processing_time_summary` (SQL `docs/sql/catalog-procedure-optional-fields.sql`); dữ liệu cũ giữ nguyên. Lọc theo cấp thực hiện bỏ qua thủ tục có cấp null. Nguồn: `ProcedureInput.cs`, `ProcedureInputValidator.cs`, `ProcedureSummaries.cs`, `DraftPayloadRequirements.cs`, `ProcedureConfiguration.cs`, DTO trong `Application/DTOs`.
+- PROC-03b bổ sung (09/11/2026): cột `is_active` giữ DEFAULT true cho SQL thủ công nhưng EF cấu hình `ValueGeneratedNever`; trước bản sửa này EF bỏ qua giá trị `false` khi tạo nên DB tự điền true — bản `catalog-20261109-02` đang chạy vẫn tạo thủ tục công khai dù gửi `isActive=false`.
 - OriginalPdfUrl có thể null; nếu có phải HTTPS tuyệt đối, không chứa user/password,
   tối đa 500 ký tự. PdfFileName tối đa 255.
 - ContentPayload không null; DecisionNumber trong payload tối đa 100.
