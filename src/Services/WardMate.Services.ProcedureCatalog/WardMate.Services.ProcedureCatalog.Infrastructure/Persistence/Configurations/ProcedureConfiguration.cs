@@ -18,11 +18,12 @@ public sealed class ProcedureConfiguration : IEntityTypeConfiguration<Procedure>
         builder.Property(x => x.PdfFileName).HasMaxLength(255);
         builder.Property(x => x.IssuingAuthority).HasMaxLength(255);
         builder.Property(x => x.ExecutingAgency).HasColumnType("text");
-        builder.Property(x => x.LevelOfImplementation).HasMaxLength(50).HasDefaultValue("Cấp Xã").IsRequired();
-        builder.Property(x => x.TargetAudience).HasMaxLength(255).HasDefaultValue("Công dân Việt Nam").IsRequired();
-        builder.Property(x => x.FeeSummary).HasMaxLength(255).HasDefaultValue("Miễn phí").IsRequired();
-        builder.Property(x => x.ProcessingTimeSummary).HasMaxLength(255).HasDefaultValue("1 ngày").IsRequired();
-        builder.Property(x => x.IsActive).HasDefaultValue(true);
+        builder.Property(x => x.LevelOfImplementation).HasMaxLength(50).IsRequired(false);
+        builder.Property(x => x.TargetAudience).HasMaxLength(255).IsRequired(false);
+        builder.Property(x => x.FeeSummary).HasMaxLength(255).IsRequired(false);
+        builder.Property(x => x.ProcessingTimeSummary).HasMaxLength(255).IsRequired(false);
+        // ValueGeneratedNever: EF luôn gửi giá trị; nếu không, false (giá trị CLR mặc định) bị bỏ qua và DB tự điền true (PROC-03b).
+        builder.Property(x => x.IsActive).HasDefaultValue(true).ValueGeneratedNever();
         builder.Property(x => x.StatusChangeReason).HasColumnType("text");
         builder.Property(x => x.ContentPayload).AsJsonb().IsRequired();
         builder.Property(x => x.ChecklistSchema).AsJsonb().IsRequired(false);
