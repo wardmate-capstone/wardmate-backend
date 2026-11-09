@@ -4686,3 +4686,27 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - `feat(documentform): add approved qr optional submission migration` (file migration mới)
   - `docs(sql): add documentform approved qr optional submission script`
   - `docs: document immediate qr creation (DOC-QR-05)`
+
+---
+
+## PROC-SUMMARY-SOURCE-1109 — Tự sinh tóm tắt lệ phí/thời hạn và gắn PDF cho thủ tục nhập tay — 2026-11-09 (UTC+07)
+
+- **Yêu cầu:** form "Thêm thủ tục" bắt nhập lại tóm tắt lệ phí/thời hạn dù bước 4 đã có; thủ tục nhập tay không mở được PDF gốc (`GET /api/v1/procedures/{id}/source` → 404 `draft.source_not_found`).
+- **Tự sinh tóm tắt (PROC-01a):**
+  - **Mới:** `ProcedureCatalog.Application/Management/ProcedureSummaries.cs`.
+  - `ProcedureInput.cs`: mặc định `FeeSummary`/`ProcessingTimeSummary` = "" (bỏ "Miễn phí"/"1 ngày"); `ApplyTo` sinh từ `submissionMethods` khi trống.
+  - `ProcedureInputValidator.cs`: chỉ báo lỗi khi cả tóm tắt lẫn `submissionMethods` đều trống.
+  - `PublishReviewedProcedureCommand.cs`: chỉ sửa chú thích.
+- **Gắn PDF (PROC-03a):** API mới `POST /api/v1/procedure-manager/procedures/{id}/source` (multipart `file`, policy `procedure.update`) → 200 `ProcedureDetailDto`; 400 `draft.invalid_pdf`, 404 `procedure.not_found`, 503 `draft.storage_not_configured`.
+  - `ProcedureManagerController.cs` (endpoint), `Drafts/ProcedureDraftService.cs` (`AttachSource`, gom kiểm tra PDF vào `CheckPdf`, inject `IProcedureManagementStore`), `Drafts/DraftContracts.cs`, `Drafts/DraftPersistence.cs` (Application + Infrastructure: `Add`).
+  - PDF lưu như bản nháp `Published` trỏ tới thủ tục nên API 32 và nguồn phiên bản dùng lại luồng ký SAS sẵn có; có version snapshot trước khi đổi. Không migration.
+- **Docs:** `api-guide.md` (API 32, API 32a mới, giới hạn feeSummary), `system-constraints.md` (PROC-01 sửa dòng bắt buộc, thêm PROC-01a, PROC-03a).
+- **Build:** `dotnet build WardMate.sln -c Release -warnaserror -m:1 --no-incremental` → 0 cảnh báo, 0 lỗi. Chưa chạy thử API/DB thật; định dạng tóm tắt chưa kiểm bằng dữ liệu thật. Chưa deploy.
+- **Giới hạn:** lỗi DB sau khi upload để lại blob mồ côi; PUT thủ tục ghi đè `originalPdfUrl` theo body (FE phải gửi lại); bản ghi PDF gắn trực tiếp hiện trong danh sách bản nháp trạng thái Published.
+- **FE:** bỏ `*` ở 3 ô (tóm tắt lệ phí, thời hạn, kết quả) hoặc ẩn 2 ô tóm tắt; thêm nút "Tải PDF gốc" gọi API 32a khi API 32 trả 404.
+- **Anti:** deploy lại ProcedureCatalog, không cần SQL.
+- **Commit gợi ý:**
+  - `feat(procedure-catalog): add procedure summary generator` (file mới `ProcedureSummaries.cs`)
+  - `feat(procedure-catalog): derive fee and processing summaries from submission methods`
+  - `feat(procedure-catalog): attach source pdf to existing procedure`
+  - `docs: document summary derivation and procedure source upload (PROC-01a, PROC-03a)`

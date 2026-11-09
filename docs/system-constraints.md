@@ -213,7 +213,8 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 - CategoryId phải dương và tồn tại. ProcedureCode bắt buộc, tối đa 50, không trùng.
 - Title sau trim ít nhất 10 ký tự, tối đa 500. IssuingAuthority tối đa 255.
 - LevelOfImplementation bắt buộc, tối đa 50.
-- TargetAudience, FeeSummary, ProcessingTimeSummary bắt buộc, mỗi trường tối đa 255.
+- TargetAudience bắt buộc, tối đa 255. FeeSummary, ProcessingTimeSummary tối đa 255; từ 09/11/2026 (PROC-01a) được để trống nếu `contentPayload.submissionMethods` có ít nhất một cách nộp — BE tự sinh tóm tắt. Cả tóm tắt lẫn cách nộp đều trống → 400 `validation.failed`.
+- PROC-01a — Tự sinh tóm tắt (ProcedureSummaries.cs, áp dụng tạo/sửa/publish bản nháp/rollback qua `ProcedureInput.ApplyTo`): lệ phí mọi cách nộp = 0 → "Miễn phí"; cùng mức → "10.000 VND"; khác mức → "10.000 – 20.000 VND" (nhóm theo `feeUnit`, nối bằng "; "). Thời hạn mọi cách nộp = 0 → "Trong ngày"; còn lại "7 ngày" hoặc "3 – 7 ngày". Tóm tắt do người nhập gửi lên luôn được giữ nguyên. Giá trị mặc định cũ "Miễn phí"/"1 ngày" khi client bỏ trường đã bỏ. Kết quả giải quyết (`contentPayload.results`) không bắt buộc, cho phép mảng rỗng.
 - OriginalPdfUrl có thể null; nếu có phải HTTPS tuyệt đối, không chứa user/password,
   tối đa 500 ký tự. PdfFileName tối đa 255.
 - ContentPayload không null; DecisionNumber trong payload tối đa 100.
@@ -264,6 +265,7 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 - Danh mục: tên bắt buộc/tối đa 255, mô tả tối đa 4.000; không xóa danh mục còn thủ tục sử dụng.
   Tên sau trim không được trùng không phân biệt hoa/thường qua luồng quản trị.
   Rollback bị chặn nếu snapshot sai, danh mục cũ không còn hoặc mã bị thủ tục khác dùng.
+- PROC-03a (09/11/2026) — Gắn PDF gốc cho thủ tục có sẵn: `POST /api/v1/procedure-manager/procedures/{id}/source` (policy `procedure.update`, multipart `file`). PDF phải có chữ ký `%PDF-`, tên đuôi .pdf tối đa 255 ký tự, dung lượng 5 byte–20 MB, nếu không trả 400 `draft.invalid_pdf`; thiếu cấu hình Blob → 503 `draft.storage_not_configured`; thủ tục không tồn tại → 404 `procedure.not_found`. File lưu container riêng tư `procedure-sources` dưới dạng bản nháp trạng thái `Published` trỏ tới thủ tục; trước khi đổi `originalPdfUrl`/`pdfFileName` lưu một version snapshot (ngày hiệu lực = hôm nay, số quyết định hiện tại). Gắn lại thì thay PDF, PDF cũ vẫn mở được qua nguồn của version cũ. Upload Blob trước DB: lỗi DB để lại blob mồ côi (chưa dọn tự động). Lưu ý: PUT sửa thủ tục ghi đè `originalPdfUrl` theo body; FE phải gửi lại giá trị đang có để không mất liên kết PDF. Nguồn: `ProcedureManagerController.AttachSource`, `ProcedureDraftService.AttachSource`.
 
 ### PROC-04 — Tra cứu
 

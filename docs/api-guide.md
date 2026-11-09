@@ -1053,7 +1053,7 @@ toàn bộ nội dung chi tiết.
 `GET /api/v1/procedures/{id}/source`
 
 **Quyền / Header:** Public
-
+**Mục đích:** Cho người xem đối chiếu trang thủ tục với văn bản PDF gốc đã lưu qua luồng draft, hoặc PDF gắn trực tiếp bằng API 32a (từ 09/11/2026).
 **Mục đích:** Cho người xem đối chiếu trang thủ tục với văn bản PDF gốc đã lưu qua luồng draft.
 
 **Cách dùng:** Gọi khi người dùng bấm Xem PDF, lấy `url` trong response rồi mở URL đó.
@@ -1065,6 +1065,27 @@ toàn bộ nội dung chi tiết.
 - Thủ tục bị tắt hoặc không có draft Published khớp nguồn → 404; chỉ điền OriginalPdfUrl thủ công chưa đủ tạo
   liên kết này.
 - Blob chưa cấu hình → 503.
+
+#### API 32a — Gắn PDF gốc cho thủ tục nhập tay (09/11/2026)
+
+`POST /api/v1/procedure-manager/procedures/{id}/source` — `multipart/form-data`, trường `file`.
+
+**Quyền / Header:** Bearer token, quyền `procedure.update` (Procedure Manager).
+
+**Mục đích:** Thủ tục tạo bằng tay (không qua "PDF và bản nháp") không có PDF nên API 32 luôn trả 404 `draft.source_not_found`. API này tải PDF lên và gắn vào thủ tục; sau đó API 32 và nguồn PDF của phiên bản dùng được như thủ tục tạo từ bản nháp, để cán bộ mở PDF gốc khi xử lý hồ sơ.
+
+**Cách dùng:** Ở trang chi tiết/sửa thủ tục, khi API 32 trả 404, hiện nút "Tải PDF gốc". Chọn file rồi gọi API này. Gắn lại lần nữa sẽ thay PDF hiện tại.
+
+**Kết quả:** 200 trả `ProcedureDetailDto` mới với `originalPdfUrl`, `pdfFileName`. Hệ thống tạo một phiên bản lưu trạng thái trước khi gắn (Lịch sử phiên bản có thêm một dòng). Bản ghi PDF xuất hiện trong danh sách "PDF và bản nháp" với trạng thái `Published`.
+
+**Trường hợp sai và cách xử lý:**
+
+- 400 `draft.invalid_pdf`: không phải PDF, tên không có đuôi .pdf, tên quá 255 ký tự hoặc file quá 20 MB. Chọn lại file.
+- 404 `procedure.not_found`: sai id thủ tục.
+- 503 `draft.storage_not_configured`: máy chủ chưa cấu hình Blob; báo BE.
+- Sau khi gắn, nếu FE gọi PUT sửa thủ tục thì phải gửi lại `originalPdfUrl` và `pdfFileName` đang có; gửi `null` sẽ làm mất liên kết PDF (API 32 trở lại 404).
+
+**Tóm tắt lệ phí/thời hạn (từ 09/11/2026):** khi tạo/sửa thủ tục, `feeSummary` và `processingTimeSummary` được để trống nếu phần Thời hạn & lệ phí (`contentPayload.submissionMethods`) có ít nhất một cách nộp; BE tự sinh, ví dụ "Miễn phí", "10.000 VND", "10.000 – 20.000 VND", "7 ngày", "3 – 7 ngày", "Trong ngày". Gửi chuỗi khác rỗng thì BE giữ nguyên. Cả hai đều trống → 400 `validation.failed`. `contentPayload.results` (Kết quả giải quyết) không bắt buộc; FE nên bỏ dấu `*`.
 - Link cũ hết hạn → gọi lại API, không lưu cố định link tạm vào DB/FE.
 
 
@@ -2340,7 +2361,7 @@ ghi metadata phiên bản, không tự lên lịch xuất bản.
 Các giới hạn chính:
 
 - categoryId phải tồn tại; procedureCode bắt buộc/tối đa 50, duy nhất; title từ 10 đến 500.
-- issuingAuthority tối đa 255; levelOfImplementation 50; targetAudience, feeSummary, processingTimeSummary
+- issuingAuthority tối đa 255; levelOfImplementation 50; targetAudience, feeSummary, processingTimeSummary (feeSummary/processingTimeSummary được để trống từ 09/11/2026 nếu có submissionMethods — BE tự sinh, xem PROC-01a)
   255. Gửi đầy đủ các trường bắt buộc khi xuất bản.
 - originalPdfUrl nullable, HTTPS URL tuyệt đối không có userinfo, tối đa 500; pdfFileName nullable/tối đa 255.
   URL lưu không mặc nhiên là URL công khai tải được.

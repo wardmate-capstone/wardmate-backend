@@ -318,33 +318,33 @@ Dùng `{appD}`.
 
 | # | Vai trò | Bước | API | Kỳ vọng | KQ |
 |---|---|---|---|---|---|
-| 1 | OFF-A1 | Mở màn nghỉ phép, đọc cấu hình mẫu Word | `GET /api/v1/staffing/capabilities` | 200 `wordRequired`, `templateConfigured`, `maxDocxBytes` | |
-| 2 | MGR-A | Thêm 2 ca sáng 08:00–11:00 và chiều 13:00–16:00 cho OFF-A1 cùng một ngày tương lai | `POST /api/v1/staffing/shifts` (2 lần) | 200 cả hai; ca trùng giờ cùng người → 409; ca quá khứ hoặc dài hơn 24 giờ → 400 | |
-| 3 | MGR-A, OFF-A1 | Xem lịch ca trong tuần | `GET /api/v1/staffing/shifts` | 200; Manager thấy cả phường, OFF-A1 chỉ thấy ca của mình | |
-| 4 | MGR-A | Tạo 1 ca thử rồi hủy (có lý do) | `POST /api/v1/staffing/shifts`, `POST /api/v1/staffing/shifts/{id}/cancel` | 200; ca có `cancelledAtUtc` | |
-| 5 | MGR-A | Mở và lưu mẫu tuần: thứ Hai (`day=1`) 2 ca cho OFF-A1 | `GET /api/v1/staffing/week-pattern`, `PUT /api/v1/staffing/week-pattern` | 200, `version` tăng; gửi `expectedVersion` cũ → 409 | |
-| 6 | MGR-A | Xem trước lịch tháng sau từ mẫu tuần; thử thêm `copyFrom` tháng này | `GET /api/v1/staffing/schedules/{month}/preview` | 200 `slots`, `conflicts`, `closures`, `baseFingerprint`; chưa tạo ca thật | |
-| 7 | MGR-A | Lưu nháp lịch tháng | `PUT /api/v1/staffing/schedules/{month}/draft` | 200 có revision nháp; `baseFingerprint` cũ → 409 | |
-| 8 | MGR-A | Công bố lịch tháng. Thử trước: sau khi lưu nháp, thêm 1 ca lẻ trong tháng đó rồi công bố nháp cũ | `POST /api/v1/staffing/schedules/{month}/publish` | Nháp cũ → 409; tải lại, lưu nháp mới, công bố → 200; ca trong tháng thành ca chính thức | |
-| 9 | MGR-A | Xem lịch tháng và lịch sử công bố | `GET /api/v1/staffing/schedules/{month}`, `GET /api/v1/staffing/schedules/{month}/history` | 200; lịch sử có revision `PUBLISHED` | |
-| 10 | OFF-A1 | Mở lịch tháng của mình, bấm xác nhận | `GET /api/v1/staffing/schedules/{month}`, `POST /api/v1/staffing/schedules/{month}/confirm` | 200 có biên nhận; lịch đã đổi (fingerprint cũ) → 409, tải lại rồi xác nhận | |
-| 11 | OFF-A1 | Đề nghị đổi giờ 1 ca tương lai | `POST /api/v1/staffing/shift-change-requests` | 200 `PENDING`; ca gốc vẫn hiệu lực trong lúc chờ | |
-| 12 | MGR-A | Xem đề nghị và duyệt | `GET /api/v1/staffing/shift-change-requests`, `POST /api/v1/staffing/shift-change-requests/{id}/decision` | 200 `APPROVED`; ca đổi sang giờ mới; OFF-A1 nhận thông báo | |
-| 13 | OFF-A1 | Bấm "Xin nghỉ": lấy mẫu đơn hiện hành, tải xem | `GET /api/v1/staffing/leave-templates/current`, `GET /api/v1/staffing/leave-templates/{id}/docx` | 200, file mở được bằng Word. Chưa cấu hình mẫu (`templateConfigured=false`) → ghi **B** cho bước 13–18 | |
-| 14 | OFF-A1 | Tạo nháp đơn nghỉ 1 ngày tuần sau | `POST /api/v1/staffing/leave-drafts` (header `Idempotency-Key`) | 200 có `id`, `version`, `documentRevisionId` | |
-| 15 | OFF-A1 | Mở "Nháp của tôi", mở lại nháp, tải bản Word của nháp | `GET /api/v1/staffing/leave-drafts`, `GET /api/v1/staffing/leave-drafts/{id}`, `GET /api/v1/staffing/leave-drafts/{id}/docx` | 200; MGR-A mở nháp của OFF-A1 → 403/404 | |
-| 16 | OFF-A1 | Sửa ngày/lý do, điền và lưu Word | `PATCH /api/v1/staffing/leave-drafts/{id}`, `PUT /api/v1/staffing/leave-drafts/{id}/docx` (multipart) | 200 `version` mới; file không phải DOCX → 415; lớn hơn 10 MiB → 413 | |
-| 17 | OFF-A1 | Nộp đơn; bấm nộp 2 lần liên tiếp | `POST /api/v1/staffing/leave-drafts/{id}/submit` (header `Idempotency-Key`) | 200 `leaveId`, `PENDING`; lần 2 cùng key trả **cùng** `leaveId` | |
-| 18 | OFF-A1 | Tạo thêm 1 nháp rồi xóa | `DELETE /api/v1/staffing/leave-drafts/{id}?expectedVersion=…` | 200, biến khỏi "Nháp của tôi" | |
-| 19 | OFF-A1 | Gửi đơn nghỉ trực tiếp (không qua Word) cho một ngày khác | `POST /api/v1/staffing/leaves` | 200 `PENDING`; nếu bắt buộc Word → 409 `staffing.word_required`; trùng khoảng nghỉ → 409 | |
-| 20 | OFF-A1, MGR-A | Xem danh sách đơn nghỉ | `GET /api/v1/staffing/leaves` | 200; cán bộ chỉ thấy của mình, Manager thấy cả phường | |
-| 21 | MGR-A | Mở chi tiết đơn ở bước 17, tải bản Word đã nộp | `GET /api/v1/staffing/leaves/{id}`, `GET /api/v1/staffing/leaves/{id}/submitted-docx` | 200, `hasSubmittedDocx=true`; OFF-B1 (phường khác) mở → 403/404 | |
-| 22 | MGR-A | Xem ca và hồ sơ bị ảnh hưởng nếu duyệt | `GET /api/v1/staffing/leaves/{id}/shift-impact`, `GET /api/v1/staffing/leaves/{id}/impact` | 200; `shift-impact` liệt kê phần ca bị giao; `impact` rỗng nếu OFF-A1 chưa giữ hồ sơ | |
-| 23 | MGR-A | Duyệt đơn | `POST /api/v1/staffing/leaves/{id}/decision` | 200 `APPROVED`; `expectedVersion` cũ → 409; OFF-A1 nhận thông báo | |
-| 24 | OFF-A1 | Tự duyệt đơn của mình | `POST /api/v1/staffing/leaves/{id}/decision` | 403 (cán bộ chỉ được hủy đơn `PENDING` của mình) | |
-| 25 | OFF-A1 | Tự hủy đơn `PENDING` ở bước 19 | `POST /api/v1/staffing/leaves/{id}/decision` (`CANCELLED`) | 200 | |
-| 26 | MGR-A | Xem lịch sử quyết định của đơn | `GET /api/v1/staffing/leaves/{id}/history` | 200 | |
-| 27 | MGR-A | *(luồng chính, làm sau)* Giao hồ sơ cho cán bộ đang nghỉ đã duyệt | `GET /api/v1/manager/applications/{id}/assignment-candidates` | Cán bộ đó `eligible=false` kèm lý do | |
+| 1 | OFF-A1 | Mở màn nghỉ phép, đọc cấu hình mẫu Word | `GET /api/v1/staffing/capabilities` | 200 `wordRequired`, `templateConfigured`, `maxDocxBytes` | Đ (09/11) |
+| 2 | MGR-A | Thêm 2 ca sáng 08:00–11:00 và chiều 13:00–16:00 cho OFF-A1 cùng một ngày tương lai | `POST /api/v1/staffing/shifts` (2 lần) | 200 cả hai; ca trùng giờ cùng người → 409; ca quá khứ hoặc dài hơn 24 giờ → 400 | Đ (09/11). 2a Đ; 2b trùng giờ, 2c ca quá khứ/dài hơn 24 giờ: FE chặn — chấp nhận |
+| 3 | MGR-A, OFF-A1 | Xem lịch ca trong tuần | `GET /api/v1/staffing/shifts` | 200; Manager thấy cả phường, OFF-A1 chỉ thấy ca của mình | Đ (09/11) |
+| 4 | MGR-A | Tạo 1 ca thử rồi hủy (có lý do) | `POST /api/v1/staffing/shifts`, `POST /api/v1/staffing/shifts/{id}/cancel` | 200; ca có `cancelledAtUtc` | Đ (09/11) |
+| 5 | MGR-A | Mở và lưu mẫu tuần: thứ Hai (`day=1`) 2 ca cho OFF-A1 | `GET /api/v1/staffing/week-pattern`, `PUT /api/v1/staffing/week-pattern` | 200, `version` tăng; gửi `expectedVersion` cũ → 409 | Đ (09/11). 5a lưu, 5b `expectedVersion` cũ → 409 Đ |
+| 6 | MGR-A | Xem trước lịch tháng sau từ mẫu tuần; thử thêm `copyFrom` tháng này | `GET /api/v1/staffing/schedules/{month}/preview` | 200 `slots`, `conflicts`, `closures`, `baseFingerprint`; chưa tạo ca thật | Đ (09/11) |
+| 7 | MGR-A | Lưu nháp lịch tháng | `PUT /api/v1/staffing/schedules/{month}/draft` | 200 có revision nháp; `baseFingerprint` cũ → 409 | Đ (09/11) |
+| 8 | MGR-A | Công bố lịch tháng. Thử trước: sau khi lưu nháp, thêm 1 ca lẻ trong tháng đó rồi công bố nháp cũ | `POST /api/v1/staffing/schedules/{month}/publish` | Nháp cũ → 409; tải lại, lưu nháp mới, công bố → 200; ca trong tháng thành ca chính thức | Đ (09/11). 8a nháp cũ → 409; 8b công bố nháp mới 200 |
+| 9 | MGR-A | Xem lịch tháng và lịch sử công bố | `GET /api/v1/staffing/schedules/{month}`, `GET /api/v1/staffing/schedules/{month}/history` | 200; lịch sử có revision `PUBLISHED` | Đ (09/11) |
+| 10 | OFF-A1 | Mở lịch tháng của mình, bấm xác nhận | `GET /api/v1/staffing/schedules/{month}`, `POST /api/v1/staffing/schedules/{month}/confirm` | 200 có biên nhận; lịch đã đổi (fingerprint cũ) → 409, tải lại rồi xác nhận | Đ (09/11) |
+| 11 | OFF-A1 | Đề nghị đổi giờ 1 ca tương lai | `POST /api/v1/staffing/shift-change-requests` | 200 `PENDING`; ca gốc vẫn hiệu lực trong lúc chờ | Đ (09/11) |
+| 12 | MGR-A | Xem đề nghị và duyệt | `GET /api/v1/staffing/shift-change-requests`, `POST /api/v1/staffing/shift-change-requests/{id}/decision` | 200 `APPROVED`; ca đổi sang giờ mới; OFF-A1 nhận thông báo | Đ (09/11) |
+| 13 | OFF-A1 | Bấm "Xin nghỉ": lấy mẫu đơn hiện hành, tải xem | `GET /api/v1/staffing/leave-templates/current`, `GET /api/v1/staffing/leave-templates/{id}/docx` | 200, file mở được bằng Word. Chưa cấu hình mẫu (`templateConfigured=false`) → ghi **B** cho bước 13–18 | Đ (09/11) |
+| 14 | OFF-A1 | Tạo nháp đơn nghỉ 1 ngày tuần sau | `POST /api/v1/staffing/leave-drafts` (header `Idempotency-Key`) | 200 có `id`, `version`, `documentRevisionId` | Đ (09/11) |
+| 15 | OFF-A1 | Mở "Nháp của tôi", mở lại nháp, tải bản Word của nháp | `GET /api/v1/staffing/leave-drafts`, `GET /api/v1/staffing/leave-drafts/{id}`, `GET /api/v1/staffing/leave-drafts/{id}/docx` | 200; MGR-A mở nháp của OFF-A1 → 403/404 | Đ (09/11). 15a Đ; 15b MGR-A mở nháp của OFF-A1 bị chặn |
+| 16 | OFF-A1 | Sửa ngày/lý do, điền và lưu Word | `PATCH /api/v1/staffing/leave-drafts/{id}`, `PUT /api/v1/staffing/leave-drafts/{id}/docx` (multipart) | 200 `version` mới; file không phải DOCX → 415; lớn hơn 10 MiB → 413 | Đ (09/11). 16a lưu Word Đ; 16b không phải DOCX → 415; 16c >10 MB → 413/FE chặn |
+| 17 | OFF-A1 | Nộp đơn; bấm nộp 2 lần liên tiếp | `POST /api/v1/staffing/leave-drafts/{id}/submit` (header `Idempotency-Key`) | 200 `leaveId`, `PENDING`; lần 2 cùng key trả **cùng** `leaveId` | Đ (09/11) |
+| 18 | OFF-A1 | Tạo thêm 1 nháp rồi xóa | `DELETE /api/v1/staffing/leave-drafts/{id}?expectedVersion=…` | 200, biến khỏi "Nháp của tôi" | Đ (09/11) |
+| 19 | OFF-A1 | Gửi đơn nghỉ trực tiếp (không qua Word) cho một ngày khác | `POST /api/v1/staffing/leaves` | 200 `PENDING`; nếu bắt buộc Word → 409 `staffing.word_required`; trùng khoảng nghỉ → 409 | Đ (09/11) |
+| 20 | OFF-A1, MGR-A | Xem danh sách đơn nghỉ | `GET /api/v1/staffing/leaves` | 200; cán bộ chỉ thấy của mình, Manager thấy cả phường | Đ (09/11) |
+| 21 | MGR-A | Mở chi tiết đơn ở bước 17, tải bản Word đã nộp | `GET /api/v1/staffing/leaves/{id}`, `GET /api/v1/staffing/leaves/{id}/submitted-docx` | 200, `hasSubmittedDocx=true`; OFF-B1 (phường khác) mở → 403/404 | Đ (09/11). 21a tải Word đã nộp; 21b OFF-B1 bị chặn |
+| 22 | MGR-A | Xem ca và hồ sơ bị ảnh hưởng nếu duyệt | `GET /api/v1/staffing/leaves/{id}/shift-impact`, `GET /api/v1/staffing/leaves/{id}/impact` | 200; `shift-impact` liệt kê phần ca bị giao; `impact` rỗng nếu OFF-A1 chưa giữ hồ sơ | Đ (09/11) |
+| 23 | MGR-A | Duyệt đơn | `POST /api/v1/staffing/leaves/{id}/decision` | 200 `APPROVED`; `expectedVersion` cũ → 409; OFF-A1 nhận thông báo | Đ (09/11) |
+| 24 | OFF-A1 | Tự duyệt đơn của mình | `POST /api/v1/staffing/leaves/{id}/decision` | 403 (cán bộ chỉ được hủy đơn `PENDING` của mình) | Đ (09/11) |
+| 25 | OFF-A1 | Tự hủy đơn `PENDING` ở bước 19 | `POST /api/v1/staffing/leaves/{id}/decision` (`CANCELLED`) | 200 | Đ (09/11) |
+| 26 | MGR-A | Xem lịch sử quyết định của đơn | `GET /api/v1/staffing/leaves/{id}/history` | 200 | Đ (09/11) |
+| 27 | MGR-A | *(luồng chính, làm sau)* Giao hồ sơ cho cán bộ đang nghỉ đã duyệt | `GET /api/v1/manager/applications/{id}/assignment-candidates` | Cán bộ đó `eligible=false` kèm lý do | B (09/11). Thuộc luồng chính — xem 6.3 |
 
 ### KB-14 — Lịch nghỉ phường và ngày lễ toàn quốc
 
@@ -763,7 +763,7 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | KB-10 | Sẵn sàng, PDF, QR, tiếp nhận | 10 | | | | | |
 | KB-11 | Route cũ DocumentForm | 3 | | | | | |
 | KB-12 | Trả lại, chuyển giao | 6 | | | | | |
-| KB-13 | Lịch làm, lịch tháng, đơn nghỉ Word | 27 | | | | | |
+| KB-13 | Lịch làm, lịch tháng, đơn nghỉ Word | 27 | 26 | 0 | 0 | 1 | 09/11. Phần Codex làm, không có lỗi. Bước 27 thuộc luồng chính |
 | KB-14 | Lịch nghỉ phường, lễ | 6 | | | | | |
 | KB-15 | Tham vấn | 8 | | | | | |
 | KB-16 | Thông báo | 11 | 9 | 0 | 0 | 2 | 08/11, thông báo tạo bằng SQL (chưa chạy luồng chính). Bước 7, 10a chặn do Email tắt trên Azure — chờ Anti bật Email |
@@ -817,6 +817,7 @@ Chủ dự án quyết định (09/11): **chỉ test lại sau khi đã chạy x
 | KB-18 #4, #5, #6 | Phân quyền trên hồ sơ/giấy tờ thật | Sau khi chạy luồng chính |
 | KB-17 #1–#5 | Số liệu và đánh giá thật | Sau khi chạy luồng chính |
 | KB-20 #2, #3, #8, #9, #10 | Sau khi sửa BE2-01, BE2-02 | Codex/Anti xử lý xong |
+| KB-13 #27 | Giao hồ sơ cho cán bộ đang nghỉ | Sau khi chạy luồng chính |
 | Các bước UI/L phát sinh sau | Ghi thêm vào đây khi test các KB còn lại | — |
 
 **Cách đọc:** cột **UI** = việc FE còn thiếu; cột **L** = lỗi cần BE/FE sửa; API trong mục 4 chưa có dấu "Đã test" sau khi chạy hết = chức năng chưa được dùng trên giao diện.
