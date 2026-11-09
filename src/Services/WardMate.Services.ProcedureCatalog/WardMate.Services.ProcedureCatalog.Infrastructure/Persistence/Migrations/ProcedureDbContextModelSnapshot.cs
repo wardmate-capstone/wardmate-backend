@@ -55,11 +55,8 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnName("executing_agency");
 
                     b.Property<string>("FeeSummary")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
-                        .HasDefaultValue("Miễn phí")
                         .HasColumnName("fee_summary");
 
                     b.Property<string>("FormDefinitions")
@@ -67,7 +64,6 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnName("form_definitions");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
@@ -78,11 +74,8 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnName("issuing_authority");
 
                     b.Property<string>("LevelOfImplementation")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
-                        .HasDefaultValue("Cấp Xã")
                         .HasColumnName("level_of_implementation");
 
                     b.Property<string>("OriginalPdfUrl")
@@ -102,11 +95,8 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnName("procedure_code");
 
                     b.Property<string>("ProcessingTimeSummary")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
-                        .HasDefaultValue("1 ngày")
                         .HasColumnName("processing_time_summary");
 
                     b.Property<string>("StatusChangeReason")
@@ -114,11 +104,8 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnName("status_change_reason");
 
                     b.Property<string>("TargetAudience")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
-                        .HasDefaultValue("Công dân Việt Nam")
                         .HasColumnName("target_audience");
 
                     b.Property<string>("Title")
