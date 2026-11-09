@@ -50,8 +50,9 @@ public sealed record CatalogMethod(string? MethodName, decimal FeeAmount, string
 public sealed record CatalogLegal(string? DocumentNumber, string? DocumentName, DateOnly? IssueDate, string? Authority);
 public sealed record CatalogCase(string? CaseCode, string? CaseName, CatalogStep[]? Steps);
 public sealed record CatalogStep(int StepOrder, string? StepName, string? Executor, string? ActionDetails);
+public sealed record CatalogCopy(string? DocumentCopyType, int Quantity);
 public sealed record CatalogChecklistItem(string? CaseCode, string? SubmissionType, string? ItemName, string? DocumentCopyType,
-    int Quantity, string? ConditionNote, bool IsMandatory);
+    int Quantity, string? ConditionNote, bool IsMandatory, CatalogCopy[]? CopyRequirements = null);
 public sealed record CatalogForm(string? CaseCode, string? FormCode, string? FormName, int Quantity, bool IsMandatory);
 public sealed record CatalogListing(Guid[] Ids, bool Complete);
 

@@ -49,15 +49,23 @@ public static class ProcedureKnowledgeText
                     Block($"Bước {step.StepOrder}. {step.StepName}{(string.IsNullOrWhiteSpace(step.Executor) ? "" : $" — thực hiện: {step.Executor}")}. {step.ActionDetails}".Trim());
             }
         }
+        // Hiển thị tên trường hợp thay cho mã khi thủ tục có khai báo.
+        string CaseLabel(string code) => c?.Cases?.FirstOrDefault(k => k.CaseCode == code)?.CaseName is { Length: > 0 } name ? name : code;
         if (p.ChecklistSchema is { Length: > 0 } checklist)
         {
             Block("## Thành phần hồ sơ");
             foreach (var x in checklist)
             {
-                var notes = new List<string> { x.IsMandatory ? "bắt buộc" : "không bắt buộc", $"số lượng {x.Quantity}" };
-                if (!string.IsNullOrWhiteSpace(x.DocumentCopyType)) notes.Add(CopyType(x.DocumentCopyType));
+                var notes = new List<string> { x.IsMandatory ? "bắt buộc" : "không bắt buộc" };
+                if (x.CopyRequirements is { Length: > 0 } copies)
+                    notes.Add(string.Join(" + ", copies.Where(k => k is not null).Select(k => $"{k.Quantity:00} {CopyType(k.DocumentCopyType ?? "")}")));
+                else
+                {
+                    notes.Add($"số lượng {x.Quantity}");
+                    if (!string.IsNullOrWhiteSpace(x.DocumentCopyType)) notes.Add(CopyType(x.DocumentCopyType));
+                }
                 if (!string.IsNullOrWhiteSpace(x.SubmissionType)) notes.Add(x.SubmissionType == "XUAT_TRINH" ? "xuất trình" : "nộp");
-                if (!string.IsNullOrWhiteSpace(x.CaseCode)) notes.Add($"trường hợp {x.CaseCode}");
+                if (!string.IsNullOrWhiteSpace(x.CaseCode)) notes.Add($"trường hợp {CaseLabel(x.CaseCode)}");
                 Block($"- {x.ItemName} ({string.Join("; ", notes)}).{(string.IsNullOrWhiteSpace(x.ConditionNote) ? "" : " " + x.ConditionNote.Trim())}");
             }
         }
@@ -65,7 +73,7 @@ public static class ProcedureKnowledgeText
         {
             Block("## Biểu mẫu");
             foreach (var f in forms)
-                Block($"- {f.FormName}{(string.IsNullOrWhiteSpace(f.FormCode) ? "" : $" ({f.FormCode})")}: {(f.IsMandatory ? "bắt buộc" : "không bắt buộc")}, số lượng {f.Quantity}{(string.IsNullOrWhiteSpace(f.CaseCode) ? "" : $", trường hợp {f.CaseCode}")}.");
+                Block($"- {f.FormName}{(string.IsNullOrWhiteSpace(f.FormCode) ? "" : $" ({f.FormCode})")}: {(f.IsMandatory ? "bắt buộc" : "không bắt buộc")}, số lượng {f.Quantity}{(string.IsNullOrWhiteSpace(f.CaseCode) ? "" : $", trường hợp {CaseLabel(f.CaseCode)}")}.");
         }
         if (c?.Results is { Length: > 0 } results)
         {
