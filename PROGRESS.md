@@ -4705,6 +4705,10 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Giới hạn:** lỗi DB sau khi upload để lại blob mồ côi; PUT thủ tục ghi đè `originalPdfUrl` theo body (FE phải gửi lại); bản ghi PDF gắn trực tiếp hiện trong danh sách bản nháp trạng thái Published.
 - **FE:** bỏ `*` ở 3 ô (tóm tắt lệ phí, thời hạn, kết quả) hoặc ẩn 2 ô tóm tắt; thêm nút "Tải PDF gốc" gọi API 32a khi API 32 trả 404.
 - **Anti:** deploy lại ProcedureCatalog, không cần SQL.
+- **Triển khai Azure (2026-11-09 15:38 UTC+07):**
+  - Image ProcedureCatalog mới đã deploy thành công, không cần SQL migration.
+  - Nghiệm thu `/health/ready`: `/api/procedure-catalog/health/ready` trả `200 Healthy` (database: Healthy, 792ms).
+  - Kiểm tra toàn bộ 6 service qua Gateway: `iam`, `procedure-catalog`, `application-workflow`, `document-form`, `ai-ocr`, `analytics-system` đều `200 Healthy`.
 - **Commit gợi ý:**
   - `feat(procedure-catalog): add procedure summary generator` (file mới `ProcedureSummaries.cs`)
   - `feat(procedure-catalog): derive fee and processing summaries from submission methods`
