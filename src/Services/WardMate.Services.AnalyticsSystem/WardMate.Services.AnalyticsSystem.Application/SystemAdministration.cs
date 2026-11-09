@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace WardMate.Services.AnalyticsSystem.Application;
 
-public sealed record UpdateSystemSetting([property: Range(1, 366)] int Value,
-    [property: Range(0, long.MaxValue)] long ExpectedVersion,
-    [property: Required, StringLength(500, MinimumLength = 3)] string Reason);
+public sealed record UpdateSystemSetting([param: Range(1, 366)] int Value,
+    [param: Range(0, long.MaxValue)] long ExpectedVersion,
+    [param: Required, StringLength(500, MinimumLength = 3)] string Reason);
 public sealed record SystemSettingDto(string Key, int Value, long Version, Guid? UpdatedBy, DateTime? UpdatedAtUtc);
 public sealed record SystemAuditDto(Guid Id, Guid ActorId, string Action, string EntityKey, int? PreviousValue,
     int NewValue, long Version, string Reason, string? ClientIp, string TraceId, DateTime OccurredAtUtc);
