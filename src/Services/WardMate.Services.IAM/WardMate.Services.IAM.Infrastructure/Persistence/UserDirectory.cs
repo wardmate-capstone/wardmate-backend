@@ -33,7 +33,10 @@ public sealed class UserDirectory(IamDbContext db, ManagementScope scope, IRbacS
         var items = await q.OrderBy(x => x.Username).ThenBy(x => x.Id).Skip((f.Page - 1) * f.PageSize).Take(f.PageSize)
             .Select(x => new DirectoryUser(x.Id, x.Username, x.Email, x.Profile == null ? null : x.Profile.FullName,
                 x.Profile == null ? null : x.Profile.IdentityNumber, x.IsActive, x.Ward == null ? null : x.Ward.Code,
-                x.UserRoles.Select(ur => ur.Role.RoleName).ToArray(), x.AssignedCategories)).ToArrayAsync(ct);
+                x.UserRoles.Select(ur => ur.Role.RoleName).ToArray(), x.AssignedCategories,
+                // BE-G: quyền của chính người được liệt kê (không phải của người gọi), bỏ trùng như Access().
+                x.UserRoles.SelectMany(ur => ur.Role.RolePermissions).Select(rp => rp.Permission.PermissionCode).Distinct().ToArray()))
+            .ToArrayAsync(ct);
         return Result<DirectoryPage>.Success(new(items, f.Page, f.PageSize, total));
     }
     public Task<Result<bool>> Assign(AssignCategoriesCommand r, CancellationToken ct) => rbac.Exclusive(async () =>

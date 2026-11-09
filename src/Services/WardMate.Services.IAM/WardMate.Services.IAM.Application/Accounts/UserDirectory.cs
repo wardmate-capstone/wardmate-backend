@@ -6,7 +6,7 @@ namespace WardMate.Services.IAM.Application.Accounts;
 
 public sealed record DirectoryFilter(string? Search = null, string? Role = null, string? WardCode = null, int? AssignedCategory = null, int Page = 1, int PageSize = 20);
 public sealed record DirectoryUser(Guid Id, string Username, string Email, string? FullName, string? IdentityNumber,
-    bool IsActive, string? WardCode, string[] Roles, int[] AssignedCategories);
+    bool IsActive, string? WardCode, string[] Roles, int[] AssignedCategories, string[] Permissions);
 public sealed record DirectoryPage(DirectoryUser[] Items, int Page, int PageSize, int Total);
 public sealed record DirectoryQuery(Guid ActorId, bool Admin, DirectoryFilter Filter) : IRequest<Result<DirectoryPage>>;
 public sealed record AssignCategoriesCommand(Guid ActorId, Guid UserId, int[] Categories) : IRequest<Result<bool>>;
