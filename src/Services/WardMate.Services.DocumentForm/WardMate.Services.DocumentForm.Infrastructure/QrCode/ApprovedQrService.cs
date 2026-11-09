@@ -22,7 +22,7 @@ public sealed class ApprovedQrService : IApprovedQrService
             .TrimEnd('/');
     }
 
-    public ApprovedQr Generate(Guid applicationId, Guid submissionId)
+    public ApprovedQr Generate(Guid applicationId, Guid? submissionId)
     {
         // URL trong QR: /api/v1/public/applications/{applicationId}/pdf-redirect
         // Khi quét → backend tìm PDF mới nhất → redirect 302 → Azure Blob SAS URL

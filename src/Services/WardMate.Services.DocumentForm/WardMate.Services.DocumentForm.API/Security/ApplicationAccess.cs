@@ -8,7 +8,7 @@ namespace WardMate.Services.DocumentForm.API.Security;
 
 // HTTP integration only: Workflow owns applications, their owners and checklist IDs.
 public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IHttpContextAccessor context,
-    IDocumentDbContext db)
+    IDocumentDbContext db, IApprovedQrService qrService)
 {
     private readonly Dictionary<Guid, string> verifiedStates = new();
     // A staff account may also submit its own citizen application. Ownership takes
@@ -91,6 +91,7 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
                     && x.Status == WardMate.Services.DocumentForm.Domain.Models.SubmissionStatus.Submitted).ToListAsync(ct);
                 foreach (var s in submissions) s.ConfirmReadiness(reviewer, "workflow-readiness");
                 if (submissions.Count > 0) await db.SaveChangesAsync(ct);
+                await EnsureQr(applicationId, ct);
             }
             return null;
         }
@@ -105,6 +106,26 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
         catch (DbUpdateException)
         {
             return Problem(503, "document.sync_unavailable", "Chưa lưu được trạng thái sẵn sàng từ Workflow. Vui lòng thử lại.");
+        }
+    }
+
+    // QR tham chiếu được tạo ngay khi Workflow báo DOCUMENTS_READY/OFFICIALLY_RECEIVED,
+    // không đợi kết xuất PDF; hồ sơ chỉ có giấy tờ đính kèm thì SubmissionId = null.
+    private async Task EnsureQr(Guid applicationId, CancellationToken ct)
+    {
+        if (await db.ApprovedQrs.AsNoTracking().AnyAsync(q => q.ApplicationId == applicationId, ct)) return;
+        var submissionId = await db.UserSubmissions.AsNoTracking()
+            .Where(x => x.ApplicationId == applicationId && !x.IsDeleted
+                && x.Status == WardMate.Services.DocumentForm.Domain.Models.SubmissionStatus.ReadyForDownload)
+            .OrderBy(x => x.SubmittedAt).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);
+        var qr = qrService.Generate(applicationId, submissionId);
+        db.ApprovedQrs.Add(qr);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException)
+        {
+            // Request song song đã tạo QR trước (unique application_id): bỏ bản trùng.
+            db.ApprovedQrs.Remove(qr);
+            if (!await db.ApprovedQrs.AsNoTracking().AnyAsync(q => q.ApplicationId == applicationId, ct)) throw;
         }
     }
 

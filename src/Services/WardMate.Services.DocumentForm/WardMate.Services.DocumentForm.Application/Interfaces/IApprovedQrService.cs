@@ -10,5 +10,5 @@ public interface IApprovedQrService
     /// <summary>
     /// Tạo mới ApprovedQr với URL tra cứu được mã hoá thành ảnh PNG.
     /// </summary>
-    ApprovedQr Generate(Guid applicationId, Guid submissionId);
+    ApprovedQr Generate(Guid applicationId, Guid? submissionId);
 }

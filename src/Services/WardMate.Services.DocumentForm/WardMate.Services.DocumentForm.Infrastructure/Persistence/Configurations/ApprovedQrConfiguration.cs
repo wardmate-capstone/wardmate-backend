@@ -22,7 +22,7 @@ public sealed class ApprovedQrConfiguration : IEntityTypeConfiguration<ApprovedQ
 
         builder.Property(q => q.SubmissionId)
             .HasColumnName("submission_id")
-            .IsRequired();
+            .IsRequired(false);
 
         // Mỗi hồ sơ hành chính chỉ có đúng 1 mã QR
         builder.HasIndex(q => q.ApplicationId)

@@ -11,7 +11,7 @@ namespace WardMate.Services.DocumentForm.Application.Queries;
 /// </summary>
 public sealed record QrLookupResultDto(
     Guid ApplicationId,
-    Guid SubmissionId,
+    Guid? SubmissionId,
     string QrCodeValue,
     DateTime GeneratedAt,
     string Status,
@@ -59,7 +59,7 @@ public sealed class QrLookupQueryHandler(IDocumentDbContext dbContext)
         {
             qr = await dbContext.ApprovedQrs.AsNoTracking().FirstOrDefaultAsync(q =>
                 q.ApplicationId == targetGuid.Value ||
-                q.SubmissionId == targetGuid.Value ||
+                (q.SubmissionId != null && q.SubmissionId == targetGuid.Value) ||
                 q.QrCodeValue == raw, cancellationToken);
         }
 

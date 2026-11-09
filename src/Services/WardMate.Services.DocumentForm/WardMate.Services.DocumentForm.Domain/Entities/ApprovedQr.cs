@@ -1,7 +1,7 @@
 namespace WardMate.Services.DocumentForm.Domain.Entities;
 
 /// <summary>
-/// Mã QR tham chiếu giấy tờ chuẩn bị, sinh khi kết xuất PDF sau xác nhận sẵn sàng; tên entity được giữ để tương thích.
+/// Mã QR tham chiếu giấy tờ chuẩn bị, sinh ngay khi DocumentForm thấy hồ sơ DOCUMENTS_READY/OFFICIALLY_RECEIVED (hoặc khi kết xuất PDF); tên entity được giữ để tương thích.
 /// Mỗi applicationId chỉ có một bản ghi QR duy nhất (unique index).
 /// Bảng: document.approved_qrs
 /// </summary>
@@ -10,11 +10,11 @@ public sealed class ApprovedQr
     // EF Core private constructor
     private ApprovedQr() { }
 
-    public ApprovedQr(Guid applicationId, Guid submissionId, string qrCodeValue, byte[] qrImagePng)
+    public ApprovedQr(Guid applicationId, Guid? submissionId, string qrCodeValue, byte[] qrImagePng)
     {
         if (applicationId == Guid.Empty)
             throw new ArgumentException("ApplicationId không được để trống.", nameof(applicationId));
-        if (submissionId == Guid.Empty)
+        if (submissionId == Guid.Empty) // null = hồ sơ không có đơn DOCX
             throw new ArgumentException("SubmissionId không được để trống.", nameof(submissionId));
         ArgumentException.ThrowIfNullOrWhiteSpace(qrCodeValue);
         if (qrImagePng is null || qrImagePng.Length == 0)
@@ -33,8 +33,8 @@ public sealed class ApprovedQr
     /// <summary>ID hồ sơ hành chính (ApplicationWorkflow).</summary>
     public Guid ApplicationId { get; private set; }
 
-    /// <summary>ID tờ khai nộp (DocumentForm UserSubmission).</summary>
-    public Guid SubmissionId { get; private set; }
+    /// <summary>ID tờ khai nộp (DocumentForm UserSubmission); null khi hồ sơ chỉ có giấy tờ đính kèm.</summary>
+    public Guid? SubmissionId { get; private set; }
 
     /// <summary>URL tra cứu được mã hoá trong QR (VD: https://gateway/.../applications/{id}).</summary>
     public string QrCodeValue { get; private set; } = string.Empty;
