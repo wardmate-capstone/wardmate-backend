@@ -13,8 +13,9 @@ Tài liệu này liệt kê các thay đổi BE ngày 09/11 để sửa các v�
 | 3 | API gắn PDF cho thủ tục nhập tay | ProcedureCatalog | **Có** (image `catalog-20261109-02`) |
 | 4 | Tạo thủ tục mặc định ẩn (`isActive`) | ProcedureCatalog | **Có nhưng còn lỗi** — gửi `false` vẫn thành công khai; bản sửa chưa deploy |
 | 5 | Chỉ bắt buộc mã, tên, lĩnh vực | ProcedureCatalog | **Chưa** — cần chạy SQL rồi deploy |
+| 6 | Nhiều loại bản (bản chính + bản sao) và tên trường hợp | ProcedureCatalog, AIOCR | **Chưa** — deploy cùng mục 5 (không cần SQL riêng) |
 
-Khi Anti deploy xong mục 1, 4, 5, BE sẽ báo lại. Trước đó FE có thể code theo tài liệu này nhưng chỉ test được mục 2, 3 trên Azure.
+Khi Anti deploy xong mục 1, 4, 5, 6, BE sẽ báo lại. Trước đó FE có thể code theo tài liệu này nhưng chỉ test được mục 2, 3 trên Azure.
 
 ## 1. Mã QR không tạo được sau khi cán bộ xác nhận giấy tờ sẵn sàng
 
@@ -105,7 +106,42 @@ Mọi trường khác được gửi `null` hoặc bỏ trống: `levelOfImpleme
 - Hiển thị: gặp `null` thì hiện "Chưa cập nhật" hoặc ẩn dòng (thẻ danh sách, trang chi tiết, màn quản lý). Không hiển thị chữ `null`.
 - Bộ lọc "Cấp thực hiện" sẽ không trả các thủ tục có cấp `null` — đây là đúng.
 
-## 6. Kiểm tra sau khi BE deploy đủ
+## 6. Thành phần hồ sơ có nhiều loại bản; trường hợp thiếu tên khi tạo tay
+
+**Vấn đề 1:** giấy tờ thường yêu cầu "01 bản chính và 01 bản sao", nhưng form tạo tay chỉ cho chọn một loại bản (`documentCopyType`) và một số lượng.
+
+**Đã sửa (PROC-02a):** mỗi dòng `checklistSchema` có thêm `copyRequirements`:
+
+```json
+{
+  "checklistId": "CCCD", "itemName": "Căn cước công dân", "submissionType": "NOP", "isMandatory": true,
+  "copyRequirements": [
+    { "documentCopyType": "ORIGINAL", "quantity": 1 },
+    { "documentCopyType": "REGULAR_COPY", "quantity": 1 }
+  ]
+}
+```
+
+- Mỗi loại bản (`ORIGINAL` bản chính, `CERTIFIED_COPY` bản sao chứng thực, `REGULAR_COPY` bản sao) chỉ khai **một dòng**, tối đa 3 dòng, số lượng 1–100. Sai → 400 `validation.failed`.
+- BE tự tính: 1 dòng → `documentCopyType` = loại đó, `quantity` = số lượng; từ 2 dòng → `documentCopyType = null`, `quantity` = tổng (ví dụ 2).
+- Gửi kiểu cũ (chỉ `documentCopyType` + `quantity`) vẫn chạy; response sẽ có `copyRequirements` 1 dòng tương ứng. FE nên đọc/hiển thị từ `copyRequirements`.
+- Áp dụng cho tạo, sửa thủ tục, xuất bản bản nháp và API cập nhật riêng checklist.
+- **Giới hạn:** khi người dân nộp hồ sơ, Workflow chỉ kiểm **tổng số bản** đã khai cho giấy tờ có nhiều loại bản (không kiểm riêng từng loại). Ở màn hồ sơ, FE lấy chi tiết "1 bản chính + 1 bản sao" từ thủ tục (Catalog) theo `checklistId` để hiển thị cho người dân và cán bộ.
+
+**FE cần làm:** ở bước "Thành phần hồ sơ", thay ô chọn một loại bản + số lượng bằng danh sách dòng "Loại bản – Số lượng" có nút thêm dòng (tối đa 3, không trùng loại). Hiển thị dạng "01 bản chính + 01 bản sao".
+
+**Vấn đề 2:** tạo thủ tục bằng tay không khai được tên các trường hợp.
+
+**Nguyên nhân:** BE đã có sẵn `contentPayload.cases[]` với `caseCode` và `caseName`, nhưng form tạo tay chưa có chỗ nhập trường hợp; ngoài ra BE bắt mỗi trường hợp phải có danh sách bước.
+
+**Đã sửa:** trường hợp chỉ cần `caseCode` (duy nhất, tối đa 100 ký tự, không khoảng trắng đầu/cuối) và `caseName` (tối đa 500); `steps` được bỏ trống/`null`. Chatbot hiển thị tên trường hợp thay cho mã.
+
+**FE cần làm:**
+- Thêm khu "Trường hợp" (ví dụ ở bước 1 hoặc bước 3 "Quy trình"): mỗi dòng gồm mã + tên, bước thực hiện là tùy chọn.
+- Ở "Thành phần hồ sơ" và "Biểu mẫu", ô `caseCode` chọn từ danh sách trường hợp đã khai (hiện **tên**, gửi **mã**). Mã không thuộc danh sách → 400.
+- Thủ tục chỉ có một trường hợp chung thì để trống `caseCode` ở các dòng (áp dụng mọi trường hợp).
+
+## 7. Kiểm tra sau khi BE deploy đủ
 
 | Bước | Thao tác | Kỳ vọng |
 |---|---|---|
@@ -115,5 +151,7 @@ Mọi trường khác được gửi `null` hoặc bỏ trống: `levelOfImpleme
 | 4 | Ở thủ tục nhập tay, bấm "Tải PDF gốc", chọn file PDF | 200; "Xem PDF" mở được; lịch sử phiên bản thêm 1 dòng |
 | 5 | Tải file .docx vào nút "Tải PDF gốc" | 400 `draft.invalid_pdf` |
 | 6 | Hồ sơ vừa `DOCUMENTS_READY`, chưa xuất PDF → mở QR | 200 + ảnh QR |
+| 7 | Tạo thủ tục có trường hợp `TH1` tên "Kết hôn lần đầu" (không bước), giấy tờ CCCD 1 bản chính + 1 bản sao gắn `TH1` | 201; checklist trả `copyRequirements` 2 dòng, `quantity: 2`, `documentCopyType: null` || 8 | Khai 2 dòng cùng `ORIGINAL` | 400 `validation.failed` |
+| 8 | Khai 2 dòng cùng `ORIGINAL` cho một giấy tờ | 400 `validation.failed` |
 
 Báo lỗi cho BE kèm: route, mã HTTP, `code`, `traceId`, thời điểm gọi. Không gửi mật khẩu/token.

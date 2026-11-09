@@ -232,7 +232,9 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 - Mỗi checklist có ChecklistId, ItemName không rỗng, tối đa 255 ký tự.
   ChecklistId duy nhất trong thủ tục, không dư khoảng trắng đầu/cuối; tối đa 500 mục.
 - SubmissionType: `NOP` hoặc `XUAT_TRINH`.
-- DocumentCopyType: `ORIGINAL`, `CERTIFIED_COPY` hoặc `REGULAR_COPY`.
+- DocumentCopyType: `ORIGINAL`, `CERTIFIED_COPY`, `REGULAR_COPY` hoặc `null` (từ 09/11/2026).
+- PROC-02a (09/11/2026) — Nhiều loại bản cho một giấy tờ: `copyRequirements: [{ documentCopyType, quantity }]`, tối đa 3 dòng, mỗi loại một dòng, số lượng 1–100; sai → 400 `validation.failed`. BE đồng bộ khi lưu (`ProcedureInput.NormalizedChecklist`, áp dụng tạo/sửa/publish bản nháp/rollback và API cập nhật checklist): 1 dòng → `documentCopyType`/`quantity` theo dòng đó; ≥2 dòng → `documentCopyType = null`, `quantity` = tổng; không gửi `copyRequirements` mà có `documentCopyType` → sinh 1 dòng tương ứng. JSONB, không migration; `copyRequirements` null không được ghi ra JSON. **Giới hạn:** Workflow chỉ chụp `documentCopyType`/`quantity` vào checklist hồ sơ, nên với giấy tờ nhiều loại bản Workflow chỉ kiểm tổng số bản (mọi loại), không kiểm từng loại; FE lấy chi tiết loại bản từ Catalog. AIOCR (chatbot) hiển thị "01 bản chính + 01 bản sao" và tên trường hợp thay cho mã.
+- Trường hợp (`contentPayload.cases`): bắt buộc `caseCode` (duy nhất, ≤100) và `caseName` (≤500); `steps` được null/rỗng từ 09/11/2026, bước có gửi phải có thứ tự > 0 và tên. `caseCode` của checklist/biểu mẫu phải thuộc danh sách trường hợp.
 - Quantity > 0. IsMandatory quy định mục bắt buộc; CaseCode chỉ phạm vi áp dụng.
 - FormDefinition yêu cầu FormCode/FormName; FormType là `ONLINE_INTERACTIVE` hoặc
   `DOCX_TEMPLATE`; Quantity > 0. FormTemplateId là ID liên service DocumentForm.

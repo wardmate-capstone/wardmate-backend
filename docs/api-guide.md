@@ -2343,7 +2343,7 @@ DB:
   },
   "checklistSchema": [{
     "checklistId": "DOC_01", "caseCode": "CASE_01", "submissionType": "NOP",
-    "itemName": "Tờ khai minh họa", "documentCopyType": "ORIGINAL",
+    "itemName": "Tờ khai minh họa", "documentCopyType": "ORIGINAL", "copyRequirements": [{ "documentCopyType": "ORIGINAL", "quantity": 1 }],
     "quantity": 1, "conditionNote": null, "isMandatory": true
   }],
   "formDefinitions": [{
@@ -2362,6 +2362,7 @@ Các giới hạn chính:
 
 - categoryId phải tồn tại; procedureCode bắt buộc/tối đa 50, duy nhất; title bắt buộc, tối đa 500 (bỏ tối thiểu 10 ký tự từ 09/11/2026).
 - **Từ 09/11/2026 (PROC-01b):** chỉ 3 trường trên là bắt buộc. `levelOfImplementation`, `targetAudience`, `feeSummary`, `processingTimeSummary`, `issuingAuthority`, `executingAgency`, `contentPayload` và các danh sách trong đó, `checklistSchema`, `formDefinitions` đều được gửi `null` hoặc bỏ trống. Response có thể trả `null` ở các trường chuỗi này; `contentPayload` luôn là object với các mảng (có thể rỗng). FE hiển thị "Chưa cập nhật" hoặc ẩn dòng khi gặp null. Áp dụng cả bản nháp khi xuất bản.
+- **Từ 09/11/2026 (PROC-02a) — nhiều loại bản:** mỗi dòng `checklistSchema` có thêm `copyRequirements` (mảng `{ documentCopyType, quantity }`, tối đa 3, mỗi loại một dòng). Ví dụ "01 bản chính và 01 bản sao": `[{"documentCopyType":"ORIGINAL","quantity":1},{"documentCopyType":"REGULAR_COPY","quantity":1}]`. BE tự đặt `documentCopyType = null` và `quantity = 2`. Gửi kiểu cũ (một `documentCopyType` + `quantity`) vẫn được; response luôn có `copyRequirements` khi có loại bản. Trường hợp (`contentPayload.cases`) cần `caseCode` + `caseName`; `steps` được bỏ trống.
 - issuingAuthority tối đa 255; levelOfImplementation 50; targetAudience, feeSummary, processingTimeSummary (feeSummary/processingTimeSummary được để trống từ 09/11/2026 nếu có submissionMethods — BE tự sinh, xem PROC-01a)
   255. Gửi đầy đủ các trường bắt buộc khi xuất bản.
 - originalPdfUrl nullable, HTTPS URL tuyệt đối không có userinfo, tối đa 500; pdfFileName nullable/tối đa 255.
