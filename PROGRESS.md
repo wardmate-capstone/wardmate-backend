@@ -4634,3 +4634,50 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - Unauthenticated probe qua Gateway: `GET /api/v1/admin/users` trả về `401 Unauthorized` (`iam.unauthorized`).
 - **Kế hoạch tiếp theo:** FE có thể bắt đầu tích hợp các trường hiển thị họ tên thay cho GUID, dùng API đổi role nguyên tử `PUT /api/v1/rbac/users/{userId}/role`, và test lại các ca kiểm thử KB-04 (#17) và KB-05 (#5, #7).
 
+
+---
+
+## DOCS-CLEANUP-1109 — Dọn tài liệu đã xong việc — 2026-11-09 (UTC+07)
+
+- **Đã xóa 16 file trong `docs/`** (chủ dự án duyệt theo 4 nhóm):
+  - Bàn giao cũ: `fe-handoff-2026-10-31.md`, `fe-handoff-2026-11-01.md`, `fe-response-2026-11-01.md`, `be-handoff-2026-11-01.md`, `task34-commit-handoff.md`, `task35-implementation-status.md`, `task35-azure-acceptance.md`.
+  - Đề xuất đã triển khai: `be-calendar-closures-spec.md`, `calendar-closures-review.md`, `workflow-deadline-contract.md`, `task34-system-audit-plan.md`.
+  - Hướng dẫn test cũ (thay bằng `ui-test-scenarios.md`): `huong-dan-test-azure-api.md`, `huong-dan-chi-tiet-test-api-theo-actor.md`, `api-pdf-extract-preview.md`, `test-procedures.md`.
+  - SMS đã gỡ: `notification-sms-operations.md`.
+- **Giữ lại** `docs/sql/notification-esms-delivery.sql`: `notification-delivery-administration.sql` kiểm tra baseline này và báo lỗi nếu chưa chạy, nên xóa sẽ làm hỏng chuỗi dựng DB mới.
+- **Sửa liên kết:** `AGENTS.md` (handoff hiện hành → `fe-handoff-2026-11-05.md`), `docs/fe-handoff-2026-11-05.md`, `docs/api-guide.md` (TASK-34 audit trỏ về 7 migration `*_TransactionalAuditSource*DbContext`; bỏ link runbook SMS), `docs/system-constraints.md` (cùng nội dung audit, giữ nguyên ID quy tắc), `docs/CLAUDE_HANDOFF.md`.
+- Các tham chiếu tới file đã xóa trong lịch sử PROGRESS giữ nguyên (là ghi chép lịch sử).
+- Không đổi code, không chạy build (chỉ tài liệu). Không đụng tài liệu lịch làm việc của Codex (`fe-staffing-18-apis.md`, `Lịch làm việc Front Desk và đơn nghỉ Word.md`), ERD/sơ đồ, `fe-handoff-task34-35-36-management-portal.md`.
+- **Commit gợi ý:** `docs: remove completed handoff, spec and legacy test docs` (một commit cho toàn bộ xóa + sửa link).
+
+## AZURE-CONFIG-1109 — Bật Email cho Analytics, hạ hạn mức chatbot khách để test — 2026-11-09 (UTC+07)
+
+- Chủ dự án yêu cầu Claude tự chạy trên Azure Cloud Shell (qua Chrome của chủ dự án). Resource group đúng là `rg-wardmate-prod` (script trước ghi nhầm `rg-wardmate`).
+- Đọc cấu hình (chỉ tên biến, không in mật khẩu): IAM có đủ `Email__*`, nhưng `Email__Password` là **giá trị thường trong env**, không trỏ secret (secret `gmail-app-password` có tồn tại nhưng không được dùng). Analytics chưa có biến Email nào.
+- Analytics (`wardmate-analytics-system`): tạo secret `email-password` (chép từ mật khẩu IAM đang dùng, không in ra); đặt `Email__Enabled=true`, `Email__Host=smtp.gmail.com`, `Email__Port=587`, `Email__Username`, `Email__From` (giống IAM), `Email__FrontendBaseUrl=https://wardmate-frontend.vercel.app/`, `Email__Password=secretref:email-password`. Revision `wardmate-analytics-system--latest` Healthy, Running, 1 replica.
+- AIOCR (`wardmate-aiocr`, image không đổi `aiocr-20261108-01`): `Assistant__DailyGuestRequestsPerIp=2` **tạm thời** để test KB-01 #8. Test xong phải đặt lại 10.
+- Health qua gateway: ai-ocr 200, analytics-system 200, iam 200.
+- Chủ dự án quyết định không đổi mật khẩu Gmail/JWT key (09/11).
+- Không đổi code; không build; không chạy Git.
+- Cùng ngày: đã trả `Assistant__DailyGuestRequestsPerIp=10` trên AIOCR theo yêu cầu chủ dự án; revision `wardmate-aiocr--latest` Succeeded, ai-ocr health 200.
+- Việc tiếp theo: test KB-16 #7, #10a, KB-04 #17, KB-05 #5, #7. KB-01 #8 muốn test lại phải hạ tạm hạn mức lần nữa. (Tùy chọn) chuyển `Email__Password` của IAM sang secretref.
+
+---
+
+## DOC-QR-05 — QR tạo ngay khi hồ sơ sẵn sàng — 2026-11-09 (UTC+07)
+
+- **Lỗi:** cán bộ xác nhận `DOCUMENTS_READY` xong nhưng `GET /api/v1/applications/{id}/approved-qr` (và `/image`) trả 404 `document.qr_not_found`. Nguyên nhân: QR chỉ được sinh trong `POST /applications/{id}/generate-pdf`; hồ sơ không có đơn DOCX thì không bao giờ có QR (cột `submission_id` NOT NULL).
+- **Sửa (DocumentForm):**
+  - `API/Security/ApplicationAccess.cs`: sau khi đồng bộ đơn sang ReadyForDownload, gọi `EnsureQr` tạo QR nếu chưa có; trùng do request song song thì bỏ bản sau.
+  - `ApprovedQr.SubmissionId`, `ApprovedQrDto.SubmissionId`, `QrLookupResultDto.SubmissionId` → `Guid?`; `IApprovedQrService`/`ApprovedQrService.Generate(Guid, Guid?)`; `ApprovedQrConfiguration` bỏ IsRequired; `QrLookupQuery` so khớp submissionId an toàn với null.
+  - **Mới:** migration `Infrastructure/Migrations/20261109073630_ApprovedQrOptionalSubmission` (+ Designer, snapshot cập nhật); `docs/sql/documentform-approved-qr-optional-submission.sql` (idempotent, `ALTER COLUMN submission_id DROP NOT NULL`).
+- **API:** route không đổi. `approved-qr` trả 200 ngay khi hồ sơ DOCUMENTS_READY/OFFICIALLY_RECEIVED, không cần xuất PDF trước; `submissionId` có thể `null`. FE: cho phép `submissionId` nullable trong schema.
+- **Docs:** `api-guide.md` (mục approved-qr + dòng 3070), `system-constraints.md` (dòng QR mục DocumentForm, mục mới DOC-QR-05), `ui-test-scenarios.md` KB-10 bước 3–4 (PDF không chứa ảnh QR theo DOC-QR-04).
+- **Build:** `dotnet build WardMate.sln -c Release -warnaserror -m:1 --no-incremental` → 0 cảnh báo, 0 lỗi. Chưa chạy với DB thật, chưa gọi thử API, chưa deploy.
+- **Giới hạn còn lại:** QR không in vào PDF (DOC-QR-04); quét QR khi chưa có PDF ra 404 `qr.pdf_not_found`; thông điệp `QrLookupQuery` vẫn ghi "đã được phê duyệt và đóng dấu" và status mặc định "APPROVED" — trái quy tắc DOCUMENTS_READY không phải phê duyệt, chưa sửa (ngoài phạm vi).
+- **Anti:** chạy `docs/sql/documentform-approved-qr-optional-submission.sql` trên DB DocumentForm **trước** khi deploy DocumentForm (code mới ghi `submission_id` NULL sẽ lỗi nếu cột còn NOT NULL).
+- **Commit gợi ý:**
+  - `fix(documentform): create reference qr when application becomes documents ready`
+  - `feat(documentform): add approved qr optional submission migration` (file migration mới)
+  - `docs(sql): add documentform approved qr optional submission script`
+  - `docs: document immediate qr creation (DOC-QR-05)`

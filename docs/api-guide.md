@@ -3067,7 +3067,7 @@ có kiểm chứng trước khi đưa hồ sơ cũ vào vận hành; migration k
 - POST /api/v1/officer/applications/{id}/approve và /reject đã bỏ (không còn trong Swagger; không còn chuyển trạng thái mới sang APPROVED/REJECTED).
 - POST /api/v1/officer/submissions/{submissionId}/confirm-readiness thay /approve. Đây là API chuyển tiếp xác nhận **toàn Application** qua Workflow, không duyệt riêng một form. Body tùy chọn `{ "officerId": "GUID người gọi" }`; không được giả danh cán bộ khác. Có Bearer token và quyền Workflow tương ứng. 200 có submissionId/message; lỗi Workflow được trả bằng ProblemDetails `document.workflow_review_failed` với HTTP status tương ứng. Hồ sơ đã DOCUMENTS_READY thì đồng bộ và trả 200, không ghi history mới.
 - Generate/list/download PDF yêu cầu Workflow DOCUMENTS_READY. DocumentForm đồng bộ Submitted → ReadyForDownload khi kiểm tra truy cập. 409 `document.application_not_ready` thì hoàn tất kiểm tra hồ sơ trước; 400 `document.submission_not_ready` thì kiểm tra trạng thái form đã nộp. Không cho cán bộ bỏ qua điều kiện sẵn sàng.
-- GET /api/v1/applications/{id}/confirm-readinessd-qr và /approved-qr/image giữ tên route để tương thích, nhưng QR chỉ tham chiếu bộ giấy tờ chuẩn bị; không phải quyết định, chữ ký hay con dấu hành chính. 404 QR chưa tạo: kết xuất PDF trước. Bảng document.approved_qrs giữ tên cũ, không cần đổi dữ liệu.
+- GET /api/v1/applications/{id}/confirm-readinessd-qr và /approved-qr/image giữ tên route để tương thích, nhưng QR chỉ tham chiếu bộ giấy tờ chuẩn bị; không phải quyết định, chữ ký hay con dấu hành chính. Từ 09/11/2026 QR tự tạo khi gọi API này lúc hồ sơ đã DOCUMENTS_READY/OFFICIALLY_RECEIVED, không cần xuất PDF trước; `submissionId` có thể `null` nếu hồ sơ không có đơn DOCX. Bảng document.approved_qrs giữ tên cũ, không cần đổi dữ liệu.
 - Dữ liệu APPROVED/REJECTED, approved_at và lịch sử cũ được giữ nguyên; không tự gán DOCUMENTS_READY. Hồ sơ cũ chỉ đọc, không dùng làm điều kiện xuất PDF mới. Cần kế hoạch đối soát riêng nếu muốn chuyển dữ liệu cũ.
 - DTO Application thay approvedAt bằng documentsReadyAt. FE đổi nút thành “Xác nhận giấy tờ sẵn sàng”, bỏ nút từ chối; thiếu giấy tờ dùng “Yêu cầu bổ sung”.
 - Migration IAM chuyển các grant workflow.approve sang workflow.readiness.confirm, gỡ workflow.approve/reject. Workflow đọc quyền hiện tại từ IAM ở mỗi request; FE nên đăng nhập/refresh sau migrate IAM để cập nhật menu và claims. Role chỉ có quyền reject cũ không tự được quyền xác nhận.
@@ -3382,7 +3382,8 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
 - **Lỗi thường gặp & Phục hồi**:
   - `401 Unauthorized`: Token không hợp lệ hoặc hết hạn. Đăng nhập lại để lấy token mới.
   - `403 Forbidden` (`document.application_forbidden`): Người gọi không phải chủ hồ sơ hoặc không phải cán bộ được phân công.
-  - `404 Not Found` (`document.qr_not_found`): Hồ sơ chưa có mã QR tra cứu (do chưa được duyệt hoặc chưa từng sinh QR).
+  - `404 Not Found` (`document.qr_not_found`): từ 09/11/2026 gần như không còn xảy ra vì API tự tạo QR khi hồ sơ đã sẵn sàng. Nếu gặp, gọi lại một lần; vẫn lỗi thì báo BE kèm traceId.
+- **Ghi chú 09/11/2026**: QR được tạo ngay khi hồ sơ `DOCUMENTS_READY`/`OFFICIALLY_RECEIVED`, không cần gọi `generate-pdf` trước. `submissionId` có thể là `null` khi thủ tục chỉ có giấy tờ đính kèm. Quét QR của hồ sơ chưa xuất PDF sẽ ra 404 `qr.pdf_not_found` ở trang pdf-redirect; đây là giới hạn hiện tại.
   - `409 Conflict` (`document.application_not_ready`): Hồ sơ chưa đạt trạng thái DOCUMENTS_READY. Chờ cán bộ xác nhận giấy tờ sẵn sàng trước.
 
 #### 2. Tải file ảnh PNG của Mã QR tra cứu
@@ -4011,7 +4012,7 @@ Tạo người quản lý danh mục thủ tục. Body cùng các trường như
 
 Đã thay stub SMS Analytics bằng adapter eSMS; phần SMS OTP IAM không thay đổi. Workflow phát sự kiện qua TASK-27, inbox tạo delivery SMS khi `Sms:Enabled=true`, worker lấy liên hệ hiện tại từ IAM và gửi nền. FE không gọi API gửi SMS trực tiếp; routes, body, response HTTP, DTO và token của API hồ sơ/thông báo giữ nguyên. Việc gửi thất bại không đổi kết quả tạo/nộp hồ sơ. Không dùng trạng thái hồ sơ hoặc HTTP 200 để kết luận SMS đã đến điện thoại.
 
-Hướng dẫn cấu hình, migration, truy vấn đối soát và phục hồi: [SMS operations](notification-sms-operations.md). Mẫu cấu hình mặc định tắt, Sandbox=1, secret và template để trống. Mẫu CSKH cần được nhà mạng duyệt; không tái sử dụng mẫu OTP. Missing template/phone/config trả trạng thái delivery Blocked, không phải ProblemDetails của API hồ sơ. Timeout/kết quả không rõ là Unknown; crash có thể giữ Dispatching; operator phải đối soát trước khi gửi lại. Không áp dụng hướng dẫn replay tổng quát cho Unknown/Dispatching.
+(Lịch sử — runbook SMS đã gỡ ngày 09/11/2026.) Mẫu cấu hình mặc định tắt, Sandbox=1, secret và template để trống. Mẫu CSKH cần được nhà mạng duyệt; không tái sử dụng mẫu OTP. Missing template/phone/config trả trạng thái delivery Blocked, không phải ProblemDetails của API hồ sơ. Timeout/kết quả không rõ là Unknown; crash có thể giữ Dispatching; operator phải đối soát trước khi gửi lại. Không áp dụng hướng dẫn replay tổng quát cho Unknown/Dispatching.
 
 Migration `20261023150528_EsmsNotificationDelivery` thêm `external_message_id`, `provider`, `is_sandbox` vào `notification_deliveries`. SQL idempotent: [notification-esms-delivery.sql](sql/notification-esms-delivery.sql), dành cho database Analytics có baseline ReliableNotificationDelivery. Không có endpoint webhook xác nhận SMS đến điện thoại trong phạm vi hiện tại. Không gọi SMS thật hoặc sandbox trong lượt phát triển này.
 
@@ -4486,7 +4487,7 @@ FE cần bỏ màn/nút xác minh số điện thoại và nút đối soát SMS
 - **Không xóa bảng/cột** trong DB: `users.verified_phone_number`, cột `external_message_id`, `provider`, `is_sandbox` của `notification_deliveries`, ràng buộc channel cho phép `SMS` vẫn giữ để đọc được dữ liệu cũ. Không cần migration.
 - Số điện thoại vẫn là thông tin hồ sơ cá nhân bình thường (không xác minh). IAM không còn gửi số điện thoại sang Analytics trong API danh sách người nhận thông báo nội bộ.
 - Bỏ khỏi cấu hình: mục `Sms` trong appsettings IAM và Analytics, `PasswordOtp:MaxSmsPer24Hours`, biến `Sms__*` và `NOTIFICATION_SMS_*` trong docker-compose và `.env.example`. Biến môi trường SMS còn đặt trên Azure không gây lỗi nhưng nên xóa.
-- Tài liệu vận hành SMS [notification-sms-operations.md](notification-sms-operations.md) chỉ còn giá trị lịch sử.
+- Tài liệu vận hành SMS đã gỡ khỏi repo ngày 09/11/2026.
 
 ## 18 API Điều phối hồ sơ, Lịch làm/Nghỉ phép và Tham vấn chuyên môn — 29/10/2026 (STAFFING-WORKFLOW-01)
 
@@ -4852,7 +4853,7 @@ Không có API sửa/xóa audit. Middleware chỉ lấy IP/trace; giao dịch ng
 
 ### TASK-34 mở rộng — Audit nghiệp vụ liên service
 
-Phần mở rộng này bổ sung thu thập thay đổi trên 37 bảng nghiệp vụ của 7 DbContext, thay cho giới hạn chỉ audit cấu hình ở bản đầu. Danh sách bảng và thứ tự rollout nằm trong `docs/task34-system-audit-plan.md`. Không tự tạo lại lịch sử trước khi migration được áp dụng.
+Phần mở rộng này bổ sung thu thập thay đổi trên 37 bảng nghiệp vụ của 7 DbContext, thay cho giới hạn chỉ audit cấu hình ở bản đầu. Danh sách bảng nằm trong 7 migration `*_TransactionalAuditSource*DbContext` của từng service. Không tự tạo lại lịch sử trước khi migration được áp dụng.
 
 Controller mới: `BusinessAuditController`, thuộc AnalyticsSystem. Hai API dùng JWT IAM và vai trò IT_ADMIN; FE không gửi actor hoặc chữ ký máy chủ.
 

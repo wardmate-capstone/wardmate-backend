@@ -278,8 +278,8 @@ ADMIN, PM, MGR-A, OFF-A1, OFF-A2 và OFF-B1 có thể được **tạo ngay tron
 |---|---|---|---|---|---|
 | 1 | OFF-A1 | Bấm "Xác nhận giấy tờ sẵn sàng" (không dùng chữ "phê duyệt") | `POST /api/v1/officer/applications/{id}/confirm-readiness` | 200 `DOCUMENTS_READY`; còn nhận xét OPEN → 409 `application.open_comments` | |
 | 2 | CIT-1 | Bấm "Xuất PDF" cho đơn `{subA}` | `POST /api/v1/applications/{applicationId}/generate-pdf` | 200 có `id` PDF; hồ sơ chưa sẵn sàng → 409 `document.application_not_ready` | |
-| 3 | CIT-1 | Xem danh sách PDF, tải PDF | `GET /api/v1/applications/{applicationId}/generated-documents`, `GET /api/v1/generated-documents/{documentId}/download` | 200; PDF có mã QR góc phải dưới | |
-| 4 | CIT-1 | Xem thông tin mã QR, tải ảnh QR | `GET /api/v1/applications/{applicationId}/approved-qr`, `GET /api/v1/applications/{applicationId}/approved-qr/image` | 200 / ảnh PNG | |
+| 3 | CIT-1 | Xem danh sách PDF, tải PDF | `GET /api/v1/applications/{applicationId}/generated-documents`, `GET /api/v1/generated-documents/{documentId}/download` | 200; PDF không chứa ảnh QR (DOC-QR-04) | |
+| 4 | CIT-1 | Xem thông tin mã QR, tải ảnh QR | `GET /api/v1/applications/{applicationId}/approved-qr`, `GET /api/v1/applications/{applicationId}/approved-qr/image` | 200 / ảnh PNG, kể cả khi chưa xuất PDF (DOC-QR-05, 09/11); `submissionId` có thể `null` | |
 | 5 | Khách | Quét QR bằng điện thoại (không đăng nhập) | `GET /api/v1/applications/{id}` → chuyển hướng `GET /api/v1/public/qr-lookup` | Trang tra cứu công khai, không lộ dữ liệu cá nhân | |
 | 6 | Khách | Tra cứu bằng mã token trong QR | `GET /api/v1/public/qr-lookup/{**token}` | 200; token sai → 404 | |
 | 7 | Khách | Bấm "Xem PDF" trên trang tra cứu | `GET /api/v1/public/applications/{applicationId}/pdf-redirect` | Chuyển tới PDF | |
@@ -394,14 +394,14 @@ Kết nối SignalR `/hubs/notifications` kèm access token. Kiểm tra song son
 
 | # | Vai trò | Bước | API | Kỳ vọng | KQ |
 |---|---|---|---|---|---|
-| 1 | MGR-A | Mở dashboard: thẻ tổng quan | `GET /api/v1/analytics/overview` | 200, chỉ số liệu phường A; đọc `coverage`, `asOfUtc` | |
-| 2 | MGR-A | Biểu đồ xu hướng theo ngày | `GET /api/v1/analytics/trends` | 200 | |
-| 3 | MGR-A | Bảng theo thủ tục | `GET /api/v1/analytics/procedures` | 200 | |
-| 4 | MGR-A | Bảng theo cán bộ | `GET /api/v1/analytics/officers` | 200 | |
-| 5 | MGR-A | Tổng hợp và danh sách đánh giá | `GET /api/v1/analytics/feedback/summary`, `GET /api/v1/analytics/feedback` | 200; thấy đánh giá ở KB-10 | |
-| 6 | OFF-A1 | Thử mở dashboard | `GET /api/v1/analytics/overview` | 403 | |
-| 7 | ADMIN | Chạy lại tổng hợp số liệu cho một khoảng ngày | `POST /api/v1/analytics/jobs/rebuild` | 202/200 có `jobId` | |
-| 8 | ADMIN | Theo dõi trạng thái job | `GET /api/v1/analytics/jobs/{jobId}` | 200 đến khi xong | |
+| 1 | MGR-A | Mở dashboard: thẻ tổng quan | `GET /api/v1/analytics/overview` | 200, chỉ số liệu phường A; đọc `coverage`, `asOfUtc` | Đ (09/11). 1a số liệu 0, giao diện không lỗi; 1b khoảng ngày sai và 1c quá 366 ngày bị chặn |
+| 2 | MGR-A | Biểu đồ xu hướng theo ngày | `GET /api/v1/analytics/trends` | 200 | Đ (09/11), dữ liệu rỗng |
+| 3 | MGR-A | Bảng theo thủ tục | `GET /api/v1/analytics/procedures` | 200 | Đ (09/11), dữ liệu rỗng |
+| 4 | MGR-A | Bảng theo cán bộ | `GET /api/v1/analytics/officers` | 200 | Đ (09/11), dữ liệu rỗng |
+| 5 | MGR-A | Tổng hợp và danh sách đánh giá | `GET /api/v1/analytics/feedback/summary`, `GET /api/v1/analytics/feedback` | 200; thấy đánh giá ở KB-10 | Đ (09/11), rỗng vì chưa có đánh giá — test lại sau luồng chính (6.3) |
+| 6 | OFF-A1 | Thử mở dashboard | `GET /api/v1/analytics/overview` | 403 | Đ (09/11) |
+| 7 | ADMIN | Chạy lại tổng hợp số liệu cho một khoảng ngày | `POST /api/v1/analytics/jobs/rebuild` | 202/200 có `jobId` | Đ (09/11). 202 có `jobId` |
+| 8 | ADMIN | Theo dõi trạng thái job | `GET /api/v1/analytics/jobs/{jobId}` | 200 đến khi xong | Đ (09/11). Job chạy xong; `jobId` lạ → 404 |
 
 ### KB-18 — Phân quyền và phạm vi (test âm)
 
@@ -409,17 +409,17 @@ Mỗi dòng: đăng nhập vai trò ghi bên trái, gọi chức năng không đ
 
 | # | Vai trò | Thao tác | API | Kỳ vọng | KQ |
 |---|---|---|---|---|---|
-| 1 | Không token | Mở trang hồ sơ của tôi | `GET /api/v1/applications` | 401 | |
-| 2 | CIT-1 | Mở hàng đợi cán bộ | `GET /api/v1/officer/applications/pending` | 403 | |
-| 3 | CIT-1 | Xem danh sách đơn của hồ sơ theo route cán bộ | `GET /api/v1/officer/submissions/by-application/{applicationId}` | 403 | |
-| 4 | CIT-2 | Tải giấy tờ minh chứng của CIT-1 | `GET /api/v1/supporting-documents/{documentId}/download` | 403/404 | |
-| 5 | OFF-B1 | Mở hồ sơ phường A | `GET /api/v1/officer/applications/{id}` | 404 | |
-| 6 | OFF-A2 | Thêm nhận xét vào hồ sơ đang do OFF-A1 thụ lý | `POST /api/v1/officer/applications/{id}/comments` | 403/404 | |
-| 7 | MGR-A | Tạo tài khoản Manager khác | `POST /api/v1/accounts/manager` | 403 | |
-| 8 | MGR-A | Mở trang RBAC | `GET /api/v1/rbac/roles` | 403 | |
-| 9 | PM | Mở dashboard Manager | `GET /api/v1/analytics/overview` | 403 | |
-| 10 | CIT-1 | Mở trang quản trị Knowledge Base | `GET /api/v1/ai/knowledge/documents` | 403 | |
-| 11 | ADMIN khóa OFF-A1 | OFF-A1 thao tác tiếp trong 30–60 giây | Bất kỳ API Workflow | Sau tối đa ~30 giây: 401 `auth.session_revoked`, FE đưa về đăng nhập. Mở khóa lại sau test | |
+| 1 | Không token | Mở trang hồ sơ của tôi | `GET /api/v1/applications` | 401 | Đ (09/11). Chưa đăng nhập thì FE không hiện mục "Hồ sơ của tôi" |
+| 2 | CIT-1 | Mở hàng đợi cán bộ | `GET /api/v1/officer/applications/pending` | 403 | Đ (09/11) |
+| 3 | CIT-1 | Xem danh sách đơn của hồ sơ theo route cán bộ | `GET /api/v1/officer/submissions/by-application/{applicationId}` | 403 | Đ (09/11) |
+| 4 | CIT-2 | Tải giấy tờ minh chứng của CIT-1 | `GET /api/v1/supporting-documents/{documentId}/download` | 403/404 | B (09/11). Cần giấy tờ thật của CIT-1 (luồng chính) — xem 6.3 |
+| 5 | OFF-B1 | Mở hồ sơ phường A | `GET /api/v1/officer/applications/{id}` | 404 | B (09/11). Cần hồ sơ phường A (luồng chính) — xem 6.3 |
+| 6 | OFF-A2 | Thêm nhận xét vào hồ sơ đang do OFF-A1 thụ lý | `POST /api/v1/officer/applications/{id}/comments` | 403/404 | B (09/11). Cần hồ sơ đang thụ lý (luồng chính) — xem 6.3 |
+| 7 | MGR-A | Tạo tài khoản Manager khác | `POST /api/v1/accounts/manager` | 403 | Đ (09/11) |
+| 8 | MGR-A | Mở trang RBAC | `GET /api/v1/rbac/roles` | 403 | Đ (09/11) |
+| 9 | PM | Mở dashboard Manager | `GET /api/v1/analytics/overview` | 403 | Đ (09/11) |
+| 10 | CIT-1 | Mở trang quản trị Knowledge Base | `GET /api/v1/ai/knowledge/documents` | 403 | Đ (09/11) |
+| 11 | ADMIN khóa OFF-A1 | OFF-A1 thao tác tiếp trong 30–60 giây | Bất kỳ API Workflow | Sau tối đa ~30 giây: 401 `auth.session_revoked`, FE đưa về đăng nhập. Mở khóa lại sau test | Đ (09/11). Đã mở khóa lại OFF-A1 |
 
 ### KB-19 — Lỗi AI và hạn mức (nên dùng mock)
 
@@ -442,17 +442,17 @@ Nếu một phần trả 503 `system.administration_disabled`, `system.health_di
 
 | # | Vai trò | Bước | API | Kỳ vọng | KQ |
 |---|---|---|---|---|---|
-| 1 | ADMIN | Mở bảng cấu hình, xem chi tiết `analytics.lookbackDays` | `GET /api/v1/system/settings`, `GET /api/v1/system/settings/{key}` | 200, có `version` | |
-| 2 | ADMIN | Sửa giá trị thành 14, nhập lý do | `PUT /api/v1/system/settings/{key}` | 200, `version` tăng; giá trị ngoài 1–366 hoặc lý do dưới 3 ký tự → 400 `system.invalid_setting`; `expectedVersion` cũ → 409 `system.setting_conflict`; key lạ → 404 `system.setting_not_found` | |
-| 3 | ADMIN | Xem nhật ký thay đổi cấu hình, mở 1 dòng | `GET /api/v1/system/audit-logs`, `GET /api/v1/system/audit-logs/{id}` | 200; thấy thao tác ở bước 2 kèm giá trị cũ/mới và lý do | |
-| 4 | ADMIN | Xem nhật ký nghiệp vụ, lọc nguồn `iam`, mở chi tiết JSON | `GET /api/v1/system/audit-events?source=iam`, `GET /api/v1/system/audit-events/{id}` | 200 (có thể rỗng nếu service nguồn chưa gửi sự kiện); id lạ → 404 `system.audit_not_found` | |
-| 5 | ADMIN | Mở bảng sức khỏe, xem chi tiết 1 service | `GET /api/v1/system/health/services`, `GET /api/v1/system/health/services/{serviceName}` | 200, mỗi service có trạng thái, mã HTTP, thời gian phản hồi; tên lạ → 404 `system.service_not_found` | |
-| 6 | ADMIN | Bấm "Kiểm tra ngay", vài giây sau tải lại | `POST /api/v1/system/health/check-now` | **202** `status=Queued`; sau đó thời gian kiểm tra được cập nhật | |
-| 7 | ADMIN | Xem lịch sử sức khỏe theo service | `GET /api/v1/system/health/history?service=iam` | 200 | |
-| 8 | ADMIN | Tạo bản sao lưu cho 1 service, có lý do | `POST /api/v1/system/backups` | **202** `Queued`; tạo lần 2 khi đang chờ → 409 `system.backup_in_progress`; service chưa cấu hình → 404 `system.backup_target_not_found` | |
-| 9 | ADMIN | Xem danh sách, lọc trạng thái, mở chi tiết | `GET /api/v1/system/backups`, `GET /api/v1/system/backups/{id}` | 200; trạng thái chuyển `Running` → `Succeeded` (hoặc `Failed` kèm mã lỗi) | |
-| 10 | ADMIN | Xác minh bản `Succeeded` | `POST /api/v1/system/backups/{id}/verify` | 200 `Verified`; xác minh bản đang `Queued`/`Running` → 409 `system.backup_in_progress` | |
-| 11 | MGR-A | Gọi trang quản trị hệ thống | `GET /api/v1/system/settings` | 403; FE ẩn menu | |
+| 1 | ADMIN | Mở bảng cấu hình, xem chi tiết `analytics.lookbackDays` | `GET /api/v1/system/settings`, `GET /api/v1/system/settings/{key}` | 200, có `version` | Đ (09/11) |
+| 2 | ADMIN | Sửa giá trị thành 14, nhập lý do | `PUT /api/v1/system/settings/{key}` | 200, `version` tăng; giá trị ngoài 1–366 hoặc lý do dưới 3 ký tự → 400 `system.invalid_setting`; `expectedVersion` cũ → 409 `system.setting_conflict`; key lạ → 404 `system.setting_not_found` | L (09/11). 2a lưu giá trị 14 → **500** (traceId `00-90ead3a8d489d9849f314116a4556201-…`) — BE2-01. 2b, 2c bị chặn 400 Đ. 2d, 2e không test được vì 2a lỗi |
+| 3 | ADMIN | Xem nhật ký thay đổi cấu hình, mở 1 dòng | `GET /api/v1/system/audit-logs`, `GET /api/v1/system/audit-logs/{id}` | 200; thấy thao tác ở bước 2 kèm giá trị cũ/mới và lý do | Đ (09/11). Chưa có dòng nào vì 2a lỗi |
+| 4 | ADMIN | Xem nhật ký nghiệp vụ, lọc nguồn `iam`, mở chi tiết JSON | `GET /api/v1/system/audit-events?source=iam`, `GET /api/v1/system/audit-events/{id}` | 200 (có thể rỗng nếu service nguồn chưa gửi sự kiện); id lạ → 404 `system.audit_not_found` | Đ (09/11). 4a, 4b Đ |
+| 5 | ADMIN | Mở bảng sức khỏe, xem chi tiết 1 service | `GET /api/v1/system/health/services`, `GET /api/v1/system/health/services/{serviceName}` | 200, mỗi service có trạng thái, mã HTTP, thời gian phản hồi; tên lạ → 404 `system.service_not_found` | Đ (09/11). 5a, 5b Đ |
+| 6 | ADMIN | Bấm "Kiểm tra ngay", vài giây sau tải lại | `POST /api/v1/system/health/check-now` | **202** `status=Queued`; sau đó thời gian kiểm tra được cập nhật | Đ (09/11) |
+| 7 | ADMIN | Xem lịch sử sức khỏe theo service | `GET /api/v1/system/health/history?service=iam` | 200 | Đ (09/11) |
+| 8 | ADMIN | Tạo bản sao lưu cho 1 service, có lý do | `POST /api/v1/system/backups` | **202** `Queued`; tạo lần 2 khi đang chờ → 409 `system.backup_in_progress`; service chưa cấu hình → 404 `system.backup_target_not_found` | L (09/11). 8a tạo bản sao lưu → **500** (traceId `00-8c8f750304b03efce5adc891a7a8deeb-…`) — BE2-02. Không phải 503: đã qua kiểm tra bật backup, runner và Blob |
+| 9 | ADMIN | Xem danh sách, lọc trạng thái, mở chi tiết | `GET /api/v1/system/backups`, `GET /api/v1/system/backups/{id}` | 200; trạng thái chuyển `Running` → `Succeeded` (hoặc `Failed` kèm mã lỗi) | B (09/11). Không có bản sao lưu vì 8a lỗi |
+| 10 | ADMIN | Xác minh bản `Succeeded` | `POST /api/v1/system/backups/{id}/verify` | 200 `Verified`; xác minh bản đang `Queued`/`Running` → 409 `system.backup_in_progress` | B (09/11). Như bước 9 |
+| 11 | MGR-A | Gọi trang quản trị hệ thống | `GET /api/v1/system/settings` | 403; FE ẩn menu | Đ (09/11) |
 
 ## 4. Ma trận phủ API (224 API công khai)
 
@@ -767,10 +767,10 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | KB-14 | Lịch nghỉ phường, lễ | 6 | | | | | |
 | KB-15 | Tham vấn | 8 | | | | | |
 | KB-16 | Thông báo | 11 | 9 | 0 | 0 | 2 | 08/11, thông báo tạo bằng SQL (chưa chạy luồng chính). Bước 7, 10a chặn do Email tắt trên Azure — chờ Anti bật Email |
-| KB-17 | Thống kê | 8 | | | | | |
-| KB-18 | Phân quyền (test âm) | 11 | | | | | |
+| KB-17 | Thống kê | 8 | 8 | 0 | 0 | 0 | 09/11, chưa có hồ sơ nên số liệu rỗng; kiểm tra quyền, lọc ngày, giao diện rỗng và job tổng hợp |
+| KB-18 | Phân quyền (test âm) | 11 | 8 | 0 | 0 | 3 | 09/11. FE ẩn hầu hết chức năng không được phép. Bước 4–6 cần hồ sơ (luồng chính) |
 | KB-19 | Lỗi AI (mock) | 6 | | | | | |
-| KB-20 | Quản trị hệ thống | 11 | | | | | |
+| KB-20 | Quản trị hệ thống | 11 | 7 | 2 | 0 | 2 | 09/11. Phần Codex làm. Bước 2a và 8a trả 500 khi ghi DB (BE2-01, BE2-02); bước 9, 10 bị chặn theo |
 
 ### 6.1 Việc FE cần làm sau đợt test
 
@@ -797,6 +797,27 @@ Lỗi về **lịch nghỉ, ca làm, nghỉ phép, tham vấn, điều phối** 
 | BE-04 | KB-04 #23 | Prompt bóc tách (`AzureProcedureDocumentExtractor`) không dặn rõ phải lấy **mọi** tên file trong cột "Mẫu đơn, tờ khai". Thử với thủ tục đăng ký biến động đất đai: AI chỉ lấy Mẫu số 25, bỏ sót tờ khai lệ phí trước bạ (01.LPTB) và tờ khai thuế TNCN (01.TK-SDDPNN) | **Đã sửa source 05/11** (prompt + cảnh báo đếm tệp `.doc/.docx`), chờ deploy AIOCR rồi test lại KB-04 #17 bằng chính PDF này |
 | BE-05 | KB-04 #15 | Rollback nhận số quyết định và ngày hiệu lực mới, **không** so với ngày của phiên bản trước. Phiên bản cũ giữ nguyên trong lịch sử. Nội dung được áp dụng ngay, ngày hiệu lực chỉ để ghi nhận | Nếu cần, chặn ngày hiệu lực lùi so với phiên bản đang dùng, hoặc hiện cảnh báo ở FE |
 | BE-06 | KB-05 #7 | **Lỗi BE.** Chia đoạn lại (và sửa nội dung tài liệu, đồng bộ lại thủ tục đã đổi) tạo đoạn mới có sẵn khóa Guid; EF coi là dòng cũ, chạy UPDATE 0 dòng → 503 `knowledge.database_unavailable` | **Đã sửa source 07/11** (`KnowledgeBaseService`: thêm rõ các đoạn mới vào context). Chờ deploy AIOCR, test lại KB-05 #5 (sửa nội dung), #7 |
+| BE2-01 (Codex) | KB-20 #2a | **Lỗi BE, chưa rõ nguyên nhân.** `PUT /api/v1/system/settings/analytics.lookbackDays` trả 500 (traceId `00-90ead3a8d489d9849f314116a4556201-804120d81728bcea-00`). Đọc cấu hình và nhật ký vẫn 200, kiểm tra 400 vẫn chạy → lỗi xảy ra ở đoạn ghi DB trong `Infrastructure/SystemAdministration.cs` `Update` (transaction + `pg_advisory_xact_lock` + ghi `system_settings` và `system_audit_logs`). Bảng `analytics.system_settings` có trigger `wardmate_audit_capture` (migration `20261102100005_TransactionalAuditSourceAnalyticsDbContext`) ghi vào `audit_transport.outbox`; PROGRESS TASK-34 ghi migration audit chưa chạy trên Azure | Codex xem log Analytics theo traceId. Kiểm tra DB Analytics Azure: `analytics.__AnalyticsMigrationsHistory` có đủ 7 migration; có schema/bảng `audit_transport.outbox`, hàm `audit_transport.capture`; trigger trên `analytics.system_settings`. Nếu thiếu thì chạy SQL migration còn thiếu (qua Anti), không sửa code |
+| BE2-02 (Codex) | KB-20 #8a | **Lỗi BE, chưa rõ nguyên nhân.** `POST /api/v1/system/backups` trả 500 (traceId `00-8c8f750304b03efce5adc891a7a8deeb-1cc80412eca74584-00`). Đã qua các kiểm tra `SystemBackups:Enabled`, `RunnerProvisioned`, Blob và target → lỗi ở đoạn ghi DB trong `Infrastructure/SystemBackups.cs` `Create` (transaction + `pg_advisory_xact_lock` + đọc/ghi `system_backup_logs`) | Codex xem log theo traceId; kiểm tra bảng `analytics.system_backup_logs` (migration `20261103070217_SystemOperationsHistory`) đã có trên Azure và khớp model. Cùng kiểu lỗi BE2-01 nên có thể chung nguyên nhân (thiếu migration) |
+
+
+### 6.3 Test lại cuối đợt
+
+Chủ dự án quyết định (09/11): **chỉ test lại sau khi đã chạy xong mọi KB và đã sửa hết lỗi**, không test lại từng phần giữa đợt. Danh sách dồn lại:
+
+| KB / bước | Lý do test lại | Điều kiện |
+|---|---|---|
+| KB-01 #6 | FE-01 ô chọn phường | FE xong FE-01 |
+| KB-01 #8 | 429 chatbot khách | Hạ tạm `Assistant__DailyGuestRequestsPerIp` xuống 2 rồi trả về 10 |
+| KB-02 #10 | Tự làm mới token (FE-05) | FE xong FE-05 |
+| KB-04 #7, #12 | Liên kết mẫu đơn (FE-07) | FE xong FE-07 |
+| KB-04 #17 | BE-04 bóc đủ biểu mẫu | Đã deploy `aiocr-20261108-01` |
+| KB-05 #5, #7 (và #8 UPDATED) | BE-06 chia đoạn lại | Đã deploy `aiocr-20261108-01` |
+| KB-16 #7, #10a | Gửi email thông báo | Đã bật Email Analytics 09/11 |
+| KB-18 #4, #5, #6 | Phân quyền trên hồ sơ/giấy tờ thật | Sau khi chạy luồng chính |
+| KB-17 #1–#5 | Số liệu và đánh giá thật | Sau khi chạy luồng chính |
+| KB-20 #2, #3, #8, #9, #10 | Sau khi sửa BE2-01, BE2-02 | Codex/Anti xử lý xong |
+| Các bước UI/L phát sinh sau | Ghi thêm vào đây khi test các KB còn lại | — |
 
 **Cách đọc:** cột **UI** = việc FE còn thiếu; cột **L** = lỗi cần BE/FE sửa; API trong mục 4 chưa có dấu "Đã test" sau khi chạy hết = chức năng chưa được dùng trên giao diện.
 
