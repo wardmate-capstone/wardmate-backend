@@ -4791,3 +4791,15 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Sửa:** `AGENTS.md` (thêm handoff FE 09/11 vào danh sách hiện hành).
 - Không đổi code, không build.
 - **Commit gợi ý:** `docs: add fe handoff for 2026-11-09 fixes` (file mới) và `docs: reference 2026-11-09 fe handoff in agents guide`.
+
+---
+
+## CATALOG-DEPLOY-1109b — Deploy ProcedureCatalog catalog-20261109-03 — 2026-11-09 (UTC+07)
+
+- **Image mới:** `acrwardmate2026.azurecr.io/wardmate-procedure-catalog:catalog-20261109-03`
+- **Image cũ (rollback):** `acrwardmate2026.azurecr.io/wardmate-procedure-catalog:catalog-20261109-02`
+- **Nhánh nguồn:** `kha` @ `a5e7409`
+- **Gồm:** PROC-01a (tự sinh tóm tắt), PROC-01b (trường optional), PROC-03a (gắn PDF), PROC-03b (isActive ẩn mặc định), fix EF `ValueGeneratedNever()` cho isActive
+- **Migration SQL:** `docs/sql/catalog-procedure-optional-fields.sql` — cần chạy trên DB `wardmate-db` trước khi dùng các trường optional
+- **Health check:** `/api/procedure-catalog/health/ready` → `Healthy` (DB reachable, 2026-11-09T16:54 UTC+07)
+- **Commit gợi ý:** `docs: record procedure catalog deployment catalog-20261109-03`
