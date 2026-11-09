@@ -101,7 +101,7 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                         .HasColumnType("bytea")
                         .HasColumnName("qr_image_png");
 
-                    b.Property<Guid>("SubmissionId")
+                    b.Property<Guid?>("SubmissionId")
                         .HasColumnType("uuid")
                         .HasColumnName("submission_id");
 
