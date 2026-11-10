@@ -34,14 +34,17 @@ public sealed class QrLookupQueryHandler(IDocumentDbContext dbContext)
             return Error.Validation("qr.token_required", "Token tra cứu không được để trống.");
 
         var raw = request.Token.Trim();
+        if (raw.Length > MaxTokenLength)
+            return Error.Validation("qr.token_too_long", "Mã QR không hợp lệ.");
 
         // 1. Thử parse GUID trực tiếp
         Guid? targetGuid = Guid.TryParse(raw, out var parsed) ? parsed : null;
 
-        // 2. Nếu là URL, trích xuất đoạn cuối cùng (thường là ApplicationId GUID)
-        if (targetGuid is null && (raw.Contains('/') || raw.Contains('\\')))
+        // 2. Nếu là URL (QR mới .../applications/{id}/pdf-redirect hoặc QR cũ ...?applicationId={id}),
+        //    lấy GUID cuối cùng trong chuỗi.
+        if (targetGuid is null)
         {
-            var segments = raw.Split(new[] { '/', '\\', '?', '&' }, StringSplitOptions.RemoveEmptyEntries);
+            var segments = raw.Split(new[] { '/', '\\', '?', '&', '=', '#' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var seg in segments.Reverse())
             {
                 if (Guid.TryParse(seg, out var g))
@@ -52,27 +55,26 @@ public sealed class QrLookupQueryHandler(IDocumentDbContext dbContext)
             }
         }
 
-        // 3. Tìm bản ghi ApprovedQr
+        // 3. Tìm bản ghi ApprovedQr — CHỈ khớp chính xác (DOC-QR-06a).
+        //    Không tìm theo chuỗi con: trước 10/11/2026 tìm kiểu Contains cho phép gõ "https" để lộ mã hồ sơ bất kỳ.
         ApprovedQr? qr = null;
 
-        if (targetGuid.HasValue)
+        if (targetGuid.HasValue && targetGuid.Value != Guid.Empty)
         {
             qr = await dbContext.ApprovedQrs.AsNoTracking().FirstOrDefaultAsync(q =>
                 q.ApplicationId == targetGuid.Value ||
-                (q.SubmissionId != null && q.SubmissionId == targetGuid.Value) ||
-                q.QrCodeValue == raw, cancellationToken);
+                (q.SubmissionId != null && q.SubmissionId == targetGuid.Value), cancellationToken);
         }
 
-        qr ??= await dbContext.ApprovedQrs.AsNoTracking().FirstOrDefaultAsync(q =>
-            q.QrCodeValue == raw ||
-            q.QrCodeValue.Contains(raw), cancellationToken);
+        qr ??= await dbContext.ApprovedQrs.AsNoTracking().FirstOrDefaultAsync(q => q.QrCodeValue == raw, cancellationToken);
 
         if (qr is null)
             return Error.NotFound("qr.not_found", "Không tìm thấy hồ sơ tương ứng với mã QR này. Vui lòng kiểm tra lại.");
 
         // 4. Lấy thêm thông tin biểu mẫu / tên hồ sơ từ UserSubmissions và FormTemplates
         string? docName = null;
-        string status = "APPROVED";
+        // QR chỉ được cấp khi hồ sơ DOCUMENTS_READY/OFFICIALLY_RECEIVED; đây không phải phê duyệt hành chính.
+        string status = "DOCUMENTS_READY";
 
         var submission = await dbContext.UserSubmissions.AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == qr.SubmissionId, cancellationToken);
@@ -93,6 +95,14 @@ public sealed class QrLookupQueryHandler(IDocumentDbContext dbContext)
             status,
             docName,
             IsValid: true,
-            Message: "Hồ sơ điện tử hợp lệ, đã được cơ quan có thẩm quyền phê duyệt và đóng dấu xác thực.");
+            Message: QrValidMessage);
     }
+
+    private const int MaxTokenLength = 2048;
+
+    // DOC-QR-06b: QR xác nhận giấy tờ do WardMate cấp và đã được cán bộ kiểm tra đủ,
+    // KHÔNG phải văn bản phê duyệt hay kết quả giải quyết thủ tục.
+    public const string QrValidMessage =
+        "Mã QR hợp lệ: giấy tờ của hồ sơ này do WardMate cấp và đã được cán bộ kiểm tra đầy đủ. " +
+        "Đây không phải văn bản phê duyệt hay kết quả giải quyết thủ tục hành chính.";
 }

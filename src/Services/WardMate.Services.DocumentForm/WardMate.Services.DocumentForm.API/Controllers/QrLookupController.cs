@@ -8,10 +8,12 @@ namespace WardMate.Services.DocumentForm.API.Controllers;
 
 /// <summary>
 /// Tra cứu hồ sơ bằng mã QR — không cần đăng nhập.
-/// Dùng khi người dùng hoặc cơ quan chức năng quét mã QR in trên tờ khai đã phê duyệt.
+/// Dùng khi người dùng hoặc cơ quan chức năng quét mã QR của hồ sơ đã được cán bộ kiểm tra giấy tờ
+/// (DOCUMENTS_READY/OFFICIALLY_RECEIVED — không phải phê duyệt hành chính). Giới hạn 30 lần/phút/IP (DOC-QR-06a).
 /// </summary>
 [ApiController]
 [AllowAnonymous]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("public-qr")]
 [Route("api/v1/public")]
 [Produces("application/json")]
 [Tags("QR Lookup — Tra cứu hồ sơ qua mã QR")]

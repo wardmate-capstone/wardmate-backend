@@ -77,6 +77,34 @@ try
 
     builder.Services.AddWardMateBrowserCors(builder.Configuration, builder.Environment);
 
+    // DOC-QR-06a: API QR công khai giới hạn theo IP người gọi để không dò hàng loạt.
+    builder.Services.AddRateLimiter(o =>
+    {
+        o.RejectionStatusCode = 429;
+        o.AddPolicy("public-qr", context => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            CallerIp.Of(context), _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Clamp(builder.Configuration.GetValue("PublicQr:MaxRequestsPerMinutePerIp", 30), 5, 1000),
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+        o.OnRejected = async (context, ct) =>
+        {
+            context.HttpContext.Response.Headers.RetryAfter = "60";
+            var problem = new ProblemDetails
+            {
+                Status = 429,
+                Title = "qr.rate_limited",
+                Detail = "Bạn tra cứu mã QR quá nhiều lần. Vui lòng đợi một phút rồi thử lại.",
+                Instance = context.HttpContext.Request.Path
+            };
+            problem.Extensions["code"] = "qr.rate_limited";
+            problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+            await context.HttpContext.Response.WriteAsJsonAsync(problem, (System.Text.Json.JsonSerializerOptions?)null, "application/problem+json", ct);
+        };
+    });
+
     builder.Services.AddGlobalExceptionHandling();
 
     builder.Services.Configure<ProblemDetailsOptions>(options =>
@@ -201,6 +229,7 @@ try
     app.UseCors(BrowserCorsExtensions.PolicyName);
 
     app.UseAuditTrustedProxy(builder.Configuration);
+    app.UseRateLimiter();
     app.UseAuthentication();
     app.UseMiddleware<WardMate.SharedKernel.Web.AccountSessionMiddleware>();
 
