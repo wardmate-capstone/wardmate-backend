@@ -111,7 +111,7 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
         var result = await drafts.PublishedReadUrl(id, includeInactive: true, ct);
         return result.IsSuccess ? Ok(new SourceLinkDto(result.Value!)) : Failure(result.Error!);
     }
-    [HttpPut("{id:guid}/checklist"), RequestSizeLimit(1024 * 1024)]
+    [HttpPut("{id:guid}/checklist"), RequestSizeLimit(4 * 1024 * 1024)]
     [ProducesResponseType<ProcedureDetailDto>(200)]
     [ProducesResponseType<ProblemDetails>(400)]
     [ProducesResponseType<ProblemDetails>(404)]

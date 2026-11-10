@@ -19,8 +19,8 @@ public sealed class UpdateProcedureChecklistHandler(IProcedureManagementStore st
         {
             var input = request.Input;
             if (input.Items is null || input.Items.Count > 500 || input.ExpectedUpdatedAt == default ||
-                string.IsNullOrWhiteSpace(input.DecisionNumber) || input.DecisionNumber.Length > 100 || input.EffectiveDate == default)
-                return ProcedureResult<ProcedureDetailDto>.Fail("validation.failed", "Cần danh sách tối đa 500 mục, thời điểm cập nhật, số quyết định (tối đa 100 ký tự) và ngày hiệu lực.", 400);
+                string.IsNullOrWhiteSpace(input.DecisionNumber) || input.DecisionNumber.Length > ProcedureLimits.DecisionNumber || input.EffectiveDate == default)
+                return ProcedureResult<ProcedureDetailDto>.Fail("validation.failed", "Cần danh sách tối đa 500 mục, thời điểm cập nhật, số quyết định (tối đa 255 ký tự) và ngày hiệu lực.", 400);
             var p = await store.LockProcedure(request.Id, ct);
             if (p is null) return ProcedureResult<ProcedureDetailDto>.NotFound();
             if (p.UpdatedAt != input.ExpectedUpdatedAt)

@@ -8,7 +8,7 @@ public sealed class UpdateProcedureInputValidator : AbstractValidator<UpdateProc
     {
         Include(inputValidator);
         RuleFor(x => x.DecisionNumber).NotEmpty().WithMessage("Số quyết định không được để trống.")
-            .MaximumLength(100).WithMessage("Số quyết định không được vượt quá 100 ký tự.");
+            .MaximumLength(ProcedureLimits.DecisionNumber).WithMessage("Số quyết định không được vượt quá 255 ký tự.");
         RuleFor(x => x.EffectiveDate).NotEmpty().WithMessage("Ngày có hiệu lực không được để trống.");
     }
 }

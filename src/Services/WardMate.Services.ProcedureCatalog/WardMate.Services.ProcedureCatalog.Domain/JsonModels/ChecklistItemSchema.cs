@@ -29,6 +29,15 @@ public sealed class ChecklistItemSchema
     public List<CopyRequirement>? CopyRequirements { get; set; }
     public string? ConditionNote { get; set; }
     public bool IsMandatory { get; set; } = true;
+    // BE-H (B.3): nguyên văn số lượng/loại bản ("01 bản chính và 01 bản sao", "02 bộ", "bản dịch có công chứng").
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? QuantityText { get; set; }
+    // BE-H (B.3): ghi chú, ngoại lệ riêng của giấy tờ (tách khỏi ConditionNote).
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Note { get; set; }
+    // BE-H (B.3.1): các formDefinitions[].formCode gắn với giấy tờ này (cột "Mẫu đơn, tờ khai" của Cổng DVC).
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? FormCodes { get; set; }
 
     /// <summary>
     /// PROC-02b: dữ liệu gửi lên có khai rõ documentCopyType/quantity mâu thuẫn với CopyRequirements hay không.

@@ -47,13 +47,20 @@ public sealed class ProcedureRepository(ProcedureDbContext db) : IProcedureRepos
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             var pattern = "%" + Escape(query.Keyword.Trim()) + "%";
+            // BE-H (B.2): tìm cả theo từ khoá (contentPayload.keywords, lưu ở search_keywords).
             source = source.Where(x => EF.Functions.ILike(ProcedureDbContext.Unaccent(x.Title), ProcedureDbContext.Unaccent(pattern), "\\") ||
-                EF.Functions.ILike(ProcedureDbContext.Unaccent(x.ProcedureCode), ProcedureDbContext.Unaccent(pattern), "\\"));
+                EF.Functions.ILike(ProcedureDbContext.Unaccent(x.ProcedureCode), ProcedureDbContext.Unaccent(pattern), "\\") ||
+                EF.Functions.ILike(ProcedureDbContext.Unaccent(x.SearchKeywords ?? ""), ProcedureDbContext.Unaccent(pattern), "\\"));
         }
         if (!string.IsNullOrWhiteSpace(query.LevelOfImplementation))
         {
+            // BE-H (B.2): thủ tục nhiều cấp lưu "Cấp tỉnh, Cấp xã"; lọc khớp đúng một cấp trong danh sách ngăn bởi ", ".
             var level = Escape(query.LevelOfImplementation.Trim());
-            source = source.Where(x => EF.Functions.ILike(ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? ""), ProcedureDbContext.Unaccent(level), "\\"));
+            string first = level + ",%", middle = "%, " + level + ",%", last = "%, " + level;
+            source = source.Where(x => EF.Functions.ILike(ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? ""), ProcedureDbContext.Unaccent(level), "\\")
+                || EF.Functions.ILike(ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? ""), ProcedureDbContext.Unaccent(first), "\\")
+                || EF.Functions.ILike(ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? ""), ProcedureDbContext.Unaccent(middle), "\\")
+                || EF.Functions.ILike(ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? ""), ProcedureDbContext.Unaccent(last), "\\"));
         }
         // Prefer commune/ward entries for default title ordering, without excluding other levels.
         var ordered = source.OrderBy(x => query.SortBy.ToLower() == "title" && string.IsNullOrWhiteSpace(query.LevelOfImplementation) &&

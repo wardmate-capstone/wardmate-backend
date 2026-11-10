@@ -11,7 +11,7 @@ public sealed class ProcedureVersionConfiguration : IEntityTypeConfiguration<Pro
         builder.ToTable("procedure_versions");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-        builder.Property(x => x.DecisionNumber).HasMaxLength(100);
+        builder.Property(x => x.DecisionNumber).HasMaxLength(255);
         builder.Property(x => x.OriginalPdfUrl).HasMaxLength(500);
         builder.Property(x => x.PdfFileName).HasMaxLength(255);
         builder.Property(x => x.EffectiveDate).HasColumnType("date");

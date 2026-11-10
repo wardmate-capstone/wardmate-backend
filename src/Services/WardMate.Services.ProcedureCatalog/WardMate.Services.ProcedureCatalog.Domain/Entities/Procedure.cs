@@ -16,6 +16,8 @@ public sealed class Procedure
     public string? TargetAudience { get; set; }
     public string? FeeSummary { get; set; }
     public string? ProcessingTimeSummary { get; set; }
+    /// <summary>BE-H: contentPayload.keywords ghép thành chuỗi để tìm kiếm (keyword) — BE tự tính, client không gửi.</summary>
+    public string? SearchKeywords { get; set; }
     public bool IsActive { get; set; } = true;
     public string? StatusChangeReason { get; set; }
     public ProcedureContentPayload ContentPayload { get; set; } = new();

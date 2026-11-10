@@ -11,17 +11,19 @@ public sealed class ProcedureConfiguration : IEntityTypeConfiguration<Procedure>
         builder.ToTable("procedures");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-        builder.Property(x => x.ProcedureCode).HasMaxLength(50).IsRequired();
+        // BE-H (A): độ dài khớp ProcedureLimits; văn bản mô tả dùng text.
+        builder.Property(x => x.ProcedureCode).HasMaxLength(100).IsRequired();
         builder.HasIndex(x => x.ProcedureCode).IsUnique().HasMethod("btree");
-        builder.Property(x => x.Title).HasMaxLength(500).IsRequired();
+        builder.Property(x => x.Title).HasMaxLength(1000).IsRequired();
         builder.Property(x => x.OriginalPdfUrl).HasMaxLength(500);
         builder.Property(x => x.PdfFileName).HasMaxLength(255);
-        builder.Property(x => x.IssuingAuthority).HasMaxLength(255);
+        builder.Property(x => x.IssuingAuthority).HasColumnType("text");
         builder.Property(x => x.ExecutingAgency).HasColumnType("text");
-        builder.Property(x => x.LevelOfImplementation).HasMaxLength(50).IsRequired(false);
-        builder.Property(x => x.TargetAudience).HasMaxLength(255).IsRequired(false);
-        builder.Property(x => x.FeeSummary).HasMaxLength(255).IsRequired(false);
-        builder.Property(x => x.ProcessingTimeSummary).HasMaxLength(255).IsRequired(false);
+        builder.Property(x => x.LevelOfImplementation).HasMaxLength(255).IsRequired(false);
+        builder.Property(x => x.TargetAudience).HasColumnType("text").IsRequired(false);
+        builder.Property(x => x.FeeSummary).HasColumnType("text").IsRequired(false);
+        builder.Property(x => x.ProcessingTimeSummary).HasColumnType("text").IsRequired(false);
+        builder.Property(x => x.SearchKeywords).HasColumnType("text").IsRequired(false);
         // ValueGeneratedNever: EF luôn gửi giá trị; nếu không, false (giá trị CLR mặc định) bị bỏ qua và DB tự điền true (PROC-03b).
         builder.Property(x => x.IsActive).HasDefaultValue(true).ValueGeneratedNever();
         builder.Property(x => x.StatusChangeReason).HasColumnType("text");

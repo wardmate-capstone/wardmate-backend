@@ -48,7 +48,7 @@ public sealed class RollbackInputValidator : AbstractValidator<RollbackInput>
         RuleFor(x => x.Reason).NotEmpty().WithMessage("Cần nhập lý do khôi phục.")
             .MaximumLength(4000).WithMessage("Lý do tối đa 4000 ký tự.");
         RuleFor(x => x.DecisionNumber).NotEmpty().WithMessage("Cần nhập số quyết định.")
-            .MaximumLength(100).WithMessage("Số quyết định tối đa 100 ký tự.");
+            .MaximumLength(ProcedureLimits.DecisionNumber).WithMessage("Số quyết định tối đa 255 ký tự.");
         RuleFor(x => x.EffectiveDate).NotEmpty().WithMessage("Cần nhập ngày có hiệu lực.");
     }
 }
