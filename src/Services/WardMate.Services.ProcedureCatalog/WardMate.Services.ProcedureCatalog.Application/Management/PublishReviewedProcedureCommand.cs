@@ -42,7 +42,7 @@ public sealed class PublishReviewedProcedureHandler(IProcedureManagementStore st
             {
                 store.AddVersion(ProcedureVersion.Capture(procedure, await store.NextVersion(procedure.Id, ct),
                     DateOnly.FromDateTime(now), request.Input.ContentPayload?.DecisionNumber, now));
-                request.Input.ApplyTo(procedure);
+                request.Input.ApplyTo(procedure, keepSourceWhenMissing: true);
                 procedure.Category = category;
                 procedure.UpdatedAt = now;
             }

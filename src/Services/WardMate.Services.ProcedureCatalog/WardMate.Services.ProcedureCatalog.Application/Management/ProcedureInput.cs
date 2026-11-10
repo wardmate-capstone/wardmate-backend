@@ -22,14 +22,27 @@ public class ProcedureInput
     public List<ChecklistItemSchema>? ChecklistSchema { get; set; }
     public List<FormDefinitionSchema>? FormDefinitions { get; set; }
 
-    public void ApplyTo(Procedure procedure)
+    /// <param name="keepSourceWhenMissing">
+    /// PROC-01c: true cho sửa (PUT) và publish đè thủ tục đã có — không gửi <c>originalPdfUrl</c> (null) thì giữ PDF
+    /// đang gắn cùng <c>pdfFileName</c>; gắn/thay PDF dùng POST .../source. false (tạo mới, rollback) gán đúng giá trị gửi lên.
+    /// </param>
+    public void ApplyTo(Procedure procedure, bool keepSourceWhenMissing = false)
     {
         var content = NormalizedContent(ContentPayload);
         procedure.CategoryId = CategoryId;
         procedure.ProcedureCode = ProcedureCode.Trim();
         procedure.Title = Title.Trim();
-        procedure.OriginalPdfUrl = OriginalPdfUrl;
-        procedure.PdfFileName = PdfFileName;
+        if (!keepSourceWhenMissing)
+        {
+            procedure.OriginalPdfUrl = OriginalPdfUrl;
+            procedure.PdfFileName = PdfFileName;
+        }
+        else if (OriginalPdfUrl is not null)
+        {
+            // Gửi lại đúng URL đang gắn mà thiếu tên file thì giữ tên file cũ.
+            if (OriginalPdfUrl != procedure.OriginalPdfUrl || PdfFileName is not null) procedure.PdfFileName = PdfFileName;
+            procedure.OriginalPdfUrl = OriginalPdfUrl;
+        }
         procedure.IssuingAuthority = Clean(IssuingAuthority);
         procedure.ExecutingAgency = Clean(ExecutingAgency);
         procedure.LevelOfImplementation = Clean(LevelOfImplementation);

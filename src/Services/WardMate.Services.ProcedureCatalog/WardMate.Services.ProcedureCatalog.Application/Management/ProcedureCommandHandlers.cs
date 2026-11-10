@@ -47,7 +47,7 @@ public sealed class UpdateProcedureCommandHandler(IProcedureManagementStore stor
             var now = DateTime.UtcNow;
             store.AddVersion(ProcedureVersion.Capture(procedure, await store.NextVersion(procedure.Id, ct),
                 request.Input.EffectiveDate, request.Input.DecisionNumber.Trim(), now));
-            request.Input.ApplyTo(procedure);
+            request.Input.ApplyTo(procedure, keepSourceWhenMissing: true);
             // The decision in the live content corresponds to the replacement data, not the frozen snapshot.
             procedure.ContentPayload.DecisionNumber = request.Input.DecisionNumber.Trim();
             procedure.Category = category;
