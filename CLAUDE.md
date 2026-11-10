@@ -16,7 +16,7 @@
 - Chỉ làm backend theo phạm vi người dùng giao; .NET 8, Clean Architecture, database-per-service.
 - KHÔNG chạy bất kỳ lệnh Git nào, kể cả status/diff/log. Antigravity phụ trách Git; các ghi chép cho phép Git trong lịch sử không phải quyền hiện tại.
 - Không ghi đè thay đổi của người khác. Không sửa cùng file khi Codex/Antigravity đang sửa; bàn giao tuần tự.
-- Không tạo lại test project. Khi thay code, chạy `dotnet build WardMate.sln -c Release -warnaserror -m:1`, báo đúng lỗi/cảnh báo. FE phụ trách kiểm thử giao diện; build không chứng minh runtime hoạt động đúng.
+- Test đơn vị ở `tests/WardMate.UnitTests` (xUnit, tạo lại theo yêu cầu chủ dự án 10/11/2026). Khi thay code, chạy `dotnet build WardMate.sln -c Release -warnaserror -m:1` và `dotnet test WardMate.sln -c Release`, báo đúng lỗi/cảnh báo và số test đạt/hỏng; thêm/sửa test cho logic thay đổi. FE phụ trách kiểm thử giao diện; test đơn vị không chứng minh DB/HTTP/AI thật hoạt động đúng.
 - Cập nhật PROGRESS.md sau mỗi phiên; API đổi thì cập nhật docs/api-guide.md; ràng buộc đổi thì cập nhật docs/system-constraints.md và giữ ID quy tắc.
 - Không tự deploy, migrate cloud, thay billing/model hoặc gửi Email/SMS thật nếu task hiện tại chưa cho phép.
 - Không sao chép .env, password, API key, token hoặc dữ liệu người dùng vào tài liệu/log/chat. Chỉ nêu tên cấu hình, không in giá trị secret.
