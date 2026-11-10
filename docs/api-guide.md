@@ -203,7 +203,8 @@ khi thay đổi hành vi API hoặc quy tắc nghiệp vụ.
     + Qua query param: `GET /api/v1/public/qr-lookup?applicationId={id}` hoặc `GET /api/v1/public/qr-lookup?token={token}`
     + Qua path param: `GET /api/v1/public/qr-lookup/{token_hoặc_url}`
   - *Phản hồi thành công*: `200 OK` kèm `QrLookupResultDto` (`applicationId`, `submissionId`, `qrCodeValue`, `status`, `isValid`, `message`, `generatedAt`).
-  - *Lỗi thường gặp*: 400 Validation nếu không truyền `applicationId` hoặc `token`; 404 NotFound nếu không tìm thấy mã QR đã được phê duyệt trong hệ thống.
+  - *Lỗi thường gặp*: 400 Validation nếu không truyền `applicationId` hoặc `token`; 404 NotFound nếu không tìm thấy mã QR trong hệ thống; 429 `qr.rate_limited` nếu một IP tra cứu quá 30 lần/phút.
+  - *Từ 10/11/2026 (DOC-QR-06)*: chỉ khớp **chính xác** — GUID hồ sơ/đơn, URL QR có chứa GUID đó, hoặc nguyên chuỗi `qrCodeValue`. Không còn tìm theo chuỗi con (trước đây gõ `https` cũng trả về một hồ sơ bất kỳ). `status` không còn là `APPROVED`; `message` không nói "phê duyệt/đóng dấu" — xem mục "Tra cứu Thông Tin Hồ Sơ bằng Mã QR" bên dưới.
 
 ### Cập nhật kiểm tra liên service — 15/10/2026 (FLOW-REVIEW-001)
 
@@ -333,6 +334,12 @@ FE dùng accessToken cho các API cần đăng nhập.
 - Sai thông tin hoặc tài khoản không còn khả dụng → 401; kiểm tra thông tin/tình trạng tài khoản.
 - 403 CSRF → kiểm tra header/Origin.
 - Không thấy refreshToken trong JSON là bình thường; không cố đọc cookie HttpOnly bằng JavaScript.
+- **Từ 10/11/2026 (IAM-01a):** sai mật khẩu 10 lần trong 15 phút cho cùng một tài khoản (đăng nhập bằng username
+  hay email đều tính chung) → 429 `iam.login_locked`, `title` cho biết số phút phải chờ; trong thời gian này nhập
+  đúng mật khẩu cũng bị từ chối. Cách xử lý: hiển thị `title`, gợi ý "Quên mật khẩu" — đổi mật khẩu bằng OTP gỡ
+  khóa ngay. Đăng nhập đúng trước khi chạm ngưỡng thì bộ đếm về 0.
+- Một địa chỉ IP gửi quá 30 yêu cầu đăng nhập/phút → 429 `iam.login_rate_limited`, header `Retry-After: 60`;
+  đợi một phút rồi thử lại. FE không tự gửi lại liên tục khi gặp 429.
 
 #### API 03 — Gia hạn phiên đăng nhập
 
@@ -1054,7 +1061,6 @@ toàn bộ nội dung chi tiết.
 
 **Quyền / Header:** Public
 **Mục đích:** Cho người xem đối chiếu trang thủ tục với văn bản PDF gốc đã lưu qua luồng draft, hoặc PDF gắn trực tiếp bằng API 32a (từ 09/11/2026).
-**Mục đích:** Cho người xem đối chiếu trang thủ tục với văn bản PDF gốc đã lưu qua luồng draft.
 
 **Cách dùng:** Gọi khi người dùng bấm Xem PDF, lấy `url` trong response rồi mở URL đó.
 
@@ -1063,7 +1069,7 @@ toàn bộ nội dung chi tiết.
 **Trường hợp sai và cách xử lý:**
 
 - Thủ tục bị tắt hoặc không có draft Published khớp nguồn → 404; chỉ điền OriginalPdfUrl thủ công chưa đủ tạo
-  liên kết này.
+  liên kết này. Màn quản trị xem PDF của thủ tục đang ẩn phải dùng API 32b, không dùng API này.
 - Blob chưa cấu hình → 503.
 
 #### API 32a — Gắn PDF gốc cho thủ tục nhập tay (09/11/2026)
@@ -1083,7 +1089,27 @@ toàn bộ nội dung chi tiết.
 - 400 `draft.invalid_pdf`: không phải PDF, tên không có đuôi .pdf, tên quá 255 ký tự hoặc file quá 20 MB. Chọn lại file.
 - 404 `procedure.not_found`: sai id thủ tục.
 - 503 `draft.storage_not_configured`: máy chủ chưa cấu hình Blob; báo BE.
-- Sau khi gắn, nếu FE gọi PUT sửa thủ tục thì phải gửi lại `originalPdfUrl` và `pdfFileName` đang có; gửi `null` sẽ làm mất liên kết PDF (API 32 trở lại 404).
+- Từ 10/11/2026 (PROC-01c): PUT sửa thủ tục mà không gửi `originalPdfUrl` (bỏ trường hoặc `null`) thì BE **giữ** PDF đang gắn và `pdfFileName`. Trước bản sửa này PUT thiếu trường làm mất liên kết PDF. Muốn thay PDF thì gọi lại API 32a.
+- Xem lại PDF vừa gắn khi thủ tục còn ẩn: dùng API 32b (API 32 chỉ phục vụ thủ tục đang công khai).
+
+#### API 32b — Xem PDF gốc hiện tại ở màn quản trị (10/11/2026)
+
+`GET /api/v1/procedure-manager/procedures/{id}/source`
+
+**Quyền / Header:** Bearer token, quyền `procedure.source.read` (Procedure Manager, IT Admin).
+
+**Mục đích:** Thủ tục tạo tay mặc định ẩn (`isActive=false`). API 32 công khai trả 404 với thủ tục ẩn, nên cán bộ không mở được PDF vừa gắn bằng API 32a để kiểm tra trước khi công khai. API này trả PDF gốc hiện tại kể cả khi thủ tục đang ẩn.
+
+**Cách dùng:** Ở trang chi tiết/sửa thủ tục của màn quản trị, nút "Xem PDF" gọi API này, lấy `url` rồi mở. Cổng công dân vẫn dùng API 32.
+
+**Kết quả:** 200 `{ "url": "...", "expiresInSeconds": 600 }` — link tạm 10 phút, không phải bytes PDF.
+
+**Trường hợp sai và cách xử lý:**
+
+- 404 `draft.source_not_found`: thủ tục chưa có PDF gắn qua hệ thống (chưa gọi API 32a hoặc không tạo từ bản nháp), hoặc `originalPdfUrl` đã bị đổi thành URL khác bằng PUT. Gắn lại bằng API 32a.
+- 401/403: thiếu token hoặc thiếu quyền `procedure.source.read`.
+- 503 `draft.storage_not_configured`: máy chủ chưa cấu hình Blob; báo BE.
+- Link hết hạn → gọi lại API, không lưu link tạm.
 
 **Tóm tắt lệ phí/thời hạn (từ 09/11/2026):** khi tạo/sửa thủ tục, `feeSummary` và `processingTimeSummary` được để trống nếu phần Thời hạn & lệ phí (`contentPayload.submissionMethods`) có ít nhất một cách nộp; BE tự sinh, ví dụ "Miễn phí", "10.000 VND", "10.000 – 20.000 VND", "7 ngày", "3 – 7 ngày", "Trong ngày". Gửi chuỗi khác rỗng thì BE giữ nguyên. Cả hai đều trống → 400 `validation.failed`. `contentPayload.results` (Kết quả giải quyết) không bắt buộc; FE nên bỏ dấu `*`.
 - Link cũ hết hạn → gọi lại API, không lưu cố định link tạm vào DB/FE.
@@ -2363,10 +2389,12 @@ Các giới hạn chính:
 - categoryId phải tồn tại; procedureCode bắt buộc/tối đa 50, duy nhất; title bắt buộc, tối đa 500 (bỏ tối thiểu 10 ký tự từ 09/11/2026).
 - **Từ 09/11/2026 (PROC-01b):** chỉ 3 trường trên là bắt buộc. `levelOfImplementation`, `targetAudience`, `feeSummary`, `processingTimeSummary`, `issuingAuthority`, `executingAgency`, `contentPayload` và các danh sách trong đó, `checklistSchema`, `formDefinitions` đều được gửi `null` hoặc bỏ trống. Response có thể trả `null` ở các trường chuỗi này; `contentPayload` luôn là object với các mảng (có thể rỗng). FE hiển thị "Chưa cập nhật" hoặc ẩn dòng khi gặp null. Áp dụng cả bản nháp khi xuất bản.
 - **Từ 09/11/2026 (PROC-02a) — nhiều loại bản:** mỗi dòng `checklistSchema` có thêm `copyRequirements` (mảng `{ documentCopyType, quantity }`, tối đa 3, mỗi loại một dòng). Ví dụ "01 bản chính và 01 bản sao": `[{"documentCopyType":"ORIGINAL","quantity":1},{"documentCopyType":"REGULAR_COPY","quantity":1}]`. BE tự đặt `documentCopyType = null` và `quantity = 2`. Gửi kiểu cũ (một `documentCopyType` + `quantity`) vẫn được; response luôn có `copyRequirements` khi có loại bản. Trường hợp (`contentPayload.cases`) cần `caseCode` + `caseName`; `steps` được bỏ trống.
+- **Từ 10/11/2026 (PROC-02b):** khi gửi `copyRequirements` thì bỏ trống `documentCopyType`/`quantity` (hoặc gửi đúng giá trị suy ra: 1 dòng → loại và số lượng của dòng đó; nhiều dòng → `documentCopyType: null`, `quantity` = tổng). Gửi giá trị khác → 400 `validation.failed` ở `checklistSchema[i].copyRequirements`, không còn âm thầm bỏ thay đổi. Gửi lại nguyên dòng đọc từ GET là hợp lệ. Form cũ chỉ có một ô loại bản + số lượng: khi lưu phải xóa `copyRequirements` khỏi dòng (hoặc cập nhật nó theo ô mới), nếu không sẽ gặp 400 này.
 - issuingAuthority tối đa 255; levelOfImplementation 50; targetAudience, feeSummary, processingTimeSummary (feeSummary/processingTimeSummary được để trống từ 09/11/2026 nếu có submissionMethods — BE tự sinh, xem PROC-01a)
   255. Gửi đầy đủ các trường bắt buộc khi xuất bản.
 - originalPdfUrl nullable, HTTPS URL tuyệt đối không có userinfo, tối đa 500; pdfFileName nullable/tối đa 255.
-  URL lưu không mặc nhiên là URL công khai tải được.
+  URL lưu không mặc nhiên là URL công khai tải được. Từ 10/11/2026 (PROC-01c) PUT và publish đè thủ tục đã có
+  mà gửi `originalPdfUrl: null` thì giữ PDF hiện tại; tạo mới và rollback vẫn lưu đúng giá trị gửi/snapshot.
 - ContentPayload gồm decisionNumber, receivingAddress, submissionMethods, legalReferences, results, cases. Mỗi
   case có nhiều steps; không cần ép mọi thủ tục vào một trường hợp duy nhất.
 - feeAmount/estimatedDays không âm; stepOrder dương. Checklist/form quantity dương.
@@ -3472,6 +3500,7 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
   - `404` (`qr.pdf_not_found`): Hồ sơ có QR nhưng chưa có file PDF được xuất.
   - `404` (`qr.pdf_blob_missing`): File PDF không còn trên Azure Blob — liên hệ cơ quan tiếp nhận.
   - `400` (`qr.invalid_application_id`): ApplicationId là GUID rỗng.
+  - `429` (`qr.rate_limited`, từ 10/11/2026): một IP gọi các API `/api/v1/public/*` quá 30 lần/phút (cấu hình `PublicQr:MaxRequestsPerMinutePerIp`). Đợi một phút rồi quét lại.
 
 #### 3. Tra cứu Thông Tin Hồ Sơ bằng Mã QR (legacy — trả JSON)
 - **Endpoint**: 
@@ -3486,15 +3515,18 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
     "submissionId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
     "qrCodeValue": "https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/public/applications/b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9/pdf-redirect",
     "generatedAt": "2026-10-23T08:00:00Z",
-    "status": "APPROVED",
+    "status": "READYFORDOWNLOAD",
     "documentName": "Tờ khai đăng ký khai sinh",
     "isValid": true,
-    "message": "Hồ sơ điện tử hợp lệ, đã được cơ quan có thẩm quyền phê duyệt và đóng dấu xác thực."
+    "message": "Mã QR hợp lệ: giấy tờ của hồ sơ này do WardMate cấp và đã được cán bộ kiểm tra đầy đủ. Đây không phải văn bản phê duyệt hay kết quả giải quyết thủ tục hành chính."
   }
   ```
+- **`status` (từ 10/11/2026, DOC-QR-06b)**: trạng thái đơn trong DocumentForm viết hoa (thường là `READYFORDOWNLOAD`); hồ sơ chỉ có giấy tờ đính kèm (`submissionId: null`) trả `DOCUMENTS_READY`. Trước đây mặc định `APPROVED` — sai nghiệp vụ vì `DOCUMENTS_READY` không phải phê duyệt. FE không hiển thị chữ "đã phê duyệt"; hiển thị `message`.
+- **Cách khớp mã (DOC-QR-06a)**: `token` phải là GUID hồ sơ/đơn, URL QR chứa GUID (`.../applications/{id}/pdf-redirect` hoặc QR cũ `...?applicationId={id}`), hoặc đúng nguyên chuỗi `qrCodeValue`. Chuỗi con không còn khớp. Token dài hơn 2.048 ký tự → 400 `qr.token_too_long`.
 - **Lỗi thường gặp & Phục hồi**:
   - `400 Bad Request` (`qr.token_required`): Chưa truyền token hoặc applicationId.
   - `404 Not Found` (`qr.not_found`): Mã QR không khớp với bất kỳ hồ sơ nào trong hệ thống.
+  - `429` (`qr.rate_limited`): quá 30 lần/phút từ một IP; đợi một phút.
 
 #### 3. Cơ chế tương thích ngược khi quét QR cũ (`GET /api/v1/applications/{id}`)
 - **Endpoint**: `GET /api/v1/applications/{id}`

@@ -8,15 +8,16 @@ Tài liệu này liệt kê các thay đổi BE ngày 09/11 để sửa các v�
 
 | # | Thay đổi | Service | Trên Azure? |
 |---|---|---|---|
-| 1 | QR tạo ngay khi hồ sơ sẵn sàng | DocumentForm | **Chưa** — cần chạy SQL rồi deploy |
-| 2 | Tự sinh tóm tắt lệ phí/thời hạn | ProcedureCatalog | **Có** (image `catalog-20261109-02`) |
-| 3 | API gắn PDF cho thủ tục nhập tay | ProcedureCatalog | **Có** (image `catalog-20261109-02`) |
-| 4 | Tạo thủ tục mặc định ẩn (`isActive`) | ProcedureCatalog | **Có nhưng còn lỗi** — gửi `false` vẫn thành công khai; bản sửa chưa deploy |
-| 5 | Chỉ bắt buộc mã, tên, lĩnh vực | ProcedureCatalog | **Chưa** — cần chạy SQL rồi deploy |
-| 6 | Nhiều loại bản (bản chính + bản sao) và tên trường hợp | ProcedureCatalog, AIOCR | **Chưa** — deploy cùng mục 5 (không cần SQL riêng) |
-| 7 | Danh bạ cán bộ trả `permissions[]` — sửa phân công/tham vấn luôn bị chặn (BE-G) | IAM (+ Workflow) | **Chưa** — deploy IAM trước, không cần SQL |
+| 1 | QR tạo ngay khi hồ sơ sẵn sàng | DocumentForm | **Có** (09/11, đã chạy SQL) |
+| 2 | Tự sinh tóm tắt lệ phí/thời hạn | ProcedureCatalog | **Có** (`catalog-20261109-04`) |
+| 3 | API gắn PDF cho thủ tục nhập tay | ProcedureCatalog | **Có** (`catalog-20261109-04`) |
+| 4 | Tạo thủ tục mặc định ẩn (`isActive`) | ProcedureCatalog | **Có** (`catalog-20261109-04`) |
+| 5 | Chỉ bắt buộc mã, tên, lĩnh vực | ProcedureCatalog | **Có** (09/11, đã chạy SQL) |
+| 6 | Nhiều loại bản (bản chính + bản sao) và tên trường hợp | ProcedureCatalog, AIOCR | **Có** (09/11) |
+| 7 | Danh bạ cán bộ trả `permissions[]` — sửa phân công/tham vấn luôn bị chặn (BE-G) | IAM (+ Workflow) | **Có** (09/11) |
+| 8 | Sửa lỗi tiềm ẩn sau rà soát 10/11 (mục 8 bên dưới) | IAM, DocumentForm, ProcedureCatalog | **Chưa** — chờ deploy, không cần SQL |
 
-Khi Anti deploy xong mục 1, 4, 5, 6, 7, BE sẽ báo lại. Trước đó FE có thể code theo tài liệu này nhưng chỉ test được mục 2, 3 trên Azure.
+Mục 1–7 đã deploy 09/11 (cả 6 service `/health/ready` 200). Mục 8 chỉ test được sau khi deploy IAM, DocumentForm, ProcedureCatalog bản 10/11.
 
 ## 1. Mã QR không tạo được sau khi cán bộ xác nhận giấy tờ sẵn sàng
 
@@ -69,7 +70,8 @@ Quyền: procedure.update (Procedure Manager)
 
 **FE cần làm:**
 - Ở trang chi tiết/sửa thủ tục: khi `GET .../source` trả 404, hiện nút **"Tải PDF gốc"** gọi API trên; thay khung lỗi "Thủ tục không có PDF..." bằng nút này.
-- Khi `PUT /api/v1/procedure-manager/procedures/{id}` (sửa thủ tục), **gửi lại `originalPdfUrl` và `pdfFileName` đang có**. Gửi `null` sẽ làm mất liên kết PDF.
+- Khi `PUT /api/v1/procedure-manager/procedures/{id}` (sửa thủ tục), **gửi lại `originalPdfUrl` và `pdfFileName` đang có**. Gửi `null` sẽ làm mất liên kết PDF. *(Từ bản 10/11 không còn bắt buộc — xem mục 8.)*
+- *(Từ bản 10/11)* Nút "Xem PDF" ở **màn quản trị** gọi `GET /api/v1/procedure-manager/procedures/{id}/source` (API 32b) — xem được cả khi thủ tục đang ẩn. Xem mục 8.
 
 ## 4. Tạo thủ tục bằng tay bị công khai ngay
 
@@ -157,10 +159,34 @@ Mọi trường khác được gửi `null` hoặc bỏ trống: `levelOfImpleme
 | 1 | Tạo thủ tục chỉ điền mã, tên (ví dụ "Test"), lĩnh vực, không tick công khai | 201, `isActive: false`, các trường khác `null`; không thấy ở cổng công dân |
 | 2 | Bật công khai bằng API status | Thấy ở danh sách công dân, các ô trống hiện "Chưa cập nhật" |
 | 3 | Tạo thủ tục có 2 cách nộp 10.000 và 20.000 VND, 3 và 7 ngày, bỏ trống tóm tắt | `feeSummary = "10.000 – 20.000 VND"`, `processingTimeSummary = "3 – 7 ngày"` |
-| 4 | Ở thủ tục nhập tay, bấm "Tải PDF gốc", chọn file PDF | 200; "Xem PDF" mở được; lịch sử phiên bản thêm 1 dòng |
+| 4 | Ở thủ tục nhập tay, bấm "Tải PDF gốc", chọn file PDF | 200; lịch sử phiên bản thêm 1 dòng. "Xem PDF" ở màn quản trị khi thủ tục còn **ẩn** chỉ mở được sau bản 10/11 (API 32b); bản 09/11 trả 404 |
 | 5 | Tải file .docx vào nút "Tải PDF gốc" | 400 `draft.invalid_pdf` |
 | 6 | Hồ sơ vừa `DOCUMENTS_READY`, chưa xuất PDF → mở QR | 200 + ảnh QR |
-| 7 | Tạo thủ tục có trường hợp `TH1` tên "Kết hôn lần đầu" (không bước), giấy tờ CCCD 1 bản chính + 1 bản sao gắn `TH1` | 201; checklist trả `copyRequirements` 2 dòng, `quantity: 2`, `documentCopyType: null` || 8 | Khai 2 dòng cùng `ORIGINAL` | 400 `validation.failed` |
+| 7 | Tạo thủ tục có trường hợp `TH1` tên "Kết hôn lần đầu" (không bước), giấy tờ CCCD 1 bản chính + 1 bản sao gắn `TH1` | 201; checklist trả `copyRequirements` 2 dòng, `quantity: 2`, `documentCopyType: null` |
 | 8 | Khai 2 dòng cùng `ORIGINAL` cho một giấy tờ | 400 `validation.failed` |
 
 Báo lỗi cho BE kèm: route, mã HTTP, `code`, `traceId`, thời điểm gọi. Không gửi mật khẩu/token.
+
+## 8. Sửa lỗi tiềm ẩn sau rà soát (10/11/2026, AUDIT-FIX-1110) — chờ deploy
+
+| # | Thay đổi | FE cần làm |
+|---|---|---|
+| A1 | `GET /api/v1/public/qr-lookup` chỉ khớp **chính xác** (GUID hồ sơ/đơn, URL QR chứa GUID, hoặc nguyên `qrCodeValue`); không còn tìm chuỗi con. Mọi `/api/v1/public/*` giới hạn 30 lần/phút/IP → 429 `qr.rate_limited` | Trang tra cứu QR gửi nguyên chuỗi quét được hoặc `applicationId`; không cho người dùng gõ một phần mã. Gặp 429: báo "Thử lại sau 1 phút". |
+| A2 | Đăng nhập: sai 10 lần/15 phút cho một tài khoản → 429 `iam.login_locked` (title ghi số phút chờ, nhập đúng cũng bị chặn đến hết thời gian); một IP quá 30 lần/phút → 429 `iam.login_rate_limited` | Màn đăng nhập xử lý 429: hiện `title`, kèm link "Quên mật khẩu" (đổi mật khẩu bằng OTP gỡ khóa ngay). Không tự gửi lại. |
+| B1 | API mới `GET /api/v1/procedure-manager/procedures/{id}/source` (quyền `procedure.source.read`) → `{ url, expiresInSeconds: 600 }`, dùng được khi thủ tục đang ẩn | Nút "Xem PDF" ở màn quản trị dùng API này. Cổng công dân giữ `GET /api/v1/procedures/{id}/source`. |
+| B2 | PUT sửa thủ tục không gửi `originalPdfUrl` (hoặc `null`) thì BE **giữ** PDF đang gắn | Có thể bỏ việc gửi lại `originalPdfUrl`/`pdfFileName`. Thay PDF vẫn dùng API 32a. |
+| B3 | Dòng checklist có `copyRequirements` mà gửi kèm `documentCopyType`/`quantity` **khác** giá trị BE suy ra → 400 `validation.failed` (khóa `checklistSchema[i].copyRequirements`), thay vì âm thầm bỏ thay đổi | Form nhiều loại bản: chỉ gửi `copyRequirements`, bỏ `documentCopyType`/`quantity`. Form cũ một ô loại bản: khi lưu xóa `copyRequirements` khỏi dòng (hoặc cập nhật nó theo ô mới). Gửi lại nguyên dòng từ GET vẫn hợp lệ. |
+| B4 | Tra cứu QR: `status` không còn `APPROVED` (thường `READYFORDOWNLOAD`, không có đơn thì `DOCUMENTS_READY`); `message` nói giấy tờ đã được cán bộ kiểm tra, **không phải phê duyệt** | Không hiển thị chữ "đã phê duyệt/đóng dấu"; hiển thị `message`. |
+
+**Test sau deploy:**
+
+| Bước | Thao tác | Kỳ vọng |
+|---|---|---|
+| 1 | `GET /api/v1/public/qr-lookup?token=https` | 404 `qr.not_found` (trước đây 200 kèm hồ sơ bất kỳ) |
+| 2 | Quét QR hợp lệ / `?applicationId={id}` của hồ sơ đã sẵn sàng | 200, `status` không phải `APPROVED`, `message` không có chữ "phê duyệt" |
+| 3 | Gọi qr-lookup 31 lần trong 1 phút từ một máy | Lần 31 trả 429 `qr.rate_limited` |
+| 4 | Đăng nhập sai mật khẩu 10 lần với tài khoản thử | Lần 1–10: 401; lần 11 (kể cả đúng mật khẩu): 429 `iam.login_locked` |
+| 5 | Tài khoản ở bước 4 đổi mật khẩu bằng OTP rồi đăng nhập | 200 |
+| 6 | Thủ tục ẩn đã gắn PDF → API 32b | 200 có `url`; API 32 công khai vẫn 404 |
+| 7 | PUT sửa tiêu đề thủ tục, bỏ `originalPdfUrl` | 200; `originalPdfUrl` giữ nguyên; API 32b vẫn mở được |
+| 8 | PUT checklist dòng `copyRequirements: [{ORIGINAL,1}]` kèm `documentCopyType: "CERTIFIED_COPY"` | 400 `validation.failed` |

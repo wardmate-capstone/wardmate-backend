@@ -138,6 +138,20 @@ IAM Infrastructure `Security/JwtOptions.cs`, Workflow API `WorkflowAccessMiddlew
 - Đăng nhập yêu cầu username/email không rỗng, tối đa 255; mật khẩu không rỗng,
   tối đa 72 byte. Tài khoản phải tồn tại, đang hoạt động và mật khẩu khớp.
 - Tạo tài khoản Front Desk dùng lại các kiểm tra thông tin đăng ký này.
+- **IAM-01a (10/11/2026) — Chống dò mật khẩu:** (1) Theo tài khoản: sai `Login:MaxFailures` lần (mặc định 10, giới hạn 3–100)
+  trong `Login:WindowMinutes` phút (mặc định 15, 1–1440) tính từ lần sai đầu → mọi lần đăng nhập tiếp theo của tài khoản
+  đó đến hết cửa sổ trả 429 `iam.login_locked` (kể cả đúng mật khẩu, không chạy BCrypt). Username và email của cùng
+  người dùng chung một bộ đếm; chuỗi đăng nhập không khớp tài khoản nào được đếm theo chuỗi đó. Đăng nhập đúng trước
+  ngưỡng, hoặc đổi mật khẩu bằng OTP (`password-otp/verify-and-change`) thì xóa bộ đếm. (2) Theo IP:
+  `POST /api/v1/auth/login` tối đa `Login:MaxRequestsPerMinutePerIp` (mặc định 30, 5–1000)/phút → 429
+  `iam.login_rate_limited`, `Retry-After: 60`. IP lấy phần tử đầu của `X-Forwarded-For` do gateway đặt (`CallerIp`),
+  không phải IP gateway/ingress; policy `password-otp` cũng đổi sang khóa này. **Giới hạn:** bộ đếm theo tài khoản
+  nằm trong bộ nhớ từng replica (khởi động lại thì mất; nhiều replica đếm riêng), theo dõi tối đa 100.000 khóa —
+  vượt thì khóa mới không được đếm (có log cảnh báo), chỉ còn giới hạn IP. Kẻ gian biết username có thể cố ý làm khóa
+  tài khoản người khác tối đa 15 phút; người dùng gỡ bằng quên mật khẩu. Client gọi thẳng IAM (không qua gateway) có
+  thể giả `X-Forwarded-For` để né giới hạn IP, nhưng không né được bộ đếm theo tài khoản. Nguồn: `LoginHandler.cs`,
+  `Infrastructure/Security/LoginThrottle.cs`, `PasswordOtpService.Verify`, IAM `Program.cs`, `AuthController.Login`,
+  `SharedKernel/Web/CallerIp.cs`.
 
 ### IAM-02 — Refresh và logout
 
@@ -220,6 +234,11 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 - PROC-03b bổ sung (09/11/2026): cột `is_active` giữ DEFAULT true cho SQL thủ công nhưng EF cấu hình `ValueGeneratedNever`; trước bản sửa này EF bỏ qua giá trị `false` khi tạo nên DB tự điền true — bản `catalog-20261109-02` đang chạy vẫn tạo thủ tục công khai dù gửi `isActive=false`.
 - OriginalPdfUrl có thể null; nếu có phải HTTPS tuyệt đối, không chứa user/password,
   tối đa 500 ký tự. PdfFileName tối đa 255.
+- PROC-01c (10/11/2026) — Giữ PDF khi sửa: PUT `/procedure-manager/procedures/{id}` và publish đè thủ tục đã có
+  (POST `/procedure-manager/procedures/publish`) gửi `originalPdfUrl = null` thì giữ `originalPdfUrl` và `pdfFileName`
+  hiện tại. Gửi URL khác thì thay; gửi lại đúng URL hiện tại mà `pdfFileName = null` thì giữ tên file cũ. Tạo mới và
+  rollback vẫn gán đúng giá trị gửi/snapshot. Không có cách xóa liên kết PDF qua PUT; thay PDF dùng API 32a.
+  Nguồn: `ProcedureInput.ApplyTo(keepSourceWhenMissing)`, `UpdateProcedureCommandHandler`, `PublishReviewedProcedureHandler`.
 - ContentPayload không null; DecisionNumber trong payload tối đa 100.
 - Cases, SubmissionMethods, LegalReferences, Results không null; dùng `[]` khi không có.
 - Mỗi case có mã, tên và danh sách bước; mỗi bước có thứ tự > 0 và tên không rỗng.
@@ -235,6 +254,12 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 - SubmissionType: `NOP` hoặc `XUAT_TRINH`.
 - DocumentCopyType: `ORIGINAL`, `CERTIFIED_COPY`, `REGULAR_COPY` hoặc `null` (từ 09/11/2026).
 - PROC-02a (09/11/2026) — Nhiều loại bản cho một giấy tờ: `copyRequirements: [{ documentCopyType, quantity }]`, tối đa 3 dòng, mỗi loại một dòng, số lượng 1–100; sai → 400 `validation.failed`. BE đồng bộ khi lưu (`ProcedureInput.NormalizedChecklist`, áp dụng tạo/sửa/publish bản nháp/rollback và API cập nhật checklist): 1 dòng → `documentCopyType`/`quantity` theo dòng đó; ≥2 dòng → `documentCopyType = null`, `quantity` = tổng; không gửi `copyRequirements` mà có `documentCopyType` → sinh 1 dòng tương ứng. JSONB, không migration; `copyRequirements` null không được ghi ra JSON. **Giới hạn:** Workflow chỉ chụp `documentCopyType`/`quantity` vào checklist hồ sơ, nên với giấy tờ nhiều loại bản Workflow chỉ kiểm tổng số bản (mọi loại), không kiểm từng loại; FE lấy chi tiết loại bản từ Catalog. AIOCR (chatbot) hiển thị "01 bản chính + 01 bản sao" và tên trường hợp thay cho mã.
+- PROC-02b (10/11/2026) — Không âm thầm bỏ thay đổi: dòng có `copyRequirements` hợp lệ mà body **có gửi**
+  `documentCopyType` khác null khác giá trị suy ra (1 dòng → loại của dòng; ≥2 dòng → null), hoặc **có gửi** `quantity`
+  khác tổng các dòng → 400 `validation.failed` (khóa `checklistSchema[i].copyRequirements`). Bỏ trống hai trường,
+  gửi `documentCopyType: null`, hoặc gửi lại nguyên dòng đọc từ GET đều hợp lệ. Áp dụng tạo, sửa, publish và API cập
+  nhật checklist (cùng validator). BE nhận biết "có gửi" bằng cờ trong setter của `ChecklistItemSchema` (không lưu DB,
+  không migration). Nguồn: `ChecklistItemSchema.ConflictsWithCopyRequirements`, `ProcedureInputValidator`.
 - Trường hợp (`contentPayload.cases`): bắt buộc `caseCode` (duy nhất, ≤100) và `caseName` (≤500); `steps` được null/rỗng từ 09/11/2026, bước có gửi phải có thứ tự > 0 và tên. `caseCode` của checklist/biểu mẫu phải thuộc danh sách trường hợp.
 - Quantity > 0. IsMandatory quy định mục bắt buộc; CaseCode chỉ phạm vi áp dụng.
 - FormDefinition yêu cầu FormCode/FormName; FormType là `ONLINE_INTERACTIVE` hoặc
@@ -270,7 +295,13 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 - Danh mục: tên bắt buộc/tối đa 255, mô tả tối đa 4.000; không xóa danh mục còn thủ tục sử dụng.
   Tên sau trim không được trùng không phân biệt hoa/thường qua luồng quản trị.
   Rollback bị chặn nếu snapshot sai, danh mục cũ không còn hoặc mã bị thủ tục khác dùng.
-- PROC-03a (09/11/2026) — Gắn PDF gốc cho thủ tục có sẵn: `POST /api/v1/procedure-manager/procedures/{id}/source` (policy `procedure.update`, multipart `file`). PDF phải có chữ ký `%PDF-`, tên đuôi .pdf tối đa 255 ký tự, dung lượng 5 byte–20 MB, nếu không trả 400 `draft.invalid_pdf`; thiếu cấu hình Blob → 503 `draft.storage_not_configured`; thủ tục không tồn tại → 404 `procedure.not_found`. File lưu container riêng tư `procedure-sources` dưới dạng bản nháp trạng thái `Published` trỏ tới thủ tục; trước khi đổi `originalPdfUrl`/`pdfFileName` lưu một version snapshot (ngày hiệu lực = hôm nay, số quyết định hiện tại). Gắn lại thì thay PDF, PDF cũ vẫn mở được qua nguồn của version cũ. Upload Blob trước DB: lỗi DB để lại blob mồ côi (chưa dọn tự động). Lưu ý: PUT sửa thủ tục ghi đè `originalPdfUrl` theo body; FE phải gửi lại giá trị đang có để không mất liên kết PDF. Nguồn: `ProcedureManagerController.AttachSource`, `ProcedureDraftService.AttachSource`.
+- PROC-03a (09/11/2026) — Gắn PDF gốc cho thủ tục có sẵn: `POST /api/v1/procedure-manager/procedures/{id}/source` (policy `procedure.update`, multipart `file`). PDF phải có chữ ký `%PDF-`, tên đuôi .pdf tối đa 255 ký tự, dung lượng 5 byte–20 MB, nếu không trả 400 `draft.invalid_pdf`; thiếu cấu hình Blob → 503 `draft.storage_not_configured`; thủ tục không tồn tại → 404 `procedure.not_found`. File lưu container riêng tư `procedure-sources` dưới dạng bản nháp trạng thái `Published` trỏ tới thủ tục; trước khi đổi `originalPdfUrl`/`pdfFileName` lưu một version snapshot (ngày hiệu lực = hôm nay, số quyết định hiện tại). Gắn lại thì thay PDF, PDF cũ vẫn mở được qua nguồn của version cũ. Upload Blob trước DB: lỗi DB để lại blob mồ côi (chưa dọn tự động). Từ 10/11/2026 PUT thiếu `originalPdfUrl` giữ PDF hiện tại (PROC-01c); trước đó PUT ghi đè theo body làm mất liên kết. Nguồn: `ProcedureManagerController.AttachSource`, `ProcedureDraftService.AttachSource`.
+- PROC-03c (10/11/2026) — Xem PDF hiện tại ở màn quản trị: `GET /api/v1/procedure-manager/procedures/{id}/source`
+  (policy `procedure.source.read`) trả link SAS 10 phút của PDF gắn qua hệ thống kể cả khi thủ tục đang ẩn. API công
+  khai `GET /api/v1/procedures/{id}/source` vẫn chỉ phục vụ thủ tục `isActive = true`. Cả hai chỉ ký blob của bản nháp
+  `Published` có `originalPdfUrl` trùng thủ tục; URL nhập tay bằng PUT không được ký → 404 `draft.source_not_found`.
+  Nguồn: `ProcedureManagerController.CurrentSource`, `ProcedureDraftService.PublishedReadUrl(includeInactive)`,
+  `DraftPersistence.FindPublishedDraftId`.
 
 ### PROC-04 — Tra cứu
 
@@ -825,6 +856,21 @@ Analytics trên môi trường Azure hiện tại phải cấu hình Iam__BaseUr
 - **Giới hạn:** QR không được in vào PDF (giữ DOC-QR-04). Quét QR khi hồ sơ chưa có PDF trả 404 `qr.pdf_not_found`. Workflow không gọi DocumentForm lúc xác nhận; QR chỉ xuất hiện ở lần đầu có người gọi API DocumentForm sau khi hồ sơ sẵn sàng.
 - **Nguồn:** `API/Security/ApplicationAccess.cs`, `Domain/Entities/ApprovedQr.cs`, `ApprovedQrConfiguration.cs`, `ApprovedQrService.cs`, `QrLookupQuery.cs`, `ApprovedQrDto.cs`.
 
+### DOC-QR-06 — Tra cứu QR công khai: khớp chính xác, giới hạn tần suất, không nói phê duyệt (10/11/2026)
+- **DOC-QR-06a — Khớp chính xác và rate limit.** `GET /api/v1/public/qr-lookup` (query/path) chỉ tìm `approved_qrs`
+  theo GUID hồ sơ/đơn (GUID trực tiếp hoặc GUID cuối cùng trong URL, tách theo `/ \ ? & = #`) hoặc đúng nguyên chuỗi
+  `qr_code_value`. Bỏ tìm theo chuỗi con: trước bản sửa, `token=https` trả mã một hồ sơ bất kỳ, kết hợp `pdf-redirect`
+  công khai cho phép tải PDF có CCCD/địa chỉ người dân. Token > 2.048 ký tự → 400 `qr.token_too_long`. Mọi route
+  `/api/v1/public/*` của DocumentForm (qr-lookup, pdf-redirect) giới hạn `PublicQr:MaxRequestsPerMinutePerIp`
+  (mặc định 30, 5–1000)/phút/IP → 429 `qr.rate_limited`, `Retry-After: 60`; IP lấy như IAM-01a (`CallerIp`).
+- **DOC-QR-06b — Không phải phê duyệt.** `status` = trạng thái đơn DocumentForm viết hoa (thường `READYFORDOWNLOAD`);
+  không có đơn thì `DOCUMENTS_READY` (trước đây mặc định `APPROVED`). `message` nói rõ giấy tờ đã được cán bộ kiểm tra,
+  không phải văn bản phê duyệt hay kết quả giải quyết thủ tục.
+- **Giới hạn còn lại:** ai có link QR (`applicationId`) vẫn mở được PDF qua `pdf-redirect` — đó là thiết kế QR, GUID ngẫu
+  nhiên không đoán được. Người không đăng nhập vẫn có thể kích hoạt gộp PDF qua Gotenberg ở `pdf-redirect` (nay bị chặn
+  tần suất). Bộ đếm rate limit trong bộ nhớ từng replica; client gọi thẳng DocumentForm có thể giả `X-Forwarded-For`.
+- **Nguồn:** `QrLookupQuery.cs`, `QrLookupController.cs`, DocumentForm `Program.cs`, `SharedKernel/Web/CallerIp.cs`.
+
 
 ### Analytics deployment prerequisites — cập nhật 23/10/2026
 Migration 20261021031538_AnalyticsMetricsAndCitizenFeedback phải được áp dụng vào AnalyticsDatabase hoặc NotificationsDatabase fallback trước khi phục vụ API metrics/feedback. Thiếu schema analytics gây lỗi truy vấn500 dù health200. Đã áp dụng migration trên Azure, giữ AutoMigrate=false; không chạy migration Notification cùng lúc. JobsEnabled=true cần key Workflow đúng, quyền tạo schema analytics_jobs, worker chạy và kết nối DB; đã xác minh heartbeat và recurring analytics-daily 01:15 Asia/Ho_Chi_Minh. Bật job không có nghĩa historical metrics đã được tổng hợp; dùng rebuild hoặc chờ lịch, FE dựa coverage.
@@ -1245,3 +1291,4 @@ Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 - Điền bù `applications.applicant_name` cho hồ sơ cũ: `docs/sql/workflow-applicant-name-backfill.sql`, vận hành chạy hai bước (IAM → Workflow), chỉ cập nhật dòng còn null.
 - Nguồn: Workflow `AssignmentRequests.cs`, `ReviewHandlers.cs`, `DispatchService.cs`, `ConsultationService.cs`, `CalendarClosureService.cs`, `WorkflowDirectory.cs`, migration `20261108142645_DisplayNameSnapshots`; Analytics `AnalyticsService.cs`, migration `20261108142818_FeedbackDisplaySnapshots`.
 - Lịch sử: 2026-11-08 thêm NAME-SNAP-01, IAM-06a, IAM-06b và mở rộng IAM-05 theo yêu cầu FE (BE-A → BE-E). Build local pass; chưa chạy với DB thật, chưa deploy.
+- Lịch sử: 2026-11-10 (AUDIT-FIX-1110) thêm IAM-01a, PROC-01c, PROC-02b, PROC-03c, DOC-QR-06 (a, b); sửa ghi chú PUT ở PROC-03a. Build local pass; chưa deploy Azure, chưa nghiệm thu FE.
