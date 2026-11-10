@@ -89,17 +89,30 @@ try
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+        // DOC-TPL-PUB-01: tải/xem phôi mẫu công khai; mỗi lần "Xem" trên FE cũng là một lần tải nên hạn mức rộng hơn QR.
+        o.AddPolicy("public-forms", context => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            CallerIp.Of(context), _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Clamp(builder.Configuration.GetValue("PublicForms:MaxRequestsPerMinutePerIp", 60), 5, 1000),
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
         o.OnRejected = async (context, ct) =>
         {
             context.HttpContext.Response.Headers.RetryAfter = "60";
+            var forms = context.HttpContext.GetEndpoint()?.Metadata
+                .GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName == "public-forms";
+            var code = forms ? "document.rate_limited" : "qr.rate_limited";
             var problem = new ProblemDetails
             {
                 Status = 429,
-                Title = "qr.rate_limited",
-                Detail = "Bạn tra cứu mã QR quá nhiều lần. Vui lòng đợi một phút rồi thử lại.",
+                Title = code,
+                Detail = forms ? "Bạn tải mẫu đơn quá nhiều lần. Vui lòng đợi một phút rồi thử lại."
+                    : "Bạn tra cứu mã QR quá nhiều lần. Vui lòng đợi một phút rồi thử lại.",
                 Instance = context.HttpContext.Request.Path
             };
-            problem.Extensions["code"] = "qr.rate_limited";
+            problem.Extensions["code"] = code;
             problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
             await context.HttpContext.Response.WriteAsJsonAsync(problem, (System.Text.Json.JsonSerializerOptions?)null, "application/problem+json", ct);
         };
