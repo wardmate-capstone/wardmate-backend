@@ -94,6 +94,11 @@ public sealed class ApplicationChecklist
     public int Quantity { get; set; } = 1;
     public string? ConditionNote { get; set; }
     public Guid? FormTemplateId { get; set; }
+    // BE-H (B.3): snapshot từ Catalog — nguyên văn số lượng, ghi chú riêng của giấy tờ,
+    // và các mẫu đơn gắn với giấy tờ (JSON mảng ChecklistFormLink; null khi không có).
+    public string? QuantityText { get; set; }
+    public string? ItemNote { get; set; }
+    public string? FormLinks { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ApplicationId { get; set; }
     public string Code { get; set; } = string.Empty;

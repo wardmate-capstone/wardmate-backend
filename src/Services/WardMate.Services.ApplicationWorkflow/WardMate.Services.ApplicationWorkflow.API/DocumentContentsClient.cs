@@ -33,14 +33,20 @@ public sealed class DocumentContentsClient(HttpClient http, IConfiguration confi
                 || contents.Submissions.Select(x => x.Id).Distinct().Count() != contents.Submissions.Length
                 || contents.SupportingDocuments.Select(x => x.Id).Distinct().Count() != contents.SupportingDocuments.Length)
                 return Problem(503, "application.documents_unavailable", "DocumentForm trả dữ liệu không hợp lệ.");
+            // BE-H (B.3.1): dòng gắn nhiều mẫu thì đơn DOCX theo một trong các mẫu là đủ.
+            // BE-H (B.3): loại bản OTHER (bản chụp, bản điện tử, bản dịch...) không ràng buộc loại bản khi đối chiếu.
             var missing = items.Where(item =>
-                !(item.FormTemplateId.HasValue && contents.Submissions.Any(s => s.ChecklistId == item.Id
-                    && s.FileExists && s.Status is ("Submitted" or "ReadyForDownload") && s.TemplateId == item.FormTemplateId))
-                && (item.FormTemplateId.HasValue || contents.SupportingDocuments
+            {
+                var templates = item.AcceptedTemplateIds();
+                if (templates.Length > 0)
+                    return !contents.Submissions.Any(s => s.ChecklistId == item.Id && s.FileExists
+                        && s.Status is ("Submitted" or "ReadyForDownload") && s.TemplateId is Guid t && templates.Contains(t));
+                return contents.SupportingDocuments
                     .Where(d => d.ChecklistId == item.Id && d.FileExists && d.Quantity > 0
                         && (item.SubmissionType is null || d.SubmissionType == item.SubmissionType)
-                        && (item.DocumentCopyType is null || d.DocumentCopyType == item.DocumentCopyType))
-                    .Sum(d => (long)d.Quantity) < item.Quantity))
+                        && (item.DocumentCopyType is null or "OTHER" || d.DocumentCopyType == item.DocumentCopyType))
+                    .Sum(d => (long)d.Quantity) < item.Quantity;
+            })
                 .Select(item => item.Id).ToArray();
             if (missing.Length == 0) return null;
             var problem = Problem(422, "application.documents_incomplete", "Cần lưu giấy tờ hoặc hoàn thành đơn tương ứng trước khi đánh dấu/nộp hồ sơ.");

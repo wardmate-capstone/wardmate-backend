@@ -15,7 +15,22 @@ public sealed record UpdateChecklistInput(string Status, string? FileUrl = null,
 public sealed record ChecklistDto(Guid Id, string Code, string Title, bool IsRequired, string Status,
     string? FileUrl, string? Note, DateTime CreatedAt, DateTime UpdatedAt, Guid? FormTemplateId = null,
     int SortOrder = 0, string? CaseCode = null, string? SubmissionType = null,
-    string? DocumentCopyType = null, int Quantity = 1, string? ConditionNote = null);
+    string? DocumentCopyType = null, int Quantity = 1, string? ConditionNote = null,
+    string? QuantityText = null, string? ItemNote = null, ChecklistFormDto[]? Forms = null)
+{
+    /// <summary>BE-H (B.3.1): mẫu DOCX được chấp nhận cho dòng này — nộp đơn theo một trong các mẫu là đủ.</summary>
+    public Guid[] AcceptedTemplateIds() => (Forms ?? []).Select(f => f.FormTemplateId).OfType<Guid>()
+        .Concat(FormTemplateId is { } id ? [id] : []).Distinct().ToArray();
+}
+/// <summary>BE-H (B.3.1): mẫu đơn gắn với một dòng giấy tờ của hồ sơ.</summary>
+public sealed record ChecklistFormDto(string FormCode, string FormName, Guid? FormTemplateId, bool IsMandatory);
+public static class ChecklistForms
+{
+    public static string? Serialize(IReadOnlyCollection<ChecklistFormDto> forms) =>
+        forms.Count == 0 ? null : JsonSerializer.Serialize(forms, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    public static ChecklistFormDto[]? Parse(string? json) =>
+        string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<ChecklistFormDto[]>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+}
 public sealed record AssignmentHistoryDto(Guid Id, string Action, Guid? FromOfficerId, Guid? ToOfficerId, Guid ActorId, string? Reason, DateTime CreatedAt,
     string? FromOfficerName = null, string? ToOfficerName = null, string? ActorName = null);
 public sealed record HistoryDto(Guid Id, string? FromStatus, string ToStatus, Guid ChangedBy, string? Reason, DateTime CreatedAt);
@@ -43,7 +58,8 @@ public sealed record ApplicationDto(Guid Id, string? ApplicationCode, Guid UserI
         a.SubmittedAt, a.CreatedAt, a.UpdatedAt,
         a.Checklists.OrderBy(x => x.SortOrder).ThenBy(x => x.Code).Select(x => new ChecklistDto(x.Id, x.Code, x.Title, x.IsRequired,
             x.Status, x.FileUrl, x.Note, x.CreatedAt, x.UpdatedAt, x.FormTemplateId,
-            x.SortOrder, x.CaseCode, x.SubmissionType, x.DocumentCopyType, x.Quantity, x.ConditionNote)).ToArray(),
+            x.SortOrder, x.CaseCode, x.SubmissionType, x.DocumentCopyType, x.Quantity, x.ConditionNote,
+            x.QuantityText, x.ItemNote, ChecklistForms.Parse(x.FormLinks))).ToArray(),
         a.History.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new HistoryDto(x.Id,
             x.FromStatus, x.ToStatus, x.ChangedBy, x.Reason, x.CreatedAt)).ToArray(),
         a.AssignedOfficerId, a.ResubmitCount, a.SubmittedAt is null ? 0 : a.ResubmitCount + 1, a.Notes, a.DocumentsReadyAt, a.WardCode, a.ReceiptNumber, a.ReceivedAt, a.AppointmentDate, a.FirstSubmittedAtUtc, a.DueAtUtc, a.DocumentsReadyAt, a.DeadlineStatus, a.DeadlinePolicyCode, a.DeadlinePolicyVersion, a.DeadlineCalendarCode, a.DeadlineCalendarVersion, a.DeadlinePausedAtUtc, JsonSerializer.Deserialize<DeadlineEvent[]>(a.DeadlineHistory), a.CategoryId, a.CategoryName, a.AssignedOfficerName, a.AssignedAt, a.AssignmentVersion, a.AssignmentHistory.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new AssignmentHistoryDto(x.Id, x.Action, x.FromOfficerId, x.ToOfficerId, x.ActorId, x.Reason, x.CreatedAt, x.FromOfficerName, x.ToOfficerName, x.ActorName)).ToArray(), a.ApplicantName);
@@ -59,7 +75,8 @@ public sealed record ProcedureForm(Guid? FormTemplateId, string? CaseCode, strin
 public sealed record ProcedureContent(ProcedureCase[]? Cases);
 public sealed record ProcedureCase(string CaseCode);
 public sealed record ProcedureChecklist(string ChecklistId, string ItemName, bool? IsMandatory, string? CaseCode,
-    string? SubmissionType = null, string? DocumentCopyType = null, int Quantity = 1, string? ConditionNote = null);
+    string? SubmissionType = null, string? DocumentCopyType = null, int Quantity = 1, string? ConditionNote = null,
+    string? QuantityText = null, string? Note = null, string[]? FormCodes = null);
 
 public interface IProcedureCatalogClient
 {

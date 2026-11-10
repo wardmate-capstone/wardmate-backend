@@ -110,7 +110,7 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         a.Property(x => x.ApplicationCode).HasMaxLength(50);
         a.HasIndex(x => x.ApplicationCode).IsUnique();
         a.HasIndex(x => new { x.UserId, x.CreatedAt });
-        a.Property(x => x.ProcedureTitle).HasMaxLength(500).IsRequired();
+        a.Property(x => x.ProcedureTitle).HasMaxLength(1000).IsRequired();
         a.Property(x => x.CaseCode).HasMaxLength(100);
         a.Property(x => x.Status).HasMaxLength(50).HasDefaultValue(ApplicationStates.Draft);
         a.Property(x => x.ResubmitCount).HasDefaultValue(0);
@@ -140,7 +140,8 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         comment.HasKey(x => x.Id);
         comment.Property(x => x.TargetType).HasMaxLength(30).IsRequired();
         comment.Property(x => x.TargetId).HasMaxLength(100).IsRequired();
-        comment.Property(x => x.FieldLabel).HasMaxLength(255).IsRequired();
+        // BE-H: nhãn nhận xét giấy tờ thường là tên giấy tờ, có thể dài (Catalog cho tối đa 10.000 ký tự).
+        comment.Property(x => x.FieldLabel).HasColumnType("text").IsRequired();
         comment.Property(x => x.CommentText).HasColumnType("text").IsRequired();
         comment.Property(x => x.Status).HasMaxLength(20).HasDefaultValue("OPEN");
         comment.Property(x => x.WithdrawReason).HasMaxLength(500);
@@ -153,7 +154,8 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         c.HasKey(x => x.Id);
         c.HasIndex(x => new { x.ApplicationId, x.Code }).IsUnique();
         c.Property(x => x.Code).HasMaxLength(255).IsRequired();
-        c.Property(x => x.Title).HasMaxLength(255).IsRequired();
+        // BE-H (A.1): tên giấy tờ không còn giới hạn 255.
+        c.Property(x => x.Title).HasColumnType("text").IsRequired();
         c.Property(x => x.Status).HasMaxLength(30).HasDefaultValue(ChecklistStates.Pending);
         c.Property(x => x.FileUrl).HasMaxLength(500);
         c.Property(x => x.Note).HasMaxLength(4000);
@@ -162,6 +164,9 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         c.Property(x => x.DocumentCopyType).HasMaxLength(30);
         c.Property(x => x.Quantity).HasDefaultValue(1);
         c.Property(x => x.ConditionNote).HasColumnType("text");
+        c.Property(x => x.QuantityText).HasColumnType("text");
+        c.Property(x => x.ItemNote).HasColumnType("text");
+        c.Property(x => x.FormLinks).HasColumnType("jsonb");
 
         var h = b.Entity<ApplicationStatusHistory>();
         h.ToTable("application_status_history");

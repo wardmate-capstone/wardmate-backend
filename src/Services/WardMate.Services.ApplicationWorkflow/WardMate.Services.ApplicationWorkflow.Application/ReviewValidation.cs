@@ -19,7 +19,7 @@ public sealed class AddApplicationCommentValidator : AbstractValidator<AddApplic
             RuleFor(x => x.Input.VersionNumber).GreaterThan(0).WithMessage("Phiên bản phải lớn hơn 0.");
             RuleFor(x => x.Input.TargetType).Must(x => x is "FORM_FIELD" or "CHECKLIST_ITEM").WithMessage("Loại mục phải là FORM_FIELD hoặc CHECKLIST_ITEM.");
             RuleFor(x => x.Input.TargetId).NotEmpty().WithMessage("Mã mục không được trống.").MaximumLength(100).WithMessage("Mã mục tối đa 100 ký tự.");
-            RuleFor(x => x.Input.FieldLabel).NotEmpty().WithMessage("Tên hiển thị không được trống.").MaximumLength(255).WithMessage("Tên hiển thị tối đa 255 ký tự.");
+            RuleFor(x => x.Input.FieldLabel).NotEmpty().WithMessage("Tên hiển thị không được trống.").MaximumLength(10_000).WithMessage("Tên hiển thị tối đa 10.000 ký tự.");
             RuleFor(x => x.Input.CommentText).NotEmpty().WithMessage("Nội dung nhận xét không được trống.").MaximumLength(4000).WithMessage("Nhận xét tối đa 4000 ký tự.");
         });
     }
