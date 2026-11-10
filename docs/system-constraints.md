@@ -225,10 +225,10 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 
 ### PROC-01 — Thông tin thủ tục
 
-- CategoryId phải dương và tồn tại. ProcedureCode bắt buộc, tối đa 50, không trùng.
-- Title bắt buộc (không rỗng sau trim), tối đa 500; từ 09/11/2026 bỏ luật tối thiểu 10 ký tự (PROC-01b). IssuingAuthority tối đa 255.
-- LevelOfImplementation tối đa 50, được null từ 09/11/2026 (PROC-01b).
-- TargetAudience, FeeSummary, ProcessingTimeSummary tối đa 255, đều được null (PROC-01b). Tóm tắt trống mà có `submissionMethods` thì BE tự sinh (PROC-01a); không có cách nộp thì lưu null.
+- CategoryId phải dương và tồn tại. ProcedureCode bắt buộc, tối đa 100 (50 trước 10/11/2026, PROC-05a), không trùng.
+- Title bắt buộc (không rỗng sau trim), tối đa 1.000 (500 trước 10/11/2026, PROC-05a); từ 09/11/2026 bỏ luật tối thiểu 10 ký tự (PROC-01b). IssuingAuthority, ExecutingAgency tối đa 10.000 (cột text).
+- LevelOfImplementation tối đa 255 (50 trước 10/11/2026), được null từ 09/11/2026 (PROC-01b).
+- TargetAudience, FeeSummary, ProcessingTimeSummary tối đa 10.000 (cột text, 255 trước 10/11/2026), đều được null (PROC-01b). Tóm tắt trống mà có `submissionMethods` thì BE tự sinh (PROC-01a); không có cách nộp thì lưu null.
 - PROC-01a — Tự sinh tóm tắt (ProcedureSummaries.cs, áp dụng tạo/sửa/publish bản nháp/rollback qua `ProcedureInput.ApplyTo`): lệ phí mọi cách nộp = 0 → "Miễn phí"; cùng mức → "10.000 VND"; khác mức → "10.000 – 20.000 VND" (nhóm theo `feeUnit`, nối bằng "; "). Thời hạn mọi cách nộp = 0 → "Trong ngày"; còn lại "7 ngày" hoặc "3 – 7 ngày". Tóm tắt do người nhập gửi lên luôn được giữ nguyên. Giá trị mặc định cũ "Miễn phí"/"1 ngày" khi client bỏ trường đã bỏ. Kết quả giải quyết (`contentPayload.results`) không bắt buộc, cho phép mảng rỗng.
 - PROC-01b (09/11/2026) — Trường bắt buộc tối thiểu: chỉ `categoryId` (>0, tồn tại), `procedureCode` (không rỗng, ≤50, duy nhất), `title` (không rỗng, ≤500). Mọi trường khác được null hoặc để trống: chuỗi chỉ có khoảng trắng lưu thành null; `contentPayload` null hoặc các danh sách `cases`/`submissionMethods`/`legalReferences`/`results` null được lưu thành object/mảng rỗng; phần tử có gửi lên vẫn được kiểm (ví dụ cách nộp phải có tên, số không âm; kết quả không được là chuỗi rỗng). Áp dụng cho tạo, sửa, publish bản nháp (DraftPayloadRequirements chỉ còn bắt buộc 3 trường), rollback. DB: migration `20261109093503_ProcedureOptionalFields` bỏ NOT NULL và DEFAULT của `level_of_implementation`, `target_audience`, `fee_summary`, `processing_time_summary` (SQL `docs/sql/catalog-procedure-optional-fields.sql`); dữ liệu cũ giữ nguyên. Lọc theo cấp thực hiện bỏ qua thủ tục có cấp null. Nguồn: `ProcedureInput.cs`, `ProcedureInputValidator.cs`, `ProcedureSummaries.cs`, `DraftPayloadRequirements.cs`, `ProcedureConfiguration.cs`, DTO trong `Application/DTOs`.
 - PROC-03b bổ sung (09/11/2026): cột `is_active` giữ DEFAULT true cho SQL thủ công nhưng EF cấu hình `ValueGeneratedNever`; trước bản sửa này EF bỏ qua giá trị `false` khi tạo nên DB tự điền true — bản `catalog-20261109-02` đang chạy vẫn tạo thủ tục công khai dù gửi `isActive=false`.
@@ -239,20 +239,20 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
   hiện tại. Gửi URL khác thì thay; gửi lại đúng URL hiện tại mà `pdfFileName = null` thì giữ tên file cũ. Tạo mới và
   rollback vẫn gán đúng giá trị gửi/snapshot. Không có cách xóa liên kết PDF qua PUT; thay PDF dùng API 32a.
   Nguồn: `ProcedureInput.ApplyTo(keepSourceWhenMissing)`, `UpdateProcedureCommandHandler`, `PublishReviewedProcedureHandler`.
-- ContentPayload không null; DecisionNumber trong payload tối đa 100.
+- ContentPayload không null; DecisionNumber trong payload tối đa 255 (100 trước 10/11/2026).
 - Cases, SubmissionMethods, LegalReferences, Results không null; dùng `[]` khi không có.
-- Mỗi case có mã, tên và danh sách bước; mỗi bước có thứ tự > 0 và tên không rỗng.
+- Mỗi case có mã, tên và danh sách bước; từ 10/11/2026 (PROC-05e) bước chỉ cần tên hoặc nội dung, thứ tự 0/không gửi thì BE tự đánh số.
 - CaseCode duy nhất, tối đa 100 ký tự, không có khoảng trắng đầu/cuối.
-- Phương thức nộp phải có tên, phí và số ngày không âm.
+- Phương thức nộp phải có tên; phí và số ngày được null từ 10/11/2026 (PROC-05b), có gửi thì không âm.
   Căn cứ pháp lý không chứa phần tử null; kết quả không chứa chuỗi rỗng.
 - Việc qua validator không chứng minh nội dung đúng quy định pháp luật.
 
 ### PROC-02 — Checklist và biểu mẫu trong thủ tục
 
-- Mỗi checklist có ChecklistId, ItemName không rỗng, tối đa 255 ký tự.
+- Mỗi checklist có ChecklistId (tối đa 255), ItemName không rỗng, tối đa 10.000 ký tự (255 trước 10/11/2026, PROC-05a).
   ChecklistId duy nhất trong thủ tục, không dư khoảng trắng đầu/cuối; tối đa 500 mục.
 - SubmissionType: `NOP` hoặc `XUAT_TRINH`.
-- DocumentCopyType: `ORIGINAL`, `CERTIFIED_COPY`, `REGULAR_COPY` hoặc `null` (từ 09/11/2026).
+- DocumentCopyType: `ORIGINAL`, `CERTIFIED_COPY`, `REGULAR_COPY` hoặc `null` (từ 09/11/2026), thêm `OTHER` từ 10/11/2026 (PROC-05d).
 - PROC-02a (09/11/2026) — Nhiều loại bản cho một giấy tờ: `copyRequirements: [{ documentCopyType, quantity }]`, tối đa 3 dòng, mỗi loại một dòng, số lượng 1–100; sai → 400 `validation.failed`. BE đồng bộ khi lưu (`ProcedureInput.NormalizedChecklist`, áp dụng tạo/sửa/publish bản nháp/rollback và API cập nhật checklist): 1 dòng → `documentCopyType`/`quantity` theo dòng đó; ≥2 dòng → `documentCopyType = null`, `quantity` = tổng; không gửi `copyRequirements` mà có `documentCopyType` → sinh 1 dòng tương ứng. JSONB, không migration; `copyRequirements` null không được ghi ra JSON. **Giới hạn:** Workflow chỉ chụp `documentCopyType`/`quantity` vào checklist hồ sơ, nên với giấy tờ nhiều loại bản Workflow chỉ kiểm tổng số bản (mọi loại), không kiểm từng loại; FE lấy chi tiết loại bản từ Catalog. AIOCR (chatbot) hiển thị "01 bản chính + 01 bản sao" và tên trường hợp thay cho mã.
 - PROC-02b (10/11/2026) — Không âm thầm bỏ thay đổi: dòng có `copyRequirements` hợp lệ mà body **có gửi**
   `documentCopyType` khác null khác giá trị suy ra (1 dòng → loại của dòng; ≥2 dòng → null), hoặc **có gửi** `quantity`
@@ -260,18 +260,18 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
   gửi `documentCopyType: null`, hoặc gửi lại nguyên dòng đọc từ GET đều hợp lệ. Áp dụng tạo, sửa, publish và API cập
   nhật checklist (cùng validator). BE nhận biết "có gửi" bằng cờ trong setter của `ChecklistItemSchema` (không lưu DB,
   không migration). Nguồn: `ChecklistItemSchema.ConflictsWithCopyRequirements`, `ProcedureInputValidator`.
-- Trường hợp (`contentPayload.cases`): bắt buộc `caseCode` (duy nhất, ≤100) và `caseName` (≤500); `steps` được null/rỗng từ 09/11/2026, bước có gửi phải có thứ tự > 0 và tên. `caseCode` của checklist/biểu mẫu phải thuộc danh sách trường hợp.
+- Trường hợp (`contentPayload.cases`): bắt buộc `caseCode` (duy nhất, ≤100) và `caseName` (≤10.000 từ 10/11/2026, trước đó 500); `steps` được null/rỗng từ 09/11/2026, bước có gửi phải có tên hoặc nội dung (PROC-05e). `caseCode` của checklist/biểu mẫu phải thuộc danh sách trường hợp.
 - Quantity > 0. IsMandatory quy định mục bắt buộc; CaseCode chỉ phạm vi áp dụng.
 - FormDefinition yêu cầu FormCode/FormName; FormType là `ONLINE_INTERACTIVE` hoặc
   `DOCX_TEMPLATE`; Quantity > 0. FormTemplateId là ID liên service DocumentForm.
-- FormCode/FormName tối đa 255; FormCode không dư khoảng trắng đầu/cuối.
+- FormCode tối đa 255, FormName tối đa 10.000 (255 trước 10/11/2026); FormCode không dư khoảng trắng đầu/cuối.
   FormTemplateId có thể null nhưng không được Guid.Empty.
 - CaseCode của checklist/form nếu có phải thuộc Cases. Mã form không được trùng trong
   cùng case hoặc trùng giữa form dùng chung và form theo case. Cùng mã form ở hai case
   riêng biệt vẫn hợp lệ vì một hồ sơ chỉ chọn một case.
 - API PUT checklist chuyên biệt nhận danh sách đầy đủ: mảng không null, tối đa 500;
   `[]` là xóa hết checklist. Thứ tự mảng là thứ tự hiển thị.
-- API này yêu cầu ExpectedUpdatedAt, DecisionNumber không rỗng/tối đa 100 và EffectiveDate.
+- API này yêu cầu ExpectedUpdatedAt, DecisionNumber không rỗng/tối đa 255 (100 trước 10/11/2026) và EffectiveDate. Body tối đa 4 MB.
 - ChecklistId tại API này tối đa 255, không dư khoảng trắng đầu/cuối, không trùng;
   CaseCode nếu có phải thuộc Cases của thủ tục.
 - Nếu ExpectedUpdatedAt cũ: 409 `procedure.concurrent_update`, tải lại trước khi sửa.
@@ -290,7 +290,7 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
   đã có thì lưu snapshot cũ và cập nhật. Không được hiểu mọi snapshot đều là “bản mới sau sửa”.
 - Với bản đã tồn tại, không mặc định publish sẽ bật lại thủ tục đã tắt; quản lý trạng thái riêng.
 - Rollback yêu cầu version > 0, Reason bắt buộc/tối đa 4.000, DecisionNumber bắt buộc/
-  tối đa 100, EffectiveDate. Khôi phục giữ lịch sử, không xóa các version đã có.
+  tối đa 255 (100 trước 10/11/2026), EffectiveDate. Khôi phục giữ lịch sử, không xóa các version đã có.
 - Tắt thủ tục ngăn tiếp nhận hồ sơ mới; không tự hủy hồ sơ đã tạo.
 - Danh mục: tên bắt buộc/tối đa 255, mô tả tối đa 4.000; không xóa danh mục còn thủ tục sử dụng.
   Tên sau trim không được trùng không phân biệt hoa/thường qua luồng quản trị.
@@ -308,11 +308,53 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
 - Public chỉ trả thủ tục đang hoạt động. Không cho client dùng IsActive=false để vượt lọc.
 - Manager có thể lấy cả hai trạng thái hoặc lọc một trạng thái theo quyền.
 - PageNumber > 0; PageSize public 1..50, manager 1..100; offset không vượt int.MaxValue.
-- Keyword tối đa 255; LevelOfImplementation tối đa 50; CategoryId nếu có phải dương.
+- Keyword tối đa 255; LevelOfImplementation tối đa 255; CategoryId nếu có phải dương. Từ 10/11/2026 keyword tìm cả `contentPayload.keywords`, lọc cấp khớp một cấp trong danh sách ngăn bởi ", " (PROC-05c).
 - SortBy chỉ Title, ProcedureCode, UpdatedAt, CreatedAt, LevelOfImplementation
   (không phân biệt hoa/thường); không nhận tùy ý biểu thức SQL.
 - Danh sách thu gọn không thay thế API chi tiết chứa nội dung JSONB/checklist/forms.
 - Tra danh sách form qua Procedure: page 1..1.000.000, pageSize 1..100, SearchCode tối đa 100.
+
+### PROC-05 — Mô hình thủ tục linh hoạt theo khung Cổng DVC (BE-H, 10/11/2026)
+
+- **PROC-05a — Độ dài và trần chống lạm dụng.** `title` ≤ 1.000; `procedureCode` ≤ 100; `levelOfImplementation` ≤ 255;
+  `decisionNumber` (payload, PUT, rollback, API checklist) ≤ 255. Trường một dòng ≤ 10.000 ký tự: `issuingAuthority`,
+  `executingAgency`, `targetAudience`, `feeSummary`, `processingTimeSummary`, `checklistSchema[].itemName`, `quantityText`,
+  `formDefinitions[].formName`, `caseName`, tên cách nộp, `feeText`, `processingTime.text`, `procedureType`, mỗi phần tử
+  danh sách. Văn bản nhiều dòng trong `contentPayload` (`requirements`, `description`, `stepsText`, nội dung bước, nội
+  dung mục mở rộng, `note`, `conditionNote`) không giới hạn từng trường. Tổng `contentPayload + checklistSchema +
+  formDefinitions` (JSON) ≤ 500.000 ký tự; vượt → 400 `validation.failed`, khóa `contentPayload`. Danh sách tối đa 100
+  phần tử; `fees` ≤ 100/cách nộp; `formCodes` ≤ 20/giấy tờ; `additionalSections` ≤ 50, tiêu đề ≤ 255. Cột DB: các
+  trường mô tả chuyển `text`, `title varchar(1000)`, `procedure_code varchar(100)`, `level_of_implementation
+  varchar(255)`, `procedure_versions.decision_number varchar(255)` (migration `ProcedureFlexibleContent`, SQL
+  `docs/sql/catalog-procedure-flexible-content.sql`). Tóm tắt tự sinh không còn cắt 255.
+- **PROC-05b — Phí và thời hạn.** `submissionMethods[].feeAmount` và `estimatedDays` được null. Thêm `caseCode` (phải
+  thuộc `cases`), `fees[]` (`kind` PHI | LE_PHI | null, `amount` ≥ 0, `percent` 0–100, `unit` ≤ 50, mặc định VND,
+  `description`, `caseCode`), `feeText`, `processingTime` (`value` ≥ 0, `unit` WORKING_DAY | DAY | HOUR | MINUTE | null,
+  `text`). BE suy ra trường cũ: có `fees` có số tiền → `feeAmount` = mức nhỏ nhất; `processingTime` đơn vị DAY/WORKING_DAY
+  có `value` → `estimatedDays` = `value`. Tóm tắt tự sinh: mỗi cách nộp ưu tiên văn bản (`feeText` / `processingTime.text`),
+  rồi số (`fees` / `processingTime`), rồi trường cũ; gộp khoảng min–max theo đơn vị, % ghi riêng, văn bản nối bằng "; ";
+  mọi mức bằng 0 → "Miễn phí"; mọi thời hạn 0 ngày → "Trong ngày"; không có dữ liệu → null.
+- **PROC-05c — Thông tin chung.** `contentPayload` thêm `procedureType`, `levels[]`, `competentAuthorities[]`,
+  `executingAgencies[]`, `authorizedAgencies[]`, `coordinatingAgencies[]`, `requirements`, `receivingAddresses[]`,
+  `resultDetails[]` (`name` bắt buộc, `code` ≤ 255, `validity`, `note`), `keywords[]`, `description`. Đều tuỳ chọn; phần
+  tử rỗng bị bỏ, danh sách rỗng và chuỗi khoảng trắng lưu null; **trường null bị bỏ khỏi JSON response**. BE suy ra: trường
+  cũ trống thì `levelOfImplementation` = `levels` nối ", " (cắt 255), `issuingAuthority` = `competentAuthorities` nối "; ",
+  `executingAgency` = `executingAgencies` nối "; ", `receivingAddress` = `receivingAddresses` nối "; "; có `resultDetails`
+  thì `results` = danh sách `name` (ghi đè). `keywords` lưu thêm vào cột `search_keywords` để tham số `keyword` của API
+  danh sách tìm được; lọc `levelOfImplementation` khớp nguyên chuỗi hoặc một cấp trong danh sách ngăn bởi ", ".
+- **PROC-05d — Thành phần hồ sơ.** `checklistSchema[]` thêm `quantityText`, `note`, `formCodes[]`; `documentCopyType` và
+  `copyRequirements[].documentCopyType` nhận thêm `OTHER` (copyRequirements tối đa 4 dòng). Mỗi mã trong `formCodes` phải
+  là `formDefinitions[].formCode` dùng chung (caseCode null) hoặc cùng `caseCode` với giấy tờ, không trùng, không rỗng,
+  không khoảng trắng đầu/cuối; sai → 400 `validation.failed` nêu mã giấy tờ và mã mẫu. Một mẫu được gắn vào nhiều giấy tờ.
+- **PROC-05e — Trình tự.** `stepsText` (nguyên văn, giữ xuống dòng), `commonSteps[]` (bước chung, thủ tục không chia
+  trường hợp), `cases[].steps` giữ nguyên. Mỗi bước chỉ cần `stepName` hoặc `actionDetails`; `stepOrder` 0/không gửi thì
+  BE đánh theo vị trí (bắt đầu 1); âm → 400.
+- **PROC-05f — Mục mở rộng.** `additionalSections[]` `{ title, content }`, tối đa 50, `title` bắt buộc ≤ 255; trả đúng thứ tự.
+- **Giới hạn:** Workflow, Analytics, AIOCR được sửa cùng đợt (WF-01a, KB-01a, AI-02a); deploy Workflow và Analytics trước
+  hoặc cùng Catalog. Validator không kiểm nội dung đúng pháp luật. `formCodes` trỏ tới mẫu có `caseCode` khác bị chặn.
+- **Nguồn:** `ProcedureLimits.cs`, `ProcedureInputValidator.cs`, `ProcedureInput.cs` (`NormalizedContent`, `ApplyTo`),
+  `ProcedureSummaries.cs`, `ProcedureRepository.Search`, Domain `JsonModels/*`, `Procedure.SearchKeywords`, migration
+  `20261110031929_ProcedureFlexibleContent`.
 
 Nguồn: ProcedureCatalog Application `Management/ProcedureInputValidator.cs`,
 `ProcedureChecklist.cs`, `AdministrationRequests.cs`, `Queries/` và Infrastructure `Persistence/`.
@@ -364,6 +406,13 @@ Nguồn: ProcedureCatalog Application `Management/ProcedureInputValidator.cs`,
 - Thiếu trường không được xem là “không cần giấy tờ”. Cán bộ kiểm tra warnings,
   cases, checklist, form và chọn CategoryId thật trước publish.
 - AI không có quyền tự quyết định xuất bản hay tự xác nhận tính pháp lý của dữ liệu.
+- **AI-02a (10/11/2026, BE-H).** Schema bóc tách thêm các trường phẳng: `procedureType`, `levels`, các loại cơ quan,
+  `requirements`, `receivingAddresses`, `keywords`, `description`, `stepsText`; cách nộp `caseCode`, `feeText`,
+  `processingTimeText` (BE chuyển thành `processingTime.text`); giấy tờ `quantityText`, `note`, `formCodes`. Không đưa
+  `fees[]`, `resultDetails[]`, `commonSteps[]`, `additionalSections[]` vào schema AI (giữ độ sâu lồng như cũ) — cán bộ bổ
+  sung tay khi đối soát. Các trường bổ sung null/rỗng không sinh cảnh báo. Prompt yêu cầu bỏ đoạn lặp của bản xuất Cổng
+  DVC, chép nguyên văn phí/thời hạn/trình tự/số lượng khi không tách được số, và gắn `formCodes` theo cột "Mẫu đơn, tờ khai".
+  Chưa chạy thử với nhà cung cấp AI thật. Nguồn: `ProcedureAiContract.cs`, `AzureProcedureDocumentExtractor.cs`.
 
 Nguồn: ProcedureCatalog Application `Drafts/ProcedureDraftService.cs`, `DraftPayloadRequirements.cs`;
 AIOCR API `Controllers/ProcedureExtractionsController.cs`, Infrastructure `Extraction/`.
@@ -381,6 +430,18 @@ AIOCR API `Controllers/ProcedureExtractionsController.cs`, Infrastructure `Extra
 - Dữ liệu checklist/form nguồn thiếu hoặc không hợp lệ bị từ chối; không tạo hồ sơ
   với các yêu cầu giấy tờ trùng mã/không thể xác định.
 - Mã hồ sơ duy nhất; trạng thái đầu DRAFT. Thủ tục đổi về sau không tự sửa yêu cầu hồ sơ cũ.
+- **WF-01a (10/11/2026, BE-H).** Tên giấy tờ/biểu mẫu từ Catalog tối đa 10.000 ký tự (trước đây 255, lỗi 502
+  `application.invalid_schema`); cột `application_checklists.title` và `application_comments.field_label` chuyển `text`,
+  nhãn nhận xét tối đa 10.000; `applications.procedure_title` 1.000. Chấp nhận `documentCopyType = OTHER`; khi đối chiếu
+  giấy tờ minh chứng, `OTHER` như null (không ràng buộc loại bản). Chụp thêm `quantityText`, `note` (lưu `item_note`) và
+  mẫu đơn gắn kèm (`form_links` jsonb) vào snapshot checklist. Biểu mẫu được giấy tờ tham chiếu qua `formCodes` gắn vào
+  giấy tờ đó (không tạo dòng mới); bắt buộc/số lượng vẫn theo giấy tờ; `formTemplateId` của dòng = mẫu đầu tiên có
+  template. Biểu mẫu không được tham chiếu giữ cách cũ (trùng mã → gắn, không trùng → dòng mới) và cũng xuất hiện trong
+  `forms[]` của dòng. Dòng có nhiều mẫu: nộp đơn DOCX theo **một trong các** mẫu là đủ (DocumentContentsClient,
+  `ChecklistDto.AcceptedTemplateIds`). DTO checklist thêm `quantityText`, `itemNote`, `forms[]` (`formCode`, `formName`,
+  `formTemplateId`, `isMandatory`). Hồ sơ tạo trước bản này không có `forms` (null). Migration `ProcedureFlexibleContent`,
+  SQL `docs/sql/workflow-procedure-flexible-content.sql`. Nguồn: `WorkflowRequests.cs`, `WorkflowContracts.cs`,
+  `DocumentContentsClient.cs`, `ReviewValidation.cs`, `WorkflowDbContext.cs`.
 
 ### WF-02 — Cập nhật và kiểm tra giấy tờ
 
@@ -489,6 +550,9 @@ API `DocumentContentsClient.cs`; Infrastructure `ApplicationReviewStore.cs`.
   để chứng minh tài liệu đáp ứng yêu cầu hồ sơ.
 - Phản hồi DocumentForm có phần tử null, ID rỗng hoặc ID lặp trong cùng danh sách
   không được dùng cộng số lượng: Workflow trả 503 `application.documents_unavailable`.
+- **DOC-03a (10/11/2026, BE-H).** Dòng checklist có mẫu (`formTemplateId` hoặc `forms[].formTemplateId` từ Workflow) chỉ
+  nhận đơn DOCX theo một trong các mẫu đó; tải giấy tờ minh chứng hoặc đơn mẫu khác → 400 `document.template_mismatch`.
+  Workflow bản cũ không trả `forms` thì chỉ dùng `formTemplateId` như trước. Nguồn: DocumentForm `API/Security/ApplicationAccess.cs`.
 
 ### DOC-04 — Giấy tờ minh chứng
 
@@ -964,6 +1028,12 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 - Giới hạn: chưa có embedding/vector/pgvector, chưa tìm kiếm, chatbot chưa dùng Knowledge Base (TASK-29); trạng thái chỉ CHUNKED. Không tự đồng bộ khi Catalog đổi thủ tục (phải gọi API đồng bộ). Không kiểm duyệt tính đúng pháp lý của nội dung nhập tay; người quản lý chịu trách nhiệm nguồn. Đồng bộ toàn bộ chạy đồng bộ trong một request, có thể lâu.
 - Nguồn: AIOCR Domain/KnowledgeDocument.cs; Application/KnowledgeContracts.cs, KnowledgeChunker.cs, ProcedureKnowledgeText.cs; Infrastructure/ChatDbContext.cs, Knowledge/KnowledgeBaseService.cs, ProcedureCatalogSource.cs, KnowledgePdfReader.cs, Migrations/20261024034956_KnowledgeBase.cs; API/KnowledgeAccess.cs, Controllers/KnowledgeController.cs, AssistantRegistration.cs; IAM Migrations/20261024100000_KnowledgeManagePermission.cs; Gateway appsettings*.json; docker/docker-compose.yml.
 - Lịch sử 24/10/2026: thêm KB-01 (TASK-28). Chủ dự án chốt: embedding để TASK-29; nguồn gồm Catalog, văn bản/FAQ, PDF; quyền cho cả PROCEDURE_MANAGER và IT_ADMIN. Chưa apply DB, chưa deploy.
+- **KB-01a (10/11/2026, BE-H).** AIOCR đọc `feeAmount`/`estimatedDays` dạng nullable và các trường mới của Catalog. Văn bản
+  tri thức thủ tục thêm loại thủ tục, các loại cơ quan, từ khóa, mô tả, yêu cầu/điều kiện, trình tự nguyên văn và bước
+  chung, phí/thời hạn theo văn bản dự phòng hoặc nhiều mức, số lượng nguyên văn, mẫu gắn với giấy tờ, kết quả kèm mã, và
+  các mục mở rộng (theo thứ tự, sau mục chuẩn). Đồng bộ thủ tục: tiêu đề tri thức cắt còn 500 ký tự (thêm "…"), nội dung
+  cắt còn 200.000 ký tự thay vì báo lỗi; không đổi schema AIOCR. Nguồn: `KnowledgeContracts.cs`, `ProcedureKnowledgeText.cs`,
+  `KnowledgeBaseService.SyncProcedure`.
 
 
 ### KB-02 — Tìm kiếm vector và chatbot RAG (TASK-29, 24/10/2026)
@@ -1292,3 +1362,4 @@ Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 - Nguồn: Workflow `AssignmentRequests.cs`, `ReviewHandlers.cs`, `DispatchService.cs`, `ConsultationService.cs`, `CalendarClosureService.cs`, `WorkflowDirectory.cs`, migration `20261108142645_DisplayNameSnapshots`; Analytics `AnalyticsService.cs`, migration `20261108142818_FeedbackDisplaySnapshots`.
 - Lịch sử: 2026-11-08 thêm NAME-SNAP-01, IAM-06a, IAM-06b và mở rộng IAM-05 theo yêu cầu FE (BE-A → BE-E). Build local pass; chưa chạy với DB thật, chưa deploy.
 - Lịch sử: 2026-11-10 (AUDIT-FIX-1110) thêm IAM-01a, PROC-01c, PROC-02b, PROC-03c, DOC-QR-06 (a, b); sửa ghi chú PUT ở PROC-03a. Build local pass; chưa deploy Azure, chưa nghiệm thu FE.
+- Lịch sử: 2026-11-10 (BE-H) thêm PROC-05 (a–f), WF-01a, DOC-03a, KB-01a, AI-02a; cập nhật giới hạn độ dài ở PROC-01, PROC-02, PROC-03, PROC-04. Build local pass; migration Catalog/Workflow/Analytics chưa chạy trên Azure, chưa deploy, chưa nghiệm thu FE.

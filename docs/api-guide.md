@@ -2386,21 +2386,110 @@ ghi metadata phiên bản, không tự lên lịch xuất bản.
 
 Các giới hạn chính:
 
-- categoryId phải tồn tại; procedureCode bắt buộc/tối đa 50, duy nhất; title bắt buộc, tối đa 500 (bỏ tối thiểu 10 ký tự từ 09/11/2026).
+- categoryId phải tồn tại; procedureCode bắt buộc/tối đa 100 (50 trước 10/11/2026), duy nhất; title bắt buộc, tối đa 1.000 (500 trước 10/11/2026; bỏ tối thiểu 10 ký tự từ 09/11/2026). Giới hạn mới và các trường mới: xem mục "BE-H" ngay dưới danh sách này.
 - **Từ 09/11/2026 (PROC-01b):** chỉ 3 trường trên là bắt buộc. `levelOfImplementation`, `targetAudience`, `feeSummary`, `processingTimeSummary`, `issuingAuthority`, `executingAgency`, `contentPayload` và các danh sách trong đó, `checklistSchema`, `formDefinitions` đều được gửi `null` hoặc bỏ trống. Response có thể trả `null` ở các trường chuỗi này; `contentPayload` luôn là object với các mảng (có thể rỗng). FE hiển thị "Chưa cập nhật" hoặc ẩn dòng khi gặp null. Áp dụng cả bản nháp khi xuất bản.
 - **Từ 09/11/2026 (PROC-02a) — nhiều loại bản:** mỗi dòng `checklistSchema` có thêm `copyRequirements` (mảng `{ documentCopyType, quantity }`, tối đa 3, mỗi loại một dòng). Ví dụ "01 bản chính và 01 bản sao": `[{"documentCopyType":"ORIGINAL","quantity":1},{"documentCopyType":"REGULAR_COPY","quantity":1}]`. BE tự đặt `documentCopyType = null` và `quantity = 2`. Gửi kiểu cũ (một `documentCopyType` + `quantity`) vẫn được; response luôn có `copyRequirements` khi có loại bản. Trường hợp (`contentPayload.cases`) cần `caseCode` + `caseName`; `steps` được bỏ trống.
 - **Từ 10/11/2026 (PROC-02b):** khi gửi `copyRequirements` thì bỏ trống `documentCopyType`/`quantity` (hoặc gửi đúng giá trị suy ra: 1 dòng → loại và số lượng của dòng đó; nhiều dòng → `documentCopyType: null`, `quantity` = tổng). Gửi giá trị khác → 400 `validation.failed` ở `checklistSchema[i].copyRequirements`, không còn âm thầm bỏ thay đổi. Gửi lại nguyên dòng đọc từ GET là hợp lệ. Form cũ chỉ có một ô loại bản + số lượng: khi lưu phải xóa `copyRequirements` khỏi dòng (hoặc cập nhật nó theo ô mới), nếu không sẽ gặp 400 này.
-- issuingAuthority tối đa 255; levelOfImplementation 50; targetAudience, feeSummary, processingTimeSummary (feeSummary/processingTimeSummary được để trống từ 09/11/2026 nếu có submissionMethods — BE tự sinh, xem PROC-01a)
-  255. Gửi đầy đủ các trường bắt buộc khi xuất bản.
+- issuingAuthority, executingAgency, targetAudience, feeSummary, processingTimeSummary tối đa 10.000 (trước 10/11/2026: 255); levelOfImplementation 255 (trước: 50). feeSummary/processingTimeSummary được để trống nếu có submissionMethods — BE tự sinh (PROC-01a, PROC-05b). Gửi đầy đủ các trường bắt buộc khi xuất bản.
 - originalPdfUrl nullable, HTTPS URL tuyệt đối không có userinfo, tối đa 500; pdfFileName nullable/tối đa 255.
   URL lưu không mặc nhiên là URL công khai tải được. Từ 10/11/2026 (PROC-01c) PUT và publish đè thủ tục đã có
   mà gửi `originalPdfUrl: null` thì giữ PDF hiện tại; tạo mới và rollback vẫn lưu đúng giá trị gửi/snapshot.
 - ContentPayload gồm decisionNumber, receivingAddress, submissionMethods, legalReferences, results, cases. Mỗi
   case có nhiều steps; không cần ép mọi thủ tục vào một trường hợp duy nhất.
-- feeAmount/estimatedDays không âm; stepOrder dương. Checklist/form quantity dương.
-- submissionType: `NOP` hoặc `XUAT_TRINH`; documentCopyType: `ORIGINAL`, `CERTIFIED_COPY`, `REGULAR_COPY`.
+- feeAmount/estimatedDays được null từ 10/11/2026, có gửi thì không âm; stepOrder không âm (0/không gửi → BE tự đánh số). Checklist/form quantity dương.
+- submissionType: `NOP` hoặc `XUAT_TRINH`; documentCopyType: `ORIGINAL`, `CERTIFIED_COPY`, `REGULAR_COPY`, `OTHER` (từ 10/11/2026) hoặc null.
 - formType: `ONLINE_INTERACTIVE` hoặc `DOCX_TEMPLATE`. formTemplateId là ID tham chiếu Document Form, không
   phải khóa ngoại xuyên database.
+
+#### BE-H (10/11/2026) — Mô hình thủ tục đủ linh hoạt cho mọi thủ tục trên Cổng DVC
+
+**Mục đích:** Procedure Manager nhập tay được bất kỳ thủ tục nào, đầy đủ như bản "Chi tiết thủ tục hành chính" của Cổng
+Dịch vụ công Quốc gia. Áp dụng cho POST/PUT thủ tục, publish, xuất bản bản nháp và PUT checklist. Mọi trường mới đều
+**tuỳ chọn**; thủ tục và FE cũ chạy như trước. Trường mới có giá trị null **không xuất hiện** trong JSON trả về — FE coi
+"thiếu trường" là null.
+
+**Trần độ dài (chốt):**
+
+| Trường | Tối đa |
+|---|---|
+| `title` | 1.000 |
+| `procedureCode` | 100 |
+| `levelOfImplementation`, `decisionNumber` (payload, PUT, rollback, PUT checklist) | 255 |
+| Trường một dòng: `issuingAuthority`, `executingAgency`, `targetAudience`, `feeSummary`, `processingTimeSummary`, `itemName`, `quantityText`, `formName`, `caseName`, `methodName`, `feeText`, `processingTime.text`, `procedureType`, mỗi phần tử danh sách | 10.000 |
+| `requirements`, `description`, `stepsText`, nội dung bước, `additionalSections[].content`, `note`, `conditionNote` | không giới hạn từng trường |
+| Tổng `contentPayload` + `checklistSchema` + `formDefinitions` (JSON) | 500.000 |
+| Danh sách (`levels`, các loại cơ quan, `keywords`, `receivingAddresses`, `resultDetails`) | 100 phần tử |
+| `fees` mỗi cách nộp / `formCodes` mỗi giấy tờ / `additionalSections` | 100 / 20 / 50 (tiêu đề ≤ 255) |
+
+Vượt trần → 400 `validation.failed`, `errors` nêu trường (ví dụ `contentPayload` khi tổng quá 500.000). PUT checklist nhận body tới 4 MB.
+
+**Trường mới trong `contentPayload`:**
+
+```json
+{
+  "procedureType": "TTHC được luật giao quy định chi tiết",
+  "levels": ["Cấp Tỉnh", "Cấp Xã"],
+  "competentAuthorities": ["Ủy ban nhân dân cấp tỉnh"],
+  "executingAgencies": ["Văn phòng đăng ký đất đai"],
+  "authorizedAgencies": [],
+  "coordinatingAgencies": ["Cơ quan thuế", "Phòng Tài nguyên và Môi trường"],
+  "requirements": "Điều kiện 1...\nĐiều kiện 2...",
+  "receivingAddresses": ["Bộ phận Một cửa ..."],
+  "resultDetails": [{ "name": "Giấy chứng nhận ...", "code": "KQ.H17.000312", "validity": "Không thời hạn", "note": null }],
+  "keywords": ["đất đai", "giấy chứng nhận"],
+  "description": "...",
+  "stepsText": "Bước 1: ...\nBước 2: ...",
+  "commonSteps": [{ "stepName": "Nộp hồ sơ", "actionDetails": "..." }],
+  "additionalSections": [{ "title": "Lưu ý", "content": "..." }],
+  "submissionMethods": [{
+    "methodName": "Trực tiếp", "caseCode": null, "feeAmount": null, "feeUnit": "VND", "estimatedDays": null,
+    "fees": [
+      { "kind": "LE_PHI", "amount": 0, "description": "Hộ gia đình, cá nhân" },
+      { "kind": "PHI", "amount": 500000, "unit": "VND", "description": "Tổ chức" },
+      { "kind": "PHI", "percent": 0.5, "description": "Trên giá trị chuyển nhượng" }
+    ],
+    "feeText": null,
+    "processingTime": { "value": 57, "unit": "WORKING_DAY", "text": null },
+    "note": "..."
+  }]
+}
+```
+
+- `fees[]`: `kind` `PHI` | `LE_PHI` | null; `amount` ≥ 0 hoặc null; `percent` 0–100 hoặc null; `unit` mặc định `VND`.
+  Không tách được thì dùng `feeText` (nguyên văn, ví dụ "Theo quy định của Bộ Tài chính").
+- `processingTime`: `unit` `WORKING_DAY` | `DAY` | `HOUR` | `MINUTE` | null; `text` nguyên văn ("Trong ngày", "Không quá 15 phút").
+- **BE tự suy ra để chỗ đọc cũ không phải sửa:** có `fees` có số tiền → `feeAmount` = mức nhỏ nhất (ví trên: 0);
+  `processingTime` đơn vị ngày → `estimatedDays` = `value`; trường cũ trống thì `levelOfImplementation` = `levels` nối ", ",
+  `issuingAuthority` = `competentAuthorities` nối "; ", `executingAgency` = `executingAgencies` nối "; ",
+  `receivingAddress` = `receivingAddresses` nối "; "; có `resultDetails` thì `results` = danh sách `name`.
+- **Tóm tắt tự sinh** (khi `feeSummary`/`processingTimeSummary` để trống): mỗi cách nộp ưu tiên `feeText` /
+  `processingTime.text`, rồi `fees` / `processingTime`, rồi `feeAmount` / `estimatedDays`. Ví trên → `feeSummary` =
+  `"0 – 500.000 VND; 0,5%"`, `processingTimeSummary` = `"57 ngày làm việc"`. Chỉ có `feeText` → tóm tắt = nguyên văn.
+- `commonSteps` / `cases[].steps`: mỗi bước chỉ cần `stepName` **hoặc** `actionDetails`; `stepOrder` không gửi thì BE đánh 1, 2, 3...
+- `keywords`: tham số `keyword` của API danh sách (công khai và quản trị) tìm cả trong từ khóa. Lọc `levelOfImplementation`
+  khớp một cấp trong danh sách "Cấp Tỉnh, Cấp Xã".
+
+**Trường mới trong `checklistSchema[]`:**
+
+```json
+{ "checklistId": "GT01", "itemName": "Đơn đăng ký biến động đất đai... (tới 10.000 ký tự)",
+  "documentCopyType": "OTHER", "quantityText": "01 bản chính và 01 bản sao có chứng thực",
+  "note": "Trường hợp ủy quyền thì kèm giấy ủy quyền", "formCodes": ["M25"] }
+```
+
+- `documentCopyType: "OTHER"` dùng cho bản chụp, bản điện tử, bản dịch...; Workflow không ràng buộc loại bản khi đối chiếu.
+- `formCodes`: mã các `formDefinitions[].formCode` gắn với giấy tờ (cột "Mẫu đơn, tờ khai" của Cổng). Mẫu phải dùng chung
+  (`caseCode` null) hoặc cùng `caseCode` với giấy tờ; sai → 400 với thông báo "Giấy tờ 'GT01' gắn biểu mẫu 'X' không có
+  trong formDefinitions...". Khi người dân tạo hồ sơ, mẫu được tham chiếu gắn vào dòng giấy tờ đó, không sinh dòng lặp.
+- Căn cứ pháp lý (`legalReferences`) không đổi: chỉ cần `documentName` + `documentNumber`; `issueDate`, `authority` tuỳ chọn.
+
+**Lỗi thường gặp:** 400 `validation.failed` khi vượt trần, `formCodes` sai mã, `unit`/`kind` ngoài danh sách, số âm, bước
+không có tên lẫn nội dung, mục mở rộng thiếu tiêu đề. Sửa đúng trường trong `errors` rồi gửi lại.
+
+**Hồ sơ (Workflow) — `GET /api/v1/applications/{id}` và các API cán bộ:** mỗi phần tử `checklists[]` thêm
+`quantityText`, `itemNote`, `forms[]` (`formCode`, `formName`, `formTemplateId`, `isMandatory`). FE hiện nút "Tải mẫu /
+Điền tờ khai" theo `forms[]` ngay trên dòng giấy tờ. Dòng có nhiều mẫu: điền **một** mẫu bất kỳ trong `forms[]` là đủ.
+Hồ sơ tạo trước khi deploy bản này có `forms` null — dùng `formTemplateId` như cũ.
 
 ProcedureDetailDto gồm toàn bộ trường dữ liệu trên và `id, categoryName, isActive, createdAt, updatedAt`.
 ProcedureStatusDto: `id, isActive, reason?, updatedAt`.
