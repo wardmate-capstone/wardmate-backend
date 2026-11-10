@@ -97,7 +97,7 @@ public sealed class AnalyticsDbContext(DbContextOptions<AnalyticsDbContext> opti
         f.Property(x => x.WardCode).HasMaxLength(50);
         f.Property(x => x.Comment).HasMaxLength(2000);
         f.Property(x => x.ApplicationCode).HasMaxLength(50);
-        f.Property(x => x.ProcedureTitle).HasMaxLength(500);
+        f.Property(x => x.ProcedureTitle).HasMaxLength(1000);
         f.Property(x => x.ApplicantName).HasMaxLength(255);
     }
 }

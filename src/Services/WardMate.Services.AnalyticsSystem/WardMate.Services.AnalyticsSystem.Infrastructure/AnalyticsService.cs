@@ -93,7 +93,7 @@ public sealed class AnalyticsService(AnalyticsDbContext db, IAnalyticsWorkflowCl
         var row = new CitizenFeedback { ApplicationId = id, CitizenId = citizen, ProcedureId = application.ProcedureId,
             WardCode = application.WardCode, Rating = input.Rating, Comment = string.IsNullOrWhiteSpace(input.Comment) ? null : input.Comment.Trim(),
             CreatedAtUtc = clock.GetUtcNow().UtcDateTime, ApplicationCode = Clip(application.ApplicationCode, 50),
-            ProcedureTitle = Clip(application.ProcedureTitle, 500), ApplicantName = Clip(application.ApplicantName, 255) };
+            ProcedureTitle = Clip(application.ProcedureTitle, 1000), ApplicantName = Clip(application.ApplicantName, 255) };
         db.Feedback.Add(row);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
