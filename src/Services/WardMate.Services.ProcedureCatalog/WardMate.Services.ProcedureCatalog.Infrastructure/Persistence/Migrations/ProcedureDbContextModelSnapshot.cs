@@ -55,8 +55,7 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnName("executing_agency");
 
                     b.Property<string>("FeeSummary")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasColumnType("text")
                         .HasColumnName("fee_summary");
 
                     b.Property<string>("FormDefinitions")
@@ -69,13 +68,12 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnName("is_active");
 
                     b.Property<string>("IssuingAuthority")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasColumnType("text")
                         .HasColumnName("issuing_authority");
 
                     b.Property<string>("LevelOfImplementation")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("level_of_implementation");
 
                     b.Property<string>("OriginalPdfUrl")
@@ -90,28 +88,30 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
 
                     b.Property<string>("ProcedureCode")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("procedure_code");
 
                     b.Property<string>("ProcessingTimeSummary")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasColumnType("text")
                         .HasColumnName("processing_time_summary");
+
+                    b.Property<string>("SearchKeywords")
+                        .HasColumnType("text")
+                        .HasColumnName("search_keywords");
 
                     b.Property<string>("StatusChangeReason")
                         .HasColumnType("text")
                         .HasColumnName("status_change_reason");
 
                     b.Property<string>("TargetAudience")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasColumnType("text")
                         .HasColumnName("target_audience");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
                         .HasColumnName("title");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -326,8 +326,8 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasDefaultValueSql("now()");
 
                     b.Property<string>("DecisionNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("decision_number");
 
                     b.Property<DateOnly>("EffectiveDate")
