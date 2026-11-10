@@ -75,8 +75,10 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
             if (checklistId.HasValue && !application.Checklists.Any(x => x.Id == checklistId))
                 return Problem(400, "document.checklist_mismatch", "ChecklistId không thuộc hồ sơ này.");
             var item = application.Checklists.FirstOrDefault(x => x.Id == checklistId);
-            if (item?.FormTemplateId is Guid requiredTemplate && (supporting || (templateId.HasValue && templateId != requiredTemplate)))
-                return Problem(400, "document.template_mismatch", "Mục này cần đơn DOCX đúng FormTemplateId của hồ sơ, không dùng giấy tờ thay thế.");
+            // BE-H (B.3.1): dòng gắn nhiều mẫu (forms[]) chấp nhận đơn theo một trong các mẫu đó.
+            var accepted = item?.AcceptedTemplates() ?? [];
+            if (accepted.Length > 0 && (supporting || (templateId.HasValue && !accepted.Contains(templateId.Value))))
+                return Problem(400, "document.template_mismatch", "Mục này cần đơn DOCX theo đúng mẫu gắn với giấy tờ của hồ sơ, không dùng giấy tờ thay thế.");
             if (write && (officer ? application.Status != "UNDER_REVIEW" : application.Status is not ("DRAFT" or "NEED_REVISION")))
                 return Problem(409, "document.application_locked", "Trạng thái hồ sơ không cho phép sửa tài liệu.");
             if (requireReady && application.Status is not ("DOCUMENTS_READY" or "OFFICIALLY_RECEIVED"))
@@ -191,6 +193,11 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
     }) { StatusCode = status, ContentTypes = { "application/problem+json" } };
 
     private sealed record WorkflowApplication(Guid Id, Guid UserId, string Status, WorkflowChecklist[] Checklists, Guid? AssignedOfficerId);
-    private sealed record WorkflowChecklist(Guid Id, Guid? FormTemplateId);
+    private sealed record WorkflowChecklist(Guid Id, Guid? FormTemplateId, WorkflowChecklistForm[]? Forms = null)
+    {
+        public Guid[] AcceptedTemplates() => (Forms ?? []).Select(x => x?.FormTemplateId).OfType<Guid>()
+            .Concat(FormTemplateId is { } id ? [id] : []).Distinct().ToArray();
+    }
+    private sealed record WorkflowChecklistForm(Guid? FormTemplateId);
     private sealed record ConsultationDocAccess(bool Allowed, Guid ApplicationId, int? Version);
 }
