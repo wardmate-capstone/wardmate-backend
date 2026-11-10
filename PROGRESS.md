@@ -4928,3 +4928,13 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   6. `fix(catalog): keep source pdf when update omits originalPdfUrl` — `ProcedureInput.cs`, 2 handler
   7. `fix(catalog): reject copy fields that contradict copyRequirements` — `ChecklistItemSchema.cs`, `ProcedureInputValidator.cs`
   8. `docs: record audit fixes A1-B4 (AUDIT-FIX-1110)` — 4 file docs + PROGRESS
+
+---
+
+## DEPLOY-1110a — Deploy IAM + DocumentForm + ProcedureCatalog (AUDIT-FIX-1110) — 2026-11-10 (UTC+07)
+
+- **Nguồn:** `kha` @ `d469a4f` (tar.gz từ GitHub). Claude commit/push và tự deploy qua Cloud Shell theo yêu cầu chủ dự án. Không SQL, không biến môi trường mới (`procedure.source.read` đã có từ migration IAM 07/10).
+- **IAM:** run `ce1r` → `wardmate-iam:iam-20261110-01`, digest `sha256:45c4d22927bf92ecbdc443d954a04f41854c516fa31042dca581ebafe8888381`; `Succeeded`; `/health/ready` 200 Healthy. Rollback: `iam-20261109-01`.
+- **DocumentForm:** run `ce1s` → `wardmate-documentform:documentform-20261110-01`, digest `sha256:f069de9e0a826e9362c943e1348a04f7bbdf1424018a242fcbb1e8e6ef5f89f5`; `Succeeded`; 200 Healthy. Rollback: `documentform-20261109-01`.
+- **ProcedureCatalog:** run `ce1t` → `wardmate-procedure-catalog:catalog-20261110-01`, digest `sha256:6137ca088e84a2f6d06e5f4c3ff865f9b8650aaa198bc968ce2590fe12374946`; `Succeeded`; 200 Healthy. Rollback: `catalog-20261109-04`.
+- **Chưa kiểm:** 8 bước test mục 8 `docs/fe-handoff-2026-11-09.md` (khóa đăng nhập, 429, tra cứu QR khớp chính xác, API PDF cho thủ tục ẩn, PUT giữ PDF, 400 loại bản mâu thuẫn) chưa chạy.
