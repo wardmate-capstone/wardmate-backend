@@ -5061,3 +5061,14 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 82/82 đạt.
 - **Deploy (cùng F1, F2):** Workflow + Analytics; thứ tự tuỳ ý (trường mới tuỳ chọn), không SQL/migration.
 - **Commit gợi ý:** `test(analytics): cover manager notice for released resubmissions` (file mới); `feat(eventbus): flag resubmitted status events`; `feat(analytics): notify ward managers when released case is resubmitted`; `docs: record NOTIFY-RESUBMIT-01`.
+
+---
+
+## DEPLOY-1110c — Deploy Workflow + Analytics (F1, F2, báo Manager khi nộp lại) — 2026-11-10 (UTC+07)
+
+- **Nguồn:** `kha` @ `9dc2198` (tar.gz từ GitHub). Claude commit/push/deploy qua Cloud Shell theo yêu cầu chủ dự án (bàn giao từ phiên "WardMate Code"). Không SQL, không migration, không biến môi trường mới.
+- **Commit:** `09f7157` fix(workflow) F2 · `bc24f22` fix(notifications) F1 + báo Manager · `9dc2198` docs. Build Release 0/0, `dotnet test` 82/82 đạt.
+- **Workflow:** run `ce20` → `workflow-20261110-02`, digest `sha256:99fd51204e4b62db0233d32517bc4cadb8e8723e9b3c9fcfefc62ffdeb72feab`; `Succeeded`; `/health/ready` 200 (database, rabbitmq). Rollback: `wardmate-application-workflow@sha256:205694b529f18f7d54eaf9cc042227bb32c6498661cf02bc772f10e9f7607ef5`.
+- **Analytics:** run `ce21` → `analytics-20261110-02`, digest `sha256:e7c4627f2b21c117c7e8699adeeeffc66e0a2d760b2a3689c30383145778b299`; `Succeeded`; 200 (notifications-database, analytics-database). Rollback: `wardmate-analyticssystem@sha256:ce190db9f0581a95feb71882f880c72f1da5973c8fe3b2fd8ccc0160c7976b84`.
+- **Ghi chú:** image cũ của cả hai (digest ở trên) khác image `ce1u`/`ce1v` lúc DEPLOY-1110b, tức đã có một lần deploy khác giữa hai đợt; không ghi trong PROGRESS.
+- **Chưa kiểm:** F1/F2/thông báo Manager chưa thử trên Azure bằng dữ liệu thử.
