@@ -155,6 +155,7 @@ Bộ EF model kiểm kê ngày 24/10: 41 bảng ứng dụng, 410 cột, 22 FK t
 
 | Ưu tiên | Việc | Trạng thái và bước tiếp theo |
 |---|---|---|
+| Gần nhất | BE-J tải phôi công khai (DEPLOY-1110d, 10/11) | DocumentForm `documentform-20261110-03`, 200 Healthy; kiểm ẩn danh 200/404/401/429 đạt. FE dùng `GET /api/v1/public/form-templates/{id}/download-docx`. |
 | Gần nhất | Deploy F1/F2/báo Manager (DEPLOY-1110c, 10/11) | Workflow `workflow-20261110-02`, Analytics `analytics-20261110-02`, 200 Healthy. Chưa thử luồng trên Azure. |
 | Gần nhất | Deploy BE-H (DEPLOY-1110b, 10/11) | 3 SQL đã chạy; Workflow, Analytics, DocumentForm, AIOCR, Catalog đã deploy (200 Healthy). Chờ FE nghiệm thu 17 bước `fe-handoff-2026-11-10.md`. |
 | Gần nhất | Test ngoài luồng chính 09/11 (UI-TEST-RUN-1109) | KB-13 26 Đ, KB-14 5 Đ, KB-17 8 Đ, KB-18 8 Đ, KB-20 7 Đ + **2 lỗi BE2-01/BE2-02 (Codex, 500 khi ghi DB Analytics, cần log theo traceId)**. Test lại dồn cuối đợt (mục 6.3 `ui-test-scenarios.md`). Còn KB-19 #1–4; luồng chính chờ FE-01. |

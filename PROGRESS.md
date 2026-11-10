@@ -5081,3 +5081,15 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 88/88 đạt. Chưa gọi thử trên Azure.
 - **Deploy:** chỉ DocumentForm, không SQL/migration/biến môi trường bắt buộc (`PublicForms:MaxRequestsPerMinutePerIp` có mặc định). Không sửa gateway.
 - **Commit gợi ý:** `feat(documentform): add public form template controller` (file mới); `test(documentform): cover public template download` (file mới); `feat(documentform): restrict public template download to active templates with rate limit`; `docs: record DOC-TPL-PUB-01 (BE-J)`.
+
+---
+
+## DEPLOY-1110d — Deploy DocumentForm BE-J (tải phôi mẫu đơn công khai) — 2026-11-10 (UTC+07)
+
+- **Nguồn:** `kha` @ `9f3e777`. Commit `68a508d` feat(documentform), `71e2d7d` docs (fe-handoff-2026-11-10-flows), `9f3e777` docs. Build Release 0/0, `dotnet test` 88/88.
+- **Build:** Claude gửi ACR run `ce22` → `wardmate-documentform:documentform-20261110-03` (Succeeded). **Đổi image:** chủ dự án tự chạy (theo yêu cầu mới: service đơn lẻ thì chủ dự án chạy lệnh), cập nhật bằng digest → `Succeeded`; `/health/ready` 200. Rollback: `wardmate-documentform@sha256:8ca68476e9433ab4cb8337e0c90c01a6eea7029365a06828ac067aa4482ef341`.
+- **Kiểm ẩn danh qua gateway (Claude, từ máy local):**
+  - `GET /api/v1/public/form-templates/d6b2620c-8b4c-4558-acc6-78a13c7ffc56/download-docx` → 200, DOCX 19.168 byte, `Content-Disposition: attachment` có `filename*` UTF-8.
+  - GUID không tồn tại → 404 `document.template_not_found`.
+  - `GET /api/v1/form-templates/{id}` không token → 401 (API cũ vẫn yêu cầu đăng nhập).
+  - 62 lần trong một phút từ cùng IP → 60 lần qua, từ lần 61 trả 429 kèm `Retry-After: 60`.
