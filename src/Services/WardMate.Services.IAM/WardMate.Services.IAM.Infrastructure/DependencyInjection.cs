@@ -45,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<WardMate.Services.IAM.Application.Rbac.IRbacStore, RbacStore>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.IAccountStore, AccountStore>();
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
+        services.AddSingleton<ILoginThrottle, LoginThrottle>();
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)

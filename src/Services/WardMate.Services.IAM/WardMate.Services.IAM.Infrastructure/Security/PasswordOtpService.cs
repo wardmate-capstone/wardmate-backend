@@ -11,7 +11,7 @@ using WardMate.Services.IAM.Infrastructure.Persistence;
 namespace WardMate.Services.IAM.Infrastructure.Security;
 
 public sealed class PasswordOtpService(IamDbContext db, IIamEmailSender email, IPasswordHasher passwords,
-    IConfiguration config, TimeProvider clock, ILogger<PasswordOtpService> logger) : IPasswordOtpService
+    IConfiguration config, TimeProvider clock, ILogger<PasswordOtpService> logger, ILoginThrottle loginThrottle) : IPasswordOtpService
 {
     private static Result<string> Accepted() => Result<string>.Success("Nếu tài khoản hợp lệ và đủ thời gian gửi lại, mã OTP sẽ được gửi qua Email. Vui lòng kiểm tra và đợi ít nhất 60 giây trước khi yêu cầu lại.");
     private static Result<string> Invalid() => Result<string>.Failure(new("iam.otp_invalid", "OTP không hợp lệ, đã dùng, quá số lần thử hoặc hết hạn. Vui lòng yêu cầu mã mới.", ErrorKind.BadRequest));
@@ -78,6 +78,8 @@ public sealed class PasswordOtpService(IamDbContext db, IIamEmailSender email, I
         await db.UserOtps.Where(x => x.UserId == user!.Id && !x.IsUsed && x.Id != otp.Id && x.ExpiresAtUtc > now)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresAtUtc, now), ct);
         otp.IsUsed = true; await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        // IAM-01a: đặt lại mật khẩu bằng OTP gỡ khóa đăng nhập sai nhiều lần của tài khoản.
+        loginThrottle.Reset(LoginThrottleKey.For(user!.Id, ""));
         return Result<string>.Success("Đổi mật khẩu thành công. Vui lòng đăng nhập lại.");
     }
 }

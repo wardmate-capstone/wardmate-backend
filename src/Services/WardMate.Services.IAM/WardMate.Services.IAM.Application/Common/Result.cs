@@ -1,6 +1,6 @@
 namespace WardMate.Services.IAM.Application.Common;
 
-public enum ErrorKind { BadRequest, Conflict, Unauthorized, NotFound, Forbidden, ServiceUnavailable }
+public enum ErrorKind { BadRequest, Conflict, Unauthorized, NotFound, Forbidden, ServiceUnavailable, TooManyRequests }
 public sealed record Error(string Code, string Message, ErrorKind Kind);
 public sealed record Result<T>(T? Value, Error? Error)
 {
@@ -14,4 +14,7 @@ public static class AuthErrors
     public static readonly Error InvalidCredentials = new("iam.invalid_credentials", "Thông tin đăng nhập không đúng hoặc tài khoản chưa được kích hoạt.", ErrorKind.Unauthorized);
     public static readonly Error InvalidToken = new("iam.invalid_token", "Mã xác thực không hợp lệ, đã hết hạn hoặc đã bị thu hồi.", ErrorKind.Unauthorized);
     public static readonly Error UserUnavailable = new("iam.user_unavailable", "Tài khoản không khả dụng.", ErrorKind.Unauthorized);
+    public static Error LoginLocked(TimeSpan remaining) => new("iam.login_locked",
+        $"Đăng nhập sai quá nhiều lần. Vui lòng thử lại sau {Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes))} phút hoặc dùng chức năng quên mật khẩu.",
+        ErrorKind.TooManyRequests);
 }

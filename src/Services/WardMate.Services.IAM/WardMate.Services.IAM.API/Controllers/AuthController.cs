@@ -49,10 +49,12 @@ public sealed class AuthController(ISender sender, RefreshTokenCookie cookie) : 
     }
 
     [HttpPost("login"), AllowAnonymous]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("login")]
     [ProducesResponseType<BrowserAuthResponse>(200)]
     [RequestSizeLimit(4096)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
     [ProducesResponseType<ProblemDetails>(401)]
+    [ProducesResponseType<ProblemDetails>(429)]
     public async Task<IActionResult> Login(LoginCommand request, CancellationToken ct)
     {
         var result = await sender.Send(request, ct);

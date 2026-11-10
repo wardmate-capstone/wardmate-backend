@@ -25,14 +25,25 @@ try
     builder.Services.AddRateLimiter(o =>
     {
         o.RejectionStatusCode = 429;
+        // Khóa theo người gọi thật (X-Forwarded-For do gateway đặt), không theo IP của gateway/ingress.
         o.AddPolicy("password-otp", context => RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
+            CallerIp.Of(context), _ => new FixedWindowRateLimiterOptions
             { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+        // IAM-01a: lớp phụ theo IP cho đăng nhập; lớp chính là khóa theo tài khoản trong LoginHandler.
+        o.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
+            CallerIp.Of(context), _ => new FixedWindowRateLimiterOptions
+            { PermitLimit = Math.Clamp(builder.Configuration.GetValue("Login:MaxRequestsPerMinutePerIp", 30), 5, 1000),
+              Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
         o.OnRejected = async (context, ct) =>
         {
+            var login = context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName == "login";
             context.HttpContext.Response.Headers.RetryAfter = "60";
             await context.HttpContext.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
-            { Status = 429, Title = "Quá nhiều yêu cầu OTP. Vui lòng đợi một phút.", Extensions = { ["code"] = "iam.otp_rate_limited" } }, cancellationToken: ct);
+            {
+                Status = 429,
+                Title = login ? "Quá nhiều lần đăng nhập từ địa chỉ này. Vui lòng đợi một phút." : "Quá nhiều yêu cầu OTP. Vui lòng đợi một phút.",
+                Extensions = { ["code"] = login ? "iam.login_rate_limited" : "iam.otp_rate_limited" }
+            }, cancellationToken: ct);
         };
     });
     
