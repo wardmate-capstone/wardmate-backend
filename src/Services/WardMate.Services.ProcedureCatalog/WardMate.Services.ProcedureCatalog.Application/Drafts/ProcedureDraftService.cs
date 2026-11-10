@@ -82,9 +82,9 @@ public sealed class ProcedureDraftService(IDraftPersistence store, IDraftFileSto
         return d is null ? Missing<string>() : ProcedureResult<string>.Ok(
             await blobs.ReadUrl(d.BlobName, ct));
     }
-    public async Task<ProcedureResult<string>> PublishedReadUrl(Guid procedureId, CancellationToken ct)
+    public async Task<ProcedureResult<string>> PublishedReadUrl(Guid procedureId, bool includeInactive, CancellationToken ct)
     {
-        var draftId = await store.FindPublishedDraftId(procedureId, ct);
+        var draftId = await store.FindPublishedDraftId(procedureId, includeInactive, ct);
         return draftId.HasValue ? await ReadUrl(draftId.Value, ct)
             : ProcedureResult<string>.Fail("draft.source_not_found", "Thủ tục không có PDF được tải lên qua hệ thống bản nháp.", 404);
     }

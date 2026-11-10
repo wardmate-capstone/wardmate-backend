@@ -21,7 +21,8 @@ public interface IProcedureDraftService
     Task<ProcedureResult<DraftDto>> Save(Guid id, SaveDraftInput input, CancellationToken ct);
     Task<ProcedureResult<DraftDto>> Retry(Guid id, Guid revision, CancellationToken ct);
     Task<ProcedureResult<string>> ReadUrl(Guid id, CancellationToken ct);
-    Task<ProcedureResult<string>> PublishedReadUrl(Guid procedureId, CancellationToken ct);
+    /// <summary>includeInactive=false: chỉ thủ tục công khai (API công dân); true: cả thủ tục đang ẩn (API quản trị, PROC-03c).</summary>
+    Task<ProcedureResult<string>> PublishedReadUrl(Guid procedureId, bool includeInactive, CancellationToken ct);
     Task<ProcedureResult<ProcedureDetailDto>> AttachSource(Guid procedureId, Stream pdf, string fileName, string actor, CancellationToken ct);
     Task<ProcedureResult<ProcedureDetailDto>> Publish(Guid id, ConfirmDraftInput input, string actor, CancellationToken ct);
 }

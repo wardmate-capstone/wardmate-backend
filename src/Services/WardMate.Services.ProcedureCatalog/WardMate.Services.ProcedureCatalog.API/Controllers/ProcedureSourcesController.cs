@@ -10,7 +10,7 @@ public sealed class ProcedureSourcesController(IProcedureDraftService drafts) : 
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
     {
         Response.Headers.CacheControl = "no-store";
-        var result = await drafts.PublishedReadUrl(id, ct);
+        var result = await drafts.PublishedReadUrl(id, includeInactive: false, ct);
         if (result.IsSuccess) return Ok(new { url = result.Value, expiresInSeconds = 600 });
         var error = result.Error!;
         return new ObjectResult(new ProblemDetails { Status = error.Status, Title = error.Message, Instance = Request.Path,

@@ -95,6 +95,22 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
         Response.Headers.CacheControl = "no-store";
         return Respond(await sender.Send(new VersionSourceQuery(id, versionId), ct));
     }
+    /// <summary>
+    /// PROC-03c: PDF gốc hiện tại của thủ tục, kể cả khi thủ tục đang ẩn (isActive=false), để cán bộ xem lại trước khi công khai.
+    /// API công khai GET /api/v1/procedures/{id}/source vẫn chỉ trả PDF của thủ tục đang công khai.
+    /// </summary>
+    [HttpGet("{id:guid}/source")]
+    [ProducesResponseType<SourceLinkDto>(200)]
+    [ProducesResponseType<ProblemDetails>(404)]
+    [ProducesResponseType<ProblemDetails>(503)]
+    [Authorize(Policy = "procedure.source.read")]
+    public async Task<IActionResult> CurrentSource(Guid id,
+        [FromServices] WardMate.Services.ProcedureCatalog.Application.Drafts.IProcedureDraftService drafts, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var result = await drafts.PublishedReadUrl(id, includeInactive: true, ct);
+        return result.IsSuccess ? Ok(new SourceLinkDto(result.Value!)) : Failure(result.Error!);
+    }
     [HttpPut("{id:guid}/checklist"), RequestSizeLimit(1024 * 1024)]
     [ProducesResponseType<ProcedureDetailDto>(200)]
     [ProducesResponseType<ProblemDetails>(400)]

@@ -38,10 +38,10 @@ public sealed class DraftPersistence(ProcedureDbContext db) : IDraftPersistence
         try { await db.SaveChangesAsync(ct); return true; }
         catch (DbUpdateConcurrencyException) { db.ChangeTracker.Clear(); return false; }
     }
-    public Task<Guid?> FindPublishedDraftId(Guid procedureId, CancellationToken ct) =>
+    public Task<Guid?> FindPublishedDraftId(Guid procedureId, bool includeInactive, CancellationToken ct) =>
         (from d in db.ProcedureDrafts
          join p in db.Procedures on d.PublishedProcedureId equals p.Id
-         where p.Id == procedureId && p.IsActive && d.Status == "Published" && p.OriginalPdfUrl == d.OriginalPdfUrl
+         where p.Id == procedureId && (includeInactive || p.IsActive) && d.Status == "Published" && p.OriginalPdfUrl == d.OriginalPdfUrl
          select (Guid?)d.Id).FirstOrDefaultAsync(ct);
 
     public async Task<ProcedureResult<ProcedureDetailDto>> PublishLocked(Guid id,
