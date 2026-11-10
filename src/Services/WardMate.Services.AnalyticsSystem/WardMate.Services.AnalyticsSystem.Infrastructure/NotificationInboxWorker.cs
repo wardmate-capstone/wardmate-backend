@@ -17,6 +17,8 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
     {
         if (r.UserId == e.ApplicantId) return e.AssignmentAction is "CLAIM" or "ASSIGN";
         if (!r.IsOfficer || r.WardCode != e.WardCode) return false;
+        // WF-ASSIGN-REL-01: gỡ cán bộ khi hồ sơ còn chờ bổ sung chưa có việc cho phường; phường được báo khi người dân nộp lại.
+        if (e.AssignmentAction == "RELEASE" && e.Status == "NEED_REVISION") return false;
         return e.AssignmentAction switch
         {
             "ASSIGN" => r.UserId == e.AssignedOfficerId,
@@ -25,6 +27,17 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
             _ => false
         };
     }
+    // NOTIFY-COMMENT-01: nhận xét chỉ là phát hiện nội bộ khi cán bộ đang kiểm tra (có thể rút lại, người dân không thấy
+    // nhận xét đã rút). Người dân được báo một lần qua sự kiện STATUS NEED_REVISION khi cán bộ yêu cầu bổ sung.
+    public static bool StatusRecipient(WorkflowEvent e, RecipientContact r)
+    {
+        if (e.Kind == "COMMENT") return false;
+        if (ResubmittedToPool(e) && !r.IsOfficer && r.IsStaffingManager && r.WardCode == e.WardCode) return true;
+        return r.UserId == e.ApplicantId || r.IsOfficer && r.WardCode == e.WardCode &&
+            e.Kind == "STATUS" && e.Status is "SUBMITTED" or "UNDER_REVIEW" && (e.AssignedOfficerId == null || r.UserId == e.AssignedOfficerId);
+    }
+    public static bool ResubmittedToPool(WorkflowEvent e) =>
+        e is { Kind: "STATUS", Status: "SUBMITTED", AssignedOfficerId: null, Resubmitted: true };
     private static Guid[] AssignmentLookup(WorkflowEvent e) => e.AssignmentAction switch
     {
         "CLAIM" => [e.ApplicantId],
@@ -32,11 +45,13 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
         "TRANSFER" => [e.AssignedOfficerId!.Value, e.PreviousOfficerId!.Value],
         _ => []
     };
-    public static Notification Create(WorkflowEvent e, Guid recipient, bool officer) => new()
+    public static Notification Create(WorkflowEvent e, Guid recipient, bool officer, bool manager = false) => new()
     {
         Id = Guid.NewGuid(), SourceEventId = e.EventId, RecipientUserId = recipient, ApplicationId = e.ApplicationId,
-        RecipientWardCode = officer ? e.WardCode : null,
-        Title = e.Kind == "APPLICATION_ASSIGNED" && officer
+        // Manager không phải cán bộ một cửa: gắn mã phường sẽ bị bước gửi (NotificationDeliveryWorker) chặn.
+        RecipientWardCode = officer && !manager ? e.WardCode : null,
+        Title = manager ? "Hồ sơ nộp lại chưa có cán bộ thụ lý"
+            : e.Kind == "APPLICATION_ASSIGNED" && officer
             ? recipient == e.AssignedOfficerId ? "Hồ sơ được giao cho bạn" : e.AssignmentAction == "RELEASE" ? "Có hồ sơ cần tiếp nhận" : "Hồ sơ đã chuyển cho cán bộ khác"
             : officer ? e.Status == "UNDER_REVIEW" ? "Hồ sơ được phân công" : "Có hồ sơ cần tiếp nhận" : e.Kind == "COMMENT" ? "Hồ sơ có nhận xét mới" : e.Status switch
         {
@@ -88,16 +103,18 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
                 await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);return true;
             }
             var assignment = e.Kind == "APPLICATION_ASSIGNED";
-            var contacts = await scope.ServiceProvider.GetRequiredService<IRecipientContacts>().Find(
+            var directory = scope.ServiceProvider.GetRequiredService<IRecipientContacts>();
+            var contacts = await directory.Find(
                 assignment ? AssignmentLookup(e)
                     : e.AssignedOfficerId is { } assigned ? [e.ApplicantId, assigned] : [e.ApplicantId],
                 assignment ? e.AssignmentAction == "RELEASE" ? e.WardCode : null
                     : e.Kind == "STATUS" && e.Status == "SUBMITTED" && e.AssignedOfficerId is null ? e.WardCode : null, ct);
-            foreach (var recipient in contacts.DistinctBy(r => r.UserId).Where(r => assignment ? AssignmentRecipient(e, r)
-                : r.UserId == e.ApplicantId || r.IsOfficer && r.WardCode == e.WardCode &&
-                e.Kind == "STATUS" && e.Status is "SUBMITTED" or "UNDER_REVIEW" && (e.AssignedOfficerId == null || r.UserId == e.AssignedOfficerId)))
+            // NOTIFY-RESUBMIT-01: hồ sơ nộp lại mà đã bị gỡ cán bộ → báo thêm Manager của phường để theo dõi/giao người.
+            if (!assignment && ResubmittedToPool(e))
+                contacts = [.. contacts, .. await directory.Find([], e.WardCode, ct, staffingManagers: true)];
+            foreach (var recipient in contacts.DistinctBy(r => r.UserId).Where(r => assignment ? AssignmentRecipient(e, r) : StatusRecipient(e, r)))
             {
-                var notification = Create(e, recipient.UserId, recipient.UserId != e.ApplicantId);
+                var notification = Create(e, recipient.UserId, recipient.UserId != e.ApplicantId, manager: !recipient.IsOfficer && recipient.IsStaffingManager);
                 db.Notifications.Add(notification);
                 db.Deliveries.Add(new() { NotificationId = notification.Id });
                 if (configuration.GetValue<bool>("Email:Enabled")) db.Deliveries.Add(new() { NotificationId = notification.Id, Channel = "EMAIL" });
