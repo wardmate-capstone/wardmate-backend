@@ -1,17 +1,21 @@
-# Bàn giao Backend → Frontend: BE-H — Mô hình thủ tục linh hoạt (10/11/2026)
+# Bàn giao Backend → Frontend: BE-H và sửa lỗi rà soát A1–B4 (10/11/2026)
 
-Người viết: Backend (Claude), 10/11/2026. Trả lời file yêu cầu `BE_REQUEST_2026-11-10_PROCEDURE_TEXT_LENGTH`.
+Người viết: Backend (Claude), 10/11/2026. Gồm hai việc:
 
-Hợp đồng chi tiết: `docs/api-guide.md`, mục **"BE-H (10/11/2026)"** (trong phần ProcedureInput). Quy tắc: `docs/system-constraints.md` mục **PROC-05**, **WF-01a**, **DOC-03a**, **KB-01a**, **AI-02a**.
+- **BE-H** — mô hình thủ tục linh hoạt, trả lời file yêu cầu `BE_REQUEST_2026-11-10_PROCEDURE_TEXT_LENGTH` (mục 1–5).
+- **AUDIT-FIX-1110** — sửa 6 lỗi tiềm ẩn A1–B4 tìm thấy khi rà soát sau deploy 09/11 (**mục 6**). FE cần chỉnh màn đăng nhập, trang tra cứu QR và màn quản trị thủ tục.
+
+Hợp đồng chi tiết: `docs/api-guide.md`, mục **"BE-H (10/11/2026)"** (trong phần ProcedureInput), API 02 (đăng nhập), API 32/32a/32b (PDF thủ tục), các mục tra cứu QR. Quy tắc: `docs/system-constraints.md` mục **PROC-05**, **WF-01a**, **DOC-03a**, **KB-01a**, **AI-02a**, **IAM-01a**, **DOC-QR-06**, **PROC-01c**, **PROC-02b**, **PROC-03c**.
 
 ## 0. Trạng thái — đọc trước
 
 | Phần | Service | Trên Azure? |
 |---|---|---|
-| A — bỏ giới hạn độ dài | Catalog, Workflow, Analytics (+ AIOCR cắt tiêu đề tri thức) | **Chưa** — cần chạy 3 file SQL rồi deploy |
-| B, C — trường mới | Catalog, Workflow, DocumentForm, AIOCR | **Chưa** — deploy cùng phần A |
+| BE-H A — bỏ giới hạn độ dài | Catalog, Workflow, Analytics (+ AIOCR cắt tiêu đề tri thức) | **Chưa** — cần chạy 3 file SQL rồi deploy |
+| BE-H B, C — trường mới | Catalog, Workflow, DocumentForm, AIOCR | **Chưa** — deploy cùng phần A |
+| Sửa lỗi A1–B4 (mục 6) | IAM, DocumentForm, Catalog | **Chưa** — không cần SQL, deploy cùng đợt |
 
-Thứ tự deploy: chạy SQL Workflow + Analytics + Catalog → deploy Workflow, Analytics, DocumentForm, AIOCR → deploy Catalog **sau cùng**. Trước khi BE báo deploy xong, FE có thể code theo tài liệu này nhưng chưa test được trên Azure.
+Thứ tự deploy: chạy SQL Workflow + Analytics + Catalog → deploy IAM, Workflow, Analytics, DocumentForm, AIOCR → deploy Catalog **sau cùng**. Trước khi BE báo deploy xong, FE có thể code theo tài liệu này nhưng chưa test được trên Azure.
 
 ## 1. Con số trần đã chốt
 
@@ -87,5 +91,94 @@ Xác nhận câu hỏi trong file yêu cầu:
 | 15 | Căn cứ pháp lý chỉ có tên + mã | Lưu được |
 | 16 | `keywords` 5 từ khoá | `GET /api/v1/procedures?keyword=<một từ khóa>` trả đúng thủ tục |
 | 17 | Nhập đủ 25 mục thủ tục 3.000781 | Lưu không cắt; chi tiết trả đủ |
+
+## 6. Sửa lỗi rà soát A1–B4 (AUDIT-FIX-1110)
+
+### A1 — Lộ PDF qua tra cứu QR (bảo mật)
+
+**Vấn đề:** `GET /api/v1/public/qr-lookup` (không cần đăng nhập) tìm theo chuỗi con, nên gõ `token=https` là ra mã một hồ sơ bất kỳ; có mã hồ sơ thì tải được PDF có CCCD, địa chỉ qua `pdf-redirect`.
+
+**Đã sửa:**
+
+- Tra cứu chỉ khớp **chính xác**: mã hồ sơ/đơn (GUID), URL QR có chứa mã đó (đọc được cả QR cũ dạng `?applicationId=`), hoặc nguyên chuỗi `qrCodeValue`. Gõ `token=https` nay trả 404 `qr.not_found`. Token dài hơn 2.048 ký tự → 400 `qr.token_too_long`.
+- Mọi API `/api/v1/public/*` (qr-lookup, pdf-redirect) giới hạn **30 lần/phút/IP**; vượt → 429 `qr.rate_limited`, header `Retry-After: 60`.
+
+**FE cần làm:** trang tra cứu QR gửi **nguyên chuỗi quét được** (hoặc `applicationId`); bỏ ô cho người dùng gõ một phần mã. Gặp 429: hiện "Bạn tra cứu quá nhiều lần, vui lòng thử lại sau 1 phút", không tự gọi lại.
+
+### A2 — Dò mật khẩu (bảo mật)
+
+**Vấn đề:** `POST /api/v1/auth/login` không giới hạn số lần sai, có thể dò mật khẩu mọi tài khoản, kể cả IT_ADMIN.
+
+**Đã sửa:**
+
+- Sai mật khẩu **10 lần trong 15 phút** với cùng một tài khoản → bị chặn đến hết 15 phút: 429 `iam.login_locked`, `title` ghi số phút phải chờ; trong thời gian này **nhập đúng mật khẩu cũng bị từ chối**. Đăng nhập bằng username hay email đều tính chung một bộ đếm. Đăng nhập đúng trước khi chạm ngưỡng thì bộ đếm về 0.
+- Đổi mật khẩu bằng OTP (`password-otp/verify-and-change`) **gỡ khóa ngay**.
+- Thêm giới hạn **30 lần đăng nhập/phút/IP** → 429 `iam.login_rate_limited`, `Retry-After: 60`.
+- Sửa kèm lỗi có sẵn: giới hạn OTP (10 lần/phút) trước đây có thể đếm theo IP của gateway, tức mọi người dùng chung một bộ đếm; nay đếm theo IP thật của người gọi.
+
+**FE cần làm:** màn đăng nhập xử lý 429 riêng với 401:
+
+- `iam.login_locked` → hiện nguyên `title` (đã có số phút) kèm link **"Quên mật khẩu"**.
+- `iam.login_rate_limited` → "Quá nhiều lần đăng nhập, vui lòng đợi 1 phút".
+- Không tự gửi lại khi gặp 429.
+
+### B1 — PDF vừa gắn không xem được khi thủ tục đang ẩn
+
+**Vấn đề:** thủ tục tạo tay mặc định ẩn; `GET /api/v1/procedures/{id}/source` (API công khai) chỉ phục vụ thủ tục đang công khai, nên cán bộ gắn PDF xong bấm "Xem PDF" nhận 404.
+
+**Đã sửa — API mới (API 32b):**
+
+```
+GET /api/v1/procedure-manager/procedures/{id}/source
+Quyền: procedure.source.read (Procedure Manager, IT Admin)
+200: { "url": "...", "expiresInSeconds": 600 }
+```
+
+Lỗi: 404 `draft.source_not_found` (chưa gắn PDF qua hệ thống — gắn bằng API 32a) · 401/403 · 503 `draft.storage_not_configured`.
+
+**FE cần làm:** nút "Xem PDF" ở **màn quản trị** gọi API 32b. Cổng công dân giữ `GET /api/v1/procedures/{id}/source`. Link hết hạn thì gọi lại, không lưu link.
+
+### B2 — Sửa thủ tục làm mất PDF
+
+**Vấn đề:** `PUT /api/v1/procedure-manager/procedures/{id}` không gửi `originalPdfUrl` thì liên kết PDF bị xóa.
+
+**Đã sửa:** PUT (và publish đè thủ tục đã có) gửi `originalPdfUrl` null hoặc bỏ trường → BE **giữ** PDF đang gắn cùng `pdfFileName`. Tạo mới và rollback vẫn lưu đúng giá trị gửi lên.
+
+**FE cần làm:** có thể bỏ việc gửi lại `originalPdfUrl`/`pdfFileName` khi sửa thủ tục. Thay PDF vẫn dùng API 32a (`POST .../procedures/{id}/source`). Không còn cách xóa liên kết PDF qua PUT.
+
+### B3 — Đổi loại bản bị bỏ qua âm thầm
+
+**Vấn đề:** dòng thành phần hồ sơ có `copyRequirements` thì BE lấy theo `copyRequirements`, bỏ qua `documentCopyType`/`quantity` gửi kèm. Form cũ đổi ô loại bản/số lượng nhưng gửi lại `copyRequirements` cũ → thay đổi biến mất mà không báo lỗi.
+
+**Đã sửa:** request **có gửi** `documentCopyType` (khác null) hoặc `quantity` **khác** giá trị suy ra từ `copyRequirements` (1 dòng → loại và số lượng của dòng đó; nhiều dòng → `documentCopyType: null`, `quantity` = tổng) → 400 `validation.failed`, khóa `checklistSchema[i].copyRequirements`. Chỉ gửi `copyRequirements`, hoặc gửi lại nguyên dòng đọc từ GET, vẫn chạy bình thường.
+
+**FE cần làm:**
+
+- Form nhiều loại bản (mục 4 BE-H, `copyRequirements`): chỉ gửi `copyRequirements`, **bỏ** `documentCopyType`/`quantity`.
+- Nếu còn form cũ một ô loại bản + số lượng: khi lưu **xóa `copyRequirements`** khỏi dòng (hoặc cập nhật nó theo ô mới), nếu không sẽ gặp 400 này.
+- Áp dụng cả `PUT .../procedures/{id}/checklist`.
+
+### B4 — Thông điệp QR nói "đã phê duyệt"
+
+**Vấn đề:** tra cứu QR trả `status: "APPROVED"` và "đã được cơ quan có thẩm quyền phê duyệt và đóng dấu xác thực", trái quy tắc: `DOCUMENTS_READY` chỉ là giấy tờ đã được kiểm tra, không phải phê duyệt hành chính.
+
+**Đã sửa:** `status` thường là `READYFORDOWNLOAD` (trạng thái đơn), hồ sơ không có đơn trả `DOCUMENTS_READY`. `message` mới: "Mã QR hợp lệ: giấy tờ của hồ sơ này do WardMate cấp và đã được cán bộ kiểm tra đầy đủ. Đây không phải văn bản phê duyệt hay kết quả giải quyết thủ tục hành chính."
+
+**FE cần làm:** trang kết quả quét QR hiển thị `message`; **bỏ** mọi chữ "đã phê duyệt", "đóng dấu", "APPROVED" ghi cố định; không ánh xạ `status` thành "Đã duyệt".
+
+### Kiểm tra sau deploy (A1–B4)
+
+| Bước | Thao tác | Kỳ vọng |
+|---|---|---|
+| 1 | `GET /api/v1/public/qr-lookup?token=https` | 404 `qr.not_found` (trước đây 200 kèm hồ sơ bất kỳ) |
+| 2 | Quét QR hợp lệ hoặc `?applicationId={id}` của hồ sơ đã sẵn sàng | 200; `status` không phải `APPROVED`; `message` không có chữ "phê duyệt" |
+| 3 | Gọi qr-lookup 31 lần trong 1 phút từ một máy | Lần 31: 429 `qr.rate_limited` |
+| 4 | Đăng nhập sai mật khẩu 10 lần với tài khoản thử | Lần 1–10: 401; lần 11 (kể cả đúng mật khẩu): 429 `iam.login_locked` |
+| 5 | Tài khoản ở bước 4 đổi mật khẩu bằng OTP rồi đăng nhập | 200 |
+| 6 | Thủ tục ẩn đã gắn PDF → API 32b | 200 có `url`; API công khai `/procedures/{id}/source` vẫn 404 |
+| 7 | PUT sửa tiêu đề thủ tục, bỏ `originalPdfUrl` | 200; `originalPdfUrl` giữ nguyên; API 32b vẫn mở được |
+| 8 | PUT checklist dòng `copyRequirements: [{ORIGINAL,1}]` kèm `documentCopyType: "CERTIFIED_COPY"` | 400 `validation.failed` |
+
+Bước 4–5 dùng tài khoản thử, không dùng tài khoản thật (tài khoản bị khóa 15 phút).
 
 Báo lỗi cho BE kèm: route, mã HTTP, `code`, `traceId`, thời điểm gọi. Không gửi mật khẩu/token.

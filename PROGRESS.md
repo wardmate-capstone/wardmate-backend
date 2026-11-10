@@ -4984,3 +4984,21 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   4. AIOCR — run `ce1x` → `aiocr-20261110-01`. Rollback: `wardmate-aiocr@sha256:e373dbc60d4e2747561a08e9f304d0b30d73cb5deb8f98097796285e9aa123db` (aiocr-20261109-01).
   5. ProcedureCatalog (sau cùng) — run `ce1y` → `catalog-20261110-02`. Rollback: `wardmate-procedure-catalog@sha256:6137ca088e84a2f6d06e5f4c3ff865f9b8650aaa198bc968ce2590fe12374946` (catalog-20261110-01).
 - **Chưa kiểm:** bảng nghiệm thu 17 bước trong `docs/fe-handoff-2026-11-10.md`; chưa gọi API mới, chưa thử chatbot/bóc tách PDF với AI thật.
+
+## TEST-1110 — Tạo lại project test đơn vị — 2026-11-10 (UTC+07)
+
+- **Yêu cầu:** chủ dự án yêu cầu tạo lại project test (trước đó dự án chỉ build vì project test đã bị bỏ ngày 30/09).
+- **Đã làm:** project `tests/WardMate.UnitTests` (xUnit 2.9.2, Microsoft.NET.Test.Sdk 17.11.1, EF Core InMemory 8.0.11), thêm vào `WardMate.sln` (solution folder `tests`). AIOCR.Infrastructure thêm `InternalsVisibleTo WardMate.UnitTests` để test `ProcedureAiContract`.
+- **Kết quả:** build Release `-warnaserror -m:1` 0 lỗi/0 cảnh báo; `dotnet test WardMate.sln -c Release`: **67 đạt, 0 hỏng, 0 bỏ qua**.
+- **Phạm vi test (mức đơn vị, không DB/HTTP/AI thật):**
+  - `SharedKernel/CallerIpTests` — lấy IP người gọi từ X-Forwarded-For (IAM-01a, DOC-QR-06a).
+  - `Iam/LoginThrottleTests` — khóa sau 10 lần sai, hết cửa sổ thì mở, reset, cấu hình ngưỡng, khóa chung username/email, `LoginHandler` trả 429 `iam.login_locked` (A2).
+  - `DocumentForm/QrLookupQueryTests` — chuỗi con không khớp, GUID/URL mới/QR cũ khớp, không nói phê duyệt, token quá dài (A1, B4; EF InMemory với `DocumentDbContext` thật).
+  - `Catalog/ProcedureInputValidatorTests` — trần độ dài, tổng 500.000, `OTHER`, `formCodes`, bước, phí/thời hạn, mục mở rộng, mâu thuẫn `copyRequirements` (B3, PROC-05).
+  - `Catalog/ProcedureInputApplyTests` — giữ PDF khi PUT (B2), suy ra `feeAmount`/`estimatedDays`, tóm tắt, trường cũ từ danh sách mới, chuẩn hóa (PROC-05).
+  - `Workflow/CreateApplicationTests` — gắn mẫu theo `formCodes` không sinh dòng lặp, nhiều mẫu nhận một mẫu bất kỳ, tên dài/`OTHER`, snapshot `quantityText`/`itemNote` (WF-01a).
+  - `Aiocr/ProcedureKnowledgeTests` — đọc phí/thời hạn null và trường mới, văn bản tri thức, chuẩn hóa bóc tách `processingTimeText`, không cảnh báo trường tuỳ chọn (KB-01a, AI-02a).
+- **Chưa phủ:** API 32b, rate limiter ASP.NET (middleware), DocumentContentsClient/ApplicationAccess (HTTP), migration SQL, Azure OpenAI thật.
+- **Quy tắc đổi:** `AGENTS.md`, `CLAUDE.md` — bắt buộc chạy `dotnet test` cùng build, thêm test cho logic thay đổi.
+- **File mới:** `tests/WardMate.UnitTests/WardMate.UnitTests.csproj`, `Support/MutableTime.cs`, 7 file test ở trên. **File sửa:** `WardMate.sln`, AIOCR.Infrastructure `.csproj`, `AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`.
+- **Commit gợi ý (mỗi file mới một commit):** `test: add unit test project`, `test: add mutable time provider`, mỗi file test một commit `test(<service>): ...`, `build: add unit tests to solution and expose aiocr internals`, `docs: require unit tests in agent rules`.
