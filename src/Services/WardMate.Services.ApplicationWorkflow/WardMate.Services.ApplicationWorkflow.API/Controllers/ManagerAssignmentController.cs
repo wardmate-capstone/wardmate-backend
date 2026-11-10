@@ -35,4 +35,10 @@ public sealed class ManagerAssignmentController(ISender sender, IWorkflowDirecto
         catch (Exception e) when (e is HttpRequestException or System.Text.Json.JsonException || e is OperationCanceledException && !ct.IsCancellationRequested)
         { return Respond(WorkflowResult<ReviewResultDto>.Fail(503, "workflow.iam_unavailable", "Chưa xác minh được cán bộ đích. Vui lòng thử lại.")); }
     }
+
+    /// <summary>WF-ASSIGN-REL-01: Manager gỡ cán bộ khỏi hồ sơ NEED_REVISION; lần nộp lại vào hàng chờ chung của phường.</summary>
+    [HttpPost("{id:guid}/release"), Authorize(Policy = "workflow.assign.manage"), RequestSizeLimit(4096)]
+    [ProducesResponseType<ReviewResultDto>(200)]
+    public async Task<IActionResult> Release(Guid id, ReleaseApplicationInput input, CancellationToken ct) =>
+        Respond(await sender.Send(new ReleaseApplicationCommand(Actor, id, input, AsManager: true), ct));
 }

@@ -6,7 +6,8 @@ namespace WardMate.Services.ApplicationWorkflow.Application;
 public sealed record ReleaseApplicationInput(string Reason, long? ExpectedAssignmentVersion = null);
 public sealed record ManageAssigneeInput(Guid OfficerId, string Reason, long? ExpectedAssignmentVersion);
 public sealed record OfficerTarget(Guid Id, string? FullName, string? WardCode);
-public sealed record ReleaseApplicationCommand(ReviewActor Actor, Guid Id, ReleaseApplicationInput Input) : IRequest<WorkflowResult<ReviewResultDto>>;
+/// <summary>AsManager: Manager trả thay cán bộ — chỉ khi hồ sơ NEED_REVISION (WF-ASSIGN-REL-01).</summary>
+public sealed record ReleaseApplicationCommand(ReviewActor Actor, Guid Id, ReleaseApplicationInput Input, bool AsManager = false) : IRequest<WorkflowResult<ReviewResultDto>>;
 public sealed record ManageAssigneeCommand(ReviewActor Actor, Guid Id, ManageAssigneeInput Input, OfficerTarget Target) : IRequest<WorkflowResult<ReviewResultDto>>;
 
 public sealed class AssignmentHandlers(IApplicationReviewStore store, TimeProvider clock) :
@@ -28,14 +29,23 @@ public sealed class AssignmentHandlers(IApplicationReviewStore store, TimeProvid
     public Task<WorkflowResult<ReviewResultDto>> Handle(ReleaseApplicationCommand r, CancellationToken ct) => store.Mutate(r.Id, a =>
     {
         if (!ValidReason(r.Input.Reason)) return Fail(400, "validation", "Lý do phải có 5–500 ký tự.");
-        if (!r.Actor.CanMutate || string.IsNullOrWhiteSpace(r.Actor.WardCode) || a.WardCode != r.Actor.WardCode || a.UserId == r.Actor.Id)
+        var allowed = r.AsManager ? r.Actor.IsManager : r.Actor.CanMutate;
+        if (!allowed || string.IsNullOrWhiteSpace(r.Actor.WardCode) || a.WardCode != r.Actor.WardCode || a.UserId == r.Actor.Id)
             return Fail(404, "not_found", "Không tìm thấy hồ sơ trong phạm vi.");
-        if (a.AssignedOfficerId != r.Actor.Id) return Fail(403, "not_assignee", "Bạn không phải cán bộ đang phụ trách.");
+        if (a.AssignedOfficerId is null) return Fail(409, "not_assigned", "Hồ sơ chưa có cán bộ phụ trách.");
+        if (!r.AsManager && a.AssignedOfficerId != r.Actor.Id) return Fail(403, "not_assignee", "Bạn không phải cán bộ đang phụ trách.");
         if (r.Input.ExpectedAssignmentVersion is { } version && version != a.AssignmentVersion) return Fail(409, "assignment_conflict", "Phân công đã thay đổi. Hãy tải lại hồ sơ.");
-        if (a.Status != ApplicationStates.UnderReview) return Fail(409, "invalid_status", "Chỉ trả lại hồ sơ UNDER_REVIEW.");
+        // WF-ASSIGN-REL-01: hồ sơ chờ bổ sung được gỡ cán bộ (giữ NEED_REVISION) để lần nộp lại vào hàng chờ chung của phường.
+        // Manager chỉ gỡ thay khi NEED_REVISION; trả lại hồ sơ đang kiểm tra vẫn chỉ do cán bộ thụ lý.
+        var revision = a.Status == ApplicationStates.NeedRevision;
+        if (!revision && (r.AsManager || a.Status != ApplicationStates.UnderReview))
+            return Fail(409, "invalid_status", r.AsManager ? "Manager chỉ gỡ cán bộ khỏi hồ sơ NEED_REVISION." : "Chỉ trả lại hồ sơ UNDER_REVIEW hoặc NEED_REVISION.");
         var now = clock.GetUtcNow().UtcDateTime;
-        a.History.Add(new() { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.Submitted, ChangedBy = r.Actor.Id, CreatedAt = now });
-        a.Status = ApplicationStates.Submitted;
+        if (!revision)
+        {
+            a.History.Add(new() { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.Submitted, ChangedBy = r.Actor.Id, CreatedAt = now });
+            a.Status = ApplicationStates.Submitted;
+        }
         Record(a, "RELEASE", r.Actor.Id, r.Actor.FullName, null, null, r.Input.Reason.Trim(), now);
         return Ok(a);
     }, ct);
@@ -50,7 +60,8 @@ public sealed class AssignmentHandlers(IApplicationReviewStore store, TimeProvid
         if (r.Input.ExpectedAssignmentVersion != a.AssignmentVersion) return Fail(409, "assignment_conflict", "Phân công đã thay đổi. Hãy tải lại hồ sơ.");
         if (a.AssignedOfficerId == r.Target.Id) return Fail(409, "same_assignee", "Cán bộ này đang phụ trách hồ sơ.");
         var initial = a.Status == ApplicationStates.Submitted && a.AssignedOfficerId is null;
-        if (!initial && (a.Status is not (ApplicationStates.UnderReview or ApplicationStates.NeedRevision or ApplicationStates.DocumentsReady) || a.AssignedOfficerId is null))
+        // F2: hồ sơ nộp lại (SUBMITTED, vẫn gắn cán bộ cũ) được chuyển như API dispatch; trạng thái giữ SUBMITTED để cán bộ mới nhận.
+        if (!initial && (a.Status is not (ApplicationStates.Submitted or ApplicationStates.UnderReview or ApplicationStates.NeedRevision or ApplicationStates.DocumentsReady) || a.AssignedOfficerId is null))
             return Fail(409, "invalid_status", "Trạng thái không cho phép giao/chuyển hồ sơ.");
         if (a.Versions.Count == 0) return Fail(409, "snapshot_missing", "Hồ sơ chưa có snapshot nộp.");
         var now = clock.GetUtcNow().UtcDateTime;
