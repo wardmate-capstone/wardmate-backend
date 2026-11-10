@@ -128,6 +128,10 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("file_url");
 
+                    b.Property<string>("FormLinks")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("form_links");
+
                     b.Property<Guid?>("FormTemplateId")
                         .HasColumnType("uuid")
                         .HasColumnName("form_template_id");
@@ -135,6 +139,10 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                     b.Property<bool>("IsRequired")
                         .HasColumnType("boolean")
                         .HasColumnName("is_required");
+
+                    b.Property<string>("ItemNote")
+                        .HasColumnType("text")
+                        .HasColumnName("item_note");
 
                     b.Property<string>("Note")
                         .HasMaxLength(4000)
@@ -146,6 +154,10 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(1)
                         .HasColumnName("quantity");
+
+                    b.Property<string>("QuantityText")
+                        .HasColumnType("text")
+                        .HasColumnName("quantity_text");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer")
@@ -166,8 +178,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasColumnType("text")
                         .HasColumnName("title");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -213,8 +224,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.Property<string>("FieldLabel")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasColumnType("text")
                         .HasColumnName("field_label");
 
                     b.Property<Guid>("OfficerId")
@@ -510,8 +520,8 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.Property<string>("ProcedureTitle")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
                         .HasColumnName("procedure_title");
 
                     b.Property<string>("ReceiptNumber")
