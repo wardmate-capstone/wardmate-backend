@@ -110,8 +110,8 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations.Analytics
                         .HasColumnType("uuid");
 
                     b.Property<string>("ProcedureTitle")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<int>("Rating")
                         .HasColumnType("integer");
