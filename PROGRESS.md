@@ -5002,3 +5002,11 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Quy tắc đổi:** `AGENTS.md`, `CLAUDE.md` — bắt buộc chạy `dotnet test` cùng build, thêm test cho logic thay đổi.
 - **File mới:** `tests/WardMate.UnitTests/WardMate.UnitTests.csproj`, `Support/MutableTime.cs`, 7 file test ở trên. **File sửa:** `WardMate.sln`, AIOCR.Infrastructure `.csproj`, `AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`.
 - **Commit gợi ý (mỗi file mới một commit):** `test: add unit test project`, `test: add mutable time provider`, mỗi file test một commit `test(<service>): ...`, `build: add unit tests to solution and expose aiocr internals`, `docs: require unit tests in agent rules`.
+
+---
+
+## SMOKE-1110 — Kiểm tra nhanh sau deploy BE-H + AUDIT-FIX — 2026-11-10 (UTC+07)
+
+- `main`, `deploy` fast-forward lên `d643227` (cùng `kha`) theo yêu cầu chủ dự án.
+- Qua gateway Azure, không đăng nhập, chỉ đọc: `/api/{iam,procedure-catalog,application-workflow,document-form,ai-ocr,analytics-system}/health/ready` đều 200; `GET /api/v1/procedures?pageSize=2` 200, trả `feeSummary`/`processingTimeSummary` dạng văn bản dài; A1 `GET /api/v1/public/qr-lookup/https` → 404 `qr.not_found` (không còn khớp lỏng).
+- Chưa kiểm (cần tài khoản thử, FE/chủ dự án làm): bảng nghiệm thu `docs/fe-handoff-2026-11-10.md` mục 5–6, khóa đăng nhập A2, bóc tách PDF với Azure OpenAI (AI-02a).
