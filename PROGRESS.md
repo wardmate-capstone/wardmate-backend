@@ -5010,3 +5010,54 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - `main`, `deploy` fast-forward lên `d643227` (cùng `kha`) theo yêu cầu chủ dự án.
 - Qua gateway Azure, không đăng nhập, chỉ đọc: `/api/{iam,procedure-catalog,application-workflow,document-form,ai-ocr,analytics-system}/health/ready` đều 200; `GET /api/v1/procedures?pageSize=2` 200, trả `feeSummary`/`processingTimeSummary` dạng văn bản dài; A1 `GET /api/v1/public/qr-lookup/https` → 404 `qr.not_found` (không còn khớp lỏng).
 - Chưa kiểm (cần tài khoản thử, FE/chủ dự án làm): bảng nghiệm thu `docs/fe-handoff-2026-11-10.md` mục 5–6, khóa đăng nhập A2, bóc tách PDF với Azure OpenAI (AI-02a).
+
+## AUDIT-1110 — Kiểm tra lại hệ thống sau deploy 10/11 — 2026-11-10 (UTC+07)
+
+- **Đã kiểm (Azure qua gateway, ẩn danh, chỉ đọc):** 6 service `/health/ready` 200 (DB, RabbitMQ healthy). A1: `qr-lookup?token=https` và `?token=b1ff2814` → 404 `qr.not_found`. Rate limit `/api/v1/public/*`: request thứ 31 trong 1 phút → 429 kèm `Retry-After: 60` (đếm theo IP, chưa xác minh với 2 IP khác nhau). `GET /api/v1/procedures?keyword=...` và lọc `levelOfImplementation` → 200 (truy vấn cột `search_keywords` mới chạy được). API 32b không token → 401; API 32 công khai id lạ → 404.
+- **Local:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 67/67 đạt; HEAD `84b2c5d`, cây làm việc sạch trước mục này.
+- **Còn mở (không sửa trong mục này):** lộ JWT key/Gmail app password trong lịch sử Git (chủ dự án chấp nhận chưa đổi); biến cấu hình nhạy cảm chưa chuyển sang secret; Gotenberg ingress public (chấp nhận); chưa xác minh ingress 6 service là internal và Gateway có ForwardedHeaders (nếu sai, giới hạn theo IP bị né); khóa đăng nhập/rate limit nằm trong bộ nhớ từng replica; mục C của AUDIT-1109 (blob mồ côi, bản nháp Published rỗng); chưa nghiệm thu A2 và bảng FE mục 5–6; chưa thử bóc tách PDF với Azure OpenAI (AI-02a). `main`/`deploy` chậm `kha` 1 commit tài liệu.
+
+## INGRESS-AUDIT-1110 — Kiểm tra ingress các container app — 2026-11-10 (UTC+07)
+
+- **Cách kiểm:** máy local không có Azure CLI; gọi ẩn danh, chỉ đọc vào FQDN public `https://<app>.blackmeadow-a2f12767.japaneast.azurecontainerapps.io`.
+- **Phát hiện 1 (nghiêm trọng):** cả 6 service backend (`wardmate-iam`, `wardmate-documentform`, `wardmate-application-workflow`, `wardmate-procedure-catalog`, `wardmate-analytics-system`, `wardmate-aiocr`) có **ingress external**: `/health/ready` trả 200 khi gọi thẳng, không qua gateway — trái với `docs/azure-deployment.md` (IAM phải internal). Hệ quả: bỏ qua gateway; các endpoint chỉ bảo vệ bằng service key (AIOCR `X-Service-Key`, Analytics `X-Analytics-Key`, khóa Analytics từng lộ 30/10) nghe được từ Internet. JWT vẫn bắt buộc ở từng service.
+- **Đã thử né giới hạn IP:** gửi `X-Forwarded-For` giả thẳng vào DocumentForm → request thứ 31 vẫn 429; ingress Azure không giữ header client gửi, nên **không né được** rate limit theo IP. Chưa xác minh được bộ đếm qua gateway là theo từng IP hay chung (cần thử từ 2 mạng khác nhau).
+- **Phát hiện 2:** Swagger (`/swagger/index.html`, `/swagger/v1/swagger.json`) mở public ở cả 6 service. IAM và Catalog chỉ bật Swagger khi `IsDevelopment()` → hai service này đang chạy môi trường **Development** trên production. Catalog gọi thẳng trả CORS cho `http://localhost:5173` kèm credentials (mặc định Development). Gateway không trả CORS cho localhost.
+- **Đề xuất (chưa làm, cần chủ dự án/phiên Deploy):** (1) chuyển ingress 6 service sang internal, đồng thời đổi địa chỉ cluster gateway và các `Services:*:BaseUrl` liên service sang FQDN internal — đổi sai sẽ làm gãy định tuyến; (2) đặt `ASPNETCORE_ENVIRONMENT=Production`, `Swagger__Enabled=false`, và cấu hình `Cors__AllowedOrigins` chỉ HTTPS trước khi đổi (ngoài Development, origin http làm service lỗi khi khởi động).
+
+## FLOW-AUDIT-1110 — Rà luồng nghiệp vụ nội bộ — 2026-11-10 (UTC+07)
+
+- **Phạm vi đã đọc code:** tạo hồ sơ → khai/chốt giấy tờ (Workflow + DocumentForm) → nộp → nhận/phân công/chuyển/trả lại → nhận xét/rút nhận xét → yêu cầu bổ sung → sửa đơn sau khi bị trả về → nộp lại → xác nhận sẵn sàng → QR/PDF → tiếp nhận tại quầy → hủy; hạn tiền kiểm (Workflow + Analytics); outbox → thông báo Analytics; đồng bộ Catalog → chatbot.
+- **Lỗi tìm thấy (chưa sửa):**
+  - **F1 — Thông báo nhận xét gửi sớm cho người dân:** mỗi nhận xét cán bộ thêm khi hồ sơ còn UNDER_REVIEW sinh sự kiện COMMENT; Analytics gửi người dân "Hồ sơ có nhận xét mới" (và email nếu bật) ngay, kể cả nhận xét sau đó bị rút (người dân không được xem). Nhiều nhận xét = nhiều thông báo/email. Nguồn: `WorkflowOutboxCapture.Capture`, `NotificationInboxWorker` (recipient applicant cho COMMENT). Hướng sửa: không gửi COMMENT cho người dân (sự kiện NEED_REVISION đã báo).
+  - **F2 — Hai API giao hồ sơ xử lý khác nhau:** hồ sơ nộp lại (SUBMITTED, vẫn gắn cán bộ cũ): API dispatch (`DispatchService`) cho phép TRANSFER, còn API phân công cũ (`AssignmentHandlers` / `ManageAssigneeCommand`) trả 409 `invalid_status`. Cán bộ cũ không trả lại được (Release chỉ cho UNDER_REVIEW). Nếu FE dùng API cũ thì hồ sơ kẹt khi cán bộ cũ vắng.
+- **Không thấy lỗi:** chuyển trạng thái và kiểm quyền thụ lý; hạn tiền kiểm pause/resume/cancel khớp với kiểm tra nhất quán của Analytics; sửa đơn DOCX khi NEED_REVISION đưa đơn về Draft và phải chốt lại trước khi nộp lại (Workflow kiểm qua DocumentForm); người nhận thông báo cho SUBMITTED/UNDER_REVIEW/NEED_REVISION/DOCUMENTS_READY/OFFICIALLY_RECEIVED; tên người nộp lấy từ IAM qua middleware.
+- **Giới hạn đã biết (đã ghi trước):** QR chỉ sinh khi có người gọi DocumentForm sau DOCUMENTS_READY; tri thức chatbot đồng bộ thủ tục bằng tay.
+
+## NOTIFY-COMMENT-1110 — Sửa F1: không báo từng nhận xét cho người dân — 2026-11-10 (UTC+07)
+
+- **Đã sửa:** Analytics không tạo thông báo (in-app, email) cho sự kiện COMMENT; người dân chỉ được báo khi cán bộ yêu cầu bổ sung (STATUS NEED_REVISION). Tách điều kiện người nhận thành `NotificationInboxWorker.StatusRecipient` để test được. Quy tắc NOTIFY-COMMENT-01 trong `docs/system-constraints.md`.
+- **File:** sửa `src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/NotificationInboxWorker.cs`, `tests/WardMate.UnitTests/WardMate.UnitTests.csproj` (tham chiếu Analytics.Infrastructure), `docs/system-constraints.md`; mới `tests/WardMate.UnitTests/Analytics/NotificationRecipientTests.cs`.
+- **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 71/71 đạt (thêm 4 test).
+- **Deploy:** chỉ Analytics, không SQL/migration. Thông báo nhận xét đã tạo trước đây vẫn giữ.
+- **F2:** đang bàn với chủ dự án (gỡ cán bộ khi hồ sơ NEED_REVISION), chưa sửa.
+- **Commit gợi ý:** `test(analytics): cover notification recipients` (file mới); `fix(analytics): stop notifying applicants for each review comment`; `docs: record NOTIFY-COMMENT-01`.
+
+## ASSIGN-RELEASE-1110 — Sửa F2: gỡ cán bộ khỏi hồ sơ chờ bổ sung — 2026-11-10 (UTC+07)
+
+- **Quyết định chủ dự án:** cách A — gỡ thủ công. Cán bộ bận tự trả, hoặc Manager gỡ thay cán bộ vắng; không gỡ thì cán bộ cũ giữ hồ sơ và được báo khi người dân nộp lại.
+- **Đã làm:** `POST /api/v1/officer/applications/{id}/release` nhận thêm NEED_REVISION (giữ trạng thái, chỉ xóa cán bộ). API mới `POST /api/v1/manager/applications/{id}/release` (policy `workflow.assign.manage`, body `{reason, expectedAssignmentVersion?}`, chỉ NEED_REVISION) → 200 `ReviewResultDto`; 400/404/409 (`workflow.invalid_status`, `workflow.not_assigned`, `workflow.assignment_conflict`). `PUT /api/v1/manager/applications/{id}/assignee` chuyển được hồ sơ SUBMITTED đã nộp lại. Gỡ khi NEED_REVISION không gửi thông báo cho phường. Quy tắc WF-ASSIGN-REL-01.
+- **File:** sửa `ApplicationWorkflow.Application/AssignmentRequests.cs`, `ApplicationWorkflow.API/Controllers/ManagerAssignmentController.cs`, `AnalyticsSystem.Infrastructure/NotificationInboxWorker.cs`, `docs/api-guide.md`, `docs/system-constraints.md`; mới `tests/WardMate.UnitTests/Workflow/ReleaseAssignmentTests.cs` (7 test).
+- **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 78/78 đạt.
+- **Deploy (cùng F1):** Workflow + Analytics, không SQL/migration. FE: thêm nút "Trả lại hồ sơ" ở hồ sơ NEED_REVISION cho cán bộ thụ lý (API officer) và Manager (API manager).
+- **Commit gợi ý:** `test(workflow): cover release of revision cases` (file mới); `feat(workflow): allow releasing officer from need-revision cases`; `fix(analytics): skip pool notice when releasing need-revision case`; `docs: record WF-ASSIGN-REL-01`.
+
+## NOTIFY-RESUBMIT-1110 — Báo Manager khi hồ sơ đã gỡ cán bộ được nộp lại — 2026-11-10 (UTC+07)
+
+- **Lý do:** sau WF-ASSIGN-REL-01, hồ sơ nộp lại không còn cán bộ chỉ báo cho cán bộ một cửa; Manager không được báo chủ động nên hồ sơ có thể nằm chờ tới khi quá hạn.
+- **Đã làm:** `WorkflowEvent` thêm trường tuỳ chọn `Resubmitted` (EventBus); Workflow đặt `true` cho STATUS SUBMITTED từ NEED_REVISION. Analytics: sự kiện nộp lại chưa có cán bộ → tìm thêm Manager của phường và tạo thông báo "Hồ sơ nộp lại chưa có cán bộ thụ lý" (không gắn mã phường để không bị chặn khi gửi). Quy tắc NOTIFY-RESUBMIT-01.
+- **Phát hiện kèm (chưa sửa):** `NotificationDeliveryWorker` chặn gửi (Suppressed) mọi thông báo gắn mã phường cho người không phải cán bộ một cửa → thông báo lịch/nghỉ phép gửi Manager không có realtime/email (bản ghi in-app vẫn có). Ghi trong `docs/system-constraints.md`.
+- **File:** sửa `src/BuildingBlocks/WardMate.EventBus/WorkflowEvent.cs`, `ApplicationWorkflow.Infrastructure/WorkflowOutbox.cs`, `AnalyticsSystem.Infrastructure/NotificationInboxWorker.cs`, `docs/system-constraints.md`; mới `tests/WardMate.UnitTests/Analytics/ResubmitManagerNoticeTests.cs` (4 test).
+- **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 82/82 đạt.
+- **Deploy (cùng F1, F2):** Workflow + Analytics; thứ tự tuỳ ý (trường mới tuỳ chọn), không SQL/migration.
+- **Commit gợi ý:** `test(analytics): cover manager notice for released resubmissions` (file mới); `feat(eventbus): flag resubmitted status events`; `feat(analytics): notify ward managers when released case is resubmitted`; `docs: record NOTIFY-RESUBMIT-01`.

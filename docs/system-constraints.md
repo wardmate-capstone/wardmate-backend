@@ -599,6 +599,20 @@ Infrastructure `Pdf/GotenbergPdfRenderEngine.cs`.
 - RecipientUserId không rỗng; ApplicationId có thể null nhưng không Guid.Empty.
 - Title không rỗng, tối đa 255; Content không rỗng.
 - Type: APPLICATION_STATUS_CHANGED, INLINE_COMMENT_ADDED, ASSIGNED_OFFICER, SYSTEM_ALERT.
+- **NOTIFY-COMMENT-01 (10/11/2026):** sự kiện COMMENT (cán bộ thêm nhận xét khi hồ sơ UNDER_REVIEW) không còn tạo thông báo
+  cho ai (kể cả email). Lý do: nhận xét là phát hiện nội bộ, có thể bị rút và người dân không thấy nhận xét đã rút; người dân
+  được báo một lần qua STATUS `NEED_REVISION` ("Hồ sơ yêu cầu bổ sung"). Type `INLINE_COMMENT_ADDED` chỉ còn ở thông báo cũ.
+  Workflow vẫn phát sự kiện COMMENT; Analytics bỏ qua. Nguồn: `NotificationInboxWorker.StatusRecipient`.
+- **NOTIFY-RESUBMIT-01 (10/11/2026):** Workflow gắn `resubmitted = true` vào sự kiện STATUS SUBMITTED sinh từ NEED_REVISION
+  (trường tuỳ chọn mới của `WorkflowEvent`, sự kiện cũ = null). Nếu hồ sơ nộp lại **không còn cán bộ** (đã gỡ theo
+  WF-ASSIGN-REL-01), ngoài cán bộ một cửa của phường, Analytics báo thêm Manager của phường (vai trò MANAGER + quyền
+  `workflow.staffing.manage`) với tiêu đề "Hồ sơ nộp lại chưa có cán bộ thụ lý", in-app và email nếu bật. Thông báo này không
+  gắn mã phường để bước gửi không chặn Manager. Nộp lần đầu hoặc nộp lại khi cán bộ cũ còn giữ: không báo Manager.
+  Nguồn: `WorkflowOutboxCapture.Capture`, `NotificationInboxWorker.ResubmittedToPool`/`StatusRecipient`/`Create`.
+- **Giới hạn phát hiện 10/11/2026 (chưa sửa):** `NotificationDeliveryWorker` đánh dấu Suppressed mọi thông báo có
+  `RecipientWardCode` mà người nhận không phải cán bộ một cửa. Thông báo lịch/nghỉ phép gửi Manager đặt mã phường nên phần
+  gửi realtime/email bị chặn (bản ghi in-app vẫn còn trong DB). Chủ dự án (10/11/2026): không cần email cho Manager khi có
+  đơn nghỉ; giữ nguyên, Manager xem trong danh sách thông báo.
 - Channel database: IN_APP, SMS, EMAIL. Có enum/channel không chứng minh SMS/Email thật đã hoạt động.
 - ActionUrl nếu có tối đa 500, bắt đầu `/`, không `//`, dấu `\` hoặc ký tự điều khiển;
   không dùng thông báo để chuyển hướng tới website tùy ý.
@@ -979,6 +993,7 @@ Nguồn: AnalyticsRegistration.cs, AnalyticsDbContext.cs, AnalyticsAggregationJo
 - Deadline overdue lọc KNOWN + có dueAtUtc + chưa ready + trạng thái tiền kiểm đang mở (SUBMITTED/UNDER_REVIEW/NEED_REVISION) + dueAtUtc < (DeadlinePausedAtUtc nếu đang pause, ngược lại now). Hồ sơ quá hạn trước khi pause vẫn là quá hạn, cùng quy tắc openOverdue của Analytics (ANA-DEADLINE-01). Không coi DeadlineStatus là enum OVERDUE và không đưa UNKNOWN vào mẫu số.
 - Event phân côngVersion2 riêng có người cũ/mới/action, không cóPII/reason. Consumer tương thíchVersion1; deployconsumer trướcproducer. Sms templates OFFICER_ASSIGNED/OFFICER_UNASSIGNED riêng, không dùng mẫu trạng thái công dân.
 - Event phân công thay event STATUS của cùng thao tác, nên người nhận được chọn theo action (NotificationInboxWorker.AssignmentRecipient): CLAIM → công dân; ASSIGN → công dân + cán bộ mới; TRANSFER → cán bộ mới + cán bộ cũ; RELEASE → cán bộ cùng phường trừ người vừa trả. Cán bộ phải active, cùng phường, không là người nộp. Khi Email:Enabled=true vẫn gửi email cho event phân công tới cùng người nhận; dùng template dự phòng, không lấy STATUS email-context hoặc lý do nội bộ. RELEASE dùng mẫu SMS OFFICER_SUBMITTED cho nhóm cán bộ.
+- **WF-ASSIGN-REL-01 (10/11/2026):** RELEASE được thêm cho hồ sơ NEED_REVISION: cán bộ đang thụ lý tự gỡ (`/officer/applications/{id}/release`) hoặc Manager cùng phường gỡ thay (`/manager/applications/{id}/release`, `workflow.assign.manage`, chỉ NEED_REVISION). Trạng thái giữ NEED_REVISION, không ghi status history; ghi RELEASE trong assignment history; deadline giữ nguyên (đang pause). Sự kiện RELEASE lúc NEED_REVISION không báo ai; khi người dân nộp lại, hồ sơ SUBMITTED chưa có cán bộ nên cả phường được báo và ai cũng CLAIM được. Không gỡ thì cán bộ cũ giữ hồ sơ và được báo khi nộp lại. Manager không trả lại hồ sơ UNDER_REVIEW (vẫn chỉ cán bộ thụ lý). PUT `/manager/applications/{id}/assignee` nay chuyển được hồ sơ SUBMITTED đã có cán bộ (nộp lại), giữ SUBMITTED, khớp `DispatchService`. Nguồn: `AssignmentRequests.cs`, `ManagerAssignmentController.Release`, `NotificationInboxWorker.AssignmentRecipient`.
 - Lịch sử phân công và lý do là dữ liệu nội bộ: chỉ trả trong response cho cán bộ/Manager. Response API công dân (ApplicationDto.ForApplicant) đặt assignmentHistory = null.
 - Gateway phải có route /api/v1/manager/applications/{**catch-all} → ApplicationWorkflow trước route /api/v1/manager/{**catch-all} của IAM; thiếu route này PUT assignee bị chuyển sang IAM và trả 404.
 - Đính chính 24/10/2026 (Claude tiếp quản): sửa điều kiện overdue khi pause, chọn người nhận thông báo theo action, ẩn lịch sử phân công với công dân, thêm route gateway. Nguồn bổ sung: Infrastructure/ApplicationReviewStore.cs, Application/WorkflowContracts.cs (AssignmentHistoryDto, ForApplicant), WorkflowRequests.cs, CounterReceiptRequests.cs, ReviewHandlers.cs; Analytics NotificationInboxWorker.cs, EsmsNotificationSender.cs; Gateway appsettings.json, appsettings.Production.json.
