@@ -4970,3 +4970,17 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   13. `docs(sql): add BE-H migration scripts` — 3 file SQL (mỗi file một commit nếu tách theo quy tắc file mới)
   14. `docs: add FE handoff for BE-H` — `fe-handoff-2026-11-10.md`
   15. `docs: record BE-H flexible procedure model` — api-guide, system-constraints, CLAUDE_HANDOFF, PROGRESS
+
+---
+
+## DEPLOY-1110b — SQL + deploy 5 service cho BE-H-1110 — 2026-11-10 (UTC+07)
+
+- **Nguồn:** `kha` @ `28bee9a` (tar.gz từ GitHub). Chủ dự án tự chạy lệnh Claude soạn trong Cloud Shell; Claude ghi nhận từ kết quả được dán lại.
+- **SQL (chạy trước, psql `ON_ERROR_STOP`, connection string lấy từ Container App, không in ra):** `workflow-procedure-flexible-content.sql` → history có `20261110032213_ProcedureFlexibleContent`; `catalog-procedure-flexible-content.sql` → `20261110031929_ProcedureFlexibleContent`; `analytics-feedback-procedure-title.sql` → `analytics.__AnalyticsMigrationsHistory` có `20261110032236_FeedbackProcedureTitle1000`.
+- **Deploy (theo thứ tự, cập nhật bằng digest, tất cả `Succeeded` + `/health/ready` 200 Healthy):**
+  1. Workflow — run `ce1u` → `workflow-20261110-01`. Rollback: `wardmate-application-workflow@sha256:c374af4f563b4b9c433e0c1ed3d8b1d08e24cf8cb4e23940b9a6b206c961a666` (workflow-20261109-01).
+  2. Analytics — run `ce1v` → `wardmate-analyticssystem:analytics-20261110-01`. Rollback: `analytics-20261109-01`.
+  3. DocumentForm — run `ce1w` → `documentform-20261110-02`. Rollback: `wardmate-documentform@sha256:f069de9e0a826e9362c943e1348a04f7bbdf1424018a242fcbb1e8e6ef5f89f5` (documentform-20261110-01).
+  4. AIOCR — run `ce1x` → `aiocr-20261110-01`. Rollback: `wardmate-aiocr@sha256:e373dbc60d4e2747561a08e9f304d0b30d73cb5deb8f98097796285e9aa123db` (aiocr-20261109-01).
+  5. ProcedureCatalog (sau cùng) — run `ce1y` → `catalog-20261110-02`. Rollback: `wardmate-procedure-catalog@sha256:6137ca088e84a2f6d06e5f4c3ff865f9b8650aaa198bc968ce2590fe12374946` (catalog-20261110-01).
+- **Chưa kiểm:** bảng nghiệm thu 17 bước trong `docs/fe-handoff-2026-11-10.md`; chưa gọi API mới, chưa thử chatbot/bóc tách PDF với AI thật.
