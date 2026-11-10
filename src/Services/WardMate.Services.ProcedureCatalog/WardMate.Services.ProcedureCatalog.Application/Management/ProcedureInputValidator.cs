@@ -59,6 +59,9 @@ public sealed class ProcedureInputValidator : AbstractValidator<ProcedureInput>
                     if (copies.Count > 3 || copies.Any(c => c is null || !IsCopyType(c.DocumentCopyType) || c.Quantity < 1 || c.Quantity > 100)
                         || copies.Select(c => c!.DocumentCopyType).Distinct(StringComparer.Ordinal).Count() != copies.Count)
                         ctx.AddFailure("CopyRequirements", "Mỗi loại bản (ORIGINAL, CERTIFIED_COPY, REGULAR_COPY) chỉ khai một dòng, số lượng từ 1 đến 100.");
+                    // PROC-02b: không âm thầm bỏ thay đổi ở documentCopyType/quantity khi đã có copyRequirements.
+                    else if (ctx.InstanceToValidate.ConflictsWithCopyRequirements())
+                        ctx.AddFailure("CopyRequirements", "documentCopyType/quantity mâu thuẫn với copyRequirements. Hãy sửa loại bản và số lượng trong copyRequirements và bỏ trống documentCopyType/quantity.");
                 });
             });
         RuleFor(x => x.FormDefinitions).Custom((forms, context) =>
