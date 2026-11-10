@@ -573,6 +573,18 @@ API `DocumentContentsClient.cs`; Infrastructure `ApplicationReviewStore.cs`.
 - Nhận xét trong Word không tự sinh comment OPEN Workflow. Yêu cầu bổ sung phải có nhận xét hợp lệ trong Workflow.
 - Kiểm tra file tồn tại/metadata qua HTTP trước xác nhận; trạng thái, snapshot, comment, checklist được kiểm tra lại dưới khóa hàng khi chuyển trạng thái. Chưa có khóa giao dịch phân tán chống request sửa file đang chạy hoặc xóa Blob ngoài hệ thống đồng thời.
 
+### DOC-TPL-PUB-01 — Tải phôi mẫu công khai (BE-J, 10/11/2026)
+
+- `GET /api/v1/public/form-templates/{templateId}/download-docx` không cần đăng nhập. Chỉ phục vụ mẫu chưa xóa,
+  `IsActive = true`, có `FileDocxUrl` và blob còn tồn tại; mọi trường hợp khác trả cùng 404 `document.template_not_found`.
+  API có token (`/api/v1/form-templates/{id}/download-docx`) giữ nguyên hành vi cũ (tải được cả mẫu đang ẩn cho quản trị).
+- Giới hạn `PublicForms:MaxRequestsPerMinutePerIp` (mặc định 60, 5–1000)/phút/IP → 429 `document.rate_limited`,
+  `Retry-After: 60`. Đếm riêng với giới hạn QR (`public-qr`). IP lấy như IAM-01a (`CallerIp`).
+- Tên file trả về theo tên mẫu (bỏ ký tự không hợp lệ, tối đa 150 ký tự, đuôi `.docx`).
+- **Giới hạn:** không kiểm mẫu có thuộc thủ tục đang công khai hay không (DocumentForm không giữ dữ liệu Catalog) — phôi
+  trống không có dữ liệu cá nhân, chủ dự án chấp nhận. Bộ đếm trong bộ nhớ từng replica.
+- **Nguồn:** `PublicFormTemplatesController.cs`, `DownloadFormTemplateDocxQuery.cs` (`PublicOnly`), DocumentForm `Program.cs`.
+
 ### DOC-06 — Mẫu dùng chung và giới hạn lưu trữ
 
 - Template code/title không rỗng; code trim và chuyển chữ hoa, không trùng.

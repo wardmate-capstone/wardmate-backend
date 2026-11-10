@@ -5072,3 +5072,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Analytics:** run `ce21` → `analytics-20261110-02`, digest `sha256:e7c4627f2b21c117c7e8699adeeeffc66e0a2d760b2a3689c30383145778b299`; `Succeeded`; 200 (notifications-database, analytics-database). Rollback: `wardmate-analyticssystem@sha256:ce190db9f0581a95feb71882f880c72f1da5973c8fe3b2fd8ccc0160c7976b84`.
 - **Ghi chú:** image cũ của cả hai (digest ở trên) khác image `ce1u`/`ce1v` lúc DEPLOY-1110b, tức đã có một lần deploy khác giữa hai đợt; không ghi trong PROGRESS.
 - **Chưa kiểm:** F1/F2/thông báo Manager chưa thử trên Azure bằng dữ liệu thử.
+
+## BE-J-1110 — API công khai tải phôi mẫu đơn — 2026-11-10 (UTC+07)
+
+- **Yêu cầu FE (BE-J):** khách chưa đăng nhập tải và xem phôi mẫu đơn ở trang thủ tục công khai.
+- **Đã làm:** `GET /api/v1/public/form-templates/{templateId}/download-docx` (`AllowAnonymous`, controller mới `PublicFormTemplatesController`, route qua gateway `document-public-v1` sẵn có). Tái dùng `DownloadFormTemplateDocxQuery` với cờ `PublicOnly`: chỉ mẫu chưa xóa, đang hoạt động, có file → 200 DOCX + `Content-Disposition` tên theo tên mẫu; còn lại 404 `document.template_not_found`. Rate limit mới `public-forms` 60/phút/IP → 429 `document.rate_limited`, `Retry-After: 60`. API có token và API chi tiết mẫu không đổi. Quy tắc DOC-TPL-PUB-01.
+- **File:** mới `DocumentForm.API/Controllers/PublicFormTemplatesController.cs`, `tests/WardMate.UnitTests/DocumentForm/PublicTemplateDownloadTests.cs` (6 test); sửa `DocumentForm.Application/Queries/DownloadFormTemplateDocxQuery.cs`, `DocumentForm.API/Program.cs`, `docs/api-guide.md`, `docs/system-constraints.md`.
+- **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 88/88 đạt. Chưa gọi thử trên Azure.
+- **Deploy:** chỉ DocumentForm, không SQL/migration/biến môi trường bắt buộc (`PublicForms:MaxRequestsPerMinutePerIp` có mặc định). Không sửa gateway.
+- **Commit gợi ý:** `feat(documentform): add public form template controller` (file mới); `test(documentform): cover public template download` (file mới); `feat(documentform): restrict public template download to active templates with rate limit`; `docs: record DOC-TPL-PUB-01 (BE-J)`.

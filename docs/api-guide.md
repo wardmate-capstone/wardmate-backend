@@ -1614,6 +1614,16 @@ thành phần hồ sơ; Workflow có thể tham chiếu submissionId khi hoàn t
 | `POST /api/v1/form-templates/{templateId}/upload-docx` | Admin thêm/thay mẫu chính thức; multipart field `file`, tối đa 20 MiB. | 200 `{templateId,blobUrl}`; blob mới, bytes nguyên bản | 400 rỗng/hỏng/sai đuôi/quá lớn: chọn DOCX hợp lệ; 404 sai templateId. |
 | `GET /api/v1/form-templates/{templateId}/download-docx` | FE fetch binary rồi import vào editor khi bắt đầu đơn mới; admin đối chiếu mẫu. | 200 binary DOCX nguyên bản | 404 thiếu mẫu/file: kiểm tra ID hoặc upload lại. |
 
+#### Tải phôi mẫu đơn công khai — không cần đăng nhập (BE-J, 10/11/2026)
+
+`GET /api/v1/public/form-templates/{templateId}/download-docx` — `AllowAnonymous`, không gửi token.
+
+- **Mục đích:** trang thủ tục công khai (`/thu-tuc/{id}`) cho khách chưa đăng nhập bấm **Tải mẫu** và **Xem** phôi mẫu đơn trống, như Cổng DVC. FE dùng cùng API cho cả hai nút (Xem = tải file rồi hiển thị bằng `docx-preview`). Người đã đăng nhập có thể tiếp tục dùng API có token ở trên.
+- **Cách gọi:** `templateId` lấy từ `formDefinitions[].formTemplateId` của thủ tục.
+- **Thành công:** 200, nội dung DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`), header `Content-Disposition` có tên file theo tên mẫu (ví dụ `Mẫu số 25 Đơn đăng ký biến động.docx`, ký tự không hợp lệ bị bỏ, tối đa 150 ký tự).
+- **Lỗi:** 404 `document.template_not_found` (ProblemDetails) khi mẫu không tồn tại, đã xóa, đã tạm ngừng (`isActive = false`) hoặc chưa có file — không phân biệt các trường hợp. 429 `document.rate_limited`, `Retry-After: 60` khi một IP gọi quá 60 lần/phút (cấu hình `PublicForms:MaxRequestsPerMinutePerIp`); FE báo "thử lại sau 1 phút", không tự gọi lại.
+- **Không mở:** `GET /api/v1/form-templates/{id}` (chi tiết) và mọi API quản trị mẫu vẫn bắt đăng nhập (401).
+
 ### 3.2. Nhóm đơn của người dân
 
 | API | Ai gọi, lúc nào và request | Thành công | Lỗi thường gặp và cách xử lý |
