@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/BuildingBlocks/WardMate.SharedKernel/WardMate.SharedKernel.csproj" />
+    <ProjectReference Include="../../src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/WardMate.Services.IAM.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/WardMate.Services.DocumentForm.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/WardMate.Services.ProcedureCatalog.Application.csproj" />
+    <ProjectReference Include="../../src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WardMate.Services.ApplicationWorkflow.Application.csproj" />
+    <ProjectReference Include="../../src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/WardMate.Services.AIOCR.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
