@@ -145,13 +145,24 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         Không phát minh formCode, checklistId, caseCode: có thể đặt ID nội bộ CASE-1, DOC-1, FORM-1 khi nguồn không có mã và cảnh báo.
         payload có các trường:
         procedureCode,title,categoryId,issuingAuthority,executingAgency,levelOfImplementation,targetAudience,feeSummary,processingTimeSummary,
-        contentPayload:{decisionNumber,receivingAddress,submissionMethods:[{methodName,feeAmount,feeUnit,estimatedDays,note}],
+        contentPayload:{decisionNumber,receivingAddress,submissionMethods:[{methodName,feeAmount,feeUnit,estimatedDays,note,caseCode,feeText,processingTimeText}],
         legalReferences:[{documentNumber,documentName,issueDate,authority}],results:[string],
-        cases:[{caseCode,caseName,steps:[{stepOrder,stepName,executor,actionDetails}]}]},
-        checklistSchema:[{checklistId,caseCode,submissionType,itemName,documentCopyType,quantity,conditionNote,isMandatory}],
+        cases:[{caseCode,caseName,steps:[{stepOrder,stepName,executor,actionDetails}]}],
+        procedureType,levels:[string],competentAuthorities:[string],executingAgencies:[string],authorizedAgencies:[string],
+        coordinatingAgencies:[string],requirements,receivingAddresses:[string],keywords:[string],description,stepsText},
+        checklistSchema:[{checklistId,caseCode,submissionType,itemName,documentCopyType,quantity,conditionNote,isMandatory,quantityText,note,formCodes:[string]}],
         formDefinitions:[{caseCode,formCode,formName,formType,quantity,isMandatory}].
         issueDate có dạng yyyy-MM-dd hoặc null. submissionType: NOP hoặc XUAT_TRINH.
-        documentCopyType: ORIGINAL, CERTIFIED_COPY, REGULAR_COPY. formType: DOCX_TEMPLATE hoặc ONLINE_INTERACTIVE.
+        documentCopyType: ORIGINAL, CERTIFIED_COPY, REGULAR_COPY, OTHER (bản chụp, bản điện tử, bản dịch...) hoặc null khi nhiều loại bản. formType: DOCX_TEMPLATE hoặc ONLINE_INTERACTIVE.
+        Bản xuất từ Cổng Dịch vụ công có thể lặp lại nội dung (cùng một đoạn lặp nhiều lần, nối bằng ", 4.1." hoặc tương tự): loại bỏ đoạn lặp, chỉ giữ một lần.
+        Không tách được phí thành một số (nhiều mức, theo %, "theo quy định...") thì chép nguyên văn vào feeText và để feeAmount null.
+        Thời hạn không phải số ngày ("Trong ngày", "Không quá 15 phút", theo giờ) thì chép nguyên văn vào processingTimeText và để estimatedDays null.
+        Trình tự thực hiện: chép nguyên văn cả khối (giữ xuống dòng) vào stepsText; chỉ điền cases[].steps khi nguồn tách rõ từng bước theo trường hợp.
+        Số lượng giấy tờ ghi bằng chữ ("01 bản chính và 01 bản sao", "02 bộ") thì chép nguyên văn vào quantityText.
+        formCodes của mỗi giấy tờ là formCode các mẫu nằm cùng dòng ở cột "Mẫu đơn, tờ khai"; dòng không có mẫu để [].
+        Yêu cầu, điều kiện thực hiện → requirements (nguyên văn); nhiều cấp thực hiện → levels; các loại cơ quan → competentAuthorities,
+        executingAgencies, authorizedAgencies, coordinatingAgencies; mục "Từ khóa" → keywords; mục "Mô tả" → description; loại thủ tục → procedureType.
+        Trường bổ sung không có trong nguồn thì để null hoặc [] và không cần cảnh báo.
         Các mảng không có dữ liệu để []; trường cần xác nhận phải có cảnh báo tiếng Việt kèm đường dẫn trường.
         Chỉ nêu formType nếu nguồn đủ bằng chứng, nếu không để null và cảnh báo.
         Thành phần hồ sơ thường là bảng có các cột "Tên giấy tờ", "Mẫu đơn, tờ khai", "Số lượng"; một ô có thể bị ngắt xuống nhiều dòng.

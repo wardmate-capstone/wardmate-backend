@@ -112,8 +112,10 @@ public sealed class KnowledgeBaseService(ChatDbContext db, IProcedureCatalogSour
         }
         else
         {
-            var title = Title(procedure.Title);
-            var content = Content(ProcedureKnowledgeText.Build(procedure));
+            // BE-H: tên thủ tục được tới 1.000 ký tự và nội dung tới 500.000 ký tự; tri thức giữ trần cũ
+            // (tiêu đề 500, nội dung 200.000) bằng cách cắt bớt thay vì làm đồng bộ thất bại. Tên đầy đủ vẫn nằm trong nội dung.
+            var title = Title(Fit(procedure.Title, 500));
+            var content = Content(Fit(ProcedureKnowledgeText.Build(procedure), KnowledgeChunker.MaxContentChars));
             var version = procedure.UpdatedAt.ToUniversalTime().ToString("O");
             if (doc is null)
             {
@@ -257,6 +259,9 @@ public sealed class KnowledgeBaseService(ChatDbContext db, IProcedureCatalogSour
         if (procedureId == Guid.Empty || await catalog.Get(procedureId.Value, ct) is null)
             Fail(422, "knowledge.procedure_not_found", "procedureId không tồn tại hoặc đang ngừng áp dụng trong Procedure Catalog.");
     }
+
+    private static string? Fit(string? value, int max) =>
+        value is null || value.Trim().Length <= max ? value : value.Trim()[..(max - 1)].TrimEnd() + "…";
 
     private static string Title(string? value)
     {

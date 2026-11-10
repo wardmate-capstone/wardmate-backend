@@ -44,15 +44,26 @@ public sealed record CatalogProcedure(Guid Id, string? ProcedureCode, string Tit
     string? IssuingAuthority, string? ExecutingAgency, string? LevelOfImplementation, string? TargetAudience,
     string? FeeSummary, string? ProcessingTimeSummary, bool IsActive, CatalogContent? ContentPayload,
     CatalogChecklistItem[]? ChecklistSchema, CatalogForm[]? FormDefinitions, DateTime UpdatedAt);
+// BE-H: các trường mới đều tuỳ chọn (Catalog bỏ khỏi JSON khi null); feeAmount/estimatedDays được null.
 public sealed record CatalogContent(string? DecisionNumber, string? ReceivingAddress, CatalogMethod[]? SubmissionMethods,
-    CatalogLegal[]? LegalReferences, string[]? Results, CatalogCase[]? Cases);
-public sealed record CatalogMethod(string? MethodName, decimal FeeAmount, string? FeeUnit, decimal EstimatedDays, string? Note);
+    CatalogLegal[]? LegalReferences, string[]? Results, CatalogCase[]? Cases,
+    string? ProcedureType = null, string[]? Levels = null, string[]? CompetentAuthorities = null, string[]? ExecutingAgencies = null,
+    string[]? AuthorizedAgencies = null, string[]? CoordinatingAgencies = null, string? Requirements = null,
+    string[]? ReceivingAddresses = null, CatalogResult[]? ResultDetails = null, string[]? Keywords = null, string? Description = null,
+    string? StepsText = null, CatalogStep[]? CommonSteps = null, CatalogSection[]? AdditionalSections = null);
+public sealed record CatalogMethod(string? MethodName, decimal? FeeAmount, string? FeeUnit, decimal? EstimatedDays, string? Note,
+    string? CaseCode = null, CatalogFee[]? Fees = null, string? FeeText = null, CatalogTime? ProcessingTime = null);
+public sealed record CatalogFee(string? Kind, decimal? Amount, decimal? Percent, string? Unit, string? Description, string? CaseCode);
+public sealed record CatalogTime(decimal? Value, string? Unit, string? Text);
+public sealed record CatalogResult(string? Name, string? Code, string? Validity, string? Note);
+public sealed record CatalogSection(string? Title, string? Content);
 public sealed record CatalogLegal(string? DocumentNumber, string? DocumentName, DateOnly? IssueDate, string? Authority);
 public sealed record CatalogCase(string? CaseCode, string? CaseName, CatalogStep[]? Steps);
 public sealed record CatalogStep(int StepOrder, string? StepName, string? Executor, string? ActionDetails);
 public sealed record CatalogCopy(string? DocumentCopyType, int Quantity);
 public sealed record CatalogChecklistItem(string? CaseCode, string? SubmissionType, string? ItemName, string? DocumentCopyType,
-    int Quantity, string? ConditionNote, bool IsMandatory, CatalogCopy[]? CopyRequirements = null);
+    int Quantity, string? ConditionNote, bool IsMandatory, CatalogCopy[]? CopyRequirements = null,
+    string? QuantityText = null, string? Note = null, string[]? FormCodes = null);
 public sealed record CatalogForm(string? CaseCode, string? FormCode, string? FormName, int Quantity, bool IsMandatory);
 public sealed record CatalogListing(Guid[] Ids, bool Complete);
 
