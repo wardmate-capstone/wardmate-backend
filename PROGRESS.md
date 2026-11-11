@@ -5102,3 +5102,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 92/92 đạt. Chưa thử trên Azure.
 - **Deploy:** chỉ Catalog, không SQL/migration. Sau deploy FE chạy lại 2 bảng nghiệm thu trong yêu cầu BE-I.
 - **Commit gợi ý:** `test(catalog): cover attach source and checklist form codes (BE-I)` (file mới); `fix(catalog): load category when attaching source pdf`; `fix(catalog): validate checklist form codes against saved forms`; `docs: record BE-I fixes`.
+
+---
+
+## DEPLOY-1111a — Deploy ProcedureCatalog BE-I — 2026-11-11 16:03 (UTC+07)
+
+- **Nguồn:** `kha` @ `77aa9f5` (commit `86a68ac` fix(catalog), `77aa9f5` docs). Build Release 0/0, `dotnet test` 92/92. Bàn giao từ phiên "WardMate Code"; chủ dự án duyệt push và yêu cầu Claude deploy hộ.
+- **Deploy (Claude, Cloud Shell):** run `ce23` → `wardmate-procedure-catalog:catalog-20261111-01`, digest `sha256:96b5ffbaaa07441a0b641ff844dcd753102ce72eeef6036113d7b6c0edf8c59e`; cập nhật bằng digest → `Succeeded`; `/health/ready` 200 (database). Thời điểm: 2026-11-11 09:03:59 UTC. Rollback: `wardmate-procedure-catalog@sha256:e0d40729678d03dd666b0a736da389006b5b876acb16683468658c1733140c1e`.
+- **Kiểm ẩn danh qua gateway:** health 200; API 32b `GET .../procedure-manager/procedures/{id}/source`, API 32a `POST .../source`, `PUT .../checklist` không token → 401; chi tiết công khai `GET /api/v1/procedures/{id}` → 200.
+- **Chưa kiểm:** hai bảng nghiệm thu BE-I (gắn PDF trả 200 kèm categoryName; cập nhật checklist giữ formDefinitions) cần tài khoản Procedure Manager — FE chạy.
