@@ -128,11 +128,15 @@ public sealed class ProcedureDraftService(IDraftPersistence store, IDraftFileSto
         };
         d.BlobName = $"drafts/{d.Id}/source.pdf";
         // Blob trước, DB sau: nếu DB lỗi chỉ còn blob mồ côi, không có thủ tục trỏ tới file không tồn tại.
-        d.OriginalPdfUrl = await blobs.Upload(pdf, d.BlobName, ct);
+        try { d.OriginalPdfUrl = await blobs.Upload(pdf, d.BlobName, ct); }
+        catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
+        { return ProcedureResult<ProcedureDetailDto>.Fail("draft.storage_unavailable", "Chưa lưu được PDF lên kho lưu trữ. Vui lòng thử lại sau.", 503); }
         return await procedures.Transaction(async () =>
         {
             var procedure = await procedures.LockProcedure(procedureId, ct);
             if (procedure is null) return ProcedureResult<ProcedureDetailDto>.NotFound();
+            // BE-I: LockProcedure (SQL FOR UPDATE) không nạp Category; DTO cần CategoryName — thiếu dòng này gây 500.
+            procedure.Category = (await procedures.FindCategory(procedure.CategoryId, ct))!;
             procedures.AddVersion(ProcedureVersion.Capture(procedure, await procedures.NextVersion(procedureId, ct),
                 DateOnly.FromDateTime(now), procedure.ContentPayload.DecisionNumber, now));
             store.Add(d);
