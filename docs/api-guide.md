@@ -1089,6 +1089,8 @@ toàn bộ nội dung chi tiết.
 - 400 `draft.invalid_pdf`: không phải PDF, tên không có đuôi .pdf, tên quá 255 ký tự hoặc file quá 20 MB. Chọn lại file.
 - 404 `procedure.not_found`: sai id thủ tục.
 - 503 `draft.storage_not_configured`: máy chủ chưa cấu hình Blob; báo BE.
+- 503 `draft.storage_unavailable` (từ 11/11/2026): lưu file lên Blob thất bại; thử lại sau, vẫn lỗi thì báo BE kèm traceId.
+- Lỗi 500 trước 11/11/2026 khi gắn PDF (BE-I) do BE không nạp lĩnh vực của thủ tục khi trả kết quả; đã sửa.
 - Từ 10/11/2026 (PROC-01c): PUT sửa thủ tục mà không gửi `originalPdfUrl` (bỏ trường hoặc `null`) thì BE **giữ** PDF đang gắn và `pdfFileName`. Trước bản sửa này PUT thiếu trường làm mất liên kết PDF. Muốn thay PDF thì gọi lại API 32a.
 - Xem lại PDF vừa gắn khi thủ tục còn ẩn: dùng API 32b (API 32 chỉ phục vụ thủ tục đang công khai).
 

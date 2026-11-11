@@ -5093,3 +5093,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - GUID không tồn tại → 404 `document.template_not_found`.
   - `GET /api/v1/form-templates/{id}` không token → 401 (API cũ vẫn yêu cầu đăng nhập).
   - 62 lần trong một phút từ cùng IP → 60 lần qua, từ lần 61 trả 429 kèm `Retry-After: 60`.
+
+## BE-I-1111 — Sửa lỗi FE báo khi nghiệm thu BE-H: gắn PDF 500, PUT checklist có formCodes 400 — 2026-11-11 (UTC+07)
+
+- **Lỗi 1 — `POST /procedure-manager/procedures/{id}/source` trả 500:** nguyên nhân tìm trong code (không cần log): `AttachSource` khóa thủ tục bằng `LockProcedure` (SQL `FOR UPDATE`, không nạp `Category`) rồi trả `ProcedureDetailDto.From(procedure)` đọc `Category.CategoryName` → NullReferenceException; giao dịch không commit (thủ tục không đổi, blob mồ côi). Sửa: nạp `Category` qua `FindCategory` trước khi trả kết quả. Thêm: lỗi upload Blob → 503 `draft.storage_unavailable` thay vì 500. Lỗi này có từ khi API 32a ra đời (09/11), không do BE-H.
+- **Lỗi 2 — `PUT /procedure-manager/procedures/{id}/checklist` báo formCodes không có trong formDefinitions:** `UpdateProcedureChecklistHandler` dựng `ProcedureInput` để validate thiếu `FormDefinitions` → rule PROC-05d thấy danh sách rỗng. Sửa: truyền `FormDefinitions = p.FormDefinitions` (biểu mẫu đã lưu; API này không sửa biểu mẫu).
+- **File:** sửa `ProcedureCatalog.Application/Drafts/ProcedureDraftService.cs`, `ProcedureCatalog.Application/Management/ProcedureChecklist.cs`, `docs/api-guide.md`; mới `tests/WardMate.UnitTests/Catalog/BeIRegressionTests.cs` (4 test: gắn PDF thủ tục ẩn có dữ liệu BE-H, Blob lỗi → 503, checklist formCodes hợp lệ/không hợp lệ).
+- **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 92/92 đạt. Chưa thử trên Azure.
+- **Deploy:** chỉ Catalog, không SQL/migration. Sau deploy FE chạy lại 2 bảng nghiệm thu trong yêu cầu BE-I.
+- **Commit gợi ý:** `test(catalog): cover attach source and checklist form codes (BE-I)` (file mới); `fix(catalog): load category when attaching source pdf`; `fix(catalog): validate checklist form codes against saved forms`; `docs: record BE-I fixes`.
