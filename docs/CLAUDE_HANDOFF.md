@@ -155,6 +155,7 @@ Bộ EF model kiểm kê ngày 24/10: 41 bảng ứng dụng, 410 cột, 22 FK t
 
 | Ưu tiên | Việc | Trạng thái và bước tiếp theo |
 |---|---|---|
+| Gần nhất | Đồng bộ Azure + Gateway (AZURE-SYNC-1111, 11/11) | Mọi service chạy code mới nhất; Gateway cập nhật `gateway-20261111-01` (thêm route `/api/v1/system/*`, trước đó 404). Health 6 service qua gateway 200. |
 | Gần nhất | BE-I sửa Catalog (DEPLOY-1111a, 11/11) | `catalog-20261111-01` lúc 16:03 UTC+07, 200 Healthy, API quản trị không token 401. Chờ FE nghiệm thu bằng tài khoản Procedure Manager. |
 | Gần nhất | BE-J tải phôi công khai (DEPLOY-1110d, 10/11) | DocumentForm `documentform-20261110-03`, 200 Healthy; kiểm ẩn danh 200/404/401/429 đạt. FE dùng `GET /api/v1/public/form-templates/{id}/download-docx`. |
 | Gần nhất | Deploy F1/F2/báo Manager (DEPLOY-1110c, 10/11) | Workflow `workflow-20261110-02`, Analytics `analytics-20261110-02`, 200 Healthy. Chưa thử luồng trên Azure. |

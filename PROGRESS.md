@@ -5111,3 +5111,13 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Deploy (Claude, Cloud Shell):** run `ce23` → `wardmate-procedure-catalog:catalog-20261111-01`, digest `sha256:96b5ffbaaa07441a0b641ff844dcd753102ce72eeef6036113d7b6c0edf8c59e`; cập nhật bằng digest → `Succeeded`; `/health/ready` 200 (database). Thời điểm: 2026-11-11 09:03:59 UTC. Rollback: `wardmate-procedure-catalog@sha256:e0d40729678d03dd666b0a736da389006b5b876acb16683468658c1733140c1e`.
 - **Kiểm ẩn danh qua gateway:** health 200; API 32b `GET .../procedure-manager/procedures/{id}/source`, API 32a `POST .../source`, `PUT .../checklist` không token → 401; chi tiết công khai `GET /api/v1/procedures/{id}` → 200.
 - **Chưa kiểm:** hai bảng nghiệm thu BE-I (gắn PDF trả 200 kèm categoryName; cập nhật checklist giữ formDefinitions) cần tài khoản Procedure Manager — FE chạy.
+
+---
+
+## AZURE-SYNC-1111 — Đối chiếu code mới nhất với Azure + deploy lại Gateway — 2026-11-11 21:33 (UTC+07)
+
+- **Đối chiếu (Claude, chỉ đọc):** so commit code cuối của từng service (bỏ *.md, tính cả BuildingBlocks) với image đang chạy (`az containerapp list`, đối chiếu digest với tag):
+  - IAM `iam-20261110-01`, Workflow `workflow-20261110-02`, Analytics `analytics-20261110-02`, DocumentForm `documentform-20261110-03` (digest `cbb8c84f…`), AIOCR `aiocr-20261110-01` (digest `b0dbe2d4…`), Catalog `catalog-20261111-01` → đã có code mới nhất. Commit sau deploy chạm IAM/AIOCR chỉ là `WorkflowEvent.cs` (EventBus — hai service này không tham chiếu) và `InternalsVisibleTo` cho test.
+  - **Gateway** `gateway-20261030-02` (build 30/10 22:21 UTC+07) thiếu commit `3fdf2e0` (03/11, route `/api/v1/system/{**catch-all}` → analytics-system): qua gateway `GET /api/v1/system/settings` → 404, gọi thẳng Analytics → 401.
+- **Deploy Gateway (Claude, Cloud Shell, theo yêu cầu chủ dự án):** run `ce24` → `wardmate-gateway:gateway-20261111-01`, digest `sha256:c2ea59eb276d4524ca7fd9bcdfbe2f0bc874ec0617f5e31fd88d0d723d07d216`; `Succeeded` lúc 14:33 UTC. Qua gateway mới: health 6 service đều 200; `/api/v1/system/settings` → 401 (đã có route). Rollback: `wardmate-gateway:gateway-20261030-02`.
+- **Kết luận:** sau đợt này cả 7 container app (trừ gotenberg dùng image công khai) chạy đúng code `kha` @ `3f93958`.
