@@ -5227,3 +5227,11 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Rollback:** app dùng hậu tố revision cố định `latest` nên không có revision cũ để chuyển; tắt lại bằng `--set-env-vars Knowledge__EmbeddingEnabled=false Knowledge__RagEnabled=false`.
 - **Docs:** `docs/system-constraints.md` KB-02 ghi nhận bật trên Azure; `docs/CLAUDE_HANDOFF.md` dòng RAG.
 - **Chưa làm:** xem `GET /api/v1/ai/knowledge/index-status` (embeddingEnabled/ragEnabled true, số EMBEDDED tăng), xử lý tài liệu `EMBEDDING_FAILED` nếu gặp 429 gói miễn phí (reindex), FE thử lại "Tìm thử".
+
+## CHAT-CITE-1112 — Chatbot không trả nguồn khi không trích dẫn — 2026-11-12 (UTC+07)
+
+- **Vấn đề (chủ dự án thử):** hỏi "Tôi mới bị mất công việc cần phải làm gì" thì tìm kiếm trả đoạn BHYT (score 0.6, trên ngưỡng 0.55). Chatbot trả lời "chưa đủ thông tin" nhưng `ChatService.Cite` vẫn trả mọi nguồn khi câu trả lời không ghi số [n] → người dân thấy nguồn BHYT không liên quan.
+- **Đã sửa (CHAT-CITE-01):** AIOCR `Infrastructure/ChatService.cs` — không có [n] hợp lệ thì `citations: null`, `grounded: false`, `relatedProcedures: []`; `Infrastructure/GeminiAssistant.cs` — prompt RAG thêm "nguồn không liên quan thì bỏ qua, không ghi số". Không đổi request/DTO (citations vốn nullable), không migration/SQL.
+- **Test:** mới `tests/WardMate.UnitTests/Aiocr/ChatCitationTests.cs` (3 test). Build Release `-warnaserror -m:1` 0/0; `dotnet test` 109/109. Chưa gọi Gemini thật.
+- **Docs:** `docs/system-constraints.md` KB-02 (CHAT-CITE-01); `docs/api-guide.md` mục chat RAG (FE ẩn khối nguồn khi `citations` null).
+- **Chưa làm:** deploy AIOCR; chưa chốt nâng `Knowledge:MinScore` (cần điểm của một câu hỏi đúng chủ đề để so với 0.6); tài liệu Hỏi đáp "việc không giải quyết tại phường" do chủ dự án bổ sung nếu muốn.

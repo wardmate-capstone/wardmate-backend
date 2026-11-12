@@ -4496,7 +4496,7 @@ Chi tiết tài liệu (GET `/api/v1/ai/knowledge/documents/{id}`) có thêm `em
 ```
 
 - **RagEnabled = false:** như trước — `grounded: false`, `citations: null`, `relatedProcedures: []`.
-- **RagEnabled = true và tìm được nguồn:** chatbot chỉ trả lời từ các đoạn tìm được, đánh số `[1]`, `[2]` theo `citations[].index`. `citations` chỉ gồm nguồn được nhắc trong câu trả lời; nếu câu trả lời không ghi số nào thì trả mọi nguồn đã dùng. `relatedProcedures` là các thủ tục (không trùng) trong `citations`. `grounded: true`.
+- **RagEnabled = true và tìm được nguồn:** chatbot chỉ trả lời từ các đoạn tìm được, đánh số `[1]`, `[2]` theo `citations[].index`. `citations` chỉ gồm nguồn được nhắc trong câu trả lời; `relatedProcedures` là các thủ tục (không trùng) trong `citations`; `grounded: true`. Nếu câu trả lời không ghi số nguồn nào (nguồn tìm được không liên quan, chatbot trả lời "chưa đủ thông tin") thì `citations: null`, `relatedProcedures: []`, `grounded: false` (CHAT-CITE-01, từ 12/11/2026; trước đây trả mọi nguồn đã dùng). FE không hiển thị khối "nguồn tham khảo" khi `citations` null.
 - **RagEnabled = true nhưng không có đoạn nào đạt ngưỡng:** **không gọi Gemini**; trả câu cố định "Knowledge Base hiện chưa có thông tin phù hợp…", `grounded: false`, `citations: null`.
 
 FE nên hiển thị `[n]` thành liên kết tới `citations[n]` (tiêu đề tài liệu, mục), và nếu có `procedureId` thì mở trang chi tiết thủ tục. Không hiển thị `score` cho công dân như độ tin cậy pháp lý.
