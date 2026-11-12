@@ -5204,3 +5204,11 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Test:** mới `tests/WardMate.UnitTests/Aiocr/ProcedureTitleOneLineTests.cs` (4 test). Build Release `-warnaserror -m:1` 0/0; `dotnet test` 106/106. Test không chạy DB thật (đồng bộ dùng advisory lock PostgreSQL).
 - **Docs:** `docs/system-constraints.md` KB-TITLE-01; `docs/api-guide.md` mục đồng bộ một thủ tục.
 - **Chưa làm:** deploy AIOCR (sửa chính) và Catalog (phòng ngừa); không cần SQL. Tên cũ có `\n` trong Catalog giữ nguyên tới khi thủ tục được lưu lại. Kiểm tra sau deploy: đồng bộ `21b557d3…` → 200 `CREATED`/`UPDATED`, tiêu đề một dòng; đồng bộ lại → `UNCHANGED`; "Đồng bộ tất cả" không còn các thủ tục này trong `failed`.
+
+## DEPLOY-1112e — KB-TITLE-1112 lên Azure (AIOCR + Catalog) — 2026-11-12 (UTC+07)
+
+- **Git:** push `kha` `29ff3f9..299b792` (5 commit: DEPLOY-1112d docs, 2 fix KB-TITLE, test, docs). Build Release 0/0, `dotnet test` 106/106 trước khi push.
+- **AIOCR (chủ dự án chạy lệnh Cloud Shell, code `kha` 299b792):** ACR build `ce29` Succeeded, tag `wardmate-aiocr:aiocr-20261112-02`, digest `sha256:7813e65646fd3feb6df20f0af0c66ca71a7313c8cbfe3c6b00f1fb77c65d0a41`, update `Succeeded`, image đang chạy đúng digest mới, `/health/ready` 200. Rollback: `wardmate-aiocr@sha256:03a5d32b2e7ea031ce01913ef90a61594db85f6a0d0f6a114544ada5331fd316`.
+- **Catalog:** ACR build `ce2a` Succeeded, tag `wardmate-procedure-catalog:catalog-20261112-02`, digest `sha256:9abd9545690666f547b6f9fefc0953a69a1efadfb9db8bdb6366cd72e0e0c730`, update `Succeeded`, image đang chạy đúng digest mới, `/health/ready` 200. Rollback: `wardmate-procedure-catalog@sha256:0f5b18a47c67ce2ced1c6b93ef48a19c6bdd4ea8095c9d3b68fdea8e5ac4a653`.
+- **Không có SQL/migration.**
+- **Chưa làm:** gọi thử `POST /api/v1/ai/knowledge/procedures/21b557d3-89d3-4fa6-8186-afad7b1bda47/sync` (kỳ vọng 200 CREATED/UPDATED, gọi lại UNCHANGED) và `POST /api/v1/ai/knowledge/procedures/sync` bằng token PROCEDURE_MANAGER/ADMIN — để chủ dự án/FE nghiệm thu.
