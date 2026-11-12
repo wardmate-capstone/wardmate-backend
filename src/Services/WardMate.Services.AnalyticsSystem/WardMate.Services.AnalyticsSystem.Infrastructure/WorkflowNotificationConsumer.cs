@@ -16,7 +16,8 @@ public sealed class WorkflowNotificationConsumer(IServiceScopeFactory scopes, Ra
             return e.EventId!=Guid.Empty && notice.ResourceId!=Guid.Empty && notice.OfficerId!=Guid.Empty &&
                 e.ApplicationId==Guid.Empty && e.ApplicantId==Guid.Empty && e.OccurredAt.Kind==DateTimeKind.Utc &&
                 !string.IsNullOrWhiteSpace(e.WardCode) && e.WardCode.Length<=50 &&
-                e.Status is "LEAVE_SUBMITTED" or "LEAVE_DECIDED" or "SHIFT_CHANGED" or "SCHEDULE_PUBLISHED" or "SHIFT_CHANGE_REQUESTED" or "SHIFT_CHANGE_DECIDED";
+                e.Status is "LEAVE_SUBMITTED" or "LEAVE_DECIDED" or "SHIFT_CHANGED" or "SCHEDULE_PUBLISHED" or "SHIFT_CHANGE_REQUESTED" or "SHIFT_CHANGE_DECIDED"
+                    or "CONSULTATION_REQUESTED" or "CONSULTATION_DISPATCHED" or "CONSULTATION_ANSWERED" or "CONSULTATION_CLOSED";
         if (e is null || e.EventId == Guid.Empty || e.ApplicationId == Guid.Empty || e.ApplicantId == Guid.Empty
             || e.AssignedOfficerId == Guid.Empty || e.OccurredAt == default || e.OccurredAt.Kind != DateTimeKind.Utc
             || string.IsNullOrWhiteSpace(e.WardCode) || e.WardCode.Length > 50
