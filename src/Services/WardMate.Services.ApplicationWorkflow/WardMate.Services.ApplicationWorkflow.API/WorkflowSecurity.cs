@@ -77,6 +77,7 @@ public static class WorkflowSecurity
             // Consultation policies (local: ConsultationsController)
             options.AddPolicy("workflow.consultation.read", p => p.RequireAuthenticatedUser().RequireRole("MANAGER", "FRONT_DESK_OFFICER").RequireClaim("permissions", "workflow.consultation.read"));
             options.AddPolicy("workflow.consultation.respond", p => p.RequireAuthenticatedUser().RequireRole("FRONT_DESK_OFFICER").RequireClaim("permissions", "workflow.consultation.respond").RequireAssertion(c => !c.User.IsInRole("MANAGER")));
+            options.AddPolicy("workflow.consultation.request", p => p.RequireAuthenticatedUser().RequireRole("FRONT_DESK_OFFICER").RequireClaim("permissions", "workflow.consultation.request").RequireAssertion(c => !c.User.IsInRole("MANAGER")));
             // Queue and officer review policies
             options.AddPolicy("workflow.queue.read", p => p.RequireAuthenticatedUser().RequireClaim("permissions", "workflow.queue.read")
                 .RequireRole("FRONT_DESK_OFFICER", "MANAGER"));
