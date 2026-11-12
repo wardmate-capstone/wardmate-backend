@@ -16,7 +16,7 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
         var q = Scope(actor).AsNoTracking();
         var total = await q.CountAsync(ct);
         var items = await q.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(x => new DispatchApplication(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.AssignedOfficerId, x.AssignmentVersion, x.CategoryId)).ToArrayAsync(ct);
+            .Select(x => new DispatchApplication(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.AssignedOfficerId, x.AssignedOfficerId == null ? null : x.AssignedOfficerName, x.AssignmentVersion, x.CategoryId)).ToArrayAsync(ct);
         return WorkflowResult<object>.Ok(new { items, page, pageSize, total });
     }
     private async Task<int?> Category(ApplicationRecord a, CancellationToken ct)
@@ -53,8 +53,7 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
     public async Task<WorkflowResult<AssignmentRecord>> Assign(ReviewActor actor, Guid id, DispatchAssignmentInput input, string token, CancellationToken ct)
     {
         if (!Manager(actor)) return Fail<AssignmentRecord>(403, "forbidden", "Cần Manager có phường quản lý.");
-        if (input.OfficerId == Guid.Empty || input.ExpectedAssignmentVersion < 0 || string.IsNullOrWhiteSpace(input.Reason) || input.Reason.Length > 2000 ||
-            input.ReasonCode is not ("INITIAL_ASSIGNMENT" or "OFFICER_LEAVE" or "WORKLOAD_BALANCE" or "SPECIALIST_REQUIRED"))
+        if (input.OfficerId == Guid.Empty || input.ExpectedAssignmentVersion < 0 || string.IsNullOrWhiteSpace(input.Reason) || input.Reason.Length > 2000)
             return Fail<AssignmentRecord>(400, "invalid_input", "Cần cán bộ, revision và lý do hợp lệ tối đa 2000 ký tự.");
         // Fetch authoritative IAM data for each write; never trust candidate data supplied by FE.
         var officers = await directory.Officers(token, ct);
@@ -82,7 +81,7 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
             a.History.Add(new ApplicationStatusHistory { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.UnderReview, ChangedBy = actor.Id, CreatedAt = now });
             a.Status = ApplicationStates.UnderReview;
         }
-        var reasonText = $"[{input.ReasonCode}] {input.Reason.Trim()}";
+        var reasonText = input.Reason.Trim();
         if (reasonText.Length > 500) reasonText = reasonText[..500];
         AssignmentHandlers.Record(a, initial ? "ASSIGN" : "TRANSFER", actor.Id, actor.FullName, officer.Id, officer.FullName, reasonText, now);
         a.CategoryId = category;
@@ -100,7 +99,6 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
             ToOfficerName = h.ToOfficerName,
             ActorName = h.ActorName,
             Version = a.AssignmentVersion,
-            ReasonCode = input.ReasonCode,
             Reason = input.Reason.Trim(),
             CreatedAt = h.CreatedAt,
             Action = h.Action
@@ -116,13 +114,7 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
         for (var i = 0; i < raw.Length; i++)
         {
             var h = raw[i];
-            var reasonCode = h.Action;
             var reason = h.Reason ?? string.Empty;
-            if (reason.StartsWith('[') && reason.IndexOf(']') is var idx && idx > 1)
-            {
-                reasonCode = reason[1..idx];
-                reason = reason[(idx + 1)..].TrimStart();
-            }
             records.Add(new AssignmentRecord
             {
                 Id = h.Id,
@@ -134,7 +126,6 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
                 ToOfficerName = h.ToOfficerName,
                 ActorName = h.ActorName,
                 Version = i + 1,
-                ReasonCode = reasonCode,
                 Reason = reason,
                 CreatedAt = h.CreatedAt,
                 Action = h.Action

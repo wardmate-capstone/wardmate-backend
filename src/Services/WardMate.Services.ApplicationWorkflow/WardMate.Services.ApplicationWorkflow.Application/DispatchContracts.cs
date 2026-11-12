@@ -2,12 +2,12 @@ using WardMate.Services.ApplicationWorkflow.Domain;
 
 namespace WardMate.Services.ApplicationWorkflow.Application;
 
-public sealed record DispatchAssignmentInput(Guid OfficerId, long ExpectedAssignmentVersion, string ReasonCode, string Reason);
+public sealed record DispatchAssignmentInput(Guid OfficerId, long ExpectedAssignmentVersion, string Reason);
 public sealed record DispatchOfficer(Guid Id, string? FullName, bool IsActive, string? WardCode, string[] Roles, int[] AssignedCategories, string[]? Permissions = null);
 public sealed record DispatchOfficerPage(DispatchOfficer[] Items, int Total);
 public sealed record DispatchCandidate(Guid OfficerId, string? FullName, bool Eligible, int ActiveApplicationCount, string[] BlockingReasons);
 public sealed record DispatchApplication(Guid Id, string? ApplicationCode, Guid ProcedureId, string ProcedureTitle, string Status,
-    Guid? AssignedOfficerId, long AssignmentVersion, int? ProcedureCategoryId);
+    Guid? AssignedOfficerId, string? AssignedOfficerName, long AssignmentVersion, int? ProcedureCategoryId);
 public interface IDispatchDirectory
 {
     Task<DispatchOfficer[]> Officers(string token, CancellationToken ct);
