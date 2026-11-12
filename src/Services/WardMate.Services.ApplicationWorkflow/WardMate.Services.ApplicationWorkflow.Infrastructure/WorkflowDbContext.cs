@@ -220,7 +220,8 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         decision.Property(x => x.Reason).HasMaxLength(2000);
 
         var consultation = b.Entity<ApplicationConsultation>();
-        consultation.ToTable("application_consultations", t => t.HasCheckConstraint("ck_consultation_status", "status IN ('OPEN','ANSWERED','CLOSED')"));
+        consultation.ToTable("application_consultations", t => t.HasCheckConstraint("ck_consultation_status", "status IN ('PENDING_DISPATCH','OPEN','ANSWERED','CLOSED')"));
+        consultation.HasIndex(x => new { x.ApplicationId, x.AssignmentVersion }).IsUnique().HasFilter("status = 'PENDING_DISPATCH'");
         consultation.HasKey(x => x.Id);
         consultation.Property(x => x.Status).HasMaxLength(20);
         consultation.Property(x => x.Question).HasMaxLength(4000);
