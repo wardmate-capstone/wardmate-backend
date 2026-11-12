@@ -31,7 +31,7 @@ public class ProcedureInput
         var content = NormalizedContent(ContentPayload);
         procedure.CategoryId = CategoryId;
         procedure.ProcedureCode = ProcedureCode.Trim();
-        procedure.Title = Title.Trim();
+        procedure.Title = OneLine(Title);
         if (!keepSourceWhenMissing)
         {
             procedure.OriginalPdfUrl = OriginalPdfUrl;
@@ -56,7 +56,11 @@ public class ProcedureInput
         procedure.FormDefinitions = FormDefinitions;
     }
 
-    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    /// <summary>KB-TITLE-01: tên thủ tục luôn một dòng — gộp xuống dòng/tab/khoảng trắng liên tiếp thành một dấu cách.</summary>
+    public static string OneLine(string? value) =>
+        string.Join(' ', (value ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private static string? Clean(string? value) =>string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static string? Join(List<string>? values, string separator) => values is { Count: > 0 } ? string.Join(separator, values) : null;
     private static string? Clip(string? value, int max) => value is null || value.Length <= max ? value : value[..max].TrimEnd();
 
