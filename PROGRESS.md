@@ -5218,3 +5218,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Nghiệm thu:** chủ dự án xác nhận "Nghiệm thu đã xong đã ổn hết" cho các thay đổi deploy ngày 12/11 (PROC-UNPUBLISH DEPLOY-1112c, AI-02b DEPLOY-1112d, KB-TITLE DEPLOY-1112e). Chủ dự án xác nhận thêm "Đã gồm hết": lần nghiệm thu này bao gồm cả các bảng tồn 10/11 — BE-H (`fe-handoff-2026-11-10.md` mục 5), A1–B4 / AUDIT-FIX-1110 (mục 6), luồng F1/F2 và báo Manager (`fe-handoff-2026-11-10-flows.md` mục 4, DEPLOY-1110c) và BE-J tải phôi công khai (DEPLOY-1110d). Đã đánh dấu trong `docs/CLAUDE_HANDOFF.md`. Kết quả do chủ dự án/FE kiểm, BE không tự gọi API bằng token.
 - **Git:** push `kha` (gồm ebcee81 và commit này), rồi fast-forward `main` và `deploy` lên cùng commit với `kha`. Trước khi đồng bộ: `main` và `deploy` không có commit riêng.
 - **CI:** `.github/workflows/iam-ci.yml` chạy khi push `kha`/`deploy`, chỉ `dotnet restore` + `dotnet build -warnaserror`, không deploy Azure. Azure vẫn chạy đúng các image đã deploy thủ công (AIOCR `aiocr-20261112-02`, Catalog `catalog-20261112-02`); push `deploy` không làm thay đổi Container App.
+
+## KB-ENABLE-1112 — Bật tạo vector và RAG trên AIOCR Azure — 2026-11-12 (UTC+07)
+
+- **Yêu cầu:** "Tìm thử" trả 503 `knowledge.embedding_disabled` do appsettings để `Knowledge:EmbeddingEnabled=false`, `Knowledge:RagEnabled=false`; chủ dự án duyệt "Bật cả hai". Không đổi code, không build image.
+- **Kiểm tra trước:** container `wardmate-aiocr` đã có biến `Gemini__Key`, `Gemini__Model` (chỉ kiểm tên, không in giá trị).
+- **Thay đổi (chủ dự án chạy Cloud Shell, ~15:14 UTC+07):** `az containerapp update --set-env-vars Knowledge__EmbeddingEnabled=true Knowledge__RagEnabled=true` → `Succeeded`; env xác nhận hai biến `true`; revision `wardmate-aiocr--latest` tạo lại lúc 2026-11-12T08:14:47Z, Running, 1 replica; image giữ `wardmate-aiocr@sha256:7813e65646fd3feb6df20f0af0c66ca71a7313c8cbfe3c6b00f1fb77c65d0a41`; `/health/ready` 200.
+- **Rollback:** app dùng hậu tố revision cố định `latest` nên không có revision cũ để chuyển; tắt lại bằng `--set-env-vars Knowledge__EmbeddingEnabled=false Knowledge__RagEnabled=false`.
+- **Docs:** `docs/system-constraints.md` KB-02 ghi nhận bật trên Azure; `docs/CLAUDE_HANDOFF.md` dòng RAG.
+- **Chưa làm:** xem `GET /api/v1/ai/knowledge/index-status` (embeddingEnabled/ragEnabled true, số EMBEDDED tăng), xử lý tài liệu `EMBEDDING_FAILED` nếu gặp 429 gói miễn phí (reindex), FE thử lại "Tìm thử".

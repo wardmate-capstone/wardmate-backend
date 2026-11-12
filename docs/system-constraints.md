@@ -1091,6 +1091,7 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
 
 ### KB-02 — Tìm kiếm vector và chatbot RAG (TASK-29, 24/10/2026)
 - Mặc định tắt: `Knowledge:EmbeddingEnabled=false`, `Knowledge:RagEnabled=false`. Khi tắt, worker không gọi provider và chat giữ hành vi cũ (LLM thuần, `grounded:false`). Embedding gọi Gemini bằng `Gemini:Key`, có phí; không tự bật.
+- **Azure (12/11/2026, KB-ENABLE-1112):** chủ dự án duyệt bật cả hai trên `wardmate-aiocr` bằng biến môi trường `Knowledge__EmbeddingEnabled=true`, `Knowledge__RagEnabled=true` (appsettings vẫn mặc định `false`; môi trường khác vẫn tắt nếu không đặt biến). Dùng `Gemini:Key`/`Gemini:Model` sẵn có, chỉ gói miễn phí; gói miễn phí giới hạn số lần gọi nên tài liệu có thể tạm `EMBEDDING_FAILED` (429) rồi worker thử lại theo backoff. Tắt lại bằng cách đặt hai biến về `false`.
 - Vector lưu `real[]` trong knowledge_chunks, chuẩn hóa L2, gắn chữ ký `model@dimensions`; chỉ so vector cùng chữ ký. Tìm kiếm cosine trong bộ nhớ mỗi replica (cache theo số đoạn + thời điểm embed/sửa tài liệu), giới hạn `MaxIndexedChunks` (mặc định 20.000, vượt → 503 knowledge.index_too_large). Không dùng pgvector; quy mô lớn hơn cần chuyển pgvector.
 - Chỉ đoạn của tài liệu `is_active` và đạt `MinScore` (mặc định 0.55) mới được dùng; tối đa `TopK` (1–10, mặc định 5). Tài liệu ngừng dùng giữa lúc chấm điểm và lúc lấy nội dung bị loại.
 - Worker: một tài liệu mỗi lượt, `FOR UPDATE SKIP LOCKED` (chia việc giữa replica), tối đa 50 đoạn mỗi lần gọi; lỗi → EMBEDDING_FAILED, backoff 2^n phút ≤60, dừng sau `MaxEmbeddingAttempts`; giữ vector đã tạo. Worker không đổi `revision`. Đổi nội dung/chia lại → CHUNKED; reindex xóa vector, đặt lại số lần thử.
@@ -1419,3 +1420,4 @@ Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 - Lịch sử: 2026-11-12 — DispatchService.cs: Manager nhập reason bắt buộc tối đa 2000 ký tự, lịch sử lưu tối đa 500 ký tự. Sai đầu vào trả 400 dispatch.invalid_input; sửa lý do rồi gửi lại.
 - Lịch sử: 2026-11-12 (AI-02b) thêm AI-02b: bóc tách thủ tục chia theo "Trường hợp N:", dòng giấy tờ nhiều mẫu, tên biểu mẫu; BE cảnh báo khi thiếu trường hợp. Build 0/0, test 102/102; chưa deploy AIOCR, chưa chạy thử AI thật.
 - Lịch sử: 2026-11-12 (KB-TITLE-1112) thêm KB-TITLE-01: tên thủ tục gộp về một dòng ở đồng bộ tri thức, lưu Catalog và bóc tách AI. Build 0/0, test 106/106; chưa deploy AIOCR/Catalog.
+- Lịch sử: 2026-11-12 (KB-ENABLE-1112) KB-02 ghi nhận bật EmbeddingEnabled/RagEnabled trên Azure AIOCR bằng biến môi trường; không đổi code.\r
