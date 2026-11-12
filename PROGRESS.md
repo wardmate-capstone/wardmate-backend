@@ -5129,3 +5129,18 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - 2026-11-12 08:31 +07:00 — Manager dispatch: POST /api/v1/manager/applications/{id}/assignments accepts officerId, expectedAssignmentVersion, reason; 200 success, 400 invalid input, 409 conflict, 422 ineligible. Removed reasonCode from request and assignment/history DTO. Files: DispatchContracts.cs, AssignmentRecord.cs, DispatchService.cs, scripts/verify-staffing-local.py, docs/api-guide.md, docs/system-constraints.md, docs/fe-staffing-18-apis.md, docs/Lịch làm việc Front Desk và đơn nghỉ Word.md. No runtime tests; Release build not yet confirmed. Azure fetch error needs Network evidence.
 
 - 2026-11-12 08:53 +07:00 — Manager dispatch name: GET /api/v1/manager/applications and GET /api/v1/staffing/leaves/{id}/impact, no body, HTTP 200 includes nullable assignedOfficerName from application snapshot. Existing Manager policies. Changed DispatchContracts.cs, DispatchService.cs, StaffingService.cs, docs/api-guide.md and PROGRESS.md. Solution Release build: 0 warnings, 0 errors. Runtime tests: 0. Local only.
+
+---
+
+## DEPLOY-1112a — Deploy ApplicationWorkflow (Codex Dispatch Changes) — 2026-11-12 09:33 (UTC+07)
+
+- **Nguồn:** `kha` @ `fd8dfa3`. Build Release: 0 warnings, 0 errors. Unit tests: 92/92 passed.
+- **Nội dung thay đổi:**
+  - `POST /api/v1/manager/applications/{id}/assignments`: Loại bỏ `reasonCode` khỏi DTO `AssignmentInput` và `AssignmentRecordDto`, chỉ nhận `officerId`, `expectedAssignmentVersion`, `reason`.
+  - `GET /api/v1/manager/applications` và `GET /api/v1/staffing/leaves/{id}/impact`: Bổ sung `assignedOfficerName` (nullable) trong DTO `DispatchApplication`.
+- **Deploy (Antigravity):**
+  - ACR Build Run ID: `ce25` → `wardmate-application-workflow:workflow-20261112-01`.
+  - Image Digest: `sha256:ec34500e4b1beb66750fd99d03739bd0c76eb1c3f3be60918a42e42dde3bcc07`.
+  - Container App: `wardmate-application-workflow` (`ProvisioningState: Succeeded`, `Running`).
+  - Rollback target: `acrwardmate2026.azurecr.io/wardmate-application-workflow@sha256:99fd51204e4b62db0233d32517bc4cadb8e8723e9b3c9fcfefc62ffdeb72feab`.
+  - Health check: `/health/ready` trực tiếp và qua Gateway đều đạt `200 Healthy` (`database: reachable`, `rabbitmq: connected`).
