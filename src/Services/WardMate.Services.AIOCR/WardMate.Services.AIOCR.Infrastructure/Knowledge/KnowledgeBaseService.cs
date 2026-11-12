@@ -114,7 +114,8 @@ public sealed class KnowledgeBaseService(ChatDbContext db, IProcedureCatalogSour
         {
             // BE-H: tên thủ tục được tới 1.000 ký tự và nội dung tới 500.000 ký tự; tri thức giữ trần cũ
             // (tiêu đề 500, nội dung 200.000) bằng cách cắt bớt thay vì làm đồng bộ thất bại. Tên đầy đủ vẫn nằm trong nội dung.
-            var title = Title(Fit(procedure.Title, 500));
+            // KB-TITLE-01: tên bóc từ bảng PDF có thể mang \n/\t; gộp thành một dòng trước khi kiểm tra ký tự điều khiển.
+            var title = Title(Fit(OneLine(procedure.Title), 500));
             var content = Content(Fit(ProcedureKnowledgeText.Build(procedure), KnowledgeChunker.MaxContentChars));
             var version = procedure.UpdatedAt.ToUniversalTime().ToString("O");
             if (doc is null)
@@ -262,6 +263,10 @@ public sealed class KnowledgeBaseService(ChatDbContext db, IProcedureCatalogSour
 
     private static string? Fit(string? value, int max) =>
         value is null || value.Trim().Length <= max ? value : value.Trim()[..(max - 1)].TrimEnd() + "…";
+
+    /// <summary>Gộp mọi chuỗi khoảng trắng (kể cả xuống dòng, tab) thành một dấu cách và cắt hai đầu.</summary>
+    internal static string? OneLine(string? value) =>
+        value is null ? null : string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     private static string Title(string? value)
     {

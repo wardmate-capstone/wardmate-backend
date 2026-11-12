@@ -63,6 +63,9 @@ internal static class ProcedureAiContract
     {
         var normalized = (JsonObject)Read(Template, JsonNode.Parse(payload.GetRawText()), "payload", warnings)!;
         normalized["categoryId"] = 0;
+        // KB-TITLE-01: tên thủ tục trong ô bảng PDF bị ngắt dòng; giữ một dòng để Catalog và kho kiến thức nhận được.
+        if (normalized["title"]?.GetValue<string>() is { } title)
+            normalized["title"] = Knowledge.KnowledgeBaseService.OneLine(title);
         // BE-H: processingTimeText (phẳng cho AI) → processingTime.text của Catalog.
         foreach (var method in normalized["contentPayload"]!["submissionMethods"]!.AsArray().OfType<JsonObject>())
         {
