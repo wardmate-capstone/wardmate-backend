@@ -1390,3 +1390,4 @@ Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 - Lịch sử: 2026-11-08 thêm NAME-SNAP-01, IAM-06a, IAM-06b và mở rộng IAM-05 theo yêu cầu FE (BE-A → BE-E). Build local pass; chưa chạy với DB thật, chưa deploy.
 - Lịch sử: 2026-11-10 (AUDIT-FIX-1110) thêm IAM-01a, PROC-01c, PROC-02b, PROC-03c, DOC-QR-06 (a, b); sửa ghi chú PUT ở PROC-03a. Build local pass; chưa deploy Azure, chưa nghiệm thu FE.
 - Lịch sử: 2026-11-10 (BE-H) thêm PROC-05 (a–f), WF-01a, DOC-03a, KB-01a, AI-02a; cập nhật giới hạn độ dài ở PROC-01, PROC-02, PROC-03, PROC-04. Build local pass; migration Catalog/Workflow/Analytics chưa chạy trên Azure, chưa deploy, chưa nghiệm thu FE.
+- Lịch sử: 2026-11-12 — DispatchService.cs: Manager nhập reason bắt buộc tối đa 2000 ký tự, lịch sử lưu tối đa 500 ký tự. Sai đầu vào trả 400 dispatch.invalid_input; sửa lý do rồi gửi lại.
