@@ -25,11 +25,11 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
         var result = await catalog.Get(a.ProcedureId, ct);
         return result.Error is null && result.Value?.CategoryId is > 0 ? result.Value.CategoryId : null;
     }
-    private static string[] Reasons(ApplicationRecord app, DispatchOfficer officer, int category) =>
+    internal static string[] Reasons(ApplicationRecord app, DispatchOfficer officer, int category, string permission = "workflow.assign") =>
         new[] { !officer.IsActive ? "ACCOUNT_INACTIVE" : null, officer.WardCode != app.WardCode ? "WARD_MISMATCH" : null,
             !officer.Roles.Contains("FRONT_DESK_OFFICER") || officer.Roles.Contains("MANAGER") ? "ROLE_MISMATCH" : null,
             !officer.AssignedCategories.Contains(category) ? "CATEGORY_MISMATCH" : null,
-            officer.Permissions?.Contains("workflow.assign") != true ? "ASSIGN_PERMISSION_MISSING" : null,
+            officer.Permissions?.Contains(permission) != true ? (permission == "workflow.assign" ? "ASSIGN_PERMISSION_MISSING" : "RESPOND_PERMISSION_MISSING") : null,
             officer.Id == app.UserId ? "APPLICATION_OWNER" : null }.OfType<string>().ToArray();
     public async Task<WorkflowResult<DispatchCandidate[]>> Candidates(ReviewActor actor, Guid id, string token, CancellationToken ct)
     {
@@ -81,11 +81,7 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
             db.StatusHistory.Add(new ApplicationStatusHistory { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.UnderReview, ChangedBy = actor.Id, CreatedAt = now });
             a.Status = ApplicationStates.UnderReview;
         }
-        var reasonText = input.Reason.Trim();
-        if (reasonText.Length > 500) reasonText = reasonText[..500];
-        AssignmentHandlers.Record(a, initial ? "ASSIGN" : "TRANSFER", actor.Id, actor.FullName, officer.Id, officer.FullName, reasonText, now);
-        var h = a.AssignmentHistory.Last();
-        db.AssignmentHistory.Add(h);
+        var h = RecordAssignment(db, a, initial ? "ASSIGN" : "TRANSFER", actor, officer, input.Reason, now);
         a.CategoryId = category;
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
 
@@ -106,6 +102,15 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
         };
         return WorkflowResult<AssignmentRecord>.Ok(record);
     }
+    internal static ApplicationAssignmentHistory RecordAssignment(WorkflowDbContext db, ApplicationRecord app, string action, ReviewActor actor, DispatchOfficer officer, string reason, DateTime now)
+    {
+        var text = reason.Trim();
+        AssignmentHandlers.Record(app, action, actor.Id, actor.FullName, officer.Id, officer.FullName, text[..Math.Min(500, text.Length)], now);
+        var history = app.AssignmentHistory.Last();
+        db.AssignmentHistory.Add(history);
+        return history;
+    }
+
     public async Task<WorkflowResult<AssignmentRecord[]>> History(ReviewActor actor, Guid id, CancellationToken ct)
     {
         if (!Manager(actor)) return Fail<AssignmentRecord[]>(403, "forbidden", "Cần Manager có phường quản lý.");
