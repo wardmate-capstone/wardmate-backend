@@ -85,7 +85,7 @@ Luồng editor: **mẫu → nháp riêng → lưu Word → mở lại → nộp*
 | 34 | Cũ | GET `/staffing/leaves/{id}/history` | Manager hoặc chủ đơn xem lịch sử chuyển trạng thái đơn nghỉ. |
 | 35 | Cũ | GET `/manager/applications` | Manager mở điều phối với `page,pageSize` → danh sách hồ sơ ở phường, người phụ trách và assignmentVersion. |
 | 36 | Cũ | GET `/manager/applications/{id}/assignment-candidates` | Dùng applicationId → danh sách ứng viên với `eligible,activeApplicationCount,blockingReasons`. Có ca đang hiệu lực là một trong các điều kiện lựa chọn. |
-| 37 | Cũ | POST `/manager/applications/{id}/assignments` | `officerId,expectedAssignmentVersion,reasonCode,reason` → bản ghi phân công. reasonCode: INITIAL_ASSIGNMENT, OFFICER_LEAVE, WORKLOAD_BALANCE hoặc SPECIALIST_REQUIRED. |
+| 37 | Cũ | POST `/manager/applications/{id}/assignments` | `officerId,expectedAssignmentVersion,reason` → bản ghi phân công. |
 | 38 | Cũ | GET `/manager/applications/{id}/assignments` | Manager xem lịch sử giao/chuyển của một hồ sơ. |
 
 Duyệt nghỉ ở 33 chỉ thay đổi trạng thái đơn và khả dụng trong thời gian nghỉ. Muốn chuyển hồ sơ cho Bình, Manager chọn từng applicationId ở 32, kiểm tra ứng viên qua 36 và xác nhận qua 37.
