@@ -5195,3 +5195,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Rollback:** `acrwardmate2026.azurecr.io/wardmate-aiocr@sha256:b0dbe2d468721f3cba7a92928ed1a11a5c5bcb67a2c537167925544748dcd7fc`.
 - **Kiểm tra:** `/health/ready` 200. Không có SQL/migration.
 - **Chưa làm:** quét lại 1.001939 và 1.014748 bằng bản nháp mới để xác nhận AI làm theo prompt mới; FE thêm ô sửa `formName`.
+
+## KB-TITLE-1112 — Đồng bộ kho kiến thức lỗi 400 khi tên thủ tục có xuống dòng — 2026-11-12 (UTC+07)
+
+- **Lỗi (FE báo):** `POST /api/v1/ai/knowledge/procedures/{id}/sync` trả 400 `knowledge.validation` với thủ tục `21b557d3…` có tên chứa `\n` (bóc từ ô bảng PDF); "Đồng bộ tất cả" đếm các thủ tục này vào `failed`.
+- **Nguyên nhân:** `KnowledgeBaseService.Title()` từ chối mọi `char.IsControl`, trong đó có `\n`; Catalog lưu nguyên tên nhiều dòng.
+- **Đã sửa (KB-TITLE-01):** AIOCR `Knowledge/KnowledgeBaseService.cs` gộp khoảng trắng (`OneLine`) trước `Fit`/`Title` — dữ liệu cũ đồng bộ được, đồng bộ lại vẫn `UNCHANGED`; Catalog `Application/Management/ProcedureInput.cs` lưu `Title` một dòng khi tạo/sửa/xuất bản; AIOCR `Extraction/ProcedureAiContract.cs` trả `title` một dòng khi bóc tách. Không đổi API/DTO, không migration.
+- **Test:** mới `tests/WardMate.UnitTests/Aiocr/ProcedureTitleOneLineTests.cs` (4 test). Build Release `-warnaserror -m:1` 0/0; `dotnet test` 106/106. Test không chạy DB thật (đồng bộ dùng advisory lock PostgreSQL).
+- **Docs:** `docs/system-constraints.md` KB-TITLE-01; `docs/api-guide.md` mục đồng bộ một thủ tục.
+- **Chưa làm:** deploy AIOCR (sửa chính) và Catalog (phòng ngừa); không cần SQL. Tên cũ có `\n` trong Catalog giữ nguyên tới khi thủ tục được lưu lại. Kiểm tra sau deploy: đồng bộ `21b557d3…` → 200 `CREATED`/`UPDATED`, tiêu đề một dòng; đồng bộ lại → `UNCHANGED`; "Đồng bộ tất cả" không còn các thủ tục này trong `failed`.

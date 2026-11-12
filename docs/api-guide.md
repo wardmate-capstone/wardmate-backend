@@ -4425,6 +4425,8 @@ Không body. Đọc thủ tục từ API công khai của Procedure Catalog, d�
 - `UNCHANGED`: không đổi gì (chỉ cập nhật `sourceVersion` nếu Catalog có thời điểm sửa mới).
 - `DEACTIVATED`: thủ tục đã bị xóa hoặc ngừng áp dụng trong Catalog, tài liệu được ngừng dùng.
 
+Tiêu đề tài liệu là tên thủ tục đã gộp về một dòng (xuống dòng/tab thành dấu cách, KB-TITLE-01), nên thủ tục có tên bóc từ bảng PDF bị ngắt dòng vẫn đồng bộ được; đồng bộ lại không bị coi là đổi tiêu đề.
+
 Đồng bộ **không tự bật lại** tài liệu đã ngừng dùng: nếu thủ tục được áp dụng lại trong Catalog, người quản lý gọi `/activation` để bật. Lỗi: 404 `knowledge.procedure_not_found` (thủ tục không có trong Catalog và chưa từng đồng bộ); 502 `knowledge.catalog_invalid_response`; 503 `knowledge.catalog_unavailable`, `knowledge.catalog_not_configured`.
 
 ### POST `/procedures/sync` — đồng bộ toàn bộ

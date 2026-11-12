@@ -1079,6 +1079,14 @@ ApplicationSummaryDto.ResubmitCount là int mặc định0; danh sách công dâ
   các mục mở rộng (theo thứ tự, sau mục chuẩn). Đồng bộ thủ tục: tiêu đề tri thức cắt còn 500 ký tự (thêm "…"), nội dung
   cắt còn 200.000 ký tự thay vì báo lỗi; không đổi schema AIOCR. Nguồn: `KnowledgeContracts.cs`, `ProcedureKnowledgeText.cs`,
   `KnowledgeBaseService.SyncProcedure`.
+- **KB-TITLE-01 (12/11/2026).** Tên thủ tục luôn một dòng. Tên bóc từ ô bảng PDF có thể chứa xuống dòng/tab; trước đây đồng
+  bộ tri thức trả 400 `knowledge.validation` ("không chứa ký tự điều khiển") và "Đồng bộ tất cả" đếm các thủ tục này vào
+  `failed`. Nay ba chỗ cùng gộp mọi chuỗi khoảng trắng (kể cả `\n`, `\r`, `\t`) thành một dấu cách và cắt hai đầu:
+  (1) AIOCR `SyncProcedure` trước khi cắt 500 ký tự và kiểm tra tiêu đề — thủ tục cũ đồng bộ được ngay, không cần sửa tay;
+  phép gộp ổn định nên đồng bộ lại vẫn `UNCHANGED`; (2) Catalog `ProcedureInput.ApplyTo` khi tạo, sửa, xuất bản (đè) thủ tục;
+  (3) AIOCR bóc tách PDF trả `title` một dòng. Dữ liệu Catalog đã lưu không bị sửa ngược; tên cũ có `\n` chỉ đổi khi thủ tục
+  được lưu lại. Ký tự điều khiển không phải khoảng trắng vẫn bị tri thức từ chối. Nguồn: `KnowledgeBaseService.OneLine`,
+  `ProcedureInput.OneLine`, `ProcedureAiContract.Normalize`; test `ProcedureTitleOneLineTests`.
 
 
 ### KB-02 — Tìm kiếm vector và chatbot RAG (TASK-29, 24/10/2026)
@@ -1410,3 +1418,4 @@ Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 - Lịch sử: 2026-11-10 (BE-H) thêm PROC-05 (a–f), WF-01a, DOC-03a, KB-01a, AI-02a; cập nhật giới hạn độ dài ở PROC-01, PROC-02, PROC-03, PROC-04. Build local pass; migration Catalog/Workflow/Analytics chưa chạy trên Azure, chưa deploy, chưa nghiệm thu FE.
 - Lịch sử: 2026-11-12 — DispatchService.cs: Manager nhập reason bắt buộc tối đa 2000 ký tự, lịch sử lưu tối đa 500 ký tự. Sai đầu vào trả 400 dispatch.invalid_input; sửa lý do rồi gửi lại.
 - Lịch sử: 2026-11-12 (AI-02b) thêm AI-02b: bóc tách thủ tục chia theo "Trường hợp N:", dòng giấy tờ nhiều mẫu, tên biểu mẫu; BE cảnh báo khi thiếu trường hợp. Build 0/0, test 102/102; chưa deploy AIOCR, chưa chạy thử AI thật.
+- Lịch sử: 2026-11-12 (KB-TITLE-1112) thêm KB-TITLE-01: tên thủ tục gộp về một dòng ở đồng bộ tri thức, lưu Catalog và bóc tách AI. Build 0/0, test 106/106; chưa deploy AIOCR/Catalog.
