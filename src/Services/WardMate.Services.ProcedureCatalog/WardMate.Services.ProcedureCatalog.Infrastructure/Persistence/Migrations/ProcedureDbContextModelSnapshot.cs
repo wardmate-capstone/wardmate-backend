@@ -58,6 +58,10 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                         .HasColumnType("text")
                         .HasColumnName("fee_summary");
 
+                    b.Property<DateTime?>("FirstPublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_published_at");
+
                     b.Property<string>("FormDefinitions")
                         .HasColumnType("jsonb")
                         .HasColumnName("form_definitions");
@@ -154,6 +158,7 @@ namespace WardMate.Services.ProcedureCatalog.Infrastructure.Persistence.Migratio
                             CreatedAt = new DateTime(2026, 9, 30, 0, 0, 0, 0, DateTimeKind.Utc),
                             ExecutingAgency = "Ủy ban nhân dân cấp xã",
                             FeeSummary = "Miễn phí",
+                            FirstPublishedAt = new DateTime(2026, 9, 30, 0, 0, 0, 0, DateTimeKind.Utc),
                             FormDefinitions = "[{\"formTemplateId\":null,\"caseCode\":\"THONG_THUONG\",\"formCode\":\"DEMO-TK-01\",\"formName\":\"T\\u1EDD khai \\u0111i\\u1EC7n t\\u1EED minh h\\u1ECDa\",\"formType\":\"ONLINE_INTERACTIVE\",\"quantity\":1,\"isMandatory\":true},{\"formTemplateId\":null,\"caseCode\":null,\"formCode\":\"DEMO-DOCX-01\",\"formName\":\"M\\u1EABu DOCX minh h\\u1ECDa\",\"formType\":\"DOCX_TEMPLATE\",\"quantity\":1,\"isMandatory\":false}]",
                             IsActive = true,
                             IssuingAuthority = "Cơ quan ban hành minh họa",
