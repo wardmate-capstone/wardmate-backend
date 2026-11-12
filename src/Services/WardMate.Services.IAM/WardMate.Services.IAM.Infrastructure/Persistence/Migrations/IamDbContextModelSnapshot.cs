@@ -325,6 +325,10 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         .HasColumnName("assigned_categories")
                         .HasDefaultValueSql("ARRAY[]::integer[]");
 
+                    b.Property<DateTime?>("AvatarUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("avatar_updated_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -384,6 +388,42 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_users_ward_id");
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.UserAvatar", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("content");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("content_type");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("UserId")
+                        .HasName("pk_user_avatars");
+
+                    b.ToTable("user_avatars", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_user_avatars_size", "octet_length(content) <= 524288");
+                        });
                 });
 
             modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.UserOtp", b =>
@@ -631,6 +671,16 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_users_wards_ward_id");
 
                     b.Navigation("Ward");
+                });
+
+            modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.UserAvatar", b =>
+                {
+                    b.HasOne("WardMate.Services.IAM.Domain.Entities.User", null)
+                        .WithOne()
+                        .HasForeignKey("WardMate.Services.IAM.Domain.Entities.UserAvatar", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_avatars_users_user_id");
                 });
 
             modelBuilder.Entity("WardMate.Services.IAM.Domain.Entities.UserOtp", b =>
