@@ -8,7 +8,6 @@ public sealed class AssignmentRecord
     public Guid ToOfficerId { get; set; }
     public Guid ActorId { get; set; }
     public long Version { get; set; }
-    public string ReasonCode { get; set; } = string.Empty;
     public string Reason { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public string Action { get; set; } = string.Empty;
