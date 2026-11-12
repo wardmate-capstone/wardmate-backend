@@ -69,13 +69,14 @@ public sealed partial class ChatService(ChatDbContext db, IAssistantModel model,
         return new(session.Id, answer, related, citations, citations is not null);
     }
 
-    // Keeps the sources the answer actually cites; if the model cited none, all retrieved sources are returned as context.
-    public static ChatCitation[] Cite(string answer, IReadOnlyList<KnowledgeHit> sources)
+    // CHAT-CITE-01: keeps only the sources the answer actually cites. No marker means the model did not answer from the
+    // sources (typically "chưa đủ thông tin" for an off-topic question), so nothing is cited and the turn is not grounded.
+    public static ChatCitation[]? Cite(string answer, IReadOnlyList<KnowledgeHit> sources)
     {
         var cited = CitationMarker().Matches(answer).Select(m => int.Parse(m.Groups[1].Value))
             .Where(i => i >= 1 && i <= sources.Count).Distinct().Order().ToArray();
-        var indexes = cited.Length > 0 ? cited : Enumerable.Range(1, sources.Count).ToArray();
-        return indexes.Select(i =>
+        if (cited.Length == 0) return null;
+        return cited.Select(i =>
         {
             var s = sources[i - 1];
             return new ChatCitation(i, s.DocumentId, s.DocumentTitle, s.SourceType, s.ProcedureId, s.ChunkId, s.Heading, s.Score);
