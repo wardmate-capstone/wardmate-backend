@@ -10,6 +10,7 @@ public sealed class IamDbContext(DbContextOptions<IamDbContext> options) : DbCon
     public DbSet<User> Users => Set<User>();
     public DbSet<Ward> Wards => Set<Ward>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
+    public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();

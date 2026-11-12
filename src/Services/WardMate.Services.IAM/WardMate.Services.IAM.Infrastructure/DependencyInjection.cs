@@ -38,6 +38,8 @@ public static class DependencyInjection
         services.AddScoped<IIdentityStore, IdentityStore>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.INotificationRecipients, NotificationRecipients>();
         services.AddScoped<IProfileStore, ProfileStore>();
+        services.AddScoped<WardMate.Services.IAM.Application.Profiles.IAvatarStore, AvatarStore>();
+        WardMate.Imaging.ImagingServiceExtensions.AddWardMateImaging(services);
         services.AddScoped<ManagementScope>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.IUserDirectory, UserDirectory>();
         services.AddScoped<WardMate.Services.IAM.Application.Accounts.IManagementScope>(sp => sp.GetRequiredService<ManagementScope>());

@@ -14,6 +14,8 @@ public sealed class User
     public Ward? Ward { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    /// <summary>Thời điểm đổi ảnh đại diện gần nhất; null = chưa có ảnh. Dùng làm phiên bản trong avatarUrl.</summary>
+    public DateTime? AvatarUpdatedAt { get; set; }
     public UserProfile Profile { get; set; } = null!;
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 }

@@ -11,6 +11,7 @@ COPY ["src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Application/Ward
 COPY ["src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Domain/WardMate.Services.IAM.Domain.csproj", "src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Domain/"]
 COPY ["src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/WardMate.Services.IAM.Infrastructure.csproj", "src/Services/WardMate.Services.IAM/WardMate.Services.IAM.Infrastructure/"]
 COPY ["src/BuildingBlocks/WardMate.SharedKernel/WardMate.SharedKernel.csproj", "src/BuildingBlocks/WardMate.SharedKernel/"]
+COPY ["src/BuildingBlocks/WardMate.Imaging/WardMate.Imaging.csproj", "src/BuildingBlocks/WardMate.Imaging/"]
 COPY ["src/BuildingBlocks/WardMate.Auditing/WardMate.Auditing.csproj", "src/BuildingBlocks/WardMate.Auditing/"]
 RUN dotnet restore "src/Services/WardMate.Services.IAM/WardMate.Services.IAM.API/WardMate.Services.IAM.API.csproj"
 COPY . .

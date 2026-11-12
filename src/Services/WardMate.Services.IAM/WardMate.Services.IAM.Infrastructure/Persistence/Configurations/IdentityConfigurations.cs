@@ -21,7 +21,21 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         b.Property(x => x.IsActive).HasDefaultValue(true);
         b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
         b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+        b.Property(x => x.AvatarUpdatedAt).HasColumnType("timestamp with time zone");
         b.HasOne(x => x.Profile).WithOne(x => x.User).HasForeignKey<UserProfile>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+public sealed class UserAvatarConfiguration : IEntityTypeConfiguration<UserAvatar>
+{
+    public void Configure(EntityTypeBuilder<UserAvatar> b)
+    {
+        b.ToTable("user_avatars", t => t.HasCheckConstraint("ck_user_avatars_size", "octet_length(content) <= 524288"));
+        b.HasKey(x => x.UserId);
+        b.HasOne<User>().WithOne().HasForeignKey<UserAvatar>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        b.Property(x => x.Content).HasColumnType("bytea").IsRequired();
+        b.Property(x => x.ContentType).HasMaxLength(50).IsRequired();
+        b.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+        b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
     }
 }
 public sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
