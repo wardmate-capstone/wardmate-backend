@@ -59,7 +59,7 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
         var officers = await directory.Officers(token, ct);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await StaffingLocks.Ward(db, actor.WardCode!, ct);
-        var a = await db.Applications.FromSqlInterpolated($"SELECT * FROM applications WHERE id = {id} FOR UPDATE").Include(x => x.AssignmentHistory).Include(x => x.History).SingleOrDefaultAsync(ct);
+        var a = await db.Applications.FromSqlInterpolated($"SELECT * FROM applications WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
         if (a is null || a.WardCode != actor.WardCode || a.UserId == actor.Id) return Fail<AssignmentRecord>(404, "not_found", "Không tìm thấy hồ sơ trong phạm vi.");
         if (a.AssignmentVersion != input.ExpectedAssignmentVersion) return Fail<AssignmentRecord>(409, "version_conflict", "Phân công đã thay đổi. Tải lại hồ sơ.");
         if (a.Status is not ("SUBMITTED" or "UNDER_REVIEW" or "NEED_REVISION" or "DOCUMENTS_READY"))
@@ -78,16 +78,17 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
         var initial = a.Status == ApplicationStates.Submitted && a.AssignedOfficerId is null;
         if (initial)
         {
-            a.History.Add(new ApplicationStatusHistory { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.UnderReview, ChangedBy = actor.Id, CreatedAt = now });
+            db.StatusHistory.Add(new ApplicationStatusHistory { ApplicationId = a.Id, FromStatus = a.Status, ToStatus = ApplicationStates.UnderReview, ChangedBy = actor.Id, CreatedAt = now });
             a.Status = ApplicationStates.UnderReview;
         }
         var reasonText = input.Reason.Trim();
         if (reasonText.Length > 500) reasonText = reasonText[..500];
         AssignmentHandlers.Record(a, initial ? "ASSIGN" : "TRANSFER", actor.Id, actor.FullName, officer.Id, officer.FullName, reasonText, now);
+        var h = a.AssignmentHistory.Last();
+        db.AssignmentHistory.Add(h);
         a.CategoryId = category;
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
 
-        var h = a.AssignmentHistory.Last();
         var record = new AssignmentRecord
         {
             Id = h.Id,
