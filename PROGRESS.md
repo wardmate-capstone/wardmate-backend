@@ -5212,3 +5212,9 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Catalog:** ACR build `ce2a` Succeeded, tag `wardmate-procedure-catalog:catalog-20261112-02`, digest `sha256:9abd9545690666f547b6f9fefc0953a69a1efadfb9db8bdb6366cd72e0e0c730`, update `Succeeded`, image đang chạy đúng digest mới, `/health/ready` 200. Rollback: `wardmate-procedure-catalog@sha256:0f5b18a47c67ce2ced1c6b93ef48a19c6bdd4ea8095c9d3b68fdea8e5ac4a653`.
 - **Không có SQL/migration.**
 - **Chưa làm:** gọi thử `POST /api/v1/ai/knowledge/procedures/21b557d3-89d3-4fa6-8186-afad7b1bda47/sync` (kỳ vọng 200 CREATED/UPDATED, gọi lại UNCHANGED) và `POST /api/v1/ai/knowledge/procedures/sync` bằng token PROCEDURE_MANAGER/ADMIN — để chủ dự án/FE nghiệm thu.
+
+## SYNC-1112 — Nghiệm thu 12/11 và đồng bộ main/deploy — 2026-11-12 (UTC+07)
+
+- **Nghiệm thu:** chủ dự án xác nhận "Nghiệm thu đã xong đã ổn hết" cho các thay đổi deploy ngày 12/11 (PROC-UNPUBLISH DEPLOY-1112c, AI-02b DEPLOY-1112d, KB-TITLE DEPLOY-1112e). Chủ dự án xác nhận thêm "Đã gồm hết": lần nghiệm thu này bao gồm cả các bảng tồn 10/11 — BE-H (`fe-handoff-2026-11-10.md` mục 5), A1–B4 / AUDIT-FIX-1110 (mục 6), luồng F1/F2 và báo Manager (`fe-handoff-2026-11-10-flows.md` mục 4, DEPLOY-1110c) và BE-J tải phôi công khai (DEPLOY-1110d). Đã đánh dấu trong `docs/CLAUDE_HANDOFF.md`. Kết quả do chủ dự án/FE kiểm, BE không tự gọi API bằng token.
+- **Git:** push `kha` (gồm ebcee81 và commit này), rồi fast-forward `main` và `deploy` lên cùng commit với `kha`. Trước khi đồng bộ: `main` và `deploy` không có commit riêng.
+- **CI:** `.github/workflows/iam-ci.yml` chạy khi push `kha`/`deploy`, chỉ `dotnet restore` + `dotnet build -warnaserror`, không deploy Azure. Azure vẫn chạy đúng các image đã deploy thủ công (AIOCR `aiocr-20261112-02`, Catalog `catalog-20261112-02`); push `deploy` không làm thay đổi Container App.
