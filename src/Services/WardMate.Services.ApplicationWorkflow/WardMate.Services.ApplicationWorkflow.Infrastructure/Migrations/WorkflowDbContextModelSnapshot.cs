@@ -339,6 +339,18 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
 
+                    b.Property<string>("Decision")
+                        .HasColumnType("text")
+                        .HasColumnName("decision");
+
+                    b.Property<DateTime?>("DispatchedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dispatched_at_utc");
+
+                    b.Property<Guid?>("DispatchedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dispatched_by");
+
                     b.Property<string>("Question")
                         .IsRequired()
                         .HasMaxLength(4000)
@@ -354,7 +366,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("requested_by_name");
 
-                    b.Property<Guid>("SpecialistId")
+                    b.Property<Guid?>("SpecialistId")
                         .HasColumnType("uuid")
                         .HasColumnName("specialist_id");
 
@@ -373,8 +385,17 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("version");
 
+                    b.Property<bool>("WillingToTakeOver")
+                        .HasColumnType("boolean")
+                        .HasColumnName("willing_to_take_over");
+
                     b.HasKey("Id")
                         .HasName("pk_application_consultations");
+
+                    b.HasIndex("ApplicationId", "AssignmentVersion")
+                        .IsUnique()
+                        .HasDatabaseName("ix_application_consultations_application_id_assignment_version")
+                        .HasFilter("status = 'PENDING_DISPATCH'");
 
                     b.HasIndex("ApplicationId", "SpecialistId")
                         .IsUnique()
@@ -383,7 +404,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.ToTable("application_consultations", null, t =>
                         {
-                            t.HasCheckConstraint("ck_consultation_status", "status IN ('OPEN','ANSWERED','CLOSED')");
+                            t.HasCheckConstraint("ck_consultation_status", "status IN ('PENDING_DISPATCH','OPEN','ANSWERED','CLOSED')");
                         });
                 });
 
