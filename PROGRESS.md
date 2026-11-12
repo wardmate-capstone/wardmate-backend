@@ -5178,3 +5178,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Rollback:** `acrwardmate2026.azurecr.io/wardmate-procedure-catalog@sha256:96b5ffbaaa07441a0b641ff844dcd753102ce72eeef6036113d7b6c0edf8c59e`.
 - **Kiểm tra:** `/health/ready` 200; `POST /api/v1/procedure-manager/procedures/{id}/unpublish` qua Gateway không token → 401 (route mới đã chạy).
 - **Chưa làm:** nghiệm thu FE theo `docs/fe-handoff-2026-11-12.md` (cần tài khoản PROCEDURE_MANAGER: xuất bản → thủ tục ẩn, công khai, hủy xuất bản khi chưa công khai).
+
+## AI-02b-1112 — AI bóc tách thủ tục nhiều trường hợp và dòng nhiều mẫu — 2026-11-12 (UTC+07)
+
+- **Yêu cầu:** chủ dự án gửi 1.001939 (thành phần hồ sơ chia "Trường hợp 2…14", có nhảy số, bảng ngắt trang) và 1.014748 (một dòng giấy tờ có Mẫu số 10 và 11, tên tệp mất dấu); AI quét sai trường hợp, tách mỗi tệp thành giấy tờ mới, tên mẫu không sửa được.
+- **Chẩn đoán:** prompt không hướng dẫn nhóm "Trường hợp N:" thành `cases`; `cases[].steps` rỗng bị coi là thiếu nên sinh nhiều cảnh báo; prompt cho dùng tên tệp làm `formName`/`formCode`; FE `ProcedureFormPicker.tsx` hiển thị `formName` dạng chữ, không có ô sửa (BE không ghi đè `formName`).
+- **Đã làm:** AIOCR `AzureProcedureDocumentExtractor.cs` (prompt: trường hợp `TH-N`, nối ô ngắt trang, một dòng nhiều mẫu = một giấy tờ, tên/số hiệu mẫu tiếng Việt, mẫu thay thế không bắt buộc; gọi kiểm tra trường hợp), `ProcedureAiContract.cs` (`steps` không bắt buộc; `CheckCaseCoverage` đếm "Trường hợp N:" trong nguồn, cảnh báo khi thiếu `cases` hoặc giấy tờ chưa gắn `caseCode`). Test mới `tests/WardMate.UnitTests/Aiocr/ProcedureCaseExtractionTests.cs` (4 test).
+- **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 102/102. Test chỉ kiểm phần BE xác định (đếm trường hợp, chuẩn hóa); chất lượng bóc tách thật phụ thuộc AI, chưa chạy thử với Gemini/Azure OpenAI sau thay đổi.
+- **Docs:** `docs/system-constraints.md` thêm AI-02b; `docs/fe-handoff-2026-11-12.md` mục 4 (FE thêm ô sửa tên biểu mẫu). Không đổi API.
+- **Chưa làm:** deploy AIOCR; thử quét lại 2 PDF trên Azure; FE thêm ô sửa `formName`.

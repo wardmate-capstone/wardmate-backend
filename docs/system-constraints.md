@@ -422,6 +422,15 @@ Nguồn: ProcedureCatalog Application `Management/ProcedureInputValidator.cs`,
   sung tay khi đối soát. Các trường bổ sung null/rỗng không sinh cảnh báo. Prompt yêu cầu bỏ đoạn lặp của bản xuất Cổng
   DVC, chép nguyên văn phí/thời hạn/trình tự/số lượng khi không tách được số, và gắn `formCodes` theo cột "Mẫu đơn, tờ khai".
   Chưa chạy thử với nhà cung cấp AI thật. Nguồn: `ProcedureAiContract.cs`, `AzureProcedureDocumentExtractor.cs`.
+- **AI-02b (12/11/2026).** Thành phần hồ sơ chia theo tiêu đề "Trường hợp N:" (vd 1.001939): prompt yêu cầu mỗi tiêu đề là một
+  phần tử `cases` (`caseCode` "TH-N" giữ đúng số nguồn, `caseName` nguyên văn, `steps` có thể rỗng) và mọi giấy tờ/mẫu dưới bảng mang
+  `caseCode` đó; nối lại ô bảng bị ngắt qua dòng "--- Trang N ---". `steps` rỗng không còn sinh cảnh báo. BE đếm độc lập số tiêu đề
+  "Trường hợp N:" trong văn bản nguồn: AI trả ít `cases` hơn hoặc có giấy tờ chưa gắn `caseCode` thì thêm cảnh báo (không tự sửa payload).
+  Một dòng giấy tờ có nhiều tệp mẫu (vd 1.014748, Mẫu số 10 và 11) chỉ là MỘT phần tử `checklistSchema` với `formCodes` liệt kê đủ mẫu,
+  mỗi tệp vẫn là một `formDefinitions`; mẫu thay thế ("không có nhu cầu thì nộp...") `isMandatory` false. `formName`/`formCode` lấy tên
+  tiếng Việt có dấu và số hiệu mẫu từ cột "Tên giấy tờ", không dùng tên tệp mất dấu vô nghĩa. Giới hạn: đây là hướng dẫn cho AI,
+  chỉ số trường hợp và việc gắn `caseCode` được BE kiểm tra; chưa chạy thử với AI thật sau thay đổi. Tên biểu mẫu sửa được qua PUT bản nháp
+  (BE không ghi đè `formName`); màn hình FE hiện chưa có ô sửa tên. Nguồn: `ProcedureAiContract.cs`, `AzureProcedureDocumentExtractor.cs`.
 
 Nguồn: ProcedureCatalog Application `Drafts/ProcedureDraftService.cs`, `DraftPayloadRequirements.cs`;
 AIOCR API `Controllers/ProcedureExtractionsController.cs`, Infrastructure `Extraction/`.
@@ -1400,3 +1409,4 @@ Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 - Lịch sử: 2026-11-10 (AUDIT-FIX-1110) thêm IAM-01a, PROC-01c, PROC-02b, PROC-03c, DOC-QR-06 (a, b); sửa ghi chú PUT ở PROC-03a. Build local pass; chưa deploy Azure, chưa nghiệm thu FE.
 - Lịch sử: 2026-11-10 (BE-H) thêm PROC-05 (a–f), WF-01a, DOC-03a, KB-01a, AI-02a; cập nhật giới hạn độ dài ở PROC-01, PROC-02, PROC-03, PROC-04. Build local pass; migration Catalog/Workflow/Analytics chưa chạy trên Azure, chưa deploy, chưa nghiệm thu FE.
 - Lịch sử: 2026-11-12 — DispatchService.cs: Manager nhập reason bắt buộc tối đa 2000 ký tự, lịch sử lưu tối đa 500 ký tự. Sai đầu vào trả 400 dispatch.invalid_input; sửa lý do rồi gửi lại.
+- Lịch sử: 2026-11-12 (AI-02b) thêm AI-02b: bóc tách thủ tục chia theo "Trường hợp N:", dòng giấy tờ nhiều mẫu, tên biểu mẫu; BE cảnh báo khi thiếu trường hợp. Build 0/0, test 102/102; chưa deploy AIOCR, chưa chạy thử AI thật.

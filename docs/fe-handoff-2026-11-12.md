@@ -33,3 +33,11 @@ ProcedureCatalog — **chưa deploy**; cần chạy SQL `docs/sql/catalog-proced
 | 5 | Hủy xuất bản thủ tục có trước 12/11 | 409 `procedure.already_public` |
 
 Báo lỗi cho BE kèm: route, mã HTTP, `code`, `traceId`, thời điểm gọi.
+
+## 4. AI bóc tách thủ tục (AI-02b, chưa deploy AIOCR)
+
+Không đổi API hay DTO. Kết quả bản nháp từ AI thay đổi như sau:
+
+- Thủ tục chia thành phần hồ sơ theo "Trường hợp N:" (ví dụ 1.001939): `contentPayload.cases[]` có một phần tử cho mỗi trường hợp, `caseCode` dạng `TH-2`, `TH-3`… (giữ số của nguồn, có thể nhảy số), `caseName` là nguyên văn tiêu đề, `steps` có thể rỗng. Giấy tờ và mẫu trong từng bảng mang `caseCode` tương ứng. FE nên hiển thị `caseName` thay vì `caseCode` ở thẻ "Áp dụng: Trường hợp …".
+- Một dòng giấy tờ có nhiều mẫu (ví dụ 1.014748, Mẫu số 10 và Mẫu số 11): chỉ một giấy tờ trong `checklistSchema`, `formCodes` có đủ hai mẫu; `formDefinitions` vẫn có hai phần tử, mẫu thay thế `isMandatory: false`.
+- **Cần FE làm:** ở thẻ biểu mẫu đã chọn (bước 5 "Biểu mẫu", `ProcedureFormPicker`), tên biểu mẫu đang chỉ hiển thị, không sửa được. BE nhận và lưu nguyên `formDefinitions[i].formName` qua PUT bản nháp (bắt buộc khác rỗng, không ghi đè theo tên tệp), nên FE chỉ cần thêm ô nhập `formName` (và nếu muốn, `formCode`) trong phần "Thiết lập sử dụng mẫu".
