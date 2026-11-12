@@ -99,7 +99,7 @@ def main():
     expect('bad page rejected',root+'?pageSize=101',400)
     app=expect('citizen creates application','/api/v1/applications',201,'citizen','POST',dict(procedureId=IDS['procedure'],wardCode='W1',formData={}))['id']
     path=root+'/'+app
-    assign=lambda who,version: dict(officerId=IDS[who],expectedAssignmentVersion=version,reasonCode='INITIAL_ASSIGNMENT' if version==0 else 'WORKLOAD_BALANCE',reason='Synthetic assignment')
+    assign=lambda who,version: dict(officerId=IDS[who],expectedAssignmentVersion=version,reason='Synthetic assignment')
     expect('draft cannot be assigned',path+'/assignments',409,method='POST',data=assign('o1',0))
     expect('submit empty synthetic checklist','/api/v1/applications/'+app+'/submit',who='citizen',method='POST')
     expect('foreign manager cannot see candidates',path+'/assignment-candidates',404,'foreign')
