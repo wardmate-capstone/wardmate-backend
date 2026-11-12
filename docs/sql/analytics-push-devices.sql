@@ -3,7 +3,7 @@
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261112161946_PushDevices') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE migration_id = '20261112161946_PushDevices') THEN
     CREATE TABLE push_devices (
         id uuid NOT NULL,
         user_id uuid NOT NULL,
@@ -20,22 +20,22 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261112161946_PushDevices') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE migration_id = '20261112161946_PushDevices') THEN
     CREATE UNIQUE INDEX "IX_push_devices_token" ON push_devices (token);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261112161946_PushDevices') THEN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE migration_id = '20261112161946_PushDevices') THEN
     CREATE INDEX "IX_push_devices_user_id_last_seen_at" ON push_devices (user_id, last_seen_at);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261112161946_PushDevices') THEN
-    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE migration_id = '20261112161946_PushDevices') THEN
+    INSERT INTO "__EFMigrationsHistory" (migration_id, product_version)
     VALUES ('20261112161946_PushDevices', '8.0.11');
     END IF;
 END $EF$;
