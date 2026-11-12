@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Apache-2.0, free. Bundles ImageMagick native code (linux-x64, linux-musl-x64, win) with libheif for HEIC/HEIF. -->
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.17.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+  </ItemGroup>
+</Project>
