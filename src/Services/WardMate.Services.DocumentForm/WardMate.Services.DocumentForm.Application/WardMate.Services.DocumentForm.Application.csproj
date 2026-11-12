@@ -2,6 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="..\WardMate.Services.DocumentForm.Domain\WardMate.Services.DocumentForm.Domain.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\WardMate.SharedKernel\WardMate.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\WardMate.Imaging\WardMate.Imaging.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MediatR" Version="12.4.1" />

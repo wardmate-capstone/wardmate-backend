@@ -31,6 +31,7 @@ public static class DependencyInjection
 
         // Azure Blob Storage (dùng SharedKernel wrapper)
         services.AddAzureBlobStorage(configuration);
+        WardMate.Imaging.ImagingServiceExtensions.AddWardMateImaging(services);
 
         // OpenXML Placeholder Engine
         services.AddSingleton<IDocxPlaceholderEngine, DocxPlaceholderEngine>();
