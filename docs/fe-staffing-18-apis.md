@@ -135,17 +135,11 @@ Dành cho màn hình **Quản lý phân công hồ sơ** của Lãnh đạo / Qu
   {
     "officerId": "23fa1c94-8422-47d3-9f13-68f4e1e2d8ab",
     "expectedAssignmentVersion": 0,
-    "reasonCode": "INITIAL_ASSIGNMENT",
     "reason": "Phân công xử lý hồ sơ khai sinh theo đúng lĩnh vực"
   }
   ```
 - **Quy tắc Request Body:**
   - `expectedAssignmentVersion`: Bắt buộc đúng version hiện tại của hồ sơ (ngăn chặn xung đột 2 Manager cùng thao tác đồng thời).
-  - `reasonCode`: **BẮT BUỘC** chỉ được chọn 1 trong 4 mã enum sau:
-    1. `INITIAL_ASSIGNMENT`: Giao hồ sơ lần đầu.
-    2. `OFFICER_LEAVE`: Chuyển hồ sơ do cán bộ phụ trách nghỉ phép.
-    3. `WORKLOAD_BALANCE`: Điều phối cân bằng tải công việc.
-    4. `SPECIALIST_REQUIRED`: Chuyển do yêu cầu cán bộ chuyên môn đặc thù.
   - `reason`: Chuỗi lý do (bắt buộc, tối đa 2000 ký tự).
 - **Response mẫu (200 OK):**
   ```json
@@ -156,7 +150,6 @@ Dành cho màn hình **Quản lý phân công hồ sơ** của Lãnh đạo / Qu
     "toOfficerId": "23fa1c94-8422-47d3-9f13-68f4e1e2d8ab",
     "actorId": "11aa22bb-33cc-44dd-55ee-66ff77aa88bb",
     "version": 1,
-    "reasonCode": "INITIAL_ASSIGNMENT",
     "reason": "Phân công xử lý hồ sơ khai sinh theo đúng lĩnh vực",
     "createdAt": "2026-10-29T16:50:00Z",
     "action": "ASSIGNED"
@@ -453,7 +446,7 @@ Mọi phản hồi lỗi từ hệ thống đều tuân thủ RFC 7807 (ProblemD
 2. Với hồ sơ chưa phân công (`assignedOfficerId == null`), Manager bấm **"Phân công cán bộ"**:
    - FE mở Modal, đồng thời gọi API 2 (`GET .../assignment-candidates`).
    - Hiển thị danh sách cán bộ: cán bộ `eligible: true` hiển thị sáng, cán bộ `eligible: false` hiển thị mờ kèm nhãn lý do (ví dụ: "Đang nghỉ phép").
-3. Manager chọn cán bộ và chọn lý do (Dropdown 4 mã `INITIAL_ASSIGNMENT`, `WORKLOAD_BALANCE`,...):
+3. Manager chọn cán bộ và nhập lý do phân công:
    - FE bấm "Xác nhận", gọi API 3 (`POST .../assignments`) kèm `expectedAssignmentVersion`.
    - Nhận 200 OK: Đóng Modal, hiển thị Toast xanh thông báo thành công, reload lại danh sách API 1.
 
