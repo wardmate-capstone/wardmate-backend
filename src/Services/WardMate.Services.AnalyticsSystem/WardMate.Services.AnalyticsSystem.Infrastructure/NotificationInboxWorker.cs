@@ -88,8 +88,12 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
                     (staffing.NotifyManagers ? x.IsStaffingManager : x.UserId==staffing.OfficerId && x.IsStaffingOfficer)))
                 {
                     var notification=new Notification {Id=Guid.NewGuid(),SourceEventId=e.EventId,RecipientUserId=recipient.UserId,
-                        RecipientWardCode=e.WardCode,Type="SYSTEM_ALERT",Title="Cập nhật lịch và nghỉ phép",
+                        RecipientWardCode=e.WardCode,Type="SYSTEM_ALERT",Title=e.Status.StartsWith("CONSULTATION_", StringComparison.Ordinal) ? "Tham vấn chuyên môn" : "Cập nhật lịch và nghỉ phép",
                         Content=e.Status switch {
+                            "CONSULTATION_REQUESTED"=>"Có yêu cầu hỗ trợ mới trong danh sách tham vấn chờ điều phối.",
+                            "CONSULTATION_DISPATCHED"=>"Bạn có yêu cầu tham vấn mới cần trả lời.",
+                            "CONSULTATION_ANSWERED"=>"Đã có ý kiến chuyên môn. Mở danh sách tham vấn để xem.",
+                            "CONSULTATION_CLOSED"=>"Manager đã kết luận yêu cầu tham vấn.",
                             "LEAVE_SUBMITTED"=>"Có đơn nghỉ mới cần xem xét.",
                             "LEAVE_DECIDED"=>"Trạng thái đơn nghỉ đã thay đổi.",
                             "SHIFT_CHANGE_REQUESTED"=>"Có đề nghị đổi giờ ca cần xem xét.",
