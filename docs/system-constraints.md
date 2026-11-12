@@ -296,6 +296,15 @@ Nguồn: IAM Application `Validation/AuthValidators.cs`, `Profiles/ProfileValida
   Tên sau trim không được trùng không phân biệt hoa/thường qua luồng quản trị.
   Rollback bị chặn nếu snapshot sai, danh mục cũ không còn hoặc mã bị thủ tục khác dùng.
 - PROC-03a (09/11/2026) — Gắn PDF gốc cho thủ tục có sẵn: `POST /api/v1/procedure-manager/procedures/{id}/source` (policy `procedure.update`, multipart `file`). PDF phải có chữ ký `%PDF-`, tên đuôi .pdf tối đa 255 ký tự, dung lượng 5 byte–20 MB, nếu không trả 400 `draft.invalid_pdf`; thiếu cấu hình Blob → 503 `draft.storage_not_configured`; thủ tục không tồn tại → 404 `procedure.not_found`. File lưu container riêng tư `procedure-sources` dưới dạng bản nháp trạng thái `Published` trỏ tới thủ tục; trước khi đổi `originalPdfUrl`/`pdfFileName` lưu một version snapshot (ngày hiệu lực = hôm nay, số quyết định hiện tại). Gắn lại thì thay PDF, PDF cũ vẫn mở được qua nguồn của version cũ. Upload Blob trước DB: lỗi DB để lại blob mồ côi (chưa dọn tự động). Từ 10/11/2026 PUT thiếu `originalPdfUrl` giữ PDF hiện tại (PROC-01c); trước đó PUT ghi đè theo body làm mất liên kết. Nguồn: `ProcedureManagerController.AttachSource`, `ProcedureDraftService.AttachSource`.
+- PROC-UNPUBLISH-01 (12/11/2026) — Xuất bản tách khỏi công khai: publish bản nháp tạo thủ tục mới `IsActive=false`
+  (publish đè thủ tục đã có không đổi IsActive). Cột `procedures.first_published_at` gán lần đầu IsActive thành true (tạo tay
+  với `isActive=true`, hoặc PATCH status), không đổi về sau; migration `ProcedureUnpublish` gán cho mọi thủ tục có sẵn =
+  `COALESCE(updated_at, created_at, now())` (SQL `docs/sql/catalog-procedure-unpublish.sql`). `POST .../{id}/unpublish`
+  (policy `procedure.publish`) chỉ khi `IsActive=false` và `first_published_at IS NULL`, ngược lại 409 `procedure.already_public`;
+  khóa dòng `FOR UPDATE`, xóa cứng `procedure_versions` rồi `procedures`, bản nháp `PublishedProcedureId = id` → `NeedsReview`,
+  bỏ liên kết. Blob PDF thuộc bản nháp nên giữ; xóa bản nháp sau đó dọn file. Không ảnh hưởng hồ sơ (thủ tục chưa công khai
+  thì không tạo được hồ sơ) hay tri thức chatbot (chỉ đồng bộ thủ tục active). Nguồn: `Procedure.CanUnpublish`,
+  `ProcedureDraft.ReturnToReview`, `ProcedureAdministration.Unpublish`, `PublishReviewedProcedureCommand`, `ProcedureCommandHandlers`.
 - PROC-03c (10/11/2026) — Xem PDF hiện tại ở màn quản trị: `GET /api/v1/procedure-manager/procedures/{id}/source`
   (policy `procedure.source.read`) trả link SAS 10 phút của PDF gắn qua hệ thống kể cả khi thủ tục đang ẩn. API công
   khai `GET /api/v1/procedures/{id}/source` vẫn chỉ phục vụ thủ tục `isActive = true`. Cả hai chỉ ký blob của bản nháp

@@ -1196,6 +1196,16 @@ cùng.
 - Không chỉ gửi một trường như PATCH.
 - Ngày hiệu lực không tự hẹn giờ cập nhật; thay đổi được áp dụng khi lệnh thành công.
 
+#### API 36b — Hủy xuất bản thủ tục chưa từng công khai (12/11/2026)
+
+`POST /api/v1/procedure-manager/procedures/{id}/unpublish` — Bearer, quyền `procedure.publish`, không có body.
+
+- **Mục đích:** gỡ thủ tục xuất bản nhầm khi người dân **chưa từng thấy**. Thủ tục bị xóa hẳn cùng lịch sử phiên bản; bản nháp PDF tạo ra nó quay về `NeedsReview` (sửa và xuất bản lại, hoặc xóa bản nháp được).
+- **Điều kiện:** `isActive = false` **và** `firstPublishedAt = null`. Từ 12/11/2026 xuất bản bản nháp tạo thủ tục **ẩn** (`isActive=false`); công khai là bước riêng bằng API 36, lần công khai đầu gán `firstPublishedAt`. Thủ tục có trước 12/11/2026 đều coi như đã từng công khai.
+- **Kết quả:** 200 `true`.
+- **Lỗi:** 404 `procedure.not_found`; 409 `procedure.already_public` khi đang hoặc đã từng công khai — chỉ dùng API 36 để ẩn. 401/403 khi thiếu token/quyền.
+- **FE:** chi tiết thủ tục trả thêm `firstPublishedAt` (null = chưa từng công khai). Chỉ hiện nút "Hủy xuất bản" khi `firstPublishedAt == null && !isActive`.
+
 #### API 36 — Mở hoặc ngừng hiển thị/tiếp nhận thủ tục
 
 `PATCH /api/v1/procedure-manager/procedures/{id}/status`
