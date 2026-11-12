@@ -5169,3 +5169,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 98/98 đạt. Phần xóa trong DB (`ProcedureAdministration.Unpublish`, dùng SQL `FOR UPDATE`) chưa có test tự động — kiểm qua bảng FE sau deploy.
 - **Deploy:** chạy SQL trên DB Catalog, rồi deploy chỉ Catalog. Chưa làm.
 - **Commit gợi ý (theo mục đích):** `feat(catalog): separate publish from going public and add unpublish`; `feat(catalog): add first_published_at migration and sql`; `test(catalog): cover unpublish rules`; `docs: record PROC-UNPUBLISH-01 and FE handoff`.
+
+## DEPLOY-1112c — PROC-UNPUBLISH lên Azure — 2026-11-12 (UTC+07)
+
+- **Git:** rebase 4 commit PROC-UNPUBLISH lên `origin/kha` (gộp xung đột PROGRESS.md, giữ cả hai mục); build Release 0/0, `dotnet test` 98/98; push `kha` `2882949..ec72de7`.
+- **SQL (Supabase, DB Catalog):** chạy `docs/sql/catalog-procedure-unpublish.sql` thành công; `procedures` 9/9 đã có `first_published_at` (0 bản rỗng); migration cuối `20261112062426_ProcedureUnpublish`.
+- **Deploy Catalog (chủ dự án chạy lệnh Cloud Shell, code tải từ `kha` ec72de7):** ACR build `ce27` Succeeded, tag `wardmate-procedure-catalog:catalog-20261112-01`, cập nhật theo digest `sha256:0f5b18a47c67ce2ced1c6b93ef48a19c6bdd4ea8095c9d3b68fdea8e5ac4a653`, `provisioningState=Succeeded`.
+- **Rollback:** `acrwardmate2026.azurecr.io/wardmate-procedure-catalog@sha256:96b5ffbaaa07441a0b641ff844dcd753102ce72eeef6036113d7b6c0edf8c59e`.
+- **Kiểm tra:** `/health/ready` 200; `POST /api/v1/procedure-manager/procedures/{id}/unpublish` qua Gateway không token → 401 (route mới đã chạy).
+- **Chưa làm:** nghiệm thu FE theo `docs/fe-handoff-2026-11-12.md` (cần tài khoản PROCEDURE_MANAGER: xuất bản → thủ tục ẩn, công khai, hủy xuất bản khi chưa công khai).
