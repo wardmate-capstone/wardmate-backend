@@ -4,7 +4,7 @@ Người viết: Backend (Claude), 12/11/2026. Hợp đồng chi tiết: `docs/a
 
 ## 0. Trạng thái
 
-**Chưa deploy.** Cần chạy 3 SQL (IAM, AnalyticsSystem, AIOCR) rồi deploy IAM, DocumentForm, AnalyticsSystem, AIOCR. Thông báo đẩy tắt cho tới khi có dự án Firebase. BE báo tag image sau khi deploy.
+**Đã deploy 12/11 (DEPLOY-1112i).** Đã chạy 3 SQL (IAM, DB thông báo của AnalyticsSystem, AIOCR). Tag image: IAM `iam-20261112-m1`, DocumentForm `documentform-20261112-m1`, AnalyticsSystem `analytics-20261112-m1`, AIOCR `aiocr-20261112-m1`; cả 4 `/health/ready` 200. Thông báo đẩy vẫn tắt (`pushEnabled: false`) cho tới khi có dự án Firebase. `GET /api/v1/system/app-config` trả 200 không cần token. FE kiểm theo mục 6.
 
 ## 1. Ảnh đại diện (Web và Mobile)
 
