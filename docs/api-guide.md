@@ -5130,3 +5130,18 @@ Nguồn: yêu cầu FE ngày 06–07/11. Tất cả trường mới là **snapsh
 
 **Triển khai:** Workflow cần `docs/sql/workflow-display-name-snapshots.sql` (10 cột) **trước** khi deploy image mới; Analytics cần `docs/sql/analytics-feedback-display-snapshots.sql` (3 cột). IAM không có migration. Deploy lại IAM, Workflow, Analytics.
 
+
+### Tham vấn từ cán bộ đang xử lý (12/11/2026)
+
+Các đường dẫn bên dưới dùng tiền tố `/api/v1/applications/{applicationId}/consultations`, trừ hộp việc. Dùng JWT của đúng người thực hiện. ID là ID hồ sơ Workflow, không phải ID thủ tục. Các thao tác thành công trả 200.
+
+| Thao tác | Ai gọi, lúc nào | Dữ liệu và kết quả |
+|---|---|---|
+| POST `requests` | A đang phụ trách hồ sơ cần ý kiến | Gửi `{ "expectedAssignmentVersion": 1, "question": "Cần đối chiếu giấy tờ nào?" }`. Dùng phiên bản thật của hồ sơ. Nhận yêu cầu PENDING_DISPATCH, specialistId còn null. |
+| GET `/api/v1/staffing/consultations?status=PENDING_DISPATCH` | Manager mở hộp việc | Trả items, page, pageSize, total; bỏ status để xem mọi trạng thái trong phạm vi. |
+| GET `specialist-candidates` | Manager chọn B | Không có body. Hiện fullName, eligible và blockingReasons. Đủ điều kiện góp ý không đồng nghĩa đủ điều kiện tiếp nhận. |
+| POST `{id}/dispatch` | Manager gửi câu hỏi cho B | Gửi expectedVersion của yêu cầu và specialistId của B. Trả OPEN; A vẫn phụ trách. |
+| POST `{id}/answer` | B trả lời | Gửi expectedVersion, text và willingToTakeOver (true nếu đề nghị nhận hồ sơ). Trả ANSWERED; chưa chuyển hồ sơ. |
+| POST `{id}/close` | Manager quyết định | Gửi expectedVersion, text (lý do), decision. DECLINE_REQUEST khi đang chờ; KEEP_ASSIGNEE sau trả lời; TRANSFER_TO_SPECIALIST sau trả lời cần thêm expectedAssignmentVersion hiện tại. Trả CLOSED. Tải lại hồ sơ để hiển thị cán bộ và phiên bản phân công mới. |
+
+Phiên bản yêu cầu lấy từ trường version trong phản hồi trước, khác với assignmentVersion của hồ sơ. Khi gặp 409 tải lại cả hai trước khi quyết định lại; 422 kiểm tra quyền, lịch, chuyên môn và việc B đồng ý nhận; 403 kiểm tra tài khoản/quyền; 404 kiểm tra hồ sơ và phường; 503 thử lại khi IAM/Catalog hoạt động. Không đổi người phụ trách chỉ vì đã nhận được câu trả lời. Luồng Manager trực tiếp mở tham vấn bằng POST ở đường dẫn gốc vẫn dùng được.

@@ -1420,5 +1420,11 @@ Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 - Lịch sử: 2026-11-12 — DispatchService.cs: Manager nhập reason bắt buộc tối đa 2000 ký tự, lịch sử lưu tối đa 500 ký tự. Sai đầu vào trả 400 dispatch.invalid_input; sửa lý do rồi gửi lại.
 - Lịch sử: 2026-11-12 (AI-02b) thêm AI-02b: bóc tách thủ tục chia theo "Trường hợp N:", dòng giấy tờ nhiều mẫu, tên biểu mẫu; BE cảnh báo khi thiếu trường hợp. Build 0/0, test 102/102; chưa deploy AIOCR, chưa chạy thử AI thật.
 - Lịch sử: 2026-11-12 (KB-TITLE-1112) thêm KB-TITLE-01: tên thủ tục gộp về một dòng ở đồng bộ tri thức, lưu Catalog và bóc tách AI. Build 0/0, test 106/106; chưa deploy AIOCR/Catalog.
-- Lịch sử: 2026-11-12 (KB-ENABLE-1112) KB-02 ghi nhận bật EmbeddingEnabled/RagEnabled trên Azure AIOCR bằng biến môi trường; không đổi code.\r
+- Lịch sử: 2026-11-12 (KB-ENABLE-1112) KB-02 ghi nhận bật EmbeddingEnabled/RagEnabled trên Azure AIOCR bằng biến môi trường; không đổi code.
 - Lịch sử: 2026-11-12 (CHAT-CITE-1112) KB-02 thêm CHAT-CITE-01: câu trả lời không trích nguồn nào thì không trả citations, grounded false; prompt bỏ qua nguồn không liên quan. Build 0/0, test 109/109; chưa deploy AIOCR.
+
+### STAFFING-01 — bổ sung ngày 12/11/2026: yêu cầu hỗ trợ từ người đang nhận hồ sơ
+
+Chỉ cán bộ đang phụ trách hồ sơ UNDER_REVIEW cùng phường, khác người nộp, có quyền workflow.consultation.request mới được yêu cầu. Câu hỏi và nội dung trả lời/đóng không được trống, tối đa 4000 ký tự. Mỗi phiên bản phân công chỉ có một yêu cầu chờ điều phối; bản chụp đã nộp và phiên bản phân công phải còn phù hợp. Manager chọn một cán bộ khác có quyền phản hồi, đúng lĩnh vực, đúng phường và đang sẵn sàng theo lịch. Chỉ cán bộ được chọn mới được trả lời. Lời đáp không đổi người phụ trách. Với yêu cầu do A khởi tạo, chuyển giao cần B đồng ý nhận, Manager quyết định, kiểm tra lại điều kiện nhận việc và phiên bản. Ghi việc chuyển người, lịch sử phân công và đóng tham vấn trong cùng giao dịch. Tham vấn không tự tạm dừng thời hạn hồ sơ. Khi gặp 409 tải lại trạng thái; khi gặp 422 xem điều kiện cán bộ và giữ A hoặc chọn cách điều phối khác.
+
+Nguồn: ApplicationConsultation.cs, ConsultationService.cs, DispatchService.cs, WorkflowDbContext.cs và WorkflowSecurity.cs thuộc ApplicationWorkflow; migration OfficerConsultationRequestPermission thuộc IAM. Lịch sử: 12/11/2026 mở rộng STAFFING-01 cho chiều cán bộ → Manager → cán bộ tư vấn.

@@ -5235,3 +5235,12 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Test:** mới `tests/WardMate.UnitTests/Aiocr/ChatCitationTests.cs` (3 test). Build Release `-warnaserror -m:1` 0/0; `dotnet test` 109/109. Chưa gọi Gemini thật.
 - **Docs:** `docs/system-constraints.md` KB-02 (CHAT-CITE-01); `docs/api-guide.md` mục chat RAG (FE ẩn khối nguồn khi `citations` null).
 - **Chưa làm:** deploy AIOCR; chưa chốt nâng `Knowledge:MinScore` (cần điểm của một câu hỏi đúng chủ đề để so với 0.6); tài liệu Hỏi đáp "việc không giải quyết tại phường" do chủ dự án bổ sung nếu muốn.
+
+---
+
+## STAFFING-01 — tham vấn từ cán bộ phụ trách | 2026-11-12 16:00 +07:00
+
+Workflow: Controllers/ConsultationsController.cs, WorkflowSecurity.cs, Application/ConsultationContracts.cs, Domain/ApplicationConsultation.cs, Infrastructure/{ConsultationService,DispatchService,WorkflowDbContext}.cs và Migrations/20261112085434_OfficerConsultationDispatch{,.Designer}.cs, snapshot. IAM: 20261112080000_OfficerConsultationRequestPermission.cs. Analytics: WorkflowNotificationConsumer.cs, NotificationInboxWorker.cs. Tests: tests/WardMate.UnitTests/Workflow/ConsultationDecisionTests.cs. Docs: docs/api-guide.md, docs/system-constraints.md.
+POST /api/v1/applications/{applicationId}/consultations/requests (question,expectedAssignmentVersion); GET .../specialist-candidates; POST .../{id}/dispatch (expectedVersion,specialistId); mở rộng GET /api/v1/staffing/consultations?status= và POST .../{id}/answer, .../{id}/close. Xem DTO, JWT theo vai trò, 200 và ProblemDetails 400/403/404/409/422/503 trong api-guide. Release build 0 warnings, 0 errors; unit tests 105 passed, 0 failed, 0 skipped (7 ca mới kiểm tra quyết định theo trạng thái). Chưa chạy migration trên DB thật, Docker E2E hoặc triển khai Azure. Không chạy Git.
+
+FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9 thao tác theo vai trò, body, kết quả, lỗi và ca nghiệm thu. Chỉ bổ sung tài liệu; không chạy lại build/test.
