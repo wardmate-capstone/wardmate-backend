@@ -54,6 +54,10 @@ public sealed class NotificationHub(INotificationService notifications, INotific
         if (!await notifications.MarkReadAsync(Recipient, notificationId, Context.ConnectionAborted, guard.Ward(Context.ConnectionId)))
             throw new HubException("Không tìm thấy thông báo của bạn.");
     }
+    /// <summary>NOTIFY-READALL-01: đánh dấu đã đọc mọi thông báo trong phạm vi của người gọi; trả số vừa đánh dấu (0 nếu không có).</summary>
+    public Task<int> MarkAllRead(DateTime? before = null) =>
+        notifications.MarkAllReadAsync(Recipient, before, Context.ConnectionAborted, guard.Ward(Context.ConnectionId));
+
     // SignalR removes disconnected connections from every group automatically.
     public override Task OnDisconnectedAsync(Exception? exception)
     {

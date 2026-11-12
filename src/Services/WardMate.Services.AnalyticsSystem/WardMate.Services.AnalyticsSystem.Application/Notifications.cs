@@ -20,6 +20,8 @@ public interface INotificationService
     Task<int> UnreadCountAsync(Guid recipient, CancellationToken ct = default, string? wardCode = null);
     Task<IReadOnlyList<NotificationDto>> ListAsync(Guid recipient, int page, int pageSize, CancellationToken ct = default, string? wardCode = null);
     Task<bool> MarkReadAsync(Guid recipient, Guid notificationId, CancellationToken ct = default, string? wardCode = null);
+    // NOTIFY-READALL-01: marks every unread IN_APP notification in the caller's scope (optionally created at or before `before`).
+    Task<int> MarkAllReadAsync(Guid recipient, DateTime? before, CancellationToken ct = default, string? wardCode = null);
 }
 
 public sealed record NotificationAccess(Guid UserId, string? WardCode, string[] Roles, string[]? Permissions = null);

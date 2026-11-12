@@ -33,7 +33,41 @@ public sealed class NotificationService(NotificationDbContext db, IHubContext<No
     }
 
     public Task<int> UnreadCountAsync(Guid recipient, CancellationToken ct = default, string? wardCode = null) =>
-        db.Notifications.CountAsync(x => x.RecipientUserId == recipient && x.Channel == "IN_APP" && !x.IsRead && (x.RecipientWardCode == null || x.RecipientWardCode == wardCode), ct);
+        Unread(db.Notifications, recipient, wardCode).CountAsync(ct);
+
+    /// <summary>Unread IN_APP notifications the caller may see: own rows, personal or of the caller's current ward.</summary>
+    public static IQueryable<Notification> Unread(IQueryable<Notification> source, Guid recipient, string? wardCode, DateTime? before = null)
+    {
+        var query = source.Where(x => x.RecipientUserId == recipient && x.Channel == "IN_APP" && !x.IsRead && (x.RecipientWardCode == null || x.RecipientWardCode == wardCode));
+        return before is { } cutoff ? query.Where(x => x.CreatedAt <= cutoff) : query;
+    }
+
+    /// <summary>SignalR may bind an ISO time without offset as Unspecified; Npgsql timestamptz needs UTC.</summary>
+    public static DateTime? AsUtc(DateTime? value) => value switch
+    {
+        null => null,
+        { Kind: DateTimeKind.Local } local => local.ToUniversalTime(),
+        { } other => DateTime.SpecifyKind(other, DateTimeKind.Utc)
+    };
+
+    public async Task<int> MarkAllReadAsync(Guid recipient, DateTime? before, CancellationToken ct = default, string? wardCode = null)
+    {
+        var scope = Unread(db.Notifications, recipient, wardCode, AsUtc(before));
+        // One updated row (personal first) is enough to make every replica recount this user's open connections.
+        var signal = await scope.OrderBy(x => x.RecipientWardCode != null).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);
+        if (signal is null) return 0;
+        var now = clock.GetUtcNow().UtcDateTime;
+        var changed = await scope.ExecuteUpdateAsync(set => set.SetProperty(x => x.IsRead, true).SetProperty(x => x.ReadAt, now), ct);
+        if (changed == 0) return 0;
+        try
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_notify({NotificationRealtimeListener.Channel}, {signal.Value.ToString()})", ct);
+            var connections = await guard.ValidatedConnections(recipient, wardCode, ct);
+            await hub.Clients.Clients(connections).UpdateUnreadCount(await UnreadCountAsync(recipient, ct, wardCode));
+        }
+        catch (Exception exception) { logger.LogWarning(exception, "Không cập nhật được bộ đếm realtime; trạng thái đã đọc đã được lưu."); }
+        return changed;
+    }
 
     public async Task<IReadOnlyList<NotificationDto>> ListAsync(Guid recipient, int page, int pageSize, CancellationToken ct = default, string? wardCode = null)
     {
