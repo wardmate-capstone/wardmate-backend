@@ -5145,3 +5145,18 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - Rollback target: `acrwardmate2026.azurecr.io/wardmate-application-workflow@sha256:99fd51204e4b62db0233d32517bc4cadb8e8723e9b3c9fcfefc62ffdeb72feab`.
   - Health check: `/health/ready` trực tiếp và qua Gateway đều đạt `200 Healthy` (`database: reachable`, `rabbitmq: connected`).
 2026-11-12 09:41 +07:00 — Manager dispatch 500. DispatchService.cs: lock application row and explicitly insert assignment/status history in existing transaction. POST /api/v1/manager/applications/{id}/assignments: same Manager token, officerId/expectedAssignmentVersion/reason; 200 on success. Solution Release build 0 warnings/0 errors. Runtime tests 0. Production exception pending log correlation.
+
+---
+
+## DEPLOY-1112b — Deploy ApplicationWorkflow (Fix Manager Dispatch 500) — 2026-11-12 11:30 (UTC+07)
+
+- **Nguồn:** `kha` @ `b795fd4`. Build Release: 0 warnings, 0 errors. Unit tests: 92/92 passed.
+- **Nội dung khắc phục:**
+  - `DispatchService.cs`: Bỏ `.Include(x => x.AssignmentHistory).Include(x => x.History)` khi khóa dòng `SELECT * FROM applications ... FOR UPDATE` (tránh lỗi PostgreSQL không cho phép `FOR UPDATE` trên nullable side của outer join).
+  - Thêm bản ghi `ApplicationStatusHistory` và `AssignmentHistory` trực tiếp vào context (`db.StatusHistory.Add` và `db.AssignmentHistory.Add`) trong transaction hiện tại.
+- **Deploy (Antigravity):**
+  - ACR Build Run ID: `ce26` → `wardmate-application-workflow:workflow-20261112-02`.
+  - Image Digest: `sha256:ee492711114d47ac49a97e89282b371b8da23c96199164f2193f3fb797e1f68a`.
+  - Container App: `wardmate-application-workflow` (`ProvisioningState: Succeeded`, `Running`).
+  - Rollback target: `acrwardmate2026.azurecr.io/wardmate-application-workflow@sha256:ec34500e4b1beb66750fd99d03739bd0c76eb1c3f3be60918a42e42dde3bcc07`.
+  - Health check: `/health/ready` trực tiếp và qua Gateway đều đạt `200 Healthy` (`database: reachable`, `rabbitmq: connected`).
