@@ -138,7 +138,7 @@ public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory dir
         var leave = await db.Leaves.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.WardCode == a.WardCode, ct);
         if (leave is null) return Fail<DispatchApplication[]>(404, "not_found", "Không tìm thấy yêu cầu nghỉ.");
         return WorkflowResult<DispatchApplication[]>.Ok(await db.Applications.AsNoTracking().Where(x => x.WardCode == a.WardCode && x.UserId != a.Id && x.AssignedOfficerId == leave.OfficerId && (x.Status == "SUBMITTED" || x.Status == "UNDER_REVIEW" || x.Status == "NEED_REVISION" || x.Status == "DOCUMENTS_READY"))
-            .OrderBy(x => x.DueAtUtc).Select(x => new DispatchApplication(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.AssignedOfficerId, x.AssignmentVersion, x.CategoryId)).ToArrayAsync(ct));
+            .OrderBy(x => x.DueAtUtc).Select(x => new DispatchApplication(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.AssignedOfficerId, x.AssignedOfficerId == null ? null : x.AssignedOfficerName, x.AssignmentVersion, x.CategoryId)).ToArrayAsync(ct));
     }
     public async Task<WorkflowResult<OfficerLeaveDecision[]>> LeaveHistory(ReviewActor a, Guid id, CancellationToken ct)
     {
