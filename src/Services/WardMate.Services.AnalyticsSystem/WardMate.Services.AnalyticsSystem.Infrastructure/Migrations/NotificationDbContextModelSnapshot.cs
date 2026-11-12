@@ -284,6 +284,55 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations
                     b.ToTable("notification_inbox", (string)null);
                 });
 
+            modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Infrastructure.PushDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AppVersion")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("app_version");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("platform");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("token");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "LastSeenAt");
+
+                    b.ToTable("push_devices", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_push_devices_platform", "platform IN ('ANDROID','IOS','WEB')");
+                        });
+                });
+
             modelBuilder.Entity("WardMate.Services.AnalyticsSystem.Infrastructure.NotificationDelivery", b =>
                 {
                     b.HasOne("WardMate.Services.AnalyticsSystem.Domain.Notification", null)
