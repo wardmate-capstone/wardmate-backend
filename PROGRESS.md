@@ -5238,6 +5238,28 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 
 ---
 
+## DEPLOY-1112f — Deploy STAFFING-01 (Consultation) lên Azure | 2026-11-12 21:35 +07:00
+
+### Workflow service
+- **ACR build:** Run ID `ce2c`, tag `wardmate-application-workflow:workflow-20261112-03`
+- **Digest mới:** `sha256:0a950fb5d7c5323dadea002fdfa9a22fa1ed5dfb2c0cccff0a04fe53509670bc`
+- **Digest cũ (rollback):** `sha256:ee492711114d47ac49a97e89282b371b8da23c96199164f2193f3fb797e1f68a`
+- **Deploy:** `az containerapp update` → `Succeeded`
+- **Health:** `{"status":"Healthy","checks":[{"name":"database","status":"Healthy"},{"name":"rabbitmq","status":"Healthy","description":"connected"}]}`
+
+### Analytics service
+- **ACR build:** Run ID `ce2d`, tag `wardmate-analyticssystem:analytics-20261112-01`
+- **Digest mới:** `sha256:b7b5cd9f10bc20c28bac0fb53d2ab57452b76d6988f706cd6c98ceb6d4a44ca4`
+- **Digest cũ (rollback):** `sha256:e7c4627f2b21c117c7e8699adeeeffc66e0a2d760b2a3689c30383145778b299`
+- **Deploy:** `az containerapp update` → `Succeeded`
+- **Health:** `{"status":"Healthy","checks":[{"name":"notifications-database","status":"Healthy"},{"name":"analytics-database","status":"Healthy"},{"name":"rabbitmq","status":"Healthy","description":"connected"}]}`
+
+### SQL migrations
+- Workflow DB: `docs/sql/workflow-staffing-tables.sql` (20261029161554) + `docs/sql/workflow-consultation-dispatch.sql` (20261112085434) — đã chạy trên Supabase wardmate-db
+- IAM DB: `docs/sql/iam-staffing-permissions.sql` (20261029120000) + `docs/sql/iam-consultation-request-permission.sql` (20261112080000) — đã chạy trên Supabase IAM DB
+
+---
+
 ## STAFFING-01 — tham vấn từ cán bộ phụ trách | 2026-11-12 16:00 +07:00
 
 Workflow: Controllers/ConsultationsController.cs, WorkflowSecurity.cs, Application/ConsultationContracts.cs, Domain/ApplicationConsultation.cs, Infrastructure/{ConsultationService,DispatchService,WorkflowDbContext}.cs và Migrations/20261112085434_OfficerConsultationDispatch{,.Designer}.cs, snapshot. IAM: 20261112080000_OfficerConsultationRequestPermission.cs. Analytics: WorkflowNotificationConsumer.cs, NotificationInboxWorker.cs. Tests: tests/WardMate.UnitTests/Workflow/ConsultationDecisionTests.cs. Docs: docs/api-guide.md, docs/system-constraints.md.
