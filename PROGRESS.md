@@ -5187,3 +5187,11 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Kiểm tra:** build Release `-warnaserror -m:1` 0/0; `dotnet test` 102/102. Test chỉ kiểm phần BE xác định (đếm trường hợp, chuẩn hóa); chất lượng bóc tách thật phụ thuộc AI, chưa chạy thử với Gemini/Azure OpenAI sau thay đổi.
 - **Docs:** `docs/system-constraints.md` thêm AI-02b; `docs/fe-handoff-2026-11-12.md` mục 4 (FE thêm ô sửa tên biểu mẫu). Không đổi API.
 - **Chưa làm:** deploy AIOCR; thử quét lại 2 PDF trên Azure; FE thêm ô sửa `formName`.
+
+## DEPLOY-1112d — AIOCR AI-02b lên Azure — 2026-11-12 (UTC+07)
+
+- **Git:** push `kha` `ec72de7..29ff3f9` (3 commit: DEPLOY-1112c docs, fix aiocr AI-02b, docs AI-02b).
+- **Deploy AIOCR (chủ dự án chạy lệnh Cloud Shell, code tải từ `kha` 29ff3f9):** ACR build `ce28` Succeeded, tag `wardmate-aiocr:aiocr-20261112-01`, cập nhật theo digest `sha256:03a5d32b2e7ea031ce01913ef90a61594db85f6a0d0f6a114544ada5331fd316`, `provisioningState=Succeeded`; image đang chạy đã xác nhận đúng digest mới.
+- **Rollback:** `acrwardmate2026.azurecr.io/wardmate-aiocr@sha256:b0dbe2d468721f3cba7a92928ed1a11a5c5bcb67a2c537167925544748dcd7fc`.
+- **Kiểm tra:** `/health/ready` 200. Không có SQL/migration.
+- **Chưa làm:** quét lại 1.001939 và 1.014748 bằng bản nháp mới để xác nhận AI làm theo prompt mới; FE thêm ô sửa `formName`.
