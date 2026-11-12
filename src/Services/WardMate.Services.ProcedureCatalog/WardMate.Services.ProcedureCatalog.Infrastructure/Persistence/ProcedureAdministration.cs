@@ -118,6 +118,22 @@ public sealed class ProcedureAdministration(ProcedureDbContext db, IProcedureMan
         await db.ProcedureDrafts.Where(x => x.Id == id && x.Status == "Deleting").ExecuteDeleteAsync(ct);
         return ProcedureResult<bool>.Ok(true);
     }
+    // PROC-UNPUBLISH-01: chỉ thủ tục chưa từng công khai mới xóa cứng được; bản nháp trỏ tới nó quay về chờ đối soát.
+    // Blob PDF thuộc bản nháp (giữ lại), nên không dọn file ở đây.
+    public async Task<ProcedureResult<bool>> Unpublish(Guid id, CancellationToken ct)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var p = await management.LockProcedure(id, ct);
+        if (p is null) return ProcedureResult<bool>.NotFound();
+        if (!p.CanUnpublish)
+            return ProcedureResult<bool>.Fail("procedure.already_public", "Thủ tục đã từng công khai hoặc đang công khai; chỉ có thể ẩn, không hủy xuất bản được.", 409);
+        var now = DateTime.UtcNow;
+        foreach (var d in await db.ProcedureDrafts.Where(x => x.PublishedProcedureId == id).ToListAsync(ct)) d.ReturnToReview(now);
+        await db.ProcedureVersions.Where(x => x.ProcedureId == id).ExecuteDeleteAsync(ct);
+        db.Procedures.Remove(p);
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        return ProcedureResult<bool>.Ok(true);
+    }
     public async Task<ProcedureResult<SourceLinkDto>> VersionSource(Guid id, Guid versionId, CancellationToken ct)
     {
         var version = await db.ProcedureVersions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == versionId && x.ProcedureId == id, ct);

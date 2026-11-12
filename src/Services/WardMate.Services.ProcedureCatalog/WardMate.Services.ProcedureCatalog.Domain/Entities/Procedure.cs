@@ -18,6 +18,9 @@ public sealed class Procedure
     public string? ProcessingTimeSummary { get; set; }
     /// <summary>BE-H: contentPayload.keywords ghép thành chuỗi để tìm kiếm (keyword) — BE tự tính, client không gửi.</summary>
     public string? SearchKeywords { get; set; }
+    /// <summary>PROC-UNPUBLISH-01: lần đầu IsActive thành true; còn null thì người dân chưa từng thấy nên được hủy xuất bản.</summary>
+    public DateTime? FirstPublishedAt { get; set; }
+    public bool CanUnpublish => !IsActive && FirstPublishedAt is null;
     public bool IsActive { get; set; } = true;
     public string? StatusChangeReason { get; set; }
     public ProcedureContentPayload ContentPayload { get; set; } = new();

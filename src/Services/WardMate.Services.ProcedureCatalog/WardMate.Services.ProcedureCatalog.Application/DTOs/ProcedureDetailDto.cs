@@ -8,11 +8,11 @@ public sealed record ProcedureDetailDto(Guid Id, int CategoryId, string Category
     string? TargetAudience, string? FeeSummary, string? ProcessingTimeSummary, bool IsActive,
     ProcedureContentPayload ContentPayload, List<ChecklistItemSchema>? ChecklistSchema,
     List<FormDefinitionSchema>? FormDefinitions, DateTime CreatedAt, DateTime UpdatedAt,
-    string? OriginalPdfUrl, string? PdfFileName)
+    string? OriginalPdfUrl, string? PdfFileName, DateTime? FirstPublishedAt = null)
 {
     public static ProcedureDetailDto From(Procedure procedure) => new(procedure.Id, procedure.CategoryId,
         procedure.Category.CategoryName, procedure.ProcedureCode, procedure.Title, procedure.IssuingAuthority,
         procedure.ExecutingAgency, procedure.LevelOfImplementation, procedure.TargetAudience, procedure.FeeSummary,
         procedure.ProcessingTimeSummary, procedure.IsActive, procedure.ContentPayload, procedure.ChecklistSchema,
-        procedure.FormDefinitions, procedure.CreatedAt, procedure.UpdatedAt, procedure.OriginalPdfUrl, procedure.PdfFileName);
+        procedure.FormDefinitions, procedure.CreatedAt, procedure.UpdatedAt, procedure.OriginalPdfUrl, procedure.PdfFileName, procedure.FirstPublishedAt);
 }

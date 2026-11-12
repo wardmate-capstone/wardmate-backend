@@ -23,6 +23,7 @@ public static class ProcedureSeed
         Title = "Đăng ký kết hôn (dữ liệu minh họa)", IssuingAuthority = "Cơ quan ban hành minh họa",
         ExecutingAgency = "Ủy ban nhân dân cấp xã", LevelOfImplementation = "Cấp Xã", TargetAudience = "Công dân Việt Nam",
         FeeSummary = "Miễn phí", ProcessingTimeSummary = "1 ngày", CreatedAt = new DateTime(2026, 9, 30, 0, 0, 0, DateTimeKind.Utc),
+        FirstPublishedAt = new DateTime(2026, 9, 30, 0, 0, 0, DateTimeKind.Utc),
         UpdatedAt = new DateTime(2026, 9, 30, 0, 0, 0, DateTimeKind.Utc),
         ContentPayload = new ProcedureContentPayload
         {

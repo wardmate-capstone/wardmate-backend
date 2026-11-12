@@ -33,7 +33,8 @@ public sealed class PublishReviewedProcedureHandler(IProcedureManagementStore st
             var now = DateTime.UtcNow;
             if (procedure is null)
             {
-                procedure = new Procedure { Id = Guid.NewGuid(), IsActive = true, CreatedAt = now, UpdatedAt = now, Category = category };
+                // PROC-UNPUBLISH-01: xuất bản không tự công khai; công khai là bước riêng qua PATCH status.
+                procedure = new Procedure { Id = Guid.NewGuid(), IsActive = false, CreatedAt = now, UpdatedAt = now, Category = category };
                 request.Input.ApplyTo(procedure);
                 store.Add(procedure);
                 store.AddVersion(ProcedureVersion.Capture(procedure, 1, DateOnly.FromDateTime(now), procedure.ContentPayload.DecisionNumber, now));

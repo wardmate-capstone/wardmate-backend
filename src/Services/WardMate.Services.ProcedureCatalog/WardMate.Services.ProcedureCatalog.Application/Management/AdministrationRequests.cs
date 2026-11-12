@@ -12,6 +12,7 @@ public sealed record ManagerDetailQuery(Guid Id) : IRequest<ProcedureResult<Proc
 public sealed record SaveCategoryCommand(int? Id, CategoryInput Input) : IRequest<ProcedureResult<ProcedureCategoryDto>>;
 public sealed record DeleteCategoryCommand(int Id) : IRequest<ProcedureResult<bool>>;
 public sealed record DiscardDraftCommand(Guid Id) : IRequest<ProcedureResult<bool>>;
+public sealed record UnpublishProcedureCommand(Guid Id) : IRequest<ProcedureResult<bool>>;
 public sealed record RollbackProcedureCommand(Guid Id, int VersionNumber, RollbackInput Input, string Actor)
     : IRequest<ProcedureResult<ProcedureDetailDto>>;
 public sealed record VersionSourceQuery(Guid Id, Guid VersionId) : IRequest<ProcedureResult<SourceLinkDto>>;
@@ -24,6 +25,7 @@ public interface IProcedureAdministration
     Task<ProcedureResult<ProcedureCategoryDto>> SaveCategory(int? id, CategoryInput input, CancellationToken ct);
     Task<ProcedureResult<bool>> DeleteCategory(int id, CancellationToken ct);
     Task<ProcedureResult<bool>> DiscardDraft(Guid id, CancellationToken ct);
+    Task<ProcedureResult<bool>> Unpublish(Guid id, CancellationToken ct);
     Task<ProcedureResult<ProcedureDetailDto>> Rollback(RollbackProcedureCommand command, CancellationToken ct);
     Task<ProcedureResult<SourceLinkDto>> VersionSource(Guid id, Guid versionId, CancellationToken ct);
 }
@@ -57,6 +59,7 @@ public sealed class AdministrationHandlers(IProcedureAdministration store, IDocu
     IRequestHandler<SaveCategoryCommand, ProcedureResult<ProcedureCategoryDto>>,
     IRequestHandler<DeleteCategoryCommand, ProcedureResult<bool>>,
     IRequestHandler<DiscardDraftCommand, ProcedureResult<bool>>,
+    IRequestHandler<UnpublishProcedureCommand, ProcedureResult<bool>>,
     IRequestHandler<RollbackProcedureCommand, ProcedureResult<ProcedureDetailDto>>,
     IRequestHandler<VersionSourceQuery, ProcedureResult<SourceLinkDto>>,
     IRequestHandler<DocumentFormsQuery, ProcedureResult<DocumentFormOptionDto[]>>
@@ -64,6 +67,7 @@ public sealed class AdministrationHandlers(IProcedureAdministration store, IDocu
     public Task<ProcedureResult<ProcedureDetailDto>> Handle(ManagerDetailQuery r, CancellationToken ct) => store.Detail(r.Id, ct);
     public Task<ProcedureResult<bool>> Handle(DeleteCategoryCommand r, CancellationToken ct) => store.DeleteCategory(r.Id, ct);
     public Task<ProcedureResult<bool>> Handle(DiscardDraftCommand r, CancellationToken ct) => store.DiscardDraft(r.Id, ct);
+    public Task<ProcedureResult<bool>> Handle(UnpublishProcedureCommand r, CancellationToken ct) => store.Unpublish(r.Id, ct);
     public Task<ProcedureResult<SourceLinkDto>> Handle(VersionSourceQuery r, CancellationToken ct) => store.VersionSource(r.Id, r.VersionId, ct);
     public async Task<ProcedureResult<ProcedureCategoryDto>> Handle(SaveCategoryCommand r, CancellationToken ct)
     {

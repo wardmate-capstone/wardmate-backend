@@ -69,6 +69,15 @@ public sealed class ProcedureManagerController(ISender sender) : ControllerBase
         return Respond(await sender.Send(new ToggleProcedureStatusCommand(id, input.IsActive.Value, input.Reason), ct));
     }
 
+    /// <summary>PROC-UNPUBLISH-01: xóa thủ tục chưa từng công khai; bản nháp nguồn quay về chờ đối soát.</summary>
+    [HttpPost("{id:guid}/unpublish")]
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Policy = "procedure.publish")]
+    public async Task<IActionResult> Unpublish(Guid id, CancellationToken ct) =>
+        Respond(await sender.Send(new UnpublishProcedureCommand(id), ct));
+
     [HttpGet("{id:guid}/versions")]
     [ProducesResponseType(typeof(IReadOnlyList<ProcedureVersionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

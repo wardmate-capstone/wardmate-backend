@@ -20,4 +20,11 @@ public sealed class ProcedureDraft
     public int Attempts { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>PROC-UNPUBLISH-01: thủ tục bị hủy xuất bản → bản nháp quay lại chờ đối soát, xóa/sửa/xuất bản lại được.</summary>
+    public void ReturnToReview(DateTime now)
+    {
+        Status = "NeedsReview"; PublishedProcedureId = null; ReviewedBy = null;
+        Revision = Guid.NewGuid(); UpdatedAt = now;
+    }
 }

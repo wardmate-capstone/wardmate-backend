@@ -20,7 +20,8 @@ public sealed class CreateProcedureCommandHandler(IProcedureManagementStore stor
             if (await store.CodeExists(request.Input.ProcedureCode.Trim(), null, ct))
                 return ProcedureResult<ProcedureDetailDto>.Fail("procedure.code_exists", "Mã thủ tục đã tồn tại.", 409);
             var now = DateTime.UtcNow;
-            var procedure = new Procedure { Id = Guid.NewGuid(), IsActive = request.Input.IsActive, CreatedAt = now, UpdatedAt = now, Category = category };
+            var procedure = new Procedure { Id = Guid.NewGuid(), IsActive = request.Input.IsActive, CreatedAt = now, UpdatedAt = now, Category = category,
+                FirstPublishedAt = request.Input.IsActive ? now : null };
             request.Input.ApplyTo(procedure);
             store.Add(procedure);
             store.AddVersion(ProcedureVersion.Capture(procedure, 1, DateOnly.FromDateTime(now), procedure.ContentPayload.DecisionNumber, now));
@@ -66,6 +67,7 @@ public sealed class ToggleProcedureStatusCommandHandler(IProcedureManagementStor
             var procedure = await store.LockProcedure(request.ProcedureId, ct);
             if (procedure is null) return ProcedureResult<ProcedureStatusDto>.NotFound();
             procedure.IsActive = request.IsActive;
+            if (request.IsActive) procedure.FirstPublishedAt ??= DateTime.UtcNow;
             procedure.StatusChangeReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
             procedure.UpdatedAt = DateTime.UtcNow;
             return ProcedureResult<ProcedureStatusDto>.Ok(new(procedure.Id, procedure.IsActive, procedure.StatusChangeReason, procedure.UpdatedAt));
