@@ -5121,3 +5121,11 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - **Gateway** `gateway-20261030-02` (build 30/10 22:21 UTC+07) thiếu commit `3fdf2e0` (03/11, route `/api/v1/system/{**catch-all}` → analytics-system): qua gateway `GET /api/v1/system/settings` → 404, gọi thẳng Analytics → 401.
 - **Deploy Gateway (Claude, Cloud Shell, theo yêu cầu chủ dự án):** run `ce24` → `wardmate-gateway:gateway-20261111-01`, digest `sha256:c2ea59eb276d4524ca7fd9bcdfbe2f0bc874ec0617f5e31fd88d0d723d07d216`; `Succeeded` lúc 14:33 UTC. Qua gateway mới: health 6 service đều 200; `/api/v1/system/settings` → 401 (đã có route). Rollback: `wardmate-gateway:gateway-20261030-02`.
 - **Kết luận:** sau đợt này cả 7 container app (trừ gotenberg dùng image công khai) chạy đúng code `kha` @ `3f93958`.
+
+---
+
+- 2026-11-09 18:35 +07:00 | BE-G / bàn giao IAM: docs/be-handoff-iam-directory-permissions.md và PROGRESS.md. Kế hoạch cho GET /api/v1/manager/officers và GET /api/v1/admin/users (không body, dự kiến 200, items[].permissions, token theo vai trò). Không sửa API. 0 test chạy, chưa build/deploy trong phiên tài liệu.
+
+- 2026-11-12 08:31 +07:00 — Manager dispatch: POST /api/v1/manager/applications/{id}/assignments accepts officerId, expectedAssignmentVersion, reason; 200 success, 400 invalid input, 409 conflict, 422 ineligible. Removed reasonCode from request and assignment/history DTO. Files: DispatchContracts.cs, AssignmentRecord.cs, DispatchService.cs, scripts/verify-staffing-local.py, docs/api-guide.md, docs/system-constraints.md, docs/fe-staffing-18-apis.md, docs/Lịch làm việc Front Desk và đơn nghỉ Word.md. No runtime tests; Release build not yet confirmed. Azure fetch error needs Network evidence.
+
+- 2026-11-12 08:53 +07:00 — Manager dispatch name: GET /api/v1/manager/applications and GET /api/v1/staffing/leaves/{id}/impact, no body, HTTP 200 includes nullable assignedOfficerName from application snapshot. Existing Manager policies. Changed DispatchContracts.cs, DispatchService.cs, StaffingService.cs, docs/api-guide.md and PROGRESS.md. Solution Release build: 0 warnings, 0 errors. Runtime tests: 0. Local only.
