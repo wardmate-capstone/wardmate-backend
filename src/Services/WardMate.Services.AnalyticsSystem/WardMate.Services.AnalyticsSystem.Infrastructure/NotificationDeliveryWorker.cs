@@ -39,7 +39,12 @@ public sealed class NotificationDeliveryWorker(IServiceScopeFactory scopes, ICon
                 var payload = n.Id.ToString();
                 await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_notify({NotificationRealtimeListener.Channel}, {payload})", ct);
                 row.State = "Sent";
+                // PUSH-01: thông báo trong app đã hợp lệ cho người nhận → xếp thêm một lần gửi đẩy tới điện thoại (nếu bật).
+                if (ShouldQueuePush(configuration, n) && !await db.Deliveries.AnyAsync(x => x.NotificationId == n.Id && x.Channel == "PUSH", ct))
+                    db.Deliveries.Add(new() { NotificationId = n.Id, Channel = "PUSH" });
             }
+            else if (row.Channel == "PUSH")
+                row.State = await scope.ServiceProvider.GetRequiredService<PushDeliverySender>().Send(n, ct);
             else row.State = await scope.ServiceProvider.GetRequiredService<ExternalNotificationSender>().Send(n, contact, row, ct);
             row.SentAt = row.State == "Sent" ? DateTime.UtcNow : null;
             row.ErrorCode = row.State == "Blocked" ? "notification.channel_not_configured" : null;
@@ -52,6 +57,10 @@ public sealed class NotificationDeliveryWorker(IServiceScopeFactory scopes, ICon
         }
         }
     }
+    /// <summary>Chỉ đẩy thông báo trong app khi Push:Enabled; thông báo cũ hơn 1 ngày (gửi lại muộn) không đẩy để tránh làm phiền.</summary>
+    public static bool ShouldQueuePush(IConfiguration configuration, WardMate.Services.AnalyticsSystem.Domain.Notification n) =>
+        configuration.GetValue<bool>("Push:Enabled") && n.Channel == "IN_APP" && n.CreatedAt > DateTime.UtcNow.AddDays(-1);
+
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         if (!configuration.GetValue<bool>("Notifications:WorkersEnabled")) return;

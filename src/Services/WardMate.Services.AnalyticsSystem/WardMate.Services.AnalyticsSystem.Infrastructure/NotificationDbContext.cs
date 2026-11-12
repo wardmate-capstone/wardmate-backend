@@ -9,6 +9,7 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationInbox> Inbox => Set<NotificationInbox>();
     public DbSet<NotificationDelivery> Deliveries => Set<NotificationDelivery>();
+    public DbSet<PushDevice> PushDevices => Set<PushDevice>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -49,6 +50,18 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
         delivery.HasIndex(x => new { x.NotificationId, x.Channel }).IsUnique();
         delivery.HasIndex(x => new { x.State, x.NextAttemptAt });
         delivery.HasOne<Notification>().WithMany().HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);
+        var push = builder.Entity<PushDevice>();
+        push.ToTable("push_devices", t => t.HasCheckConstraint("ck_push_devices_platform", "platform IN ('ANDROID','IOS','WEB')"));
+        push.HasKey(x => x.Id);
+        push.Property(x => x.Id).HasColumnName("id");
+        push.Property(x => x.UserId).HasColumnName("user_id");
+        push.Property(x => x.Token).HasColumnName("token").HasMaxLength(1024).IsRequired();
+        push.Property(x => x.Platform).HasColumnName("platform").HasMaxLength(10).IsRequired();
+        push.Property(x => x.AppVersion).HasColumnName("app_version").HasMaxLength(50);
+        push.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
+        push.Property(x => x.LastSeenAt).HasColumnName("last_seen_at").HasColumnType("timestamp with time zone");
+        push.HasIndex(x => x.Token).IsUnique();
+        push.HasIndex(x => new { x.UserId, x.LastSeenAt });
         var n = builder.Entity<Notification>();
         n.Property(x => x.SourceEventId).HasColumnName("source_event_id");
         n.Property(x => x.RecipientWardCode).HasColumnName("recipient_ward_code").HasMaxLength(50);

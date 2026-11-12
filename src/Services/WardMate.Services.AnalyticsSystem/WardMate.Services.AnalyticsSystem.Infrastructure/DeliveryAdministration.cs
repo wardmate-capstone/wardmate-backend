@@ -8,7 +8,7 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure;
 public sealed class DeliveryAdministration(NotificationDbContext db, IConfiguration config, TimeProvider clock) : IDeliveryAdministration
 {
     private static readonly string[] States = ["Pending", "Dispatching", "Sent", "Sandbox", "Blocked", "Unknown", "Dead", "Suppressed"];
-    private static readonly string[] Channels = ["IN_APP", "EMAIL", "SMS"];
+    private static readonly string[] Channels = ["IN_APP", "EMAIL", "SMS", "PUSH"];
     private static void Check(bool valid, int status, string code, string message)
     { if (!valid) throw new AnalyticsException(status, "notifications." + code, message); }
     private static void Page(int page, int size) => Check(page is >= 1 and <= 1000000 && size is >= 1 and <= 100, 400, "validation", "Trang hoặc kích thước trang không hợp lệ.");
@@ -48,6 +48,7 @@ public sealed class DeliveryAdministration(NotificationDbContext db, IConfigurat
             Check(row.State is "Dead" or "Blocked",409,"invalid_state","Chỉ gửi lại Dead/Blocked.");
             Check(row.Channel!="SMS",409,"channel_removed","Kênh SMS đã bị gỡ khỏi hệ thống; không gửi lại được.");
             if(row.Channel=="EMAIL") Check(config.GetValue<bool>("Email:Enabled"),409,"channel_disabled","Email đang tắt.");
+            if(row.Channel=="PUSH") Check(config.GetValue<bool>("Push:Enabled"),409,"channel_disabled","Thông báo đẩy đang tắt.");
             // Attempts restart so the retry budget applies again; the audit keeps the previous count.
             row.State="Pending"; row.Attempts=0; row.NextAttemptAt=clock.GetUtcNow().UtcDateTime;
             row.ErrorCode=null; row.SentAt=null; row.ExternalMessageId=null;

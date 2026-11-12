@@ -36,6 +36,9 @@ public static class DependencyInjection
             http.Timeout = TimeSpan.FromSeconds(10); http.MaxResponseContentBufferSize = 2 * 1024 * 1024;
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<PushDevices>(); services.AddScoped<PushDeliverySender>();
+        services.AddHttpClient<FcmPushSender>(http => { http.Timeout = TimeSpan.FromSeconds(15); http.MaxResponseContentBufferSize = 256 * 1024; })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddHttpClient<INotificationDirectory, NotificationDirectory>(http =>
         {
             http.BaseAddress = new Uri(configuration["Iam:BaseUrl"] ?? "http://localhost:5001/");
