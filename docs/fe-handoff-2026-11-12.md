@@ -42,7 +42,7 @@ Không đổi API hay DTO. Kết quả bản nháp từ AI thay đổi như sau:
 - Một dòng giấy tờ có nhiều mẫu (ví dụ 1.014748, Mẫu số 10 và Mẫu số 11): chỉ một giấy tờ trong `checklistSchema`, `formCodes` có đủ hai mẫu; `formDefinitions` vẫn có hai phần tử, mẫu thay thế `isMandatory: false`.
 - **Cần FE làm:** ở thẻ biểu mẫu đã chọn (bước 5 "Biểu mẫu", `ProcedureFormPicker`), tên biểu mẫu đang chỉ hiển thị, không sửa được. BE nhận và lưu nguyên `formDefinitions[i].formName` qua PUT bản nháp (bắt buộc khác rỗng, không ghi đè theo tên tệp), nên FE chỉ cần thêm ô nhập `formName` (và nếu muốn, `formCode`) trong phần "Thiết lập sử dụng mẫu".
 
-## 5. Đánh dấu tất cả thông báo đã đọc (NOTIFY-READALL-01, chưa deploy AnalyticsSystem)
+## 5. Đánh dấu tất cả thông báo đã đọc (NOTIFY-READALL-01, đã deploy 12/11, Analytics `analytics-20261112-02`; chờ FE kiểm #1–#6)
 
 - Hub `/hubs/notifications` có phương thức mới `MarkAllRead(before?)`, trả về số thông báo vừa đánh dấu (0 nếu không có gì, không phải lỗi).
 - Nút "Đánh dấu tất cả là đã đọc" (chuông và trang thông báo): bỏ vòng lặp `MarkRead`, gọi một lần `await connection.invoke("MarkAllRead", before)`. `before` nên là `createdAt` của thông báo mới nhất đang hiển thị (hoặc `new Date().toISOString()`), để thông báo đến sau lúc bấm vẫn chưa đọc; `null` để đánh dấu tất cả.

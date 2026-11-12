@@ -5283,3 +5283,12 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Đối chiếu bảng kiểm FE:** #1 trả 150 và bộ đếm 0 — đúng; "chỉ một `UpdateUnreadCount(0)`" — giống `MarkRead`, cùng tab có thể nhận hai lần cùng giá trị (đẩy trực tiếp + listener); #2 trả 0 — đúng; #3–#6 — đúng theo bộ lọc.
 - **Docs:** `docs/api-guide.md` (hub MarkAllRead + ví dụ), `docs/system-constraints.md` NOTIFY-READALL-01.
 - **Chưa làm:** deploy Analytics; FE đổi nút sang `MarkAllRead`.
+
+## DEPLOY-1112h — NOTIFY-READALL-1112 lên Azure (AnalyticsSystem) — 2026-11-12 (UTC+07)
+
+- **Git:** rebase 4 commit (DEPLOY-1112g docs, NOTIFY-READALL feat/test/docs) lên 18 commit STAFFING-01 của NguyenTrungNghia04; gộp xung đột PROGRESS/CLAUDE_HANDOFF/system-constraints giữ cả hai bên; đổi mã bản ghi CHAT-CITE thành DEPLOY-1112g vì trùng DEPLOY-1112f của STAFFING-01 (tiêu đề commit `60c0a9f` vẫn ghi 1112f). Build Release 0/0, `dotnet test` 120/120; push `kha` `bcad7a6..10f12ec`.
+- **Analytics (chủ dự án chạy lệnh Cloud Shell, code `kha` 10f12ec, gồm cả STAFFING-01):** ACR build `ce2e` Succeeded, tag `wardmate-analyticssystem:analytics-20261112-02`, digest `sha256:0266191e28364f3e7c194ce989046e890cc63dc3f654dcab2d21a82d98a0076b`, update `Succeeded`, revision `wardmate-analytics-system--latest` tạo 2026-11-12T15:57:14Z, Running.
+- **Health:** ~2 phút đầu `/health/ready` 503 vì `notifications-database` unreachable (`CanConnectAsync`), `analytics-database` và `rabbitmq` Healthy; sau đó tự hết, `/health/ready` 200 cả ba check. Đánh giá: lỗi kết nối DB tạm thời lúc khởi động (không đổi chuỗi kết nối hay startup), chưa xác định nguyên nhân gốc (nghi giới hạn kết nối pooler Supabase).
+- **Rollback:** `wardmate-analyticssystem:analytics-20261112-01` (STAFFING-01, digest `sha256:b7b5cd9f10bc20c28bac0fb53d2ab57452b76d6988f706cd6c98ceb6d4a44ca4`).
+- **Không SQL/migration/cấu hình.** `main`/`deploy` chưa đồng bộ (chờ chủ dự án duyệt).
+- **Chưa làm:** FE kiểm #1–#6 (`docs/fe-handoff-2026-11-12.md` mục 5); #1 một tab có thể nhận `UpdateUnreadCount` hai lần cùng giá trị như `MarkRead`.
