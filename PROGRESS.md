@@ -5144,3 +5144,4 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
   - Container App: `wardmate-application-workflow` (`ProvisioningState: Succeeded`, `Running`).
   - Rollback target: `acrwardmate2026.azurecr.io/wardmate-application-workflow@sha256:99fd51204e4b62db0233d32517bc4cadb8e8723e9b3c9fcfefc62ffdeb72feab`.
   - Health check: `/health/ready` trực tiếp và qua Gateway đều đạt `200 Healthy` (`database: reachable`, `rabbitmq: connected`).
+2026-11-12 09:41 +07:00 — Manager dispatch 500. DispatchService.cs: lock application row and explicitly insert assignment/status history in existing transaction. POST /api/v1/manager/applications/{id}/assignments: same Manager token, officerId/expectedAssignmentVersion/reason; 200 on success. Solution Release build 0 warnings/0 errors. Runtime tests 0. Production exception pending log correlation.
