@@ -121,6 +121,30 @@ namespace WardMate.Services.AIOCR.Infrastructure.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<DateTime?>("FeedbackAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("feedback_at");
+
+                    b.Property<string>("FeedbackComment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("feedback_comment");
+
+                    b.Property<bool?>("FeedbackHelpful")
+                        .HasColumnType("boolean")
+                        .HasColumnName("feedback_helpful");
+
+                    b.Property<string>("FeedbackReason")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("feedback_reason");
+
+                    b.Property<bool>("NeedsClarification")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("needs_clarification");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -131,8 +155,16 @@ namespace WardMate.Services.AIOCR.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("session_id");
 
+                    b.Property<string>("SuggestedQuestions")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("suggested_questions");
+
                     b.HasKey("Id")
                         .HasName("pk_chat_messages");
+
+                    b.HasIndex("FeedbackHelpful", "FeedbackAt")
+                        .HasDatabaseName("ix_chat_messages_feedback_helpful_feedback_at")
+                        .HasFilter("feedback_helpful IS NOT NULL");
 
                     b.HasIndex("SessionId", "CreatedAt")
                         .HasDatabaseName("ix_chat_messages_session_id_created_at");
