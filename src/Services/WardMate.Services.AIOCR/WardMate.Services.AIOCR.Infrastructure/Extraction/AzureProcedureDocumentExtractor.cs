@@ -94,6 +94,7 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         var warnings = NormalizeWarnings(output.RootElement).ToList();
         payload = ProcedureAiContract.Normalize(payload, warnings);
         ProcedureAiContract.CheckFormCoverage(content, payload, warnings);
+        ProcedureAiContract.CheckCaseCoverage(content, payload, warnings);
         return new(payload.Clone(), content, warnings.Append("Dữ liệu do AI đề xuất; cán bộ phải kiểm tra PDF gốc. CategoryId phải chọn từ danh mục hệ thống.").ToArray());
         }
         catch (Exception e) when (attempt < 1 && e is JsonException or InvalidDataException or KeyNotFoundException or InvalidOperationException)
@@ -166,10 +167,18 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         Các mảng không có dữ liệu để []; trường cần xác nhận phải có cảnh báo tiếng Việt kèm đường dẫn trường.
         Chỉ nêu formType nếu nguồn đủ bằng chứng, nếu không để null và cảnh báo.
         Thành phần hồ sơ thường là bảng có các cột "Tên giấy tờ", "Mẫu đơn, tờ khai", "Số lượng"; một ô có thể bị ngắt xuống nhiều dòng.
-        Mỗi dòng giấy tờ tạo đúng một phần tử checklistSchema, kể cả dòng có mẫu đơn.
-        Mỗi tệp hoặc mẫu trong cột "Mẫu đơn, tờ khai" tạo một phần tử formDefinitions riêng. Một dòng có nhiều tệp thì tạo nhiều phần tử. Không chỉ lấy các mẫu được nhắc trong tên giấy tờ.
+        Bảng có thể bị ngắt sang trang sau: dòng "--- Trang N ---" có thể chen giữa một ô hoặc giữa một từ. Nối lại thành một giấy tờ, không tạo giấy tờ mới từ phần bị ngắt.
+        Thành phần hồ sơ có thể chia nhóm bằng tiêu đề "Trường hợp N: ..." đặt trên mỗi bảng. Khi đó:
+        - mỗi tiêu đề tạo đúng một phần tử contentPayload.cases với caseCode "TH-N" (N giữ đúng số trong nguồn, không đánh lại số dù nguồn nhảy số), caseName chép nguyên văn phần sau dấu hai chấm, steps [] nếu nguồn không có bước riêng;
+        - mọi giấy tờ (checklistSchema) và mẫu (formDefinitions) trong bảng ngay dưới tiêu đề đó mang caseCode của trường hợp đó;
+        - không bỏ nhóm nào, kể cả nhóm có bảng rỗng hoặc giấy tờ nằm ở trang sau; cùng một giấy tờ xuất hiện ở nhiều trường hợp thì tạo phần tử riêng cho từng trường hợp.
+        Không có tiêu đề trường hợp thì caseCode null.
+        Mỗi dòng giấy tờ tạo đúng một phần tử checklistSchema, kể cả dòng có mẫu đơn. Một dòng có nhiều tệp mẫu vẫn chỉ là MỘT giấy tờ: itemName là nguyên văn cột "Tên giấy tờ", formCodes liệt kê formCode của tất cả mẫu trên dòng đó. Không tạo giấy tờ riêng cho từng tệp.
+        Mỗi tệp hoặc mẫu trong cột "Mẫu đơn, tờ khai" tạo một phần tử formDefinitions riêng. Một dòng có nhiều tệp thì tạo nhiều phần tử formDefinitions (không phải nhiều giấy tờ). Không chỉ lấy các mẫu được nhắc trong tên giấy tờ.
+        Mẫu chỉ dùng trong một tình huống thay thế ("trường hợp không có nhu cầu... thì nộp Mẫu số 11") thì isMandatory false.
         Giấy tờ ghi "theo Mẫu số ..." cũng tạo formDefinitions dù không có tên tệp.
-        formName lấy theo tên mẫu, bỏ đuôi tệp. formCode lấy số hiệu mẫu nếu có (ví dụ "01.LPTB", "Mẫu số 25"), không có thì đặt FORM-n và cảnh báo.
+        formName là tên đọc được của mẫu bằng tiếng Việt có dấu, lấy từ câu mô tả mẫu trong cột "Tên giấy tờ" (ví dụ "Đề nghị hưởng trợ cấp thất nghiệp (Mẫu số 10)"). Chỉ dùng tên tệp khi tên tệp là chữ có nghĩa; tên tệp bị mất dấu hoặc viết liền vô nghĩa (ví dụ "Mus10tiPhlcbanhnhkmtheo_VL.docx") thì không dùng làm formName.
+        formCode lấy số hiệu mẫu nếu có (ví dụ "01.LPTB", "Mẫu số 25", "TK1-TS"), không lấy chuỗi tên tệp vô nghĩa; không có số hiệu thì đặt FORM-n và cảnh báo.
         Tệp .doc hoặc .docx là bằng chứng formType DOCX_TEMPLATE. Mẫu dùng chung cho mọi trường hợp để caseCode null; giấy tờ ghi "nếu có" thì isMandatory false.
         Trước khi trả kết quả, đếm lại số mẫu và số tệp trong cột "Mẫu đơn, tờ khai" và bảo đảm không bỏ sót mẫu nào.
         """;

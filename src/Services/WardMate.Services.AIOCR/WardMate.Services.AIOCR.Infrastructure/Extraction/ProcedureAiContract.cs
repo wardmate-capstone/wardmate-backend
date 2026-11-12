@@ -29,7 +29,9 @@ internal static class ProcedureAiContract
     {
         "procedureType", "levels", "competentAuthorities", "executingAgencies", "authorizedAgencies", "coordinatingAgencies",
         "requirements", "receivingAddresses", "keywords", "description", "stepsText", "feeText", "processingTimeText",
-        "quantityText", "note", "formCodes"
+        "quantityText", "note", "formCodes",
+        // AI-02b: trường hợp chỉ dùng để nhóm thành phần hồ sơ thường không có bước riêng (bước nằm ở stepsText).
+        "steps"
     };
 
     public static object ResponseFormat => new
@@ -90,6 +92,27 @@ internal static class ProcedureAiContract
         var forms = payload.TryGetProperty("formDefinitions", out var list) && list.ValueKind == JsonValueKind.Array ? list.GetArrayLength() : 0;
         if (files > forms)
             warnings.Add($"formDefinitions: Văn bản nguồn có {files} tệp mẫu (.doc/.docx) nhưng chỉ bóc tách được {forms} biểu mẫu; kiểm tra cột \"Mẫu đơn, tờ khai\" và bổ sung mẫu còn thiếu.");
+    }
+
+    // AI-02b: tiêu đề "Trường hợp N:" trong văn bản nguồn được đếm độc lập, không tin hoàn toàn vào AI.
+    private static readonly Regex CaseHeading = new(@"(?m)^\s*Trường hợp\s+(\d+)\s*:", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+    public static void CheckCaseCoverage(string source, JsonElement payload, List<string> warnings)
+    {
+        var numbers = CaseHeading.Matches(source).Select(m => m.Groups[1].Value).Distinct().ToArray();
+        if (numbers.Length == 0) return;
+        var cases = payload.TryGetProperty("contentPayload", out var content) && content.ValueKind == JsonValueKind.Object &&
+            content.TryGetProperty("cases", out var list) && list.ValueKind == JsonValueKind.Array
+            ? list.EnumerateArray().Count(x => x.ValueKind == JsonValueKind.Object) : 0;
+        if (cases < numbers.Length)
+            warnings.Add($"contentPayload.cases: Văn bản nguồn có {numbers.Length} trường hợp (Trường hợp {string.Join(", ", numbers)}) nhưng chỉ bóc tách được {cases}; kiểm tra thành phần hồ sơ từng trường hợp và bổ sung.");
+        if (payload.TryGetProperty("checklistSchema", out var items) && items.ValueKind == JsonValueKind.Array)
+        {
+            var unassigned = items.EnumerateArray().Count(x => x.ValueKind == JsonValueKind.Object &&
+                (!x.TryGetProperty("caseCode", out var code) || code.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(code.GetString())));
+            if (unassigned > 0)
+                warnings.Add($"checklistSchema: {unassigned} giấy tờ chưa gắn trường hợp trong khi nguồn chia theo trường hợp; gắn caseCode trước khi xuất bản.");
+        }
     }
 
     private static JsonNode? Read(JsonNode template, JsonNode? value, string path, List<string> warnings, bool optional = false)
