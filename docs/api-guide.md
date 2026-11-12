@@ -4658,7 +4658,7 @@ Manager cần quyền `workflow.dispatch.read`, thao tác ghi cần `workflow.di
 - **Method & Route:** `GET /api/v1/manager/applications?page=1&pageSize=20`
 - **Mục đích:** Manager xem toàn bộ hồ sơ trong phường (bao gồm chưa phân công và đã phân công) để điều phối.
 - **Query params:** `page` (1–1000000), `pageSize` (1–100).
-- **Kết quả 200:** Object `{ items: DispatchApplication[], page, pageSize, total }`. Mỗi item gồm: `id, applicationCode, procedureId, procedureTitle, status, assignedOfficerId, assignmentVersion, procedureCategoryId`.
+- **Kết quả 200:** Object `{ items: DispatchApplication[], page, pageSize, total }`. Mỗi item gồm: `id, applicationCode, procedureId, procedureTitle, status, assignedOfficerId, assignedOfficerName, assignmentVersion, procedureCategoryId`. Tên cán bộ được lưu tại thời điểm phân công. Nếu ID trống, hiển thị “Chưa phân công”. Nếu có ID nhưng tên trống, hiển thị “Chưa có tên cán bộ”.
 - **Lỗi & Khắc phục:** 400 (page/pageSize sai), 403 (không phải Manager có phường), 503 (IAM không khả dụng).
 
 #### 2. Danh sách cán bộ phù hợp để phân công
@@ -4670,10 +4670,10 @@ Manager cần quyền `workflow.dispatch.read`, thao tác ghi cần `workflow.di
 
 #### 3. Giao hoặc chuyển cán bộ thụ lý
 - **Method & Route:** `POST /api/v1/manager/applications/{id}/assignments`
-- **Body:** `{ officerId: Guid, expectedAssignmentVersion: long, reasonCode: string, reason: string }`.
+- **Body:** `{ officerId: Guid, expectedAssignmentVersion: long, reason: string }`.
 - **Mục đích:** Manager giao hồ sơ mới nộp hoặc chuyển giao hồ sơ sang cán bộ khác.
 - **Kiểm tra nghiệp vụ:** Hồ sơ ở trạng thái `SUBMITTED`, `UNDER_REVIEW`, `NEED_REVISION`, `DOCUMENTS_READY`; snapshot nộp tồn tại; `expectedAssignmentVersion` khớp version hiện tại; cán bộ đích thỏa mãn toàn bộ điều kiện như API 2. Transaction sử dụng advisory lock theo phường và `SELECT FOR UPDATE` trên hồ sơ. Lưu lịch sử vào bảng chuẩn `application_assignment_history` và cập nhật `AssignmentVersion`.
-- **Kết quả 200:** `AssignmentRecord` `{ id, applicationId, fromOfficerId, toOfficerId, actorId, version, reasonCode, reason, createdAt, action }`.
+- **Kết quả 200:** `AssignmentRecord` `{ id, applicationId, fromOfficerId, toOfficerId, actorId, version, reason, createdAt, action }`.
 - **Lỗi & Khắc phục:** 400 (dữ liệu sai), 404 (không tìm thấy), 409 (xung đột version hoặc trạng thái không hợp lệ), 422 (cán bộ không đủ điều kiện/đang nghỉ/không có ca), 503 (lỗi IAM/Catalog).
 
 #### 4. Lịch sử phân công của hồ sơ
