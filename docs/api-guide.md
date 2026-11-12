@@ -1663,7 +1663,7 @@ Danh tính này cần đến từ lớp xác thực tin cậy của hệ thống
 
 | API | Ai gọi, lúc nào và request | Thành công | Lỗi thường gặp và cách xử lý |
 |---|---|---|---|
-| `POST /api/v1/applications/{applicationId}/supporting-documents` | Người dân/cán bộ đính kèm file minh chứng (CCCD, giấy khai sinh...); multipart `file` + optional `checklistId`. | 201 `{id, applicationId, checklistId, fileName, blobUrl, fileSizeBytes, contentType, createdAtUtc}` | 400 file rỗng, > 20MB, đuôi file không hỗ trợ (.pdf, .jpg, .jpeg, .png, .doc, .docx); 503 Blob upload lỗi. |
+| `POST /api/v1/applications/{applicationId}/supporting-documents` | Người dân/cán bộ đính kèm file minh chứng (CCCD, giấy khai sinh...); multipart `file` + optional `checklistId`. | 201 `{id, applicationId, checklistId, fileName, blobUrl, fileSizeBytes, contentType, createdAtUtc}` | 400 file rỗng, > 20MB, đuôi file không hỗ trợ (.pdf, .jpg, .jpeg, .png, .doc, .docx, .heic, .heif, .webp — từ 12/11/2026 ảnh HEIC/HEIF/WebP được tự chuyển thành .jpg, xem DOC-HEIC-01); 503 Blob upload lỗi. |
 | `GET /api/v1/applications/{applicationId}/supporting-documents` | FE hiển thị danh sách toàn bộ giấy tờ minh chứng đã tải lên của hồ sơ. | 200 danh sách `SupportingDocumentDto` | 401 chưa đăng nhập; 400 applicationId không hợp lệ. |
 | `DELETE /api/v1/supporting-documents/{documentId}` | Người dân/cán bộ xóa 1 giấy tờ minh chứng (soft-delete). | 204 No Content | 404 không tìm thấy file minh chứng; 401 chưa đăng nhập. |
 | `GET /api/v1/supporting-documents/{documentId}/download` | FE tải về hoặc mở xem file minh chứng trực tiếp từ Azure Blob. | 200 binary stream (`application/octet-stream` hoặc MIME gốc) | 404 không tìm thấy file hoặc blob bị xóa; 401 chưa đăng nhập. |
@@ -5151,3 +5151,71 @@ Các đường dẫn bên dưới dùng tiền tố `/api/v1/applications/{appli
 | POST `{id}/close` | Manager quyết định | Gửi expectedVersion, text (lý do), decision. DECLINE_REQUEST khi đang chờ; KEEP_ASSIGNEE sau trả lời; TRANSFER_TO_SPECIALIST sau trả lời cần thêm expectedAssignmentVersion hiện tại. Trả CLOSED. Tải lại hồ sơ để hiển thị cán bộ và phiên bản phân công mới. |
 
 Phiên bản yêu cầu lấy từ trường version trong phản hồi trước, khác với assignmentVersion của hồ sơ. Khi gặp 409 tải lại cả hai trước khi quyết định lại; 422 kiểm tra quyền, lịch, chuyên môn và việc B đồng ý nhận; 403 kiểm tra tài khoản/quyền; 404 kiểm tra hồ sơ và phường; 503 thử lại khi IAM/Catalog hoạt động. Không đổi người phụ trách chỉ vì đã nhận được câu trả lời. Luồng Manager trực tiếp mở tham vấn bằng POST ở đường dẫn gốc vẫn dùng được.
+
+
+## Mobile, ảnh đại diện và chatbot hỏi lại — 12/11/2026 (MOBILE-1112)
+
+Các API dưới đây dùng chung cho Web và app Mobile. App native gửi Bearer token như Web; đăng nhập Mobile xem mục "Đăng nhập trên Mobile" (header `X-Client-Type: Mobile`). Mọi đường dẫn đi qua Gateway như cũ.
+
+### Ảnh đại diện (IAM, PROFILE-AVATAR-01)
+
+**`PUT /api/v1/users/me/avatar`** — Tải hoặc đổi ảnh đại diện của chính mình. Mọi tài khoản đã đăng nhập (người dân, cán bộ, quản lý, quản trị) đều dùng được. Gửi `multipart/form-data` với trường `file`: ảnh JPEG, PNG, WebP hoặc HEIC/HEIF (ảnh iPhone), tối đa 10 MB. Server tự xoay ảnh theo hướng chụp, cắt giữa thành hình vuông 512×512, xóa toàn bộ thông tin ẩn trong ảnh (vị trí GPS, máy chụp) và lưu dạng JPEG (thường dưới 100 KB). Thành công 200 `{ "avatarUrl": "/api/v1/users/{id}/avatar?v=...", "updatedAt": "..." }`. Lỗi 400: `iam.avatar_empty` (chưa chọn tệp), `iam.avatar_too_large` (> 10 MB), `iam.image_unsupported` (không phải ảnh hỗ trợ), `iam.image_unreadable` (tệp hỏng hoặc kích thước điểm ảnh quá lớn). Khắc phục: chọn ảnh khác; trên điện thoại có thể nén trước khi gửi để tải nhanh hơn.
+
+**`DELETE /api/v1/users/me/avatar`** — Xóa ảnh, quay về ảnh mặc định. Luôn 204, kể cả khi chưa có ảnh.
+
+**`GET /api/v1/users/{userId}/avatar`** — Lấy ảnh JPEG. Cần đăng nhập. Được xem: ảnh của chính mình; cán bộ xem ảnh mọi người; người dân xem ảnh của cán bộ. Người dân **không** xem được ảnh người dân khác; trường hợp này và trường hợp chưa có ảnh đều trả 404 `iam.avatar_not_found` (FE hiện ảnh mặc định, không báo lỗi). Có `ETag` và `Cache-Control: private, max-age=86400`; URL đổi tham số `v` mỗi lần đổi ảnh nên cache an toàn.
+
+**Lấy URL ảnh:** `GET /api/v1/users/me` có thêm `avatarUrl` (null nếu chưa có ảnh). Vì ảnh cần Bearer token, thẻ `<img src>` trên Web không tự gửi token: FE tải bằng `fetch` có header rồi dùng `URL.createObjectURL(blob)`; app Mobile truyền header Authorization vào widget ảnh (ví dụ `Image.network(url, headers: {...})`). Đường dẫn là tương đối, ghép với địa chỉ Gateway.
+
+### Ảnh chụp từ điện thoại (DOC-HEIC-01)
+
+- **Giấy tờ kèm theo** `POST /api/v1/applications/{applicationId}/supporting-documents`: nhận thêm `.heic`, `.heif`, `.webp`. Server chuyển sang JPEG (xoay theo hướng chụp, xóa thông tin GPS, cạnh dài tối đa 3000 px), lưu tên `.jpg`, `contentType: image/jpeg` để cán bộ xem trực tiếp trên trình duyệt. Ảnh JPEG/PNG và PDF giữ nguyên như cũ. Ảnh HEIC hỏng trả 400 `document.unsupported_file_type`.
+- **Đọc CCCD** `POST /api/v1/ai-ocr/cccd/extract` và tiền kiểm `POST /api/v1/ai-ocr/documents/verify`: nhận thêm ảnh WebP và HEIC/HEIF (gửi thẳng cho AI, không đổi định dạng).
+
+### Thông báo đẩy tới điện thoại (AnalyticsSystem, PUSH-01)
+
+Thông báo đẩy dùng Firebase Cloud Messaging (miễn phí). **Mặc định tắt**; khi tắt, app vẫn gọi đăng ký được nhưng không có tin đẩy nào được gửi. Bật bằng cấu hình `Push:Enabled=true` cùng `Push:Fcm:ProjectId`, `Push:Fcm:ClientEmail`, `Push:Fcm:PrivateKey` (lấy từ khóa service account của dự án Firebase; khóa đặt trong secret, không ghi vào tài liệu).
+
+**`PUT /api/v1/system/push-devices`** — App gọi sau khi đăng nhập và mỗi khi Firebase cấp token mới. Body `{ "token": "<FCM token>", "platform": "ANDROID" | "IOS" | "WEB", "appVersion": "1.0.0" }`. 204. Gọi lại cùng token chỉ cập nhật thời điểm. Token đang gắn với tài khoản khác trên cùng máy được chuyển sang tài khoản đang đăng nhập. Mỗi tài khoản giữ tối đa 10 thiết bị mới nhất. Lỗi 400: `push.invalid_token` (token 20–1024 ký tự, không có khoảng trắng), `push.invalid_platform`, `push.invalid_version` (appVersion ≤ 50 ký tự).
+
+**`POST /api/v1/system/push-devices/unregister`** — App gọi khi đăng xuất, **trước** khi xóa access token, body `{ "token": "..." }`. 204 (token không có cũng 204). Không gọi bước này thì máy vẫn nhận tin của tài khoản cũ tới khi đăng nhập tài khoản khác.
+
+**Nội dung tin đẩy:** tiêu đề và nội dung rút gọn của thông báo trong app; `data` gồm `notificationId`, `type`, `actionUrl`, `applicationId` (đều là chuỗi). App dùng `actionUrl` để mở đúng màn hình và gọi `MarkRead(notificationId)` khi người dùng mở. Mọi thông báo trong app (IN_APP) đã gửi hợp lệ cho người nhận đều được đẩy thêm; thông báo chậm hơn 1 ngày không đẩy. Kênh Android dùng `channel_id = "wardmate_default"` (app tạo kênh này).
+
+### Cấu hình cho app (MOBILE-01)
+
+**`GET /api/v1/system/app-config`** — Không cần đăng nhập. App gọi khi mở để biết có phải cập nhật không. Trả:
+
+```json
+{ "android": { "minVersion": "1.0.0", "latestVersion": "1.2.0", "storeUrl": "..." },
+  "ios": { "minVersion": null, "latestVersion": null, "storeUrl": null },
+  "maintenance": false, "maintenanceMessage": null,
+  "deepLinkScheme": "wardmate", "webBaseUrl": "https://...", "pushEnabled": false }
+```
+
+Cách dùng: phiên bản app nhỏ hơn `minVersion` → bắt cập nhật (mở `storeUrl`); nhỏ hơn `latestVersion` → gợi ý cập nhật; `maintenance = true` → hiện `maintenanceMessage`. Giá trị null nghĩa là chưa cấu hình, app bỏ qua. Cấu hình bằng `MobileApp:Android:MinVersion`… trong AnalyticsSystem; cache 5 phút.
+
+**Deep link:** đường dẫn trong `actionUrl` của thông báo và đường dẫn tra cứu QR là đường dẫn của Web. App mở được trực tiếp khi FE đặt tệp `/.well-known/assetlinks.json` (Android) và `/.well-known/apple-app-site-association` (iOS) trên tên miền Web (`webBaseUrl`); hai tệp này do FE/hosting phục vụ, không đi qua Backend. Nếu dùng scheme riêng thì lấy `deepLinkScheme`.
+
+### Chatbot hỏi lại và gợi ý câu hỏi (AIOCR, CHAT-QUALITY-01)
+
+`POST /api/v1/ai/chat/completions` giữ nguyên request. Response thêm (FE cũ bỏ qua được):
+
+- `messageId`: mã câu trả lời, dùng để gửi đánh giá.
+- `needsClarification`: `true` khi chatbot chưa chắc người dân cần gì (ví dụ "làm khai sinh" mà có nhiều trường hợp) và đang **hỏi lại một câu**; `answer` khi đó nêu ngắn các khả năng và câu hỏi.
+- `suggestedQuestions`: tối đa 4 câu. Khi đang hỏi lại: các lựa chọn trả lời nhanh (ví dụ "Tôi đăng ký khai sinh cho con mới sinh"). Khi đã trả lời: câu hỏi tiếp theo người dân hay cần. FE hiện thành nút; bấm nút thì gửi đúng chữ đó làm `message` tiếp theo, giữ `conversationId`.
+
+Cách trả lời mới: câu đầu trả lời thẳng; sau đó chỉ các mục có thông tin ("Giấy tờ cần chuẩn bị", "Nộp ở đâu, nộp thế nào", "Phí, lệ phí", "Thời gian giải quyết", "Lưu ý"); lời lẽ đời thường, khoảng 250 từ; nếu còn điểm chưa chắc về hoàn cảnh người dân thì kết thúc bằng một câu hỏi kiểm tra lại. Câu hỏi ngắn tiếp nối ("còn phí thì sao", "trường hợp 2") được tìm nguồn cùng câu hỏi trước, nên trả lời đúng thủ tục đang nói. `GET /api/v1/ai/chat/sessions/{id}/messages` mỗi tin có thêm `needsClarification`, `suggestedQuestions`, `feedbackHelpful`.
+
+### Đánh giá câu trả lời (CHAT-FEEDBACK-01)
+
+**`POST /api/v1/ai/chat/messages/{messageId}/feedback`** — Người dân bấm "Hữu ích"/"Chưa đúng" dưới câu trả lời. Không cần đăng nhập nếu cuộc trò chuyện là của khách. Body `{ "helpful": false, "reason": "NOT_WHAT_I_ASKED", "comment": "Tôi hỏi lệ phí" }`; `reason` (khi `helpful = false`, tùy chọn) là một trong `WRONG_INFO` (sai thông tin), `NOT_WHAT_I_ASKED` (không đúng điều tôi hỏi), `HARD_TO_UNDERSTAND` (khó hiểu), `MISSING_INFO` (thiếu thông tin), `OTHER`; `comment` ≤ 1000 ký tự. 204; đánh giá lại thì ghi đè. Lỗi: 400 `chat.invalid_feedback`; 404 `chat.message_not_found` (không phải câu trả lời của chatbot trong cuộc trò chuyện của người gọi).
+
+**`GET /api/v1/ai/knowledge/chat-feedback?helpful=false&pageNumber=1&pageSize=20`** — PROCEDURE_MANAGER/IT_ADMIN (quyền `knowledge.manage`) xem đánh giá, mới nhất trước: `messageId`, `sessionId`, `question` (câu hỏi ngay trước), `answer`, `grounded`, `needsClarification`, `helpful`, `reason`, `comment`, `ratedAt`. Dùng để biết câu hỏi nào kho kiến thức trả lời sai/thiếu và bổ sung tài liệu. Bỏ `helpful` để xem tất cả.
+
+### Cần chạy trước khi deploy
+
+- IAM: `docs/sql/iam-user-avatar.sql` (bảng `user_avatars`, cột `users.avatar_updated_at`).
+- AnalyticsSystem: `docs/sql/analytics-push-devices.sql` (bảng `push_devices`).
+- AIOCR: `docs/sql/aiocr-chat-quality-feedback.sql` (các cột hỏi lại, gợi ý, đánh giá trong `chat_messages`).
+- IAM và DocumentForm có thư viện xử lý ảnh mới (Magick.NET, miễn phí); cần build lại image.
