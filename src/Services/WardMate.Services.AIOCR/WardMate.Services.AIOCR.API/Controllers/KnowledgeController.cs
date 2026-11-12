@@ -8,7 +8,7 @@ namespace WardMate.Services.AIOCR.API.Controllers;
 [ApiController, Authorize, KnowledgeAccess, Route("api/v1/ai/knowledge"), ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 [ProducesResponseType<ProblemDetails>(400), ProducesResponseType<ProblemDetails>(401), ProducesResponseType<ProblemDetails>(403),
  ProducesResponseType<ProblemDetails>(404), ProducesResponseType<ProblemDetails>(409), ProducesResponseType<ProblemDetails>(503)]
-public sealed class KnowledgeController(IKnowledgeBase knowledge, IAiUsage usage, TimeProvider clock) : ControllerBase
+public sealed class KnowledgeController(IKnowledgeBase knowledge, IAiUsage usage, TimeProvider clock, IChatService chat) : ControllerBase
 {
     private Guid Actor => Guid.Parse(User.FindFirst("sub")!.Value);
 
@@ -57,6 +57,11 @@ public sealed class KnowledgeController(IKnowledgeBase knowledge, IAiUsage usage
     public async Task<IActionResult> IndexStatus(CancellationToken ct) => Ok(await knowledge.IndexStatus(ct));
 
     /// <summary>Thử tìm kiếm trên Knowledge Base để kiểm tra chất lượng nguồn trước khi bật RAG; mỗi lần gọi tạo một embedding.</summary>
+    // CHAT-FEEDBACK-01: đánh giá của người dân về câu trả lời chatbot, để bổ sung/sửa tài liệu tri thức.
+    [HttpGet("chat-feedback"), ProducesResponseType<Page<ChatFeedbackItem>>(200)]
+    public async Task<IActionResult> ChatFeedback([FromQuery] bool? helpful, CancellationToken ct, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20) =>
+        Ok(await chat.FeedbackList(helpful, pageNumber, pageSize, ct));
+
     [HttpPost("search"), RequestSizeLimit(8192), ProducesResponseType<KnowledgeSearchHitDto[]>(200)]
     public async Task<IActionResult> Search(KnowledgeSearchInput input, CancellationToken ct) => Ok(await knowledge.Search(input, ct));
 

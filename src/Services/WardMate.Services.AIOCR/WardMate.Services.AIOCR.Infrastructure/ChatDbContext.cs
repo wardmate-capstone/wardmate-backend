@@ -74,6 +74,11 @@ public sealed class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbC
         m.Property(x => x.Role).HasMaxLength(20).IsRequired();
         m.Property(x => x.Content).HasMaxLength(20000).IsRequired();
         m.Property(x => x.Citations).HasColumnType("jsonb");
+        m.Property(x => x.SuggestedQuestions).HasColumnType("jsonb");
+        m.Property(x => x.NeedsClarification).HasDefaultValue(false);
+        m.Property(x => x.FeedbackReason).HasMaxLength(40);
+        m.Property(x => x.FeedbackComment).HasMaxLength(1000);
+        m.HasIndex(x => new { x.FeedbackHelpful, x.FeedbackAt }).HasFilter("feedback_helpful IS NOT NULL");
         m.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         m.HasIndex(x => new { x.SessionId, x.CreatedAt });
     }

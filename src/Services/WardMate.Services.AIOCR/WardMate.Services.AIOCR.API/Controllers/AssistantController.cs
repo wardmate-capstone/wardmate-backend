@@ -58,6 +58,14 @@ public sealed class AssistantController(ICccdExtractionService cccd, IDocumentPr
         var owner = User.Identity?.IsAuthenticated == true ? UserId : ChatOwners.Guest;
         return Ok(await chat.Complete(owner, new(input.Message, input.ConversationId, input.WardCode), ct));
     }
+    // CHAT-FEEDBACK-01: đánh giá câu trả lời (khách dùng chat ẩn danh đánh giá được tin nhắn của phiên khách).
+    [HttpPost("/api/v1/ai/chat/messages/{messageId:guid}/feedback"), AllowAnonymous, RequestSizeLimit(8192)]
+    public async Task<IActionResult> Feedback(Guid messageId, ChatFeedbackInput input, CancellationToken ct)
+    {
+        var owner = User.Identity?.IsAuthenticated == true ? UserId : ChatOwners.Guest;
+        await chat.Feedback(owner, messageId, input, ct);
+        return NoContent();
+    }
     [HttpGet("/api/v1/ai/chat/sessions")]
     public async Task<ActionResult<Page<SessionDto>>> Sessions([FromQuery, Range(1, 100000)] int pageNumber = 1,
         [FromQuery, Range(1, 50)] int pageSize = 20, CancellationToken ct = default) => Ok(await chat.Sessions(UserId, pageNumber, pageSize, ct));

@@ -18,4 +18,12 @@ public sealed class ChatMessage
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     // JSON array of knowledge citations for grounded assistant answers; null for user turns and ungrounded answers.
     public string? Citations { get; set; }
+    // CHAT-QUALITY-01: câu trả lời đang hỏi lại người dân để làm rõ; JSON array các câu hỏi gợi ý tiếp theo / lựa chọn trả lời nhanh.
+    public bool NeedsClarification { get; set; }
+    public string? SuggestedQuestions { get; set; }
+    // CHAT-FEEDBACK-01: người dân đánh giá câu trả lời (chỉ tin nhắn Assistant).
+    public bool? FeedbackHelpful { get; set; }
+    public string? FeedbackReason { get; set; }
+    public string? FeedbackComment { get; set; }
+    public DateTime? FeedbackAt { get; set; }
 }

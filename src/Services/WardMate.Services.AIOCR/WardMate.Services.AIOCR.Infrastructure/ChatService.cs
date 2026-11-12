@@ -29,7 +29,13 @@ public sealed partial class ChatService(ChatDbContext db, IAssistantModel model,
         if (knowledge.RagEnabled)
         {
             if (!config.GetValue<bool>("Assistant:Enabled")) throw new AiFailure(503, "ai.disabled", "Chưa bật chức năng AI công dân.");
-            sources = await retriever.Search(question, knowledge.TopK, ct);
+            // CHAT-QUALITY-01: câu tiếp nối ngắn ("còn phí thì sao", "trường hợp 2") được tìm cùng câu hỏi trước của người dân.
+            string? previous = null;
+            if (input.ConversationId is Guid sid)
+                previous = await db.Messages.AsNoTracking()
+                    .Where(x => x.SessionId == sid && x.Role == "User" && db.Sessions.Any(s => s.Id == sid && s.UserId == userId))
+                    .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Select(x => x.Content).FirstOrDefaultAsync(ct);
+            sources = await retriever.Search(RetrievalQuery(previous, question), knowledge.TopK, ct);
         }
         // Serialize turns in one session across replicas. A failed AI turn is rolled back, not a fake answer.
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -53,20 +59,39 @@ public sealed partial class ChatService(ChatDbContext db, IAssistantModel model,
         var userMessage = new ChatMessage { SessionId = session.Id, Role = "User", Content = question };
         db.Messages.Add(userMessage);
         await db.SaveChangesAsync(ct);
-        string answer; ChatCitation[]? citations = null;
-        if (sources is null) answer = await model.Answer(history, session.WardCode, ct);
-        else if (sources.Length == 0) answer = NoSourceAnswer; // grounded mode: no matching source means no model call
+        AssistantReply reply; ChatCitation[]? citations = null;
+        if (sources is null) reply = await model.Answer(history, session.WardCode, ct);
+        else if (sources.Length == 0) reply = new(NoSourceAnswer, false, []); // grounded mode: no matching source means no model call
         else
         {
-            answer = await model.AnswerWithSources(history, session.WardCode, sources, ct);
-            citations = Cite(answer, sources);
+            reply = await model.AnswerWithSources(history, session.WardCode, sources, ct);
+            citations = Cite(reply.Answer, sources);
         }
-        db.Messages.Add(new() { SessionId = session.Id, Role = "Assistant", Content = answer,
-            Citations = citations is null ? null : JsonSerializer.Serialize(citations, Json) });
+        var assistant = new ChatMessage
+        {
+            SessionId = session.Id, Role = "Assistant", Content = reply.Answer, NeedsClarification = reply.NeedsClarification,
+            Citations = citations is null ? null : JsonSerializer.Serialize(citations, Json),
+            SuggestedQuestions = reply.SuggestedQuestions.Length == 0 ? null : JsonSerializer.Serialize(reply.SuggestedQuestions, Json)
+        };
+        db.Messages.Add(assistant);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         var related = (citations ?? []).Where(c => c.ProcedureId is not null).DistinctBy(c => c.ProcedureId)
             .Select(c => (object)new RelatedProcedure(c.ProcedureId!.Value, c.Title)).ToArray();
-        return new(session.Id, answer, related, citations, citations is not null);
+        return new(session.Id, reply.Answer, related, citations, citations is not null, assistant.Id, reply.NeedsClarification, reply.SuggestedQuestions);
+    }
+
+    /// <summary>
+    /// CHAT-QUALITY-01: câu hỏi ngắn (dưới 12 từ) thường là câu tiếp nối hoặc câu trả lời cho câu hỏi làm rõ; ghép với câu hỏi
+    /// trước (tối đa 300 ký tự) để tìm đúng thủ tục. Câu dài đủ ngữ cảnh thì tìm riêng để không lẫn chủ đề cũ.
+    /// </summary>
+    public static string RetrievalQuery(string? previous, string question)
+    {
+        if (string.IsNullOrWhiteSpace(previous)) return question;
+        var words = question.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        if (words >= 12) return question;
+        var prior = previous.Trim();
+        if (prior.Length > 300) prior = prior[..300];
+        return prior + "\n" + question;
     }
 
     // CHAT-CITE-01: keeps only the sources the answer actually cites. No marker means the model did not answer from the
@@ -81,6 +106,48 @@ public sealed partial class ChatService(ChatDbContext db, IAssistantModel model,
             var s = sources[i - 1];
             return new ChatCitation(i, s.DocumentId, s.DocumentTitle, s.SourceType, s.ProcedureId, s.ChunkId, s.Heading, s.Score);
         }).ToArray();
+    }
+
+    /// <summary>CHAT-FEEDBACK-01: người dân đánh giá một câu trả lời trong cuộc trò chuyện của mình; đánh giá lại thì ghi đè.</summary>
+    public async Task Feedback(Guid userId, Guid messageId, ChatFeedbackInput input, CancellationToken ct)
+    {
+        Configured();
+        var (reason, comment) = ValidateFeedback(input);
+        var message = await db.Messages.SingleOrDefaultAsync(x => x.Id == messageId && x.Role == "Assistant"
+            && db.Sessions.Any(s => s.Id == x.SessionId && s.UserId == userId), ct)
+            ?? throw new AiFailure(404, "chat.message_not_found", "Không tìm thấy câu trả lời trong cuộc trò chuyện của bạn.");
+        message.FeedbackHelpful = input.Helpful; message.FeedbackReason = reason; message.FeedbackComment = comment;
+        message.FeedbackAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public static (string? Reason, string? Comment) ValidateFeedback(ChatFeedbackInput input)
+    {
+        var reason = string.IsNullOrWhiteSpace(input.Reason) ? null : input.Reason.Trim().ToUpperInvariant();
+        var comment = string.IsNullOrWhiteSpace(input.Comment) ? null : input.Comment.Trim();
+        if (reason is not null && !ChatFeedbackReasons.All.Contains(reason))
+            throw new AiFailure(400, "chat.invalid_feedback", "reason phải là một trong: " + string.Join(", ", ChatFeedbackReasons.All) + ".");
+        if (comment is { Length: > 1000 } || comment?.Any(c => char.IsControl(c) && c is not ('\n' or '\r' or '\t')) == true)
+            throw new AiFailure(400, "chat.invalid_feedback", "comment tối đa 1000 ký tự, không chứa ký tự điều khiển.");
+        // Đánh giá "hữu ích" không cần lý do; góp ý (comment) vẫn được giữ.
+        return (input.Helpful ? null : reason, comment);
+    }
+
+    /// <summary>Danh sách đánh giá cho người quản lý tri thức: câu hỏi, câu trả lời và lý do, mới nhất trước.</summary>
+    public async Task<Page<ChatFeedbackItem>> FeedbackList(bool? helpful, int page, int size, CancellationToken ct)
+    {
+        Configured();
+        if (page is < 1 or > 100000 || size is < 1 or > 100) throw new AiFailure(400, "chat.invalid_input", "pageNumber 1–100000, pageSize 1–100.");
+        var q = db.Messages.AsNoTracking().Where(x => x.Role == "Assistant" && x.FeedbackHelpful != null);
+        if (helpful is { } h) q = q.Where(x => x.FeedbackHelpful == h);
+        var total = await q.CountAsync(ct);
+        var items = await q.OrderByDescending(x => x.FeedbackAt).ThenBy(x => x.Id).Skip((page - 1) * size).Take(size)
+            .Select(x => new ChatFeedbackItem(x.Id, x.SessionId,
+                db.Messages.Where(u => u.SessionId == x.SessionId && u.Role == "User" && u.CreatedAt <= x.CreatedAt)
+                    .OrderByDescending(u => u.CreatedAt).Select(u => u.Content).FirstOrDefault(),
+                x.Content, x.Citations != null, x.NeedsClarification, x.FeedbackHelpful!.Value, x.FeedbackReason, x.FeedbackComment, x.FeedbackAt!.Value))
+            .ToListAsync(ct);
+        return new(items, page, size, total);
     }
 
     public async Task<Page<SessionDto>> Sessions(Guid userId, int page, int size, CancellationToken ct)
@@ -99,9 +166,10 @@ public sealed partial class ChatService(ChatDbContext db, IAssistantModel model,
         var q = db.Messages.AsNoTracking().Where(x => x.SessionId == sessionId);
         var total = await q.CountAsync(ct);
         var rows = await q.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Skip((page - 1) * size).Take(size)
-            .Select(x => new { x.Id, x.Role, x.Content, x.CreatedAt, x.Citations }).ToListAsync(ct);
+            .Select(x => new { x.Id, x.Role, x.Content, x.CreatedAt, x.Citations, x.NeedsClarification, x.SuggestedQuestions, x.FeedbackHelpful }).ToListAsync(ct);
         return new(rows.Select(x => new MessageDto(x.Id, x.Role, x.Content, x.CreatedAt,
-            x.Citations is null ? null : JsonSerializer.Deserialize<ChatCitation[]>(x.Citations, Json))).ToList(), page, size, total);
+            x.Citations is null ? null : JsonSerializer.Deserialize<ChatCitation[]>(x.Citations, Json), x.NeedsClarification,
+            x.SuggestedQuestions is null ? null : JsonSerializer.Deserialize<string[]>(x.SuggestedQuestions, Json), x.FeedbackHelpful)).ToList(), page, size, total);
     }
 
     [GeneratedRegex(@"\[(\d{1,2})\]")] private static partial Regex CitationMarker();

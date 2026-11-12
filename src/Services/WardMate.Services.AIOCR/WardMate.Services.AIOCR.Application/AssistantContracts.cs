@@ -7,9 +7,23 @@ public sealed record VerificationResult(bool IsValid, string DocumentTypeDetecte
 public static class ChatOwners { public static readonly Guid Guest = Guid.Empty; }
 public sealed record ChatInput(string Message, Guid? ConversationId, string WardCode);
 // Grounded is true only when the answer was generated from Knowledge Base sources listed in Citations.
-public sealed record ChatResult(Guid ConversationId, string Answer, object[] RelatedProcedures, ChatCitation[]? Citations = null, bool Grounded = false);
+// CHAT-QUALITY-01: MessageId để gửi đánh giá; NeedsClarification = chatbot đang hỏi lại để hiểu đúng nhu cầu;
+// SuggestedQuestions = câu hỏi tiếp theo (hoặc các lựa chọn trả lời nhanh khi đang hỏi lại) để FE hiện thành nút bấm.
+public sealed record ChatResult(Guid ConversationId, string Answer, object[] RelatedProcedures, ChatCitation[]? Citations = null, bool Grounded = false,
+    Guid? MessageId = null, bool NeedsClarification = false, string[]? SuggestedQuestions = null);
 public sealed record SessionDto(Guid Id, string WardCode, DateTime CreatedAt);
-public sealed record MessageDto(Guid Id, string Role, string Content, DateTime CreatedAt, ChatCitation[]? Citations = null);
+public sealed record MessageDto(Guid Id, string Role, string Content, DateTime CreatedAt, ChatCitation[]? Citations = null,
+    bool NeedsClarification = false, string[]? SuggestedQuestions = null, bool? FeedbackHelpful = null);
+/// <summary>Kết quả mô hình: nội dung trả lời, có đang hỏi lại không, và gợi ý câu hỏi tiếp theo (đã làm sạch).</summary>
+public sealed record AssistantReply(string Answer, bool NeedsClarification, string[] SuggestedQuestions);
+// CHAT-FEEDBACK-01: đánh giá câu trả lời của chatbot.
+public static class ChatFeedbackReasons
+{
+    public static readonly string[] All = ["WRONG_INFO", "NOT_WHAT_I_ASKED", "HARD_TO_UNDERSTAND", "MISSING_INFO", "OTHER"];
+}
+public sealed record ChatFeedbackInput(bool Helpful, string? Reason, string? Comment);
+public sealed record ChatFeedbackItem(Guid MessageId, Guid SessionId, string? Question, string Answer, bool Grounded, bool NeedsClarification,
+    bool Helpful, string? Reason, string? Comment, DateTime RatedAt);
 public sealed record ChatTurn(string Role, string Content);
 public sealed record Page<T>(IReadOnlyList<T> Items, int PageNumber, int PageSize, int TotalCount);
 public sealed class AiFailure(int status, string code, string message) : Exception(message)
@@ -29,13 +43,15 @@ public interface IDocumentPreValidationService
 }
 public interface IAssistantModel
 {
-    Task<string> Answer(IReadOnlyList<ChatTurn> history, string wardCode, CancellationToken ct);
+    Task<AssistantReply> Answer(IReadOnlyList<ChatTurn> history, string wardCode, CancellationToken ct);
     // Sources are numbered [1..n] in the order given; the model must cite them and treat them as data only.
-    Task<string> AnswerWithSources(IReadOnlyList<ChatTurn> history, string wardCode, IReadOnlyList<KnowledgeHit> sources, CancellationToken ct);
+    Task<AssistantReply> AnswerWithSources(IReadOnlyList<ChatTurn> history, string wardCode, IReadOnlyList<KnowledgeHit> sources, CancellationToken ct);
 }
 public interface IChatService
 {
     Task<ChatResult> Complete(Guid userId, ChatInput input, CancellationToken ct);
+    Task Feedback(Guid userId, Guid messageId, ChatFeedbackInput input, CancellationToken ct);
+    Task<Page<ChatFeedbackItem>> FeedbackList(bool? helpful, int page, int size, CancellationToken ct);
     Task<Page<SessionDto>> Sessions(Guid userId, int page, int size, CancellationToken ct);
     Task<Page<MessageDto>> Messages(Guid userId, Guid sessionId, int page, int size, CancellationToken ct);
 }
