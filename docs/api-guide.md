@@ -3297,6 +3297,10 @@ Gọi khi cần đồng bộ lại huy hiệu chuông. Trả số nguyên của 
 
 Gọi khi người dùng mở thông báo. Thành công promise hoàn tất, server cập nhật `is_read`, `read_at` UTC và phát `UpdateUnreadCount` tới các connection cùng người dùng. Gọi lại cùng id không đổi thời điểm đọc lần đầu. Id không tồn tại hoặc thuộc người khác đều trả lỗi “Không tìm thấy thông báo của bạn”; FE tải lại danh sách thay vì thử id của người khác. Hub invocation errors dùng cơ chế lỗi SignalR, không phải HTTP ProblemDetails cho từng phương thức.
 
+**`MarkAllRead(before?)` — Đánh dấu tất cả đã đọc (từ 12/11/2026, NOTIFY-READALL-01)**
+
+Dùng cho nút "Đánh dấu tất cả là đã đọc" ở chuông và trang thông báo; thay cho vòng lặp `MarkRead` từng thông báo (vòng lặp chỉ đánh dấu được trang đã tải và làm chuông đếm lùi từng số). Gọi `await connection.invoke("MarkAllRead", new Date().toISOString())` — truyền thời điểm người dùng bấm để thông báo vừa đến trong lúc xử lý vẫn chưa đọc; truyền `null` (hoặc không truyền) để đánh dấu tất cả. Phạm vi đúng như `GetUnreadCount`: chỉ thông báo IN_APP của chính người đang kết nối, không gắn phường hoặc gắn phường hiện tại (Manager/cán bộ đã chuyển phường không đánh dấu thông báo của phường cũ). Kết quả: số thông báo vừa đánh dấu (0 nếu không có gì — không phải lỗi). Server phát `UpdateUnreadCount` tới các tab cùng tài khoản; một tab có thể nhận cùng số hai lần, FE chỉ gán số. Sau khi gọi, FE đặt `isRead = true` cho các mục đang hiển thị có `createdAt <= before`, hoặc tải lại trang bằng `GetNotifications`. Thời gian gửi lên phải có múi giờ (`toISOString()` có `Z`); thiếu múi giờ server coi là UTC. Đồng hồ máy người dùng có thể lệch giờ máy chủ; nếu lệch chậm, thông báo vừa tạo trước lúc bấm có thể còn chưa đọc. Cách chắc hơn là truyền `createdAt` của thông báo mới nhất đang hiển thị.
+
 ### Event backend gửi tới FE
 
 - `ReceiveNotification(notification)`: có thông báo mới đã lưu thành công vào DB. Thêm vào danh sách theo `id` (khử trùng nếu đã có).
@@ -3326,6 +3330,8 @@ await connection.start();
 renderNotifications(await connection.invoke("GetNotifications", 1, 20));
 // Khi người dùng mở một thông báo:
 // await connection.invoke("MarkRead", notificationId);
+// Nút "Đánh dấu tất cả là đã đọc":
+// const marked = await connection.invoke("MarkAllRead", new Date().toISOString());
 Bộ kiểm thử tự động trong mục này đã được gỡ theo yêu cầu chủ dự án.json
 {
   "expectedUpdatedAt": "2026-10-14T00:00:00Z",

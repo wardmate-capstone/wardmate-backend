@@ -639,6 +639,15 @@ Infrastructure `Pdf/GotenbergPdfRenderEngine.cs`.
   `workflow.staffing.manage`) với tiêu đề "Hồ sơ nộp lại chưa có cán bộ thụ lý", in-app và email nếu bật. Thông báo này không
   gắn mã phường để bước gửi không chặn Manager. Nộp lần đầu hoặc nộp lại khi cán bộ cũ còn giữ: không báo Manager.
   Nguồn: `WorkflowOutboxCapture.Capture`, `NotificationInboxWorker.ResubmittedToPool`/`StatusRecipient`/`Create`.
+- **NOTIFY-READALL-01 (12/11/2026):** hub `MarkAllRead(before?)` đánh dấu đã đọc trong **một** lệnh cập nhật mọi thông báo
+  thỏa đúng bộ lọc của `GetUnreadCount`: của chính người gọi, kênh IN_APP, chưa đọc, không gắn phường hoặc gắn đúng phường
+  hiện tại của kết nối (thông báo của phường cũ/khác giữ nguyên). `before` (UTC, tùy chọn) chỉ đánh dấu thông báo có
+  `CreatedAt <= before`; thời gian không có múi giờ được coi là UTC. Trả số vừa đánh dấu; không có gì thì trả 0, không báo lỗi,
+  không phát realtime. Có thay đổi thì phát `pg_notify` một lần (replica khác tính lại bộ đếm cho kết nối của người dùng) và đẩy
+  `UpdateUnreadCount` tới các kết nối hợp lệ trên replica hiện tại. Giới hạn: như `MarkRead`, cùng một kết nối có thể nhận
+  `UpdateUnreadCount` hai lần (đẩy trực tiếp + qua listener) với cùng giá trị; FE chỉ cần gán số. Nguồn:
+  `NotificationService.MarkAllReadAsync`/`Unread`, `NotificationHub.MarkAllRead`; test `MarkAllReadScopeTests` (chỉ kiểm bộ lọc,
+  lệnh cập nhật cần PostgreSQL).
 - **Giới hạn phát hiện 10/11/2026 (chưa sửa):** `NotificationDeliveryWorker` đánh dấu Suppressed mọi thông báo có
   `RecipientWardCode` mà người nhận không phải cán bộ một cửa. Thông báo lịch/nghỉ phép gửi Manager đặt mã phường nên phần
   gửi realtime/email bị chặn (bản ghi in-app vẫn còn trong DB). Chủ dự án (10/11/2026): không cần email cho Manager khi có
@@ -1428,3 +1437,4 @@ Nguồn: SystemBackups.cs, SystemBackupWorker.cs.
 Chỉ cán bộ đang phụ trách hồ sơ UNDER_REVIEW cùng phường, khác người nộp, có quyền workflow.consultation.request mới được yêu cầu. Câu hỏi và nội dung trả lời/đóng không được trống, tối đa 4000 ký tự. Mỗi phiên bản phân công chỉ có một yêu cầu chờ điều phối; bản chụp đã nộp và phiên bản phân công phải còn phù hợp. Manager chọn một cán bộ khác có quyền phản hồi, đúng lĩnh vực, đúng phường và đang sẵn sàng theo lịch. Chỉ cán bộ được chọn mới được trả lời. Lời đáp không đổi người phụ trách. Với yêu cầu do A khởi tạo, chuyển giao cần B đồng ý nhận, Manager quyết định, kiểm tra lại điều kiện nhận việc và phiên bản. Ghi việc chuyển người, lịch sử phân công và đóng tham vấn trong cùng giao dịch. Tham vấn không tự tạm dừng thời hạn hồ sơ. Khi gặp 409 tải lại trạng thái; khi gặp 422 xem điều kiện cán bộ và giữ A hoặc chọn cách điều phối khác.
 
 Nguồn: ApplicationConsultation.cs, ConsultationService.cs, DispatchService.cs, WorkflowDbContext.cs và WorkflowSecurity.cs thuộc ApplicationWorkflow; migration OfficerConsultationRequestPermission thuộc IAM. Lịch sử: 12/11/2026 mở rộng STAFFING-01 cho chiều cán bộ → Manager → cán bộ tư vấn.
+- Lịch sử: 2026-11-12 (NOTIFY-READALL-1112) thêm NOTIFY-READALL-01: hub MarkAllRead(before?) đánh dấu đã đọc theo đúng phạm vi GetUnreadCount. Build 0/0, test 113/113; chưa deploy Analytics.

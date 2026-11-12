@@ -5274,3 +5274,12 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Rollback:** `wardmate-aiocr@sha256:7813e65646fd3feb6df20f0af0c66ca71a7313c8cbfe3c6b00f1fb77c65d0a41`.
 - **Không SQL/migration/cấu hình.** `main`/`deploy` chưa đồng bộ (chờ chủ dự án duyệt).
 - **Chưa làm:** thử chatbot — câu ngoài chủ đề ("Tôi mới bị mất công việc cần phải làm gì") phải trả "chưa đủ thông tin", `citations` null, không hiện nguồn BHYT; câu đúng chủ đề vẫn có [n] và citations.
+
+## NOTIFY-READALL-1112 — MarkAllRead cho NotificationHub — 2026-11-12 (UTC+07)
+
+- **Yêu cầu FE:** nút "Đánh dấu tất cả là đã đọc" đang lặp `MarkRead` từng thông báo: chỉ đánh dấu trang đã tải (≤100), chuông đếm lùi từng số, N lần gọi.
+- **Đã làm (NOTIFY-READALL-01):** AnalyticsSystem `Application/Notifications.cs` thêm `MarkAllReadAsync`; `Infrastructure/NotificationService.cs` — bộ lọc dùng chung `Unread(...)` (cũng dùng cho `UnreadCountAsync`), một `ExecuteUpdateAsync` đặt `IsRead`/`ReadAt`, `before` chuẩn hóa về UTC, trả số đã đánh dấu (0 không lỗi), một `pg_notify` + một `UpdateUnreadCount` cục bộ khi có thay đổi; `Infrastructure/NotificationHub.cs` thêm hub method `MarkAllRead(DateTime? before = null)` → `Task<int>`. Không đổi DTO, không migration/SQL.
+- **Test:** mới `tests/WardMate.UnitTests/Analytics/MarkAllReadScopeTests.cs` (4 test: phạm vi người nhận/kênh/đã đọc/phường, công dân không phường, `before`, chuẩn hóa UTC). Build Release `-warnaserror -m:1` 0/0; `dotnet test` 113/113. Lệnh `ExecuteUpdate`, `pg_notify` và đẩy SignalR chưa có test tự động (cần PostgreSQL/hub thật).
+- **Đối chiếu bảng kiểm FE:** #1 trả 150 và bộ đếm 0 — đúng; "chỉ một `UpdateUnreadCount(0)`" — giống `MarkRead`, cùng tab có thể nhận hai lần cùng giá trị (đẩy trực tiếp + listener); #2 trả 0 — đúng; #3–#6 — đúng theo bộ lọc.
+- **Docs:** `docs/api-guide.md` (hub MarkAllRead + ví dụ), `docs/system-constraints.md` NOTIFY-READALL-01.
+- **Chưa làm:** deploy Analytics; FE đổi nút sang `MarkAllRead`.
