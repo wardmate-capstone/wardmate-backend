@@ -5266,3 +5266,11 @@ Workflow: Controllers/ConsultationsController.cs, WorkflowSecurity.cs, Applicati
 POST /api/v1/applications/{applicationId}/consultations/requests (question,expectedAssignmentVersion); GET .../specialist-candidates; POST .../{id}/dispatch (expectedVersion,specialistId); mở rộng GET /api/v1/staffing/consultations?status= và POST .../{id}/answer, .../{id}/close. Xem DTO, JWT theo vai trò, 200 và ProblemDetails 400/403/404/409/422/503 trong api-guide. Release build 0 warnings, 0 errors; unit tests 105 passed, 0 failed, 0 skipped (7 ca mới kiểm tra quyết định theo trạng thái). Chưa chạy migration trên DB thật, Docker E2E hoặc triển khai Azure. Không chạy Git.
 
 FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9 thao tác theo vai trò, body, kết quả, lỗi và ca nghiệm thu. Chỉ bổ sung tài liệu; không chạy lại build/test.
+
+## DEPLOY-1112g — CHAT-CITE-1112 lên Azure (AIOCR) — 2026-11-12 (UTC+07)
+
+- **Git:** push `kha` `1d38d31..2270704` (3 commit CHAT-CITE: fix, test, docs). Build Release 0/0, `dotnet test` 109/109 trước khi push.
+- **AIOCR (chủ dự án chạy lệnh Cloud Shell, code `kha` 2270704):** ACR build `ce2b` Succeeded, tag `wardmate-aiocr:aiocr-20261112-03`, digest `sha256:33ddd144e3428aa8d27736550c13a36dc0a2923ab3d2760c8aa724ae48df36a5`, update `Succeeded`, image đang chạy đúng digest mới, `/health/ready` 200. `Knowledge__EmbeddingEnabled` và `Knowledge__RagEnabled` vẫn `true` sau khi đổi image.
+- **Rollback:** `wardmate-aiocr@sha256:7813e65646fd3feb6df20f0af0c66ca71a7313c8cbfe3c6b00f1fb77c65d0a41`.
+- **Không SQL/migration/cấu hình.** `main`/`deploy` chưa đồng bộ (chờ chủ dự án duyệt).
+- **Chưa làm:** thử chatbot — câu ngoài chủ đề ("Tôi mới bị mất công việc cần phải làm gì") phải trả "chưa đủ thông tin", `citations` null, không hiện nguồn BHYT; câu đúng chủ đề vẫn có [n] và citations.
