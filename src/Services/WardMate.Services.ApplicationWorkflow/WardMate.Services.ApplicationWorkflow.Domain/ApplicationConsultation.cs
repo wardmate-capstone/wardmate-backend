@@ -4,7 +4,18 @@ public sealed class ApplicationConsultation
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ApplicationId { get; set; }
-    public Guid SpecialistId { get; set; }
+    public Guid? SpecialistId { get; set; }
+    public Guid? DispatchedBy { get; set; }
+    public DateTime? DispatchedAtUtc { get; set; }
+    public string? Decision { get; set; }
+    public bool AllowsDecision(string? decision) => decision switch
+    {
+        "DECLINE_REQUEST" => Status == "PENDING_DISPATCH",
+        "KEEP_ASSIGNEE" or "TRANSFER_TO_SPECIALIST" => Status == "ANSWERED",
+        null => Status is "OPEN" or "ANSWERED",
+        _ => false
+    };
+    public bool WillingToTakeOver { get; set; }
     public Guid RequestedBy { get; set; }
     public int ApplicationVersion { get; set; }
     public long AssignmentVersion { get; set; }
