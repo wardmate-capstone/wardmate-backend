@@ -22,6 +22,7 @@
     <ProjectReference Include="../../src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Infrastructure/WardMate.Services.DocumentForm.Infrastructure.csproj" />
     <ProjectReference Include="../../src/Services/WardMate.Services.ProcedureCatalog/WardMate.Services.ProcedureCatalog.Application/WardMate.Services.ProcedureCatalog.Application.csproj" />
     <ProjectReference Include="../../src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/WardMate.Services.ApplicationWorkflow.Application.csproj" />
+    <ProjectReference Include="../../src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/WardMate.Services.ApplicationWorkflow.Infrastructure.csproj" />
     <ProjectReference Include="../../src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/WardMate.Services.AIOCR.Infrastructure.csproj" />
     <ProjectReference Include="../../src/Services/WardMate.Services.AnalyticsSystem/WardMate.Services.AnalyticsSystem.Infrastructure/WardMate.Services.AnalyticsSystem.Infrastructure.csproj" />
   </ItemGroup>
