@@ -4673,11 +4673,11 @@ FE cần bỏ màn/nút xác minh số điện thoại và nút đối soát SMS
 Manager cần quyền `workflow.dispatch.read`, thao tác ghi cần `workflow.dispatch.write`. Tất cả hồ sơ được lọc theo `WardCode` của Manager từ IAM access-context.
 
 #### 1. Danh sách hồ sơ điều phối
-- **Method & Route:** `GET /api/v1/manager/applications?page=1&pageSize=20`
+- **Method & Route:** `GET /api/v1/manager/applications?page=1&pageSize=20&search=&sort=&status=`
 - **Mục đích:** Manager xem toàn bộ hồ sơ trong phường (bao gồm chưa phân công và đã phân công) để điều phối.
-- **Query params:** `page` (1–1000000), `pageSize` (1–100).
+- **Query params:** `page` (1–1000000), `pageSize` (1–100). **Từ 13/11/2026 (DISPATCH-SEARCH-01), đều tùy chọn:** `search` (≤ 200 ký tự) tìm không phân biệt hoa thường và dấu tiếng Việt (kể cả đ/Đ) trong mã hồ sơ, tên thủ tục và tên cán bộ phụ trách; nhiều từ cách nhau bởi khoảng trắng thì mọi từ đều phải khớp (tối đa 10 từ); ký tự `%`, `_` được tìm đúng chữ. `sort` = `createdAt_asc` (mặc định, cũ nhất trước như cũ) hoặc `createdAt_desc` (mới nhất trước); luôn kèm `id` cùng chiều nên ghép các trang không trùng, không thiếu. `status` = một trạng thái Workflow (`SUBMITTED`, `UNDER_REVIEW`, `NEED_REVISION`, `DOCUMENTS_READY`, `OFFICIALLY_RECEIVED`, `APPROVED`, `CANCELLED`, `REJECTED`, `DRAFT`; không phân biệt hoa thường). Không truyền gì: kết quả giống hệt trước đây. `total` là số hồ sơ sau khi lọc. Ví dụ: `?page=1&pageSize=10&sort=createdAt_desc&search=khai%20tu&status=UNDER_REVIEW`.
 - **Kết quả 200:** Object `{ items: DispatchApplication[], page, pageSize, total }`. Mỗi item gồm: `id, applicationCode, procedureId, procedureTitle, status, assignedOfficerId, assignedOfficerName, assignmentVersion, procedureCategoryId`. Tên cán bộ được lưu tại thời điểm phân công. Nếu ID trống, hiển thị “Chưa phân công”. Nếu có ID nhưng tên trống, hiển thị “Chưa có tên cán bộ”.
-- **Lỗi & Khắc phục:** 400 (page/pageSize sai), 403 (không phải Manager có phường), 503 (IAM không khả dụng).
+- **Lỗi & Khắc phục:** 400 `dispatch.invalid_page` (page/pageSize sai), 400 `dispatch.invalid_query` (search > 200 ký tự, sort hoặc status không hợp lệ — sửa tham số), 403 (không phải Manager có phường), 503 (IAM không khả dụng). Cần chạy `docs/sql/workflow-dispatch-search.sql` (bật extension `unaccent`, thêm index `(ward_code, created_at, id)`) trước khi deploy Workflow, nếu không tìm kiếm trả lỗi 500.
 
 #### 2. Danh sách cán bộ phù hợp để phân công
 - **Method & Route:** `GET /api/v1/manager/applications/{id}/assignment-candidates`
