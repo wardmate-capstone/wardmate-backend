@@ -15,7 +15,9 @@ public sealed class ManagerDispatchController(IDispatchService dispatch) : Revie
         { return Respond(WorkflowResult<T>.Fail(503, "dispatch.dependency_unavailable", "Chưa xác minh được dữ liệu IAM/Catalog. Vui lòng thử lại.")); }
     }
     [HttpGet]
-    public Task<IActionResult> List(CancellationToken ct, [FromQuery] int page = 1, [FromQuery] int pageSize = 20) => Safe(() => dispatch.List(Actor, page, pageSize, ct));
+    public Task<IActionResult> List(CancellationToken ct, [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null, [FromQuery] string? sort = null, [FromQuery] string? status = null) =>
+        Safe(() => dispatch.List(Actor, new DispatchListQuery(page, pageSize, search, sort, status), ct));
     [HttpGet("{id:guid}/assignment-candidates")]
     public Task<IActionResult> Candidates(Guid id, CancellationToken ct) => Safe(() => dispatch.Candidates(Actor, id, Token, ct));
     [HttpGet("{id:guid}/assignments")]

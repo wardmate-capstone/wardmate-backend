@@ -3,6 +3,8 @@ using WardMate.Services.ApplicationWorkflow.Domain;
 namespace WardMate.Services.ApplicationWorkflow.Application;
 
 public sealed record DispatchAssignmentInput(Guid OfficerId, long ExpectedAssignmentVersion, string Reason);
+// DISPATCH-SEARCH-01: tham số tùy chọn; không truyền thì giữ hành vi cũ (cũ nhất trước, không lọc).
+public sealed record DispatchListQuery(int Page = 1, int PageSize = 20, string? Search = null, string? Sort = null, string? Status = null);
 public sealed record DispatchOfficer(Guid Id, string? FullName, bool IsActive, string? WardCode, string[] Roles, int[] AssignedCategories, string[]? Permissions = null);
 public sealed record DispatchOfficerPage(DispatchOfficer[] Items, int Total);
 public sealed record DispatchCandidate(Guid OfficerId, string? FullName, bool Eligible, int ActiveApplicationCount, string[] BlockingReasons);
@@ -14,7 +16,7 @@ public interface IDispatchDirectory
 }
 public interface IDispatchService
 {
-    Task<WorkflowResult<object>> List(ReviewActor actor, int page, int pageSize, CancellationToken ct);
+    Task<WorkflowResult<object>> List(ReviewActor actor, DispatchListQuery query, CancellationToken ct);
     Task<WorkflowResult<DispatchCandidate[]>> Candidates(ReviewActor actor, Guid id, string token, CancellationToken ct);
     Task<WorkflowResult<AssignmentRecord>> Assign(ReviewActor actor, Guid id, DispatchAssignmentInput input, string token, CancellationToken ct);
     Task<WorkflowResult<AssignmentRecord[]>> History(ReviewActor actor, Guid id, CancellationToken ct);

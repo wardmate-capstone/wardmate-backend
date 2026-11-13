@@ -9,13 +9,42 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
     private static bool Manager(ReviewActor a) => a.IsManager && !string.IsNullOrWhiteSpace(a.WardCode);
     private static WorkflowResult<T> Fail<T>(int status, string code, string message) => WorkflowResult<T>.Fail(status, "dispatch." + code, message);
     private IQueryable<ApplicationRecord> Scope(ReviewActor actor) => db.Applications.Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id);
-    public async Task<WorkflowResult<object>> List(ReviewActor actor, int page, int pageSize, CancellationToken ct)
+    public const string SortAsc = "createdAt_asc", SortDesc = "createdAt_desc";
+    private static readonly string[] Statuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "NEED_REVISION", "DOCUMENTS_READY", "OFFICIALLY_RECEIVED", "APPROVED", "CANCELLED", "REJECTED"];
+
+    /// <summary>
+    /// DISPATCH-SEARCH-01: tách từ khóa thành các từ (tối đa 10), escape ký tự đại diện của LIKE (\ % _) để tìm đúng chữ.
+    /// Bỏ dấu và hoa/thường do PostgreSQL (unaccent + ILIKE) xử lý.
+    /// </summary>
+    public static string[] SearchPatterns(string? search) => (search ?? "")
+        .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Distinct(StringComparer.OrdinalIgnoreCase).Take(10)
+        .Select(w => "%" + w.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%").ToArray();
+
+    public static string? InvalidQuery(DispatchListQuery query)
     {
+        if (query.Search is { } s && s.Trim().Length > 200) return "search tối đa 200 ký tự.";
+        if (query.Sort is { } sort && sort.Trim() is not (SortAsc or SortDesc)) return "sort phải là createdAt_asc hoặc createdAt_desc.";
+        if (query.Status is { } st && !string.IsNullOrWhiteSpace(st) && !Statuses.Contains(st.Trim().ToUpperInvariant())) return "status không hợp lệ.";
+        return null;
+    }
+
+    public async Task<WorkflowResult<object>> List(ReviewActor actor, DispatchListQuery query, CancellationToken ct)
+    {
+        var (page, pageSize) = (query.Page, query.PageSize);
         if (!Manager(actor)) return Fail<object>(403, "forbidden", "Cần Manager có phường quản lý.");
         if (page < 1 || page > 1000000 || pageSize is < 1 or > 100) return Fail<object>(400, "invalid_page", "Trang không hợp lệ; pageSize từ 1 đến 100.");
+        if (InvalidQuery(query) is { } invalid) return Fail<object>(400, "invalid_query", invalid);
         var q = Scope(actor).AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(query.Status)) { var status = query.Status.Trim().ToUpperInvariant(); q = q.Where(x => x.Status == status); }
+        foreach (var pattern in SearchPatterns(query.Search))
+            q = q.Where(x => EF.Functions.ILike(
+                WorkflowDbContext.Unaccent(x.ApplicationCode + " " + x.ProcedureTitle + " " + (x.AssignedOfficerName ?? "")),
+                WorkflowDbContext.Unaccent(pattern), "\\"));
         var total = await q.CountAsync(ct);
-        var items = await q.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Skip((page - 1) * pageSize).Take(pageSize)
+        var ordered = query.Sort?.Trim() == SortDesc
+            ? q.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            : q.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id);
+        var items = await ordered.Skip((page - 1) * pageSize).Take(pageSize)
             .Select(x => new DispatchApplication(x.Id, x.ApplicationCode, x.ProcedureId, x.ProcedureTitle, x.Status, x.AssignedOfficerId, x.AssignedOfficerId == null ? null : x.AssignedOfficerName, x.AssignmentVersion, x.CategoryId)).ToArrayAsync(ct);
         return WorkflowResult<object>.Ok(new { items, page, pageSize, total });
     }

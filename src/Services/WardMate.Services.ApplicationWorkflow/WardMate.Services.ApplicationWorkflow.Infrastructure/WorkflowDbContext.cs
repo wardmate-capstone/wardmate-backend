@@ -31,6 +31,9 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
     public DbSet<ApplicationVersion> Versions => Set<ApplicationVersion>();
     public DbSet<ApplicationComment> Comments => Set<ApplicationComment>();
 
+    /// <summary>Hàm PostgreSQL <c>unaccent</c>; chỉ dùng trong truy vấn LINQ, không gọi trực tiếp.</summary>
+    public static string Unaccent(string value) => throw new NotSupportedException("Chỉ dùng trong truy vấn EF Core.");
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         var draft = b.Entity<LeaveDraft>();
@@ -85,7 +88,11 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         assignment.Property(x => x.ActorName).HasMaxLength(255);
         assignment.HasIndex(x => new { x.ApplicationId, x.CreatedAt });
         assignment.HasIndex(x => new { x.ActorId, x.CreatedAt });
+        // DISPATCH-SEARCH-01: tìm không dấu trong danh sách điều phối; index phục vụ lọc phường + sắp theo thời gian tạo.
+        b.HasPostgresExtension("unaccent");
+        b.HasDbFunction(typeof(WorkflowDbContext).GetMethod(nameof(Unaccent))!).HasName("unaccent");
         var a = b.Entity<ApplicationRecord>();
+        a.HasIndex(x => new { x.WardCode, x.CreatedAt, x.Id }).HasDatabaseName("ix_applications_ward_code_created_at_id");
         a.Property(x => x.CategoryName).HasMaxLength(255);
         a.Property(x => x.AssignedOfficerName).HasMaxLength(255);
         a.Property(x => x.ApplicantName).HasMaxLength(255);
