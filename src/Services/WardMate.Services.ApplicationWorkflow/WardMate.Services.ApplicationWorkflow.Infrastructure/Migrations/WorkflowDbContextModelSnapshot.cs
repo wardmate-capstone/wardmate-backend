@@ -20,6 +20,7 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "unaccent");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.HasSequence("application_code_sequence");
@@ -607,6 +608,9 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
 
                     b.HasIndex("WardCode", "CategoryId", "Status")
                         .HasDatabaseName("ix_applications_ward_code_category_id_status");
+
+                    b.HasIndex("WardCode", "CreatedAt", "Id")
+                        .HasDatabaseName("ix_applications_ward_code_created_at_id");
 
                     b.HasIndex("WardCode", "DeadlineStatus", "DueAtUtc")
                         .HasDatabaseName("ix_applications_ward_code_deadline_status_due_at_utc");
