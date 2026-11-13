@@ -5329,3 +5329,13 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Docs:** `docs/api-guide.md` mục A.1 điều phối; `docs/system-constraints.md` DISPATCH-SEARCH-01; `docs/fe-handoff-2026-11-13.md`.
 - **Chưa làm:** chạy SQL, deploy Workflow; FE đổi `staffing.ts` sang tham số mới.
 - **Yêu cầu FE thứ hai (13/11, MOBILE-1112 vận hành):** không cần code. SQL 3 service và deploy đã xong ở DEPLOY-1112i. Việc còn lại thuộc phiên Deploy/chủ dự án: đồng bộ `main` với `kha`, điền `MobileApp__DeepLinkScheme=wardmate`, `MobileApp__WebBaseUrl`, `MobileApp__Maintenance=false` cho AnalyticsSystem; chốt package name Android; Firebase do chủ dự án tạo rồi mới bật Push. Chỉ phát hành Android.
+
+## DEPLOY-1113a — DISPATCH-SEARCH-1113 lên Azure, cấu hình MobileApp, đồng bộ main/deploy — 2026-11-13 (UTC+07)
+
+- **Git:** push `kha` `d3b4b2e..8dcbc74` (4 commit DISPATCH-SEARCH-01). Build Release 0/0, `dotnet test` 152/152 trước khi push.
+- **SQL Workflow (Claude chạy qua Cloud Shell trong Chrome, chủ dự án duyệt "Làm tất cả"):** kiểm trước bảng `__EFMigrationsHistory` dùng `migration_id`/`product_version` (khớp script), `applications` 31 dòng, `unaccent` chưa cài. Chạy `docs/sql/workflow-dispatch-search.sql`: migration `20261113125503_DispatchSearch` đã ghi; extension `unaccent` ở schema `public`, `unaccent('Nguyễn Đức')` = `Nguyen Duc`; index `ix_applications_ward_code_created_at_id` đã tạo.
+- **Deploy ApplicationWorkflow (code `kha` 8dcbc74):** ACR build Succeeded, tag `wardmate-application-workflow:workflow-20261113-01`, digest `sha256:bdffe5d9f1482657bb57af3c2d166ccca1ccc658a4273625aa18d1c81c055048`, update `Succeeded`, image đang chạy đúng digest mới, `/health/ready` 200. Rollback `wardmate-application-workflow:workflow-20261112-03`.
+- **Cấu hình AnalyticsSystem (MOBILE-1112, Android):** `--set-env-vars MobileApp__DeepLinkScheme=wardmate MobileApp__Maintenance=false MobileApp__WebBaseUrl=https://wardmate-frontend.vercel.app` (lấy theo `Email__FrontendBaseUrl` hiện có, bỏ `/` cuối) → `Succeeded`; image không đổi (`analytics-20261112-m1`), không có biến `Push*`, `/health/ready` 200. Qua Gateway `GET /api/v1/system/app-config` 200: `deepLinkScheme:"wardmate"`, `webBaseUrl:"https://wardmate-frontend.vercel.app"`, `maintenance:false`, version/storeUrl Android/iOS `null`, `pushEnabled:false`. Hoàn tác: đặt lại hoặc xóa ba biến `MobileApp__*`.
+- **Đồng bộ:** fast-forward `main` và `deploy` lên `kha` (gồm MOBILE-1112 và DISPATCH-SEARCH-01) cùng commit ghi chép này.
+- **Docs:** `docs/fe-handoff-2026-11-13.md` mục 1–2, `docs/CLAUDE_HANDOFF.md` dòng DISPATCH-SEARCH-1113 và MOBILE-1112.
+- **Chưa làm:** FE kiểm 6 mục danh sách điều phối và 10 bước mobile; chủ dự án chốt package name Android và tạo dự án Firebase (Push vẫn tắt).

@@ -2,7 +2,7 @@
 
 Người viết: Backend (Claude), 13/11/2026. Hợp đồng: `docs/api-guide.md` mục "A. Nhóm ManagerDispatchController", phần 1. Quy tắc: `docs/system-constraints.md` DISPATCH-SEARCH-01.
 
-## 1. Danh sách điều phối: `search`, `sort`, `status` (chưa deploy Workflow)
+## 1. Danh sách điều phối: `search`, `sort`, `status` (đã deploy 13/11, Workflow `workflow-20261113-01`)
 
 `GET /api/v1/manager/applications?page=1&pageSize=20&search=...&sort=createdAt_desc&status=UNDER_REVIEW`
 
@@ -17,13 +17,13 @@ Làm đúng như đề nghị của FE:
 - Response giữ `{ items, page, pageSize, total }`; `total` là số sau khi lọc.
 - Sai tham số: 400 `dispatch.invalid_query`.
 - Không truyền tham số mới: kết quả như cũ, FE cũ không bị ảnh hưởng.
-- FE thay `applicationsNewestFirst` và `searchApplications` bằng một lần gọi mỗi trang. BE báo tag image Workflow sau khi deploy.
+- FE thay `applicationsNewestFirst` và `searchApplications` bằng một lần gọi mỗi trang. Đã deploy: Workflow `workflow-20261113-01` (SQL `workflow-dispatch-search.sql` đã chạy: `unaccent` + index `ix_applications_ward_code_created_at_id`).
 
 Kiểm tra sau deploy: chạy đúng 6 mục nghiệm thu trong đề nghị của FE.
 
 ## 2. Trả lời yêu cầu MOBILE-1112 (Android)
 
 - **SQL (mục 2.2):** đã chạy cả 3 tệp trên Azure ngày 12/11 (DEPLOY-1112i). Bốn service đã deploy: IAM `iam-20261112-m1`, DocumentForm `documentform-20261112-m1`, AnalyticsSystem `analytics-20261112-m1`, AIOCR `aiocr-20261112-m1`. FE thử được thao tác ghi.
-- **Gộp vào `main` (mục 2.1):** chuyển phiên Deploy làm (fast-forward `main`/`deploy` lên `kha`).
-- **`MobileApp:*` (mục 2.3):** sẽ đặt `DeepLinkScheme=wardmate`, `Maintenance=false`. `WebBaseUrl` lấy theo tên miền Web chính thức đang dùng. Android `MinVersion`/`LatestVersion`/`StoreUrl` và iOS để trống.
+- **Gộp vào `main` (mục 2.1):** đã fast-forward `main` và `deploy` lên `kha` ngày 13/11 (gồm MOBILE-1112 và DISPATCH-SEARCH-01).
+- **`MobileApp:*` (mục 2.3):** đã đặt trên AnalyticsSystem ngày 13/11: `DeepLinkScheme=wardmate`, `Maintenance=false`, `WebBaseUrl=https://wardmate-frontend.vercel.app` (theo `Email:FrontendBaseUrl` đang dùng, bỏ dấu / cuối). Android/iOS `MinVersion`/`LatestVersion`/`StoreUrl` để trống (`null`). `GET /api/v1/system/app-config` đã kiểm: 200, `deepLinkScheme: "wardmate"`, `webBaseUrl` đúng, `pushEnabled: false`.
 - **Push (mục 2.4) và package name (mục 3.1):** chủ dự án chốt package name và tạo dự án Firebase. BE chỉ bật `Push:Enabled` sau khi có bản build Android chứa `google-services.json`.
