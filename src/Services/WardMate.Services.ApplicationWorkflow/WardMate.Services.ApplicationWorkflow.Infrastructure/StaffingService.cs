@@ -34,6 +34,23 @@ public sealed class StaffingService(WorkflowDbContext db, IDispatchDirectory dir
         if (!Range(from, to)) return Fail<OfficerShift[]>(400, "invalid_range", "Khoảng thời gian phải tăng dần, tối đa 93 ngày.");
         return WorkflowResult<OfficerShift[]>.Ok(await db.Shifts.AsNoTracking().Where(x => x.WardCode == a.WardCode && (a.IsManager || x.OfficerId == a.Id) && x.StartsAtUtc < to.UtcDateTime && x.EndsAtUtc > from.UtcDateTime).OrderBy(x => x.StartsAtUtc).ToArrayAsync(ct));
     }
+    public async Task<WorkflowResult<WardShiftView[]>> WardShifts(ReviewActor a, int year, int month, CancellationToken ct)
+    {
+        if (!Manager(a)) return Fail<WardShiftView[]>(403, "forbidden", "Chỉ Manager xem lịch toàn phường.");
+        if (year < 2000 || year > 2100 || month < 1 || month > 12)
+            return Fail<WardShiftView[]>(400, "invalid_month", "Năm phải từ 2000–2100, tháng từ 1–12.");
+        var monthStart = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var monthEnd = monthStart.AddMonths(1);
+        var shifts = await db.Shifts.AsNoTracking()
+            .Where(x => x.WardCode == a.WardCode && x.StartsAtUtc < monthEnd && x.EndsAtUtc > monthStart)
+            .OrderBy(x => x.StartsAtUtc).ThenBy(x => x.Id)
+            .ToArrayAsync(ct);
+        var grouped = shifts.GroupBy(x => x.OfficerId)
+            .Select(g => new WardShiftView(g.Key, g.ToArray()))
+            .OrderBy(v => v.OfficerId)
+            .ToArray();
+        return WorkflowResult<WardShiftView[]>.Ok(grouped);
+    }
     public async Task<WorkflowResult<OfficerShift>> CreateShift(ReviewActor a, ShiftInput input, string token, CancellationToken ct)
     {
         if (!Manager(a)) return Fail<OfficerShift>(403, "forbidden", "Chỉ Manager quản lý lịch.");
