@@ -15,6 +15,8 @@ public sealed class StaffingController(IStaffingService service) : ReviewControl
     }
     [HttpGet("shifts")]
     public Task<IActionResult> Shifts([FromQuery] DateTimeOffset from, [FromQuery] DateTimeOffset to, CancellationToken ct) => Safe(() => service.Shifts(Actor, from, to, ct));
+    [HttpGet("ward-shifts"), Authorize(Policy = "workflow.staffing.manage"), ProducesResponseType<WardShiftView[]>(200)]
+    public Task<IActionResult> WardShifts([FromQuery] int year, [FromQuery] int month, CancellationToken ct) => Safe(() => service.WardShifts(Actor, year, month, ct));
     [HttpPost("shifts"), Authorize(Policy = "workflow.staffing.manage")]
     public Task<IActionResult> Create(ShiftInput input, CancellationToken ct) => Safe(() => service.CreateShift(Actor, input, Request.Headers.Authorization.ToString()[7..], ct));
     [HttpPost("shifts/{id:guid}/cancel"), Authorize(Policy = "workflow.staffing.manage")]
