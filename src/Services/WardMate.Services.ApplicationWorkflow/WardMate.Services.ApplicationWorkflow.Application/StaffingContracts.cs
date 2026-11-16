@@ -9,9 +9,11 @@ public sealed record StaffingReason(string Reason);
 public sealed record LeaveDetailView(OfficerLeave Leave, bool HasSubmittedDocx, Guid? SubmittedRevisionId, string? Sha256);
 public sealed record LeaveShiftImpact(Guid ShiftId, DateTime ShiftStartsAtUtc, DateTime ShiftEndsAtUtc,
     DateTime OverlapStartsAtUtc, DateTime OverlapEndsAtUtc);
+public sealed record WardShiftView(Guid OfficerId, OfficerShift[] Shifts);
 public interface IStaffingService
 {
     Task<WorkflowResult<OfficerShift[]>> Shifts(ReviewActor actor, DateTimeOffset from, DateTimeOffset to, CancellationToken ct);
+    Task<WorkflowResult<WardShiftView[]>> WardShifts(ReviewActor actor, int year, int month, CancellationToken ct);
     Task<WorkflowResult<OfficerShift>> CreateShift(ReviewActor actor, ShiftInput input, string token, CancellationToken ct);
     Task<WorkflowResult<OfficerShift>> CancelShift(ReviewActor actor, Guid id, StaffingReason input, CancellationToken ct);
     Task<WorkflowResult<OfficerLeave[]>> Leaves(ReviewActor actor, DateTimeOffset from, DateTimeOffset to, CancellationToken ct);
