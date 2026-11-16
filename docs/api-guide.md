@@ -4710,7 +4710,29 @@ Quyền đọc chung: `workflow.staffing.read`. Quyền quản lý: `workflow.st
 - **Mục đích:** Xem lịch ca làm việc trong khoảng thời gian (tối đa 93 ngày). Manager xem toàn phường; cán bộ chỉ xem ca của mình.
 - **Kết quả 200:** Mảng `OfficerShift[]` `{ id, officerId, wardCode, startsAtUtc, endsAtUtc, createdBy, createdAtUtc, cancelledBy, cancelledAtUtc, cancellationReason }`.
 
-#### 6. Tạo ca làm việc mới
+#### 6. Xem toàn bộ lịch ca làm của cán bộ theo tháng (Manager)
+- **Method & Route:** `GET /api/v1/staffing/ward-shifts?year={năm}&month={tháng}`
+- **Ai dùng:** Manager có `workflow.staffing.manage`. Cán bộ thường không có quyền này.
+- **Khi nào dùng:** FE hiển thị bảng lịch tháng (calendar view) cho toàn phường — Manager muốn xem tất cả ca của từng cán bộ trong tháng, kể cả ca đã hủy.
+- **Params:** `year` từ 2000–2100; `month` từ 1–12 (theo UTC).
+- **Kết quả 200:** Mảng `WardShiftView[]` — mỗi phần tử là một cán bộ có ca trong tháng:
+  ```json
+  [
+    {
+      "officerId": "uuid",
+      "shifts": [
+        { "id": "uuid", "officerId": "uuid", "wardCode": "...", "startsAtUtc": "...", "endsAtUtc": "...",
+          "createdBy": "uuid", "createdAtUtc": "...", "cancelledBy": null, "cancelledAtUtc": null, "cancellationReason": null }
+      ]
+    }
+  ]
+  ```
+- **Lỗi thường gặp:**
+  - `403 staffing.forbidden` — không phải Manager hoặc thiếu `workflow.staffing.manage`.
+  - `400 staffing.invalid_month` — `year` hoặc `month` ngoài giới hạn.
+- **Lưu ý:** Ca nằm một phần trong tháng (bắt đầu trước cuối tháng và kết thúc sau đầu tháng) đều được trả về. Kết quả sắp xếp theo `officerId` rồi theo `startsAtUtc`.
+
+#### 7. Tạo ca làm việc mới
 - **Method & Route:** `POST /api/v1/staffing/shifts`
 - **Ai dùng:** Manager có `workflow.staffing.manage`.
 - **Body:** `{ officerId: Guid, startsAt: ISO8601, endsAt: ISO8601 }`.

@@ -5238,6 +5238,23 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 
 ---
 
+## STAFFING-02 — API xem toàn bộ lịch ca làm theo tháng cho Manager (GET ward-shifts) | 2026-11-16 07:05 +07:00
+
+- **Yêu cầu:** Bổ sung API cho Manager lấy toàn bộ lịch ca làm của tất cả cán bộ trong tháng của phường đó.
+- **Thay đổi:**
+  - `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/StaffingContracts.cs`: Bổ sung DTO `WardShiftView(Guid OfficerId, OfficerShift[] Shifts)` và method `WardShifts(ReviewActor, int year, int month, CancellationToken)` trong `IStaffingService`.
+  - `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/StaffingService.cs`: Hiện thực logic `WardShifts`: kiểm tra quyền Manager, validate năm (2000–2100) và tháng (1–12), query `db.Shifts` theo `WardCode` trong khoảng `[monthStart, monthEnd)`, gom nhóm theo `OfficerId` và sắp xếp theo thời gian bắt đầu ca.
+  - `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/StaffingController.cs`: Bổ sung endpoint `GET /api/v1/staffing/ward-shifts?year={year}&month={month}` với `Authorize(Policy = "workflow.staffing.manage")`, trả về HTTP 200 `WardShiftView[]`.
+  - `tests/WardMate.UnitTests/Workflow/WardShiftsQueryTests.cs`: 11 unit tests kiểm thử boundary tháng, phân quyền Manager/Officer, gom nhóm theo cán bộ, xử lý phường rỗng.
+  - `docs/api-guide.md`: Cập nhật mục 6 chi tiết cách gọi API, quyền, params, response và mã lỗi.
+  - `docs/system-constraints.md`: Bổ sung quy tắc WF-WS-06.
+- **Build & Test:**
+  - `dotnet build WardMate.sln -c Release -warnaserror -m:1`: 0 errors, 0 warnings.
+  - `dotnet test WardMate.sln -c Release`: 163/163 passed (0 failed, 0 skipped).
+- **Chưa làm:** Build Docker image và deploy lên Azure ACA `wardmate-application-workflow` (chờ xác nhận push).
+
+---
+
 ## DEPLOY-1112f — Deploy STAFFING-01 (Consultation) lên Azure | 2026-11-12 21:35 +07:00
 
 ### Workflow service
