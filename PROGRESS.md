@@ -5238,6 +5238,18 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 
 ---
 
+## DEPLOY-1116a — Deploy STAFFING-02 (GET ward-shifts) lên Azure | 2026-11-16 07:14 +07:00
+
+### Workflow service
+- **ACR build:** Run ID `ce2m`, tag `wardmate-application-workflow:workflow-20261116-01`
+- **Digest mới:** `sha256:074b3201ea6e5030678e3e11b796489fca7fb2a4a4b20e572977a275d2d55090`
+- **Digest cũ (rollback):** `sha256:bdffe5d9f1482657bb57af3c2d166ccca1ccc658a4273625aa18d1c81c055048`
+- **Deploy:** `az containerapp update` → `Succeeded`
+- **Health:** `{"status":"Healthy","checks":[{"name":"database","status":"Healthy"},{"name":"rabbitmq","status":"Healthy","description":"connected"}]}`
+- **Swagger verify:** Endpoint `GET /api/v1/staffing/ward-shifts` đã hiển thị trên Swagger UI.
+
+---
+
 ## STAFFING-02 — API xem toàn bộ lịch ca làm theo tháng cho Manager (GET ward-shifts) | 2026-11-16 07:05 +07:00
 
 - **Yêu cầu:** Bổ sung API cho Manager lấy toàn bộ lịch ca làm của tất cả cán bộ trong tháng của phường đó.
@@ -5251,7 +5263,7 @@ Nguồn: tài liệu FE gửi 06–07/11 ("Yêu cầu Backend: Hiển thị tên
 - **Build & Test:**
   - `dotnet build WardMate.sln -c Release -warnaserror -m:1`: 0 errors, 0 warnings.
   - `dotnet test WardMate.sln -c Release`: 163/163 passed (0 failed, 0 skipped).
-- **Chưa làm:** Build Docker image và deploy lên Azure ACA `wardmate-application-workflow` (chờ xác nhận push).
+- **Trạng thái:** Đã deploy thành công lên Azure ACA `wardmate-application-workflow` (DEPLOY-1116a).
 
 ---
 
