@@ -5241,3 +5241,28 @@ Cách trả lời mới: câu đầu trả lời thẳng; sau đó chỉ các m�
 - AnalyticsSystem: `docs/sql/analytics-push-devices.sql` (bảng `push_devices`).
 - AIOCR: `docs/sql/aiocr-chat-quality-feedback.sql` (các cột hỏi lại, gợi ý, đánh giá trong `chat_messages`).
 - IAM và DocumentForm có thư viện xử lý ảnh mới (Magick.NET, miễn phí); cần build lại image.
+
+
+## Tệp theo lần gửi và so sánh tờ khai — 17/11/2026 (DOC-FILEVER-01)
+
+Mục đích: tab "So sánh các lần gửi" của cán bộ thấy được công dân đã thay tệp nào và sửa gì trong tờ khai Word, không chỉ `formData` và danh mục giấy tờ. Trước đây tệp mới thay tham chiếu tệp cũ nên không còn dấu vết lần gửi trước.
+
+**Cách hoạt động:** mỗi khi công dân nộp (`POST /api/v1/applications/{id}/submit`) hoặc nộp lại (`POST /api/v1/applications/{id}/resubmit`), Workflow nhờ DocumentForm ghi lại danh sách tệp hiện có (tờ khai DOCX và giấy tờ tải lên) cho lần gửi sắp tạo, kèm SHA-256 của từng tệp. Tệp cũ không bị xóa khỏi kho khi công dân sửa, nên mở lại được. Nếu bước ghi lỗi, việc nộp vẫn thành công (chỉ ghi log); lần gửi đó sẽ không có danh sách tệp. Các lần gửi trước ngày triển khai cũng không có dữ liệu tệp.
+
+**`GET /api/v1/applications/{applicationId}/contents`** (đã có): mỗi phần tử `submissions` và `supportingDocuments` có thêm `createdAtUtc` (lúc tải lên) và `updatedAtUtc` (lúc sửa gần nhất). FE so với `submittedAt` của lần gửi trước để gắn nhãn "Mới cập nhật sau lần gửi N".
+
+**`GET /api/v1/applications/{applicationId}/file-versions?versionNumber={n}`** — Cán bộ đang thụ lý hồ sơ (không phải người nộp) hoặc cán bộ được tham vấn. Bỏ `versionNumber` để lấy mọi lần gửi. Trả mảng:
+`{ id, checklistId, sourceType ("SUBMISSION" | "SUPPORTING_DOCUMENT"), sourceId, applicationVersionNumber, fileName, fileSizeBytes, contentType, sha256, sourceUpdatedAtUtc, createdAtUtc }`.
+Cách FE đánh dấu giữa lần gửi A và B theo từng mục: tệp có ở B mà không có ở A (theo `sourceId`) → **mới**; có ở A mà không có ở B → **bị xóa**; cùng `sourceId` hoặc cùng mục nhưng `sha256` khác → **bị thay**; `sha256` giống → **không đổi**. `sha256` rỗng nghĩa là tệp không còn trong kho lúc ghi (không xác định). Mảng rỗng: lần gửi đó chưa có dữ liệu tệp. Lỗi: 400 `document.invalid_version`; 403/404 không phải cán bộ thụ lý; 503 `document.workflow_unavailable`.
+
+**`GET /api/v1/applications/{applicationId}/file-versions/{fileVersionId}/download`** — Tải tệp của một lần gửi (bản cũ hoặc mới) để mở cạnh nhau. Cùng quyền như trên. 404 `document.file_version_not_found` khi id không thuộc hồ sơ hoặc tệp đã mất khỏi kho.
+
+**`GET /api/v1/applications/{applicationId}/file-versions/diff?fromVersion=1&toVersion=2&checklistId={id}`** — So sánh tờ khai Word của một mục giữa hai lần gửi. Chỉ trả các dòng **có thay đổi**, cùng dạng `FieldDiffDto` của `/diff` bên Workflow: `{ fieldKey, fieldLabel, oldValue, newValue, hasChanged: true, associatedComments: [], oldExists, newExists }`.
+- Tờ khai điền trực tuyến (có dữ liệu ô điền ở cả hai lần): so từng ô; `fieldKey` = `/docx/{checklistId}/{tên ô}`, `fieldLabel` = tên ô.
+- Tờ khai DOCX sửa trực tiếp (mẫu không có ô định danh sau khi điền): so **theo đoạn văn** (gồm cả ô trong bảng). Đoạn bị sửa → một dòng cũ/mới với nhãn "Đoạn N"; đoạn thêm → "Đoạn N (thêm mới)" (`oldExists: false`); đoạn bị xóa → "Đoạn N (bản cũ, đã xóa)" (`newExists: false`).
+- Hai lần cùng `sha256` → mảng rỗng.
+- Lỗi: 400 `document.invalid_version` (hai số giống nhau hoặc < 1), 400 `document.invalid_checklist`; 404 `document.file_version_not_found` (mục không có tờ khai ở cả hai lần); 503 `document.docx_unreadable` (tệp hỏng/mất: mở hai bản để đối chiếu thủ công).
+
+**`PUT /api/v1/applications/{applicationId}/file-versions/{versionNumber}`** — Chỉ Workflow gọi (bằng token người nộp) ngay trước khi tạo lần gửi; FE **không** gọi. Chỉ nhận đúng lần gửi kế tiếp khi hồ sơ đang DRAFT/NEED_REVISION; sau khi lần gửi được tạo thì bản ghi không sửa được (409 `document.invalid_version` / `document.application_locked`).
+
+**Triển khai:** chạy `docs/sql/documentform-submission-file-versions.sql` (bảng `document.submission_file_versions`); deploy **DocumentForm trước**, rồi Workflow, rồi Gateway (route mới `/api/v1/applications/{applicationId}/file-versions` và `/file-versions/{**catch-all}` → DocumentForm).

@@ -5368,3 +5368,28 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Đồng bộ:** fast-forward `main` và `deploy` lên `kha` (gồm MOBILE-1112 và DISPATCH-SEARCH-01) cùng commit ghi chép này.
 - **Docs:** `docs/fe-handoff-2026-11-13.md` mục 1–2, `docs/CLAUDE_HANDOFF.md` dòng DISPATCH-SEARCH-1113 và MOBILE-1112.
 - **Chưa làm:** FE kiểm 6 mục danh sách điều phối và 10 bước mobile; chủ dự án chốt package name Android và tạo dự án Firebase (Push vẫn tắt).
+
+## DOC-FILEVER-1117 — Tệp theo lần gửi và so sánh tờ khai giữa các lần gửi — 2026-11-17 (UTC+07)
+
+- **Yêu cầu FE (17/11):** tab "So sánh các lần gửi" không thấy công dân sửa gì trong tờ khai Word và giấy tờ (ví dụ HS-20261117-00000058 lần 2 báo "không có thay đổi").
+- **Nguyên nhân:** mỗi mục chỉ có một tờ khai, lưu mới thay `BlobUrl`; snapshot Workflow không có tệp; `contents` không có thời điểm tải lên.
+- **Đã làm (DOC-FILEVER-01):**
+  - DocumentForm mới: `Domain/Entities/SubmissionFileVersion.cs`, `Infrastructure/Persistence/Configurations/SubmissionFileVersionConfiguration.cs`, `Application/FileVersions/FileVersionRequests.cs` (chụp, liệt kê, tải, so sánh; `DocxDiff`), `API/Controllers/FileVersionsController.cs`.
+  - DocumentForm sửa: `IDocumentDbContext`/`DocumentDbContext` (DbSet), `ApplicationAccess` (`Officer`, `CurrentVersion`), `GetApplicationContentsQuery` (`createdAtUtc`, `updatedAtUtc`).
+  - Workflow: `DocumentContentsClient.CaptureFiles`, gọi trong `ApplicationsController.Submit` và `ApplicationReviewController.Resubmit` (không chặn nộp khi lỗi).
+  - Gateway: route `document-application-file-versions(-sub)` trong `appsettings.json` và `appsettings.Production.json`.
+- **Endpoint:**
+  - `PUT /api/v1/applications/{id}/file-versions/{n}`: chỉ Workflow gọi; 200 hoặc 409 `document.invalid_version` / `document.application_locked`.
+  - `GET /api/v1/applications/{id}/file-versions?versionNumber=`: 200.
+  - `GET .../file-versions/{fileVersionId}/download`: 200 hoặc 404.
+  - `GET .../file-versions/diff?fromVersion&toVersion&checklistId`: 200 `FieldDiffDto[]`, hoặc 400/404/503.
+  - `GET .../contents`: thêm 2 trường.
+- **Migration/SQL:** `20261117144843_SubmissionFileVersions`, `docs/sql/documentform-submission-file-versions.sql`.
+- **Test:** mới `tests/WardMate.UnitTests/DocumentForm/FileVersionTests.cs` (6 test: chụp và dùng lại hash, ghi đè cùng lần gửi, tải đúng hồ sơ, so ô điền, so đoạn, đọc DOCX). Build Release `-warnaserror -m:1` 0/0; `dotnet test` 158/158.
+  - Chạy InMemory nên chưa kiểm trên PostgreSQL thật: unique index và thứ tự xóa/thêm khi ghi đè.
+  - Chưa kiểm chuỗi gọi HTTP Workflow → DocumentForm → Workflow.
+- **Docs:** `docs/api-guide.md` mục DOC-FILEVER-01; `docs/system-constraints.md` DOC-FILEVER-01; `docs/fe-handoff-2026-11-17.md`.
+- **Chưa làm:**
+  - Chạy SQL; deploy theo thứ tự DocumentForm → Workflow → Gateway.
+  - Chính sách dọn blob cũ.
+  - Lần gửi trước khi deploy không có dữ liệu tệp.
