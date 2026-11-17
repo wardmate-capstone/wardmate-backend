@@ -11,6 +11,9 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
     IDocumentDbContext db, IApprovedQrService qrService)
 {
     private readonly Dictionary<Guid, string> verifiedStates = new();
+    private readonly Dictionary<Guid, int> verifiedVersions = new();
+    /// <summary>DOC-FILEVER-01: số lần gửi hiện tại của hồ sơ theo Workflow, có sau khi Check thành công.</summary>
+    public int? CurrentVersion(Guid applicationId) => verifiedVersions.TryGetValue(applicationId, out var v) ? v : null;
     // A staff account may also submit its own citizen application. Ownership takes
     // precedence on shared read routes; officer-only review routes still use Check directly.
     public async Task<ObjectResult?> Read(Guid applicationId, Guid? checklistId, CancellationToken ct, bool requireReady = false)
@@ -29,6 +32,18 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
             return officerResult;
         }
         return result;
+    }
+
+    /// <summary>
+    /// DOC-FILEVER-01: chỉ cán bộ — cán bộ đang thụ lý (không phải người nộp) hoặc cán bộ được tham vấn hồ sơ.
+    /// Người nộp không dùng được, kể cả khi là chủ hồ sơ.
+    /// </summary>
+    public async Task<ObjectResult?> Officer(Guid applicationId, CancellationToken ct)
+    {
+        var result = await Check(applicationId, null, false, ct, officer: true);
+        if (result?.StatusCode is not (404 or 403)) return result;
+        var root = config["Services:ApplicationWorkflow:BaseUrl"];
+        return Uri.TryCreate(root, UriKind.Absolute, out var baseUri) && await CheckConsultationAccess(applicationId, baseUri, ct) ? null : result;
     }
 
     private async Task<bool> CheckConsultationAccess(Guid applicationId, Uri baseUri, CancellationToken ct)
@@ -84,6 +99,7 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
             if (requireReady && application.Status is not ("DOCUMENTS_READY" or "OFFICIALLY_RECEIVED"))
                 return Problem(409, "document.application_not_ready", "Hồ sơ phải được xác nhận giấy tờ sẵn sàng tại Workflow trước khi xuất hoặc tải PDF giấy tờ chuẩn bị.");
             verifiedStates[applicationId] = application.Status;
+            verifiedVersions[applicationId] = application.CurrentVersionNumber;
             if (application.Status is "DOCUMENTS_READY" or "OFFICIALLY_RECEIVED")
             {
                 if (application.AssignedOfficerId is not Guid reviewer || reviewer == Guid.Empty)
@@ -192,7 +208,7 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
         Status = status, Title = message, Extensions = { ["code"] = code, ["traceId"] = context.HttpContext!.TraceIdentifier }
     }) { StatusCode = status, ContentTypes = { "application/problem+json" } };
 
-    private sealed record WorkflowApplication(Guid Id, Guid UserId, string Status, WorkflowChecklist[] Checklists, Guid? AssignedOfficerId);
+    private sealed record WorkflowApplication(Guid Id, Guid UserId, string Status, WorkflowChecklist[] Checklists, Guid? AssignedOfficerId, int CurrentVersionNumber = 0);
     private sealed record WorkflowChecklist(Guid Id, Guid? FormTemplateId, WorkflowChecklistForm[]? Forms = null)
     {
         public Guid[] AcceptedTemplates() => (Forms ?? []).Select(x => x?.FormTemplateId).OfType<Guid>()

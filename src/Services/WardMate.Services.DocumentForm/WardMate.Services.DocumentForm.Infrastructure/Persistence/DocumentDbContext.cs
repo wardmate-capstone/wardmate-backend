@@ -18,6 +18,7 @@ public sealed class DocumentDbContext : DbContext, IDocumentDbContext
     public DbSet<GeneratedDocument> GeneratedDocuments => Set<GeneratedDocument>();
     public DbSet<UserSubmission> UserSubmissions => Set<UserSubmission>();
     public DbSet<ApprovedQr> ApprovedQrs => Set<ApprovedQr>();
+    public DbSet<SubmissionFileVersion> SubmissionFileVersions => Set<SubmissionFileVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
