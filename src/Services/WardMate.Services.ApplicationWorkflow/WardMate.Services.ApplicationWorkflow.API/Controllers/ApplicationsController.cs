@@ -72,6 +72,8 @@ public sealed class ApplicationsController(ISender sender, IDocumentContentsClie
         var error = await documents.Validate(id, application.Value!.Checklists
             .Where(x => x.IsRequired || x.Status == "COMPLETED"), ct);
         if (error is not null) return error;
+        // DOC-FILEVER-01: chụp tệp cho lần gửi sắp tạo (không chặn nộp nếu DocumentForm lỗi).
+        await documents.CaptureFiles(id, application.Value.CurrentVersionNumber + 1, ct);
         return Respond(await sender.Send(new SubmitApplicationCommand(Actor, id, User.FindFirstValue("officer_name")), ct));
     }
 

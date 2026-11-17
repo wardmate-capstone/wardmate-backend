@@ -132,6 +132,8 @@ public sealed class ApplicationReviewController(ISender sender, IDocumentContent
         var completed = input.Checklists.Where(x => x.Status == "COMPLETED").Select(x => x.Id).ToHashSet();
         var error = await documents.Validate(id, application.Value!.Checklists.Where(x => x.IsRequired || completed.Contains(x.Id)), ct);
         if (error is not null) return error;
+        // DOC-FILEVER-01: chụp tệp cho lần gửi sắp tạo (không chặn nộp lại nếu DocumentForm lỗi).
+        await documents.CaptureFiles(id, application.Value.CurrentVersionNumber + 1, ct);
         return Respond(await sender.Send(command, ct));
     }
 

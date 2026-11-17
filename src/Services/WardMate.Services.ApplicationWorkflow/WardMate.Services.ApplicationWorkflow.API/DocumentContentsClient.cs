@@ -9,9 +9,12 @@ namespace WardMate.Services.ApplicationWorkflow.API;
 public interface IDocumentContentsClient
 {
     Task<ObjectResult?> Validate(Guid applicationId, IEnumerable<ChecklistDto> requiredChecklists, CancellationToken ct);
+    /// <summary>DOC-FILEVER-01: nhờ DocumentForm chụp tệp hiện có cho lần gửi sắp tạo. Không chặn việc nộp nếu lỗi (chỉ ghi log).</summary>
+    Task<bool> CaptureFiles(Guid applicationId, int versionNumber, CancellationToken ct);
 }
 
-public sealed class DocumentContentsClient(HttpClient http, IConfiguration config, IHttpContextAccessor context) : IDocumentContentsClient
+public sealed class DocumentContentsClient(HttpClient http, IConfiguration config, IHttpContextAccessor context,
+    ILogger<DocumentContentsClient> logger) : IDocumentContentsClient
 {
     public async Task<ObjectResult?> Validate(Guid applicationId, IEnumerable<ChecklistDto> requiredChecklists, CancellationToken ct)
     {
@@ -58,6 +61,27 @@ public sealed class DocumentContentsClient(HttpClient http, IConfiguration confi
             return Problem(503, "application.documents_unavailable", "Không kết nối được DocumentForm.");
         }
     }
+    public async Task<bool> CaptureFiles(Guid applicationId, int versionNumber, CancellationToken ct)
+    {
+        var root = config["Services:DocumentForm:BaseUrl"];
+        if (!Uri.TryCreate(root, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https")) return false;
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put,
+                uri.AbsoluteUri.TrimEnd('/') + $"/api/v1/applications/{applicationId}/file-versions/{versionNumber}");
+            request.Headers.TryAddWithoutValidation("Authorization", context.HttpContext!.Request.Headers.Authorization.ToString());
+            using var response = await http.SendAsync(request, ct);
+            if (response.IsSuccessStatusCode) return true;
+            logger.LogWarning("DocumentForm không chụp được tệp cho hồ sơ {ApplicationId} lần gửi {Version}: HTTP {Status}.",
+                applicationId, versionNumber, (int)response.StatusCode);
+        }
+        catch (Exception ex) when (ex is HttpRequestException || ex is OperationCanceledException && !ct.IsCancellationRequested)
+        {
+            logger.LogWarning("DocumentForm không phản hồi khi chụp tệp cho hồ sơ {ApplicationId} lần gửi {Version}.", applicationId, versionNumber);
+        }
+        return false;
+    }
+
     private ObjectResult Problem(int status, string code, string title) => new(new ProblemDetails
     { Status = status, Title = title, Extensions = { ["code"] = code, ["traceId"] = context.HttpContext!.TraceIdentifier } })
     { StatusCode = status, ContentTypes = { "application/problem+json" } };
