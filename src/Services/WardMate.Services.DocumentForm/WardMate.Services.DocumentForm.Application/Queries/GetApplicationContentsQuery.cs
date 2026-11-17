@@ -8,7 +8,9 @@ using WardMate.Services.DocumentForm.Application.Services;
 namespace WardMate.Services.DocumentForm.Application.Queries;
 
 public sealed record ApplicationContentItem(Guid Id, Guid? ChecklistId, string FileName, string Status, Guid? TemplateId = null,
-    bool FileExists = false, string? SubmissionType = null, string? DocumentCopyType = null, int Quantity = 1);
+    bool FileExists = false, string? SubmissionType = null, string? DocumentCopyType = null, int Quantity = 1,
+    // DOC-FILEVER-01 (4.4): thời điểm tải lên và sửa lần cuối, để FE gắn nhãn "Mới cập nhật sau lần gửi N".
+    DateTime? CreatedAtUtc = null, DateTime? UpdatedAtUtc = null);
 public sealed record ApplicationContentsDto(Guid ApplicationId, IReadOnlyList<ApplicationContentItem> Submissions,
     IReadOnlyList<ApplicationContentItem> SupportingDocuments);
 public sealed record GetApplicationContentsQuery(Guid ApplicationId) : IQuery<ApplicationContentsDto>;
@@ -30,11 +32,11 @@ public sealed class GetApplicationContentsHandler(IDocumentDbContext db, IBlobSt
         {
             foreach (var s in submissions)
                 forms.Add(new(s.Id, s.ChecklistId, s.FileName, s.Status.ToString(), s.TemplateId,
-                    await blobs.ExistsAsync(OnlineFormSupport.BlobName(s.BlobUrl), ct: ct)));
+                    await blobs.ExistsAsync(OnlineFormSupport.BlobName(s.BlobUrl), ct: ct), CreatedAtUtc: s.CreatedAtUtc, UpdatedAtUtc: s.UpdatedAtUtc ?? s.CreatedAtUtc));
             foreach (var d in documents)
                 evidence.Add(new(d.Id, d.ChecklistId, d.FileName, "Uploaded", null,
                     await blobs.ExistsAsync(OnlineFormSupport.BlobName(d.BlobUrl), ct: ct),
-                    d.SubmissionType, d.DocumentCopyType, d.Quantity));
+                    d.SubmissionType, d.DocumentCopyType, d.Quantity, d.CreatedAtUtc, d.UpdatedAtUtc ?? d.CreatedAtUtc));
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
