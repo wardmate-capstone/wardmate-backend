@@ -317,6 +317,89 @@ namespace WardMate.Services.DocumentForm.Infrastructure.Migrations
                     b.ToTable("generated_documents", "document");
                 });
 
+            modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.SubmissionFileVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<int>("ApplicationVersionNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("application_version_number");
+
+                    b.Property<string>("BlobUrl")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("blob_url");
+
+                    b.Property<Guid?>("ChecklistId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("checklist_id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size_bytes");
+
+                    b.Property<string>("FormData")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("form_data");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("source_type");
+
+                    b.Property<DateTime>("SourceUpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("source_updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_submission_file_versions");
+
+                    b.HasIndex("ApplicationId", "ApplicationVersionNumber", "SourceType", "SourceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_submission_file_versions_source");
+
+                    b.ToTable("submission_file_versions", "document", t =>
+                        {
+                            t.HasCheckConstraint("ck_submission_file_versions_source", "source_type IN ('SUBMISSION','SUPPORTING_DOCUMENT')");
+
+                            t.HasCheckConstraint("ck_submission_file_versions_version", "application_version_number >= 1");
+                        });
+                });
+
             modelBuilder.Entity("WardMate.Services.DocumentForm.Domain.Entities.SupportingDocument", b =>
                 {
                     b.Property<Guid>("Id")
