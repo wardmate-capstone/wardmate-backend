@@ -4,7 +4,7 @@ Người viết: Backend (Claude), 17/11/2026. Trả lời đề nghị "So sán
 
 ## 0. Trạng thái
 
-**Chưa deploy.** Cần chạy `docs/sql/documentform-submission-file-versions.sql`, deploy DocumentForm → Workflow → Gateway. BE báo tag image sau khi deploy. Chỉ các lần gửi **sau** khi deploy mới có dữ liệu tệp.
+**Đã deploy 18/11 (DEPLOY-1118a).** Đã chạy `docs/sql/documentform-submission-file-versions.sql`. Tag image: DocumentForm `documentform-20261117-01`, Workflow `workflow-20261118-01`, Gateway `gateway-20261118-01`. Qua Gateway không token, `GET /api/v1/applications/{id}/file-versions` trả 401 (route đã sang DocumentForm). Chỉ các lần gửi **sau** khi deploy mới có dữ liệu tệp.
 
 ## 1. Đã làm theo đề nghị
 
