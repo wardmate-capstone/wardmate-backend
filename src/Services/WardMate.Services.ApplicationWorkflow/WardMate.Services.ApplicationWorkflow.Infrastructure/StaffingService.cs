@@ -6,16 +6,24 @@ using WardMate.Services.ApplicationWorkflow.Domain;
 namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 
 // The same ward lock is used by scheduling, leave decisions and assignment writes.
-internal static class StaffingLocks
+public static class StaffingLocks
 {
     public static Task Ward(WorkflowDbContext db, string ward, CancellationToken ct) =>
         db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({ward}, 301))", ct);
-    public static async Task<string[]> Availability(WorkflowDbContext db, Guid officer, string? ward, DateTime now, CancellationToken ct)
+
+    public static async Task<string[]> Availability(WorkflowDbContext db, Guid officer, string? ward, DateTime now, CancellationToken ct, bool skipShiftCheck = false)
+    {
+        var hasActiveShift = skipShiftCheck || await db.Shifts.AnyAsync(x => x.OfficerId == officer && x.WardCode == ward && x.CancelledAtUtc == null && x.StartsAtUtc <= now && x.EndsAtUtc > now, ct);
+        var hasApprovedLeave = await db.Leaves.AnyAsync(x => x.OfficerId == officer && x.WardCode == ward && x.Status == "APPROVED" && x.StartsAtUtc <= now && x.EndsAtUtc > now, ct);
+        return FilterAvailabilityReasons(hasActiveShift, hasApprovedLeave, skipShiftCheck);
+    }
+
+    public static string[] FilterAvailabilityReasons(bool hasActiveShift, bool hasApprovedLeave, bool skipShiftCheck = false)
     {
         var reasons = new List<string>();
-        if (!await db.Shifts.AnyAsync(x => x.OfficerId == officer && x.WardCode == ward && x.CancelledAtUtc == null && x.StartsAtUtc <= now && x.EndsAtUtc > now, ct))
+        if (!skipShiftCheck && !hasActiveShift)
             reasons.Add("NO_ACTIVE_SHIFT");
-        if (await db.Leaves.AnyAsync(x => x.OfficerId == officer && x.WardCode == ward && x.Status == "APPROVED" && x.StartsAtUtc <= now && x.EndsAtUtc > now, ct))
+        if (hasApprovedLeave)
             reasons.Add("APPROVED_LEAVE");
         return reasons.ToArray();
     }
