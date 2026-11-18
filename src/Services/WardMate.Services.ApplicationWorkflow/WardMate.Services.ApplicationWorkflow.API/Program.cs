@@ -32,6 +32,12 @@ builder.Services.AddGlobalExceptionHandling();
 
 var app = builder.Build();
 
+var staffingOptions = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<StaffingOptions>>().Value;
+if (staffingOptions.SkipShiftCheck)
+{
+    app.Logger.LogWarning("Staffing shift check is DISABLED (test mode). Do not use in production.");
+}
+
 if (builder.Configuration.GetValue("Database:AutoMigrate", false))
 {
     await using var scope = app.Services.CreateAsyncScope();
