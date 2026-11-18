@@ -39,7 +39,12 @@
 - **Kết quả Build & Test:**
   - Release build toàn solution: **0 errors, 0 warnings** (`-warnaserror`).
   - Unit tests: **171/171 passed (0 failed, 0 skipped)** — bao gồm 8 unit tests mới cho `StaffingShiftCheckTests`.
-- **Trạng thái triển khai:** Đã hoàn thành code và test local. Chưa commit/push và chưa deploy lên Azure (chờ xác nhận từ người dùng theo quy trình AGENTS.md).
+- **Trạng thái triển khai Azure (DEPLOY-1118b):**
+  - Đã push thành công lên branch `kha` (HEAD: `142a3d4`).
+  - Đã build ACR image mới: `acrwardmate2026.azurecr.io/wardmate-application-workflow:workflow-20261118-02` (Run ID: `ce2r`, digest: `sha256:88c5743c9115a66d0eb712382239ac72b65c8aaf41f537bd475268305b077f1a`).
+  - Rollback image cũ: `acrwardmate2026.azurecr.io/wardmate-application-workflow@sha256:78adc424f5343a1f73a8b30e9dbd1bc803dbfea3343ced1d61234a75bb60dde3`.
+  - Đã deploy lên Container App `wardmate-application-workflow` (Succeeded).
+  - Health check qua Gateway `https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/application-workflow/health/ready`: **200 OK, Healthy** (database: reachable, rabbitmq: connected).
 
 
 ## HOTFIX / Azure ProcedureCatalog: Chuyển tiếp Authorization Bearer sang DocumentForm (06/11/2026 09:50 UTC+7)
