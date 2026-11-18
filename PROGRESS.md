@@ -3,6 +3,45 @@
 
 # WardMate — Nhật ký phát triển
 
+## STAFFING-TEST-01 — Chế độ thử nghiệm bỏ qua kiểm tra ca làm (SkipShiftCheck) | 2026-11-18 20:25 (Asia/Saigon)
+
+- **Mục đích:** Thêm cờ cấu hình `Staffing:SkipShiftCheck` (biến môi trường `Staffing__SkipShiftCheck`) cho `ApplicationWorkflow` service để phục vụ kiểm thử QA/tester trên môi trường test không cần tạo ca làm trùng thời điểm hiện tại.
+- **Quy tắc nghiệp vụ & Ràng buộc:**
+  - `Staffing:SkipShiftCheck = false` (mặc định): Hoạt động bình thường, kiểm tra `NO_ACTIVE_SHIFT` như trước.
+  - `Staffing:SkipShiftCheck = true`: Bỏ qua kiểm tra `NO_ACTIVE_SHIFT` tại:
+    1. Danh sách ứng viên phân công hồ sơ (`GET /api/v1/manager/applications/{id}/assignment-candidates`).
+    2. Giao việc hồ sơ (`POST /api/v1/manager/applications/{id}/assignments`).
+    3. Danh sách ứng viên tham vấn (`GET /api/v1/applications/{applicationId}/consultations/specialist-candidates`).
+    4. Giao việc tham vấn (`POST /api/v1/applications/{applicationId}/consultations/{id}/dispatch`).
+    5. Đóng tham vấn và chuyển hồ sơ cho chuyên gia (`POST /api/v1/applications/{applicationId}/consultations/{id}/close` với quyết định `TRANSFER_TO_SPECIALIST`).
+  - **Điều kiện nghỉ phép đã duyệt (`APPROVED_LEAVE`) vẫn luôn áp dụng** kể cả khi cờ bật.
+  - Endpoint `assignment-candidates` và `specialist-candidates` trả thêm header `X-Staffing-Shift-Check: skipped` khi cờ bật.
+  - CORS policy trong `BrowserCorsExtensions` được bổ sung `.WithExposedHeaders("X-Staffing-Shift-Check")` để FE đọc được header.
+  - Startup ghi log `LogWarning` cảnh báo nếu cờ `SkipShiftCheck` đang bật.
+- **Đường dẫn thay đổi / tạo mới:**
+  - Tạo mới: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/StaffingOptions.cs`
+  - Tạo mới: `tests/WardMate.UnitTests/Workflow/StaffingShiftCheckTests.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/StaffingService.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/DispatchService.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/ConsultationService.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/ProcedureCatalogClient.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/ManagerDispatchController.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/ConsultationsController.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Program.cs`
+  - Chỉnh sửa: `src/BuildingBlocks/WardMate.SharedKernel/Web/BrowserCorsExtensions.cs`
+  - Chỉnh sửa: `docs/system-constraints.md` (bổ sung WF-WS-07)
+  - Chỉnh sửa: `docs/api-guide.md`
+  - Chỉnh sửa: `PROGRESS.md`
+- **Endpoints & Headers liên quan:**
+  - `GET /api/v1/manager/applications/{id}/assignment-candidates` → 200 `DispatchCandidate[]`, thêm header `X-Staffing-Shift-Check: skipped` khi test mode bật.
+  - `GET /api/v1/applications/{applicationId}/consultations/specialist-candidates` → 200 `SpecialistCandidate[]`, thêm header `X-Staffing-Shift-Check: skipped` khi test mode bật.
+- **Frontend DTO & Notes:** FE đọc header `X-Staffing-Shift-Check: skipped` để hiển thị banner cảnh báo môi trường test cho tester/QA.
+- **Kết quả Build & Test:**
+  - Release build toàn solution: **0 errors, 0 warnings** (`-warnaserror`).
+  - Unit tests: **171/171 passed (0 failed, 0 skipped)** — bao gồm 8 unit tests mới cho `StaffingShiftCheckTests`.
+- **Trạng thái triển khai:** Đã hoàn thành code và test local. Chưa commit/push và chưa deploy lên Azure (chờ xác nhận từ người dùng theo quy trình AGENTS.md).
+
+
 ## HOTFIX / Azure ProcedureCatalog: Chuyển tiếp Authorization Bearer sang DocumentForm (06/11/2026 09:50 UTC+7)
 
 - **Hiện tượng:** Swagger gọi `GET /api/v1/procedure-manager/document-forms?page=1&pageSize=50` trả `503 document_form.unavailable` (traceId: `0HNPRLUDI9VAI:00000006`).
