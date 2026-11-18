@@ -5,7 +5,7 @@ using WardMate.Services.ApplicationWorkflow.Application;
 namespace WardMate.Services.ApplicationWorkflow.API.Controllers;
 
 [Route("api/v1/applications/{applicationId:guid}/consultations"), Authorize(Policy = "workflow.consultation.read")]
-public sealed class ConsultationsController(IConsultationService service) : ReviewControllerBase
+public sealed class ConsultationsController(IConsultationService service, Microsoft.Extensions.Options.IOptions<StaffingOptions> staffingOptions) : ReviewControllerBase
 {
     [HttpGet("/api/v1/staffing/consultations")]
     public async Task<IActionResult> Inbox(CancellationToken ct, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null) => Respond(await service.Inbox(Actor, page, pageSize, ct, status));
@@ -24,8 +24,12 @@ public sealed class ConsultationsController(IConsultationService service) : Revi
         Respond(await service.Request(Actor, applicationId, input, ct));
 
     [HttpGet("specialist-candidates"), Authorize(Policy = "workflow.dispatch.write")]
-    public Task<IActionResult> Candidates(Guid applicationId, CancellationToken ct) =>
-        WithDirectory(() => service.Candidates(Actor, applicationId, Token, ct), ct);
+    public Task<IActionResult> Candidates(Guid applicationId, CancellationToken ct)
+    {
+        if (staffingOptions.Value.SkipShiftCheck)
+            Response.Headers["X-Staffing-Shift-Check"] = "skipped";
+        return WithDirectory(() => service.Candidates(Actor, applicationId, Token, ct), ct);
+    }
 
     [HttpPost("{id:guid}/dispatch"), Authorize(Policy = "workflow.dispatch.write")]
     public Task<IActionResult> Dispatch(Guid applicationId, Guid id, ConsultationDispatch input, CancellationToken ct) =>
