@@ -4,8 +4,9 @@ using WardMate.Services.ApplicationWorkflow.Domain;
 
 namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 
-public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory directory, IProcedureCatalogClient catalog, TimeProvider clock) : IDispatchService
+public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory directory, IProcedureCatalogClient catalog, TimeProvider clock, Microsoft.Extensions.Options.IOptions<StaffingOptions> staffingOptions) : IDispatchService
 {
+    private bool SkipShiftCheck => staffingOptions.Value.SkipShiftCheck;
     private static bool Manager(ReviewActor a) => a.IsManager && !string.IsNullOrWhiteSpace(a.WardCode);
     private static WorkflowResult<T> Fail<T>(int status, string code, string message) => WorkflowResult<T>.Fail(status, "dispatch." + code, message);
     private IQueryable<ApplicationRecord> Scope(ReviewActor actor) => db.Applications.Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id);
@@ -74,7 +75,7 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
         var candidates = new List<DispatchCandidate>();
         foreach (var officer in officers)
         {
-            var reasons = Reasons(a, officer, category.Value).Concat(await StaffingLocks.Availability(db, officer.Id, a.WardCode, clock.GetUtcNow().UtcDateTime, ct)).ToArray();
+            var reasons = Reasons(a, officer, category.Value).Concat(await StaffingLocks.Availability(db, officer.Id, a.WardCode, clock.GetUtcNow().UtcDateTime, ct, SkipShiftCheck)).ToArray();
             candidates.Add(new(officer.Id, officer.FullName, reasons.Length == 0, counts.GetValueOrDefault(officer.Id), reasons));
         }
         return WorkflowResult<DispatchCandidate[]>.Ok(candidates.OrderByDescending(x => x.Eligible).ThenBy(x => x.ActiveApplicationCount).ThenBy(x => x.OfficerId).ToArray());
@@ -100,7 +101,7 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
         var officer = officers.SingleOrDefault(x => x.Id == input.OfficerId);
         if (officer is null || Reasons(a, officer, category.Value).Length > 0)
             return Fail<AssignmentRecord>(422, "officer_ineligible", "Cán bộ phải đang hoạt động, đúng phường, vai trò và lĩnh vực, không phải chủ hồ sơ.");
-        if ((await StaffingLocks.Availability(db, officer.Id, a.WardCode, clock.GetUtcNow().UtcDateTime, ct)).Length > 0)
+        if ((await StaffingLocks.Availability(db, officer.Id, a.WardCode, clock.GetUtcNow().UtcDateTime, ct, SkipShiftCheck)).Length > 0)
             return Fail<AssignmentRecord>(422, "officer_unavailable", "Cán bộ cần có ca làm hiện tại và không trong thời gian nghỉ đã duyệt.");
 
         var now = clock.GetUtcNow().UtcDateTime;
