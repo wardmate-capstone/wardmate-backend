@@ -4683,6 +4683,7 @@ Manager cần quyền `workflow.dispatch.read`, thao tác ghi cần `workflow.di
 - **Method & Route:** `GET /api/v1/manager/applications/{id}/assignment-candidates`
 - **Mục đích:** Lấy danh sách cán bộ một cửa trong phường kèm trạng thái đủ điều kiện (`eligible`) và lý do chặn (`blockingReasons`).
 - **Kiểm tra nghiệp vụ:** Cán bộ hoạt động, đúng phường, vai trò `FRONT_DESK_OFFICER`, đúng lĩnh vực (`categoryId`), có quyền `workflow.assign`, không phải người nộp, có ca làm hiện tại và không có nghỉ phép đã duyệt.
+- **Chế độ thử nghiệm:** Nếu cấu hình `Staffing:SkipShiftCheck=true` (hoặc biến môi trường `Staffing__SkipShiftCheck=true`), response trả thêm header `X-Staffing-Shift-Check: skipped` và loại bỏ kiểm tra ca làm hiện tại (`NO_ACTIVE_SHIFT`). Điều kiện nghỉ phép đã duyệt (`APPROVED_LEAVE`) vẫn giữ nguyên. Header được expose qua CORS.
 - **Kết quả 200:** Mảng `DispatchCandidate[]`: `{ officerId, fullName, eligible, activeApplicationCount, blockingReasons }`.
 - **Lỗi & Khắc phục:** 404 (hồ sơ ngoài phạm vi), 503 (Catalog/IAM không khả dụng).
 
@@ -5167,7 +5168,7 @@ Các đường dẫn bên dưới dùng tiền tố `/api/v1/applications/{appli
 |---|---|---|
 | POST `requests` | A đang phụ trách hồ sơ cần ý kiến | Gửi `{ "expectedAssignmentVersion": 1, "question": "Cần đối chiếu giấy tờ nào?" }`. Dùng phiên bản thật của hồ sơ. Nhận yêu cầu PENDING_DISPATCH, specialistId còn null. |
 | GET `/api/v1/staffing/consultations?status=PENDING_DISPATCH` | Manager mở hộp việc | Trả items, page, pageSize, total; bỏ status để xem mọi trạng thái trong phạm vi. |
-| GET `specialist-candidates` | Manager chọn B | Không có body. Hiện fullName, eligible và blockingReasons. Đủ điều kiện góp ý không đồng nghĩa đủ điều kiện tiếp nhận. |
+| GET `specialist-candidates` | Manager chọn B | Không có body. Hiện fullName, eligible và blockingReasons. Đủ điều kiện góp ý không đồng nghĩa đủ điều kiện tiếp nhận. Trong chế độ test (`Staffing:SkipShiftCheck=true`), trả thêm header `X-Staffing-Shift-Check: skipped` và bỏ qua kiểm tra `NO_ACTIVE_SHIFT`. |
 | POST `{id}/dispatch` | Manager gửi câu hỏi cho B | Gửi expectedVersion của yêu cầu và specialistId của B. Trả OPEN; A vẫn phụ trách. |
 | POST `{id}/answer` | B trả lời | Gửi expectedVersion, text và willingToTakeOver (true nếu đề nghị nhận hồ sơ). Trả ANSWERED; chưa chuyển hồ sơ. |
 | POST `{id}/close` | Manager quyết định | Gửi expectedVersion, text (lý do), decision. DECLINE_REQUEST khi đang chờ; KEEP_ASSIGNEE sau trả lời; TRANSFER_TO_SPECIALIST sau trả lời cần thêm expectedAssignmentVersion hiện tại. Trả CLOSED. Tải lại hồ sơ để hiển thị cán bộ và phiên bản phân công mới. |
