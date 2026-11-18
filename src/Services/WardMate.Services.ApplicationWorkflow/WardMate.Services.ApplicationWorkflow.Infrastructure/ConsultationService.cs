@@ -4,8 +4,9 @@ using WardMate.Services.ApplicationWorkflow.Domain;
 
 namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 
-public sealed class ConsultationService(WorkflowDbContext db, IDispatchDirectory directory, IProcedureCatalogClient catalog, TimeProvider clock) : IConsultationService
+public sealed class ConsultationService(WorkflowDbContext db, IDispatchDirectory directory, IProcedureCatalogClient catalog, TimeProvider clock, Microsoft.Extensions.Options.IOptions<StaffingOptions> staffingOptions) : IConsultationService
 {
+    private bool SkipShiftCheck => staffingOptions.Value.SkipShiftCheck;
     private static WorkflowResult<T> Fail<T>(int status, string code, string message) => WorkflowResult<T>.Fail(status, "consultation." + code, message);
     private static bool Text(string? text) => !string.IsNullOrWhiteSpace(text) && text.Length <= 4000;
     private static bool Scope(ReviewActor actor, ApplicationRecord a) => actor.CanReadWard && !string.IsNullOrWhiteSpace(actor.WardCode) && actor.WardCode == a.WardCode && actor.Id != a.UserId;
@@ -31,7 +32,7 @@ public sealed class ConsultationService(WorkflowDbContext db, IDispatchDirectory
     {
         var reasons = DispatchService.Reasons(app, officer, category, "workflow.consultation.respond").ToList();
         if (app.AssignedOfficerId == officer.Id) reasons.Add("CURRENT_ASSIGNEE");
-        reasons.AddRange(await StaffingLocks.Availability(db, officer.Id, app.WardCode!, clock.GetUtcNow().UtcDateTime, ct));
+        reasons.AddRange(await StaffingLocks.Availability(db, officer.Id, app.WardCode!, clock.GetUtcNow().UtcDateTime, ct, SkipShiftCheck));
         return reasons.ToArray();
     }
 
@@ -142,7 +143,7 @@ public sealed class ConsultationService(WorkflowDbContext db, IDispatchDirectory
         var officer = officers.SingleOrDefault(x => x.Id == input.SpecialistId);
         if (officer is null || !officer.IsActive || officer.WardCode != app.WardCode || !officer.Roles.Contains("FRONT_DESK_OFFICER") || officer.Roles.Contains("MANAGER") ||
             !officer.AssignedCategories.Contains(category.Value) || officer.Permissions?.Contains("workflow.consultation.respond") != true || officer.Id == app.UserId || officer.Id == app.AssignedOfficerId ||
-            (await StaffingLocks.Availability(db, officer.Id, app.WardCode, clock.GetUtcNow().UtcDateTime, ct)).Length > 0)
+            (await StaffingLocks.Availability(db, officer.Id, app.WardCode, clock.GetUtcNow().UtcDateTime, ct, SkipShiftCheck)).Length > 0)
             return Fail<ApplicationConsultation>(422, "specialist_ineligible", "Cần cán bộ khác đủ quyền, cùng phường/lĩnh vực và có lịch làm, không nghỉ.");
         if (await db.Consultations.AnyAsync(x => x.ApplicationId == applicationId && x.SpecialistId == input.SpecialistId && x.Status != "CLOSED", ct))
             return Fail<ApplicationConsultation>(409, "already_open", "Đã có tham vấn chưa đóng cho cán bộ này.");
@@ -187,7 +188,7 @@ public sealed class ConsultationService(WorkflowDbContext db, IDispatchDirectory
             if (categoryId is not > 0) return Fail<ApplicationConsultation>(503, "category_unavailable", "Chưa xác minh lĩnh vực.");
             var specialist = (await directory.Officers(token, ct)).SingleOrDefault(o => o.Id == item.SpecialistId);
             if (specialist == null || app.AssignedOfficerId == specialist.Id || DispatchService.Reasons(app, specialist, categoryId.Value).Length != 0 ||
-                (await StaffingLocks.Availability(db, specialist.Id, app.WardCode!, clock.GetUtcNow().UtcDateTime, ct)).Length != 0)
+                (await StaffingLocks.Availability(db, specialist.Id, app.WardCode!, clock.GetUtcNow().UtcDateTime, ct, SkipShiftCheck)).Length != 0)
                 return Fail<ApplicationConsultation>(422, "officer_ineligible", "Cán bộ chưa đủ điều kiện nhận hồ sơ.");
             DispatchService.RecordAssignment(db, app, "TRANSFER", actor, specialist, input.Text, clock.GetUtcNow().UtcDateTime);
         }
