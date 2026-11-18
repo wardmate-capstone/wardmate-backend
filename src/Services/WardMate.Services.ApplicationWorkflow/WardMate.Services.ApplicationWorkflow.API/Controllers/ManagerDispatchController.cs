@@ -5,7 +5,7 @@ using WardMate.Services.ApplicationWorkflow.Application;
 namespace WardMate.Services.ApplicationWorkflow.API.Controllers;
 
 [Route("api/v1/manager/applications"), Authorize(Policy = "workflow.dispatch.read")]
-public sealed class ManagerDispatchController(IDispatchService dispatch) : ReviewControllerBase
+public sealed class ManagerDispatchController(IDispatchService dispatch, Microsoft.Extensions.Options.IOptions<StaffingOptions> staffingOptions) : ReviewControllerBase
 {
     private string Token => Request.Headers.Authorization.ToString()["Bearer ".Length..];
     private async Task<IActionResult> Safe<T>(Func<Task<WorkflowResult<T>>> action)
@@ -19,7 +19,12 @@ public sealed class ManagerDispatchController(IDispatchService dispatch) : Revie
         [FromQuery] string? search = null, [FromQuery] string? sort = null, [FromQuery] string? status = null) =>
         Safe(() => dispatch.List(Actor, new DispatchListQuery(page, pageSize, search, sort, status), ct));
     [HttpGet("{id:guid}/assignment-candidates")]
-    public Task<IActionResult> Candidates(Guid id, CancellationToken ct) => Safe(() => dispatch.Candidates(Actor, id, Token, ct));
+    public Task<IActionResult> Candidates(Guid id, CancellationToken ct)
+    {
+        if (staffingOptions.Value.SkipShiftCheck)
+            Response.Headers["X-Staffing-Shift-Check"] = "skipped";
+        return Safe(() => dispatch.Candidates(Actor, id, Token, ct));
+    }
     [HttpGet("{id:guid}/assignments")]
     public Task<IActionResult> History(Guid id, CancellationToken ct) => Safe(() => dispatch.History(Actor, id, ct));
     [HttpPost("{id:guid}/assignments"), Authorize(Policy = "workflow.dispatch.write"), RequestSizeLimit(16384)]
