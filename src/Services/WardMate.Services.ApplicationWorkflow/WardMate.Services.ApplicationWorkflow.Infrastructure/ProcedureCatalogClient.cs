@@ -48,6 +48,7 @@ public static class WorkflowInfrastructureRegistration
         services.AddScoped<ICalendarClosureService, CalendarClosureService>();
         services.AddScoped<IDispatchService, DispatchService>();
         services.AddScoped<IStaffingService, StaffingService>();
+        services.Configure<StaffingOptions>(config.GetSection(StaffingOptions.SectionName));
         services.AddScoped<ILeaveDrafts, LeaveDraftService>();
         services.AddScoped<IMonthlySchedules, MonthlyScheduleService>();
         if (!string.IsNullOrWhiteSpace(config["AzureBlob:ConnectionString"]))
