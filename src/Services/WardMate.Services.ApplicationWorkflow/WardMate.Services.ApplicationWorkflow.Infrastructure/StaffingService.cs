@@ -9,7 +9,9 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure;
 public static class StaffingLocks
 {
     public static Task Ward(WorkflowDbContext db, string ward, CancellationToken ct) =>
-        db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({ward}, 301))", ct);
+        db.Database.IsRelational()
+            ? db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({ward}, 301))", ct)
+            : Task.CompletedTask;
 
     public static async Task<string[]> Availability(WorkflowDbContext db, Guid officer, string? ward, DateTime now, CancellationToken ct, bool skipShiftCheck = false)
     {
