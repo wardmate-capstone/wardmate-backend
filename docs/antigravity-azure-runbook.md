@@ -19,8 +19,10 @@ Người viết: Backend (Claude), 01/11/2026. Quy trình dưới đây là quy 
 | wardmate-gateway | wardmate-gateway | gateway-20261030-02 | src/Gateways/WardMate.YarpGateway/Dockerfile | chỉ có /health |
 | wardmate-gotenberg | (Docker Hub) | gotenberg/gotenberg:8 | — | — |
 
-- Resource group: `rg-wardmate-prod`. ACR: `acrwardmate2026`.
-- Gateway: `https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io`.
+- Resource group: `rg-wardmate`. ACR: `acrwardmate6ll4`.
+- Gateway: `https://wardmate-gateway.bravetree-f6485744.japaneast.azurecontainerapps.io`.
+- **Từ 20/11/2026 (AZURE-REBUILD-1120):** hạ tầng chạy trên subscription *Azure for Students* mới (`e3691990-…`, thư mục `anhduc14299gmail.onmicrosoft.com`; chủ dự án là Owner dạng khách), môi trường `cae-wardmate` loại Express (không hỗ trợ `--revision-suffix` và `revision restart`), không Log Analytics. Storage blob: `stwardmate6ll4`.
+- **ACR Tasks bị chặn trên subscription này (`TasksOperationsNotAllowed`)**: `az acr build` không chạy được. Build trên máy chủ dự án bằng Docker Desktop: `az login --tenant anhduc14299gmail.onmicrosoft.com --use-device-code`, `az acr login -n acrwardmate6ll4`, `docker build -t acrwardmate6ll4.azurecr.io/<repo>:<tag> -f <Dockerfile> .`, `docker push …`, rồi `az containerapp update --image …@<digest>`. Các lệnh `az acr build` bên dưới chỉ còn giá trị tham khảo.
 - `minReplicas`: Analytics = 1 (để worker thông báo chạy liên tục); các app còn lại = 0, nên lần gọi đầu khởi động lạnh mất vài giây.
 - **Analytics giữ `maxReplicas` = 1**, vì job thống kê theo lịch chạy trên từng replica.
 
@@ -42,11 +44,11 @@ Người viết: Backend (Claude), 01/11/2026. Quy trình dưới đây là quy 
 
 1. **Liệt kê image đang chạy:**
    ```bash
-   az containerapp list -g rg-wardmate-prod --query "[].{app:name, image:properties.template.containers[0].image, min:properties.template.scale.minReplicas}" -o table
+   az containerapp list -g rg-wardmate --query "[].{app:name, image:properties.template.containers[0].image, min:properties.template.scale.minReplicas}" -o table
    ```
 2. **Kiểm tra `/health/ready` của cả 6 service.** Lệnh gọi 2 lượt: lượt đầu để đánh thức app đang ở 0 replica, lượt sau mới lấy kết quả.
    ```bash
-   G=https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io; for s in iam procedure-catalog application-workflow document-form ai-ocr analytics-system; do curl -s -o /dev/null --max-time 60 $G/api/$s/health/ready; done; for s in iam procedure-catalog application-workflow document-form ai-ocr analytics-system; do printf "%-22s %s\n" "$s" "$(curl -s -o /dev/null --max-time 60 -w '%{http_code}' $G/api/$s/health/ready)"; done
+   G=https://wardmate-gateway.bravetree-f6485744.japaneast.azurecontainerapps.io; for s in iam procedure-catalog application-workflow document-form ai-ocr analytics-system; do curl -s -o /dev/null --max-time 60 $G/api/$s/health/ready; done; for s in iam procedure-catalog application-workflow document-form ai-ocr analytics-system; do printf "%-22s %s\n" "$s" "$(curl -s -o /dev/null --max-time 60 -w '%{http_code}' $G/api/$s/health/ready)"; done
    ```
    Cách đọc kết quả:
    - **`200`**: OK.
@@ -79,22 +81,22 @@ APP=wardmate-application-workflow; REPO=wardmate-application-workflow; TAG=workf
 
 **Bước 3. Lưu image cũ để có thể quay lại:**
 ```bash
-OLD=$(az containerapp show -n $APP -g rg-wardmate-prod --query "properties.template.containers[0].image" -o tsv); echo "$OLD"
+OLD=$(az containerapp show -n $APP -g rg-wardmate --query "properties.template.containers[0].image" -o tsv); echo "$OLD"
 ```
 
 **Bước 4. Build và push.** Phải thấy dòng `Run ID: ... was successful`, và ghi lại digest:
 ```bash
-az acr build -r acrwardmate2026 -t "$REPO:$TAG" -f "$DF" .
+az acr build -r acrwardmate6ll4 -t "$REPO:$TAG" -f "$DF" .
 ```
 
 **Bước 5. Đổi image.** Lệnh chỉ đổi image, giữ nguyên biến môi trường và secret; kết quả phải là `Succeeded`:
 ```bash
-az containerapp update -n $APP -g rg-wardmate-prod --image "acrwardmate2026.azurecr.io/$REPO:$TAG" --query "properties.provisioningState" -o tsv
+az containerapp update -n $APP -g rg-wardmate --image "acrwardmate6ll4.azurecr.io/$REPO:$TAG" --query "properties.provisioningState" -o tsv
 ```
 
 **Bước 6. Kiểm tra.** Đợi khoảng 30 giây rồi chạy:
 ```bash
-az containerapp revision list -n $APP -g rg-wardmate-prod --query "[].{name:name, active:properties.active, health:properties.healthState, state:properties.runningState}" -o table; U=https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/$HP/health/ready; curl -s -o /dev/null --max-time 60 $U; curl -s --max-time 60 -w "\n%{http_code}\n" $U
+az containerapp revision list -n $APP -g rg-wardmate --query "[].{name:name, active:properties.active, health:properties.healthState, state:properties.runningState}" -o table; U=https://wardmate-gateway.bravetree-f6485744.japaneast.azurecontainerapps.io/api/$HP/health/ready; curl -s -o /dev/null --max-time 60 $U; curl -s --max-time 60 -w "\n%{http_code}\n" $U
 ```
 Kỳ vọng:
 - Revision `Healthy` và `Running`.
@@ -102,7 +104,7 @@ Kỳ vọng:
 
 **Bước 7. Quay lại bản cũ** nếu bước 6 lỗi quá 1 phút:
 ```bash
-az containerapp update -n $APP -g rg-wardmate-prod --image "$OLD" --query "properties.provisioningState" -o tsv
+az containerapp update -n $APP -g rg-wardmate --image "$OLD" --query "properties.provisioningState" -o tsv
 ```
 
 **Bước 8. Ghi vào `PROGRESS.md`:** app, tag mới, digest, image cũ, kết quả bước 6. Không ghi secret.

@@ -3632,7 +3632,7 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
   {
     "applicationId": "b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9",
     "submissionId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-    "qrCodeValue": "https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/public/applications/b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9/pdf-redirect",
+    "qrCodeValue": "https://wardmate-gateway.bravetree-f6485744.japaneast.azurecontainerapps.io/api/v1/public/applications/b1ff2814-ba88-4dd8-b539-4dcb05e9c2e9/pdf-redirect",
     "generatedAt": "2026-10-23T08:00:00Z",
     "status": "READYFORDOWNLOAD",
     "documentName": "Tờ khai đăng ký khai sinh",
