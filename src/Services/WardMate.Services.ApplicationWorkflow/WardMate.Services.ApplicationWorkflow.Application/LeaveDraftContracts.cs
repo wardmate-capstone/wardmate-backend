@@ -8,11 +8,14 @@ public sealed record LeaveDraftView(Guid Id, int Version, int MetadataVersion, G
     Guid? SubmittedLeaveId, DateTime UpdatedAtUtc);
 public sealed record LeaveSubmitReceipt(Guid LeaveId, string Status, int Version, DateTime SubmittedAtUtc);
 public sealed record LeaveTemplateDescriptor(Guid VersionId, string Sha256);
+public sealed record WardLeaveTemplateView(Guid Id, string WardCode, string Sha256, int SizeBytes, string FileName, Guid UploadedBy, string UploadedByName, DateTime UploadedAtUtc, bool IsActive);
 public sealed record LeavePage(LeaveDraftView[] Items, int Page, int PageSize, int Total);
 public interface ILeaveDrafts
 {
-    WorkflowResult<LeaveTemplateDescriptor> Template(ReviewActor actor);
+    Task<WorkflowResult<LeaveTemplateDescriptor>> Template(ReviewActor actor, CancellationToken ct);
     Task<WorkflowResult<byte[]>> TemplateFile(ReviewActor actor, Guid id, CancellationToken ct);
+    Task<WorkflowResult<WardLeaveTemplateView>> UploadTemplate(ReviewActor actor, Stream data, string filename, CancellationToken ct);
+    Task<WorkflowResult<WardLeaveTemplateView[]>> ListTemplates(ReviewActor actor, CancellationToken ct);
     Task<WorkflowResult<LeaveDraftView>> Create(ReviewActor actor, LeaveDraftInput input, Guid key, CancellationToken ct);
     Task<WorkflowResult<LeavePage>> List(ReviewActor actor, int page, int pageSize, CancellationToken ct);
     Task<WorkflowResult<LeaveDraftView>> Get(ReviewActor actor, Guid id, CancellationToken ct);
