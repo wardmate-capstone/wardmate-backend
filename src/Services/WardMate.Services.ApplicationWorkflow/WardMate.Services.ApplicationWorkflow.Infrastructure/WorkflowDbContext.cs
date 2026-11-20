@@ -11,6 +11,7 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
     // Staffing tables (local feature)
     public DbSet<OfficerShift> Shifts => Set<OfficerShift>();
     public DbSet<OfficerLeave> Leaves => Set<OfficerLeave>();
+    public DbSet<WardLeaveTemplate> WardLeaveTemplates => Set<WardLeaveTemplate>();
     public DbSet<LeaveDraft> LeaveDrafts => Set<LeaveDraft>();
     public DbSet<LeaveDocumentRevision> LeaveRevisions => Set<LeaveDocumentRevision>();
     public DbSet<ScheduleRevision> ScheduleRevisions => Set<ScheduleRevision>();
@@ -36,6 +37,14 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        var tpl = b.Entity<WardLeaveTemplate>();
+        tpl.ToTable("ward_leave_templates");
+        tpl.HasKey(x => x.Id);
+        tpl.Property(x => x.WardCode).HasMaxLength(50);
+        tpl.Property(x => x.Sha256).HasMaxLength(64);
+        tpl.Property(x => x.FileName).HasMaxLength(255);
+        tpl.Property(x => x.UploadedByName).HasMaxLength(255);
+        tpl.HasIndex(x => new { x.WardCode, x.IsActive, x.UploadedAtUtc });
         var draft = b.Entity<LeaveDraft>();
         var log=b.Entity<LeaveDraftAudit>();
         log.ToTable("officer_leave_draft_audit");
