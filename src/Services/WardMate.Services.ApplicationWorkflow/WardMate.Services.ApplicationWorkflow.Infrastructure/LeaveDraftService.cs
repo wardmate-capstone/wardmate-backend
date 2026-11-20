@@ -41,6 +41,8 @@ public sealed class LeaveDraftService(WorkflowDbContext db, IConfiguration confi
         RevisionId=draft.CurrentRevisionId,OccurredAtUtc=Now
     });
     private static bool Owner(ReviewActor a) => a.CanMutate && !a.IsManager && !string.IsNullOrWhiteSpace(a.WardCode);
+    private static bool CanManageTemplates(ReviewActor a) => a.IsManager && !string.IsNullOrWhiteSpace(a.WardCode);
+    private static bool CanAccessTemplates(ReviewActor a) => !string.IsNullOrWhiteSpace(a.WardCode);
     private IQueryable<LeaveDraft> Own(ReviewActor a) => db.LeaveDrafts.Where(x =>
         x.OfficerId == a.Id && x.WardCode == a.WardCode && x.DeletedAtUtc == null);
     private static LeaveDraftView View(LeaveDraft d) => new(d.Id,d.Version,d.MetadataVersion,d.TemplateVersionId,
@@ -49,12 +51,20 @@ public sealed class LeaveDraftService(WorkflowDbContext db, IConfiguration confi
         && to.UtcDateTime > Now && !string.IsNullOrWhiteSpace(reason) && reason.Trim().Length <= 2000;
     private static string TemplateKey(Guid id) => $"templates/{id:N}.docx";
     private static string RevisionKey(Guid draft, Guid revision) => $"drafts/{draft:N}/{revision:N}.docx";
-    public WorkflowResult<LeaveTemplateDescriptor> Template(ReviewActor actor)
+    public async Task<WorkflowResult<LeaveTemplateDescriptor>> Template(ReviewActor actor, CancellationToken ct)
     {
-        if (!Owner(actor)) return Fail<LeaveTemplateDescriptor>(403,"forbidden");
-        var template = LeaveTemplateSettings.Read(config, actor.WardCode!).Template;
-        return template is not null
-            ? WorkflowResult<LeaveTemplateDescriptor>.Ok(template)
+        if (!CanAccessTemplates(actor)) return Fail<LeaveTemplateDescriptor>(403,"forbidden");
+        var active = await db.WardLeaveTemplates.AsNoTracking()
+            .Where(x => x.WardCode == actor.WardCode && x.IsActive)
+            .OrderByDescending(x => x.UploadedAtUtc)
+            .FirstOrDefaultAsync(ct);
+        if (active is not null)
+        {
+            return WorkflowResult<LeaveTemplateDescriptor>.Ok(new(active.Id, active.Sha256));
+        }
+        var legacy = LeaveTemplateSettings.Read(config, actor.WardCode!).Template;
+        return legacy is not null
+            ? WorkflowResult<LeaveTemplateDescriptor>.Ok(legacy)
             : Fail<LeaveTemplateDescriptor>(503,"template_unavailable");
     }
     private static async Task<byte[]?> Bounded(Stream stream, CancellationToken ct)
@@ -119,9 +129,62 @@ public sealed class LeaveDraftService(WorkflowDbContext db, IConfiguration confi
     }
     public async Task<WorkflowResult<byte[]>> TemplateFile(ReviewActor a, Guid id, CancellationToken ct)
     {
-        var template=Template(a);
-        if(template.Error is {} error) return Error<byte[]>(error);
-        return template.Value!.VersionId==id ? await Fetch(TemplateKey(id),template.Value.Sha256,ct) : Fail<byte[]>(404,"not_found");
+        if (!CanAccessTemplates(a)) return Fail<byte[]>(403,"forbidden");
+        var dbTemplate = await db.WardLeaveTemplates.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id && x.WardCode == a.WardCode, ct);
+        if (dbTemplate is not null)
+        {
+            return await Fetch(TemplateKey(id), dbTemplate.Sha256, ct);
+        }
+        var cfgTemplate = LeaveTemplateSettings.Read(config, a.WardCode!).Template;
+        if (cfgTemplate is not null && cfgTemplate.VersionId == id)
+        {
+            return await Fetch(TemplateKey(id), cfgTemplate.Sha256, ct);
+        }
+        return Fail<byte[]>(404,"not_found");
+    }
+    public async Task<WorkflowResult<WardLeaveTemplateView>> UploadTemplate(ReviewActor a, Stream data, string filename, CancellationToken ct)
+    {
+        if (!CanManageTemplates(a)) return Fail<WardLeaveTemplateView>(403,"forbidden");
+        if (storage is null || blobService is not null && !await LeaveBlobMaintenance.Private(blobService,ct)) return Fail<WardLeaveTemplateView>(503,"storage_unavailable");
+        var bytes = await Bounded(data, ct);
+        if (bytes is null) return Fail<WardLeaveTemplateView>(413,"too_large");
+        if (!string.Equals(Path.GetExtension(filename), ".docx", StringComparison.OrdinalIgnoreCase) || !Docx(bytes)) return Fail<WardLeaveTemplateView>(415,"invalid_docx");
+        var templateId = Guid.NewGuid();
+        var sha256 = Digest(bytes);
+        var tpl = new WardLeaveTemplate
+        {
+            Id = templateId,
+            WardCode = a.WardCode!,
+            Sha256 = sha256,
+            SizeBytes = bytes.Length,
+            FileName = string.IsNullOrWhiteSpace(filename) ? "don-nghi.docx" : Path.GetFileName(filename),
+            UploadedBy = a.Id,
+            UploadedByName = a.FullName ?? string.Empty,
+            UploadedAtUtc = Now,
+            IsActive = true
+        };
+        var key = TemplateKey(templateId);
+        using var stream = new MemoryStream(bytes, false);
+        await storage.UploadAsync(stream, key, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", Container, ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await StaffingLocks.Ward(db, a.WardCode!, ct);
+        var existing = await db.WardLeaveTemplates.Where(x => x.WardCode == a.WardCode && x.IsActive).ToListAsync(ct);
+        foreach (var old in existing) old.IsActive = false;
+        db.WardLeaveTemplates.Add(tpl);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return WorkflowResult<WardLeaveTemplateView>.Ok(new(tpl.Id, tpl.WardCode, tpl.Sha256, tpl.SizeBytes, tpl.FileName, tpl.UploadedBy, tpl.UploadedByName ?? string.Empty, tpl.UploadedAtUtc, tpl.IsActive));
+    }
+    public async Task<WorkflowResult<WardLeaveTemplateView[]>> ListTemplates(ReviewActor a, CancellationToken ct)
+    {
+        if (!CanAccessTemplates(a)) return Fail<WardLeaveTemplateView[]>(403,"forbidden");
+        var rows = await db.WardLeaveTemplates.AsNoTracking()
+            .Where(x => x.WardCode == a.WardCode)
+            .OrderByDescending(x => x.UploadedAtUtc)
+            .Select(x => new WardLeaveTemplateView(x.Id, x.WardCode, x.Sha256, x.SizeBytes, x.FileName, x.UploadedBy, x.UploadedByName ?? string.Empty, x.UploadedAtUtc, x.IsActive))
+            .ToArrayAsync(ct);
+        return WorkflowResult<WardLeaveTemplateView[]>.Ok(rows);
     }
     public async Task<WorkflowResult<LeaveDraftView>> Create(ReviewActor a, LeaveDraftInput input, Guid key, CancellationToken ct)
     {
@@ -131,7 +194,7 @@ public sealed class LeaveDraftService(WorkflowDbContext db, IConfiguration confi
         var existing=await db.LeaveDrafts.AsNoTracking().SingleOrDefaultAsync(x=>x.OfficerId==a.Id && x.CreationKey==key,ct);
         if(existing is not null) return Replay(existing,a,hash);
         if(!Valid(input.StartsAt,input.EndsAt,input.Reason)) return Fail<LeaveDraftView>(400,"invalid_input");
-        var template=Template(a);
+        var template=await Template(a, ct);
         if(template.Error is {} error) return Error<LeaveDraftView>(error);
         if(template.Value!.VersionId!=input.TemplateVersionId) return Fail<LeaveDraftView>(409,"version_conflict");
         var file=await Fetch(TemplateKey(input.TemplateVersionId),template.Value.Sha256,ct);
