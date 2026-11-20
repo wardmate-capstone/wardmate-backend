@@ -11,11 +11,12 @@ public sealed class LeaveDraftsController(ILeaveDrafts drafts,IConfiguration con
 {
     private const string DocxMime="application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     [HttpGet("capabilities")]
-    public IActionResult Capabilities()
+    public async Task<IActionResult> Capabilities(CancellationToken ct)
     {
         if(string.IsNullOrWhiteSpace(Actor.WardCode)) return Forbid();
+        var tpl = await drafts.Template(Actor, ct);
         var settings=LeaveTemplateSettings.Read(config,Actor.WardCode);
-        return Ok(new {wordRequired=settings.WordRequired,templateConfigured=settings.Template!=null,maxDocxBytes=LeaveDraftService.MaxBytes});
+        return Ok(new {wordRequired=settings.WordRequired,templateConfigured=tpl.Value!=null,maxDocxBytes=LeaveDraftService.MaxBytes});
     }
     private async Task<IActionResult> Execute<T>(Func<Task<WorkflowResult<T>>> action)
     {
@@ -35,12 +36,22 @@ public sealed class LeaveDraftsController(ILeaveDrafts drafts,IConfiguration con
             return Respond(WorkflowResult<T>.Fail(503,"leave.storage_unavailable","Kho tài liệu chưa sẵn sàng."));
         }
     }
-    [HttpGet("leave-templates/current"), Authorize(Policy="workflow.leave.request")]
+    [HttpGet("leave-templates/current")]
     [ProducesResponseType(typeof(LeaveTemplateDescriptor),200)]
-    public IActionResult Template()=>Respond(drafts.Template(Actor));
-    [HttpGet("leave-templates/{id:guid}/docx"), Authorize(Policy="workflow.leave.request")]
+    public async Task<IActionResult> Template(CancellationToken ct)=>Respond(await drafts.Template(Actor, ct));
+    [HttpGet("leave-templates/{id:guid}/docx")]
     [ProducesResponseType(typeof(Stream),200,DocxMime)]
     public Task<IActionResult> TemplateFile(Guid id,CancellationToken ct)=>Execute(()=>drafts.TemplateFile(Actor,id,ct));
+    [HttpGet("leave-templates"), Authorize(Policy="workflow.staffing.manage")]
+    [ProducesResponseType(typeof(WardLeaveTemplateView[]),200)]
+    public async Task<IActionResult> ListTemplates(CancellationToken ct)=>Respond(await drafts.ListTemplates(Actor, ct));
+    [HttpPost("leave-templates"), Authorize(Policy="workflow.staffing.manage"),Consumes("multipart/form-data"),RequestSizeLimit(11*1024*1024)]
+    [ProducesResponseType(typeof(WardLeaveTemplateView),200)]
+    public async Task<IActionResult> UploadTemplate([FromForm] TemplateUpload form, CancellationToken ct)
+    {
+        using var stream = form.File.OpenReadStream();
+        return await Execute(() => drafts.UploadTemplate(Actor, stream, form.File.FileName, ct));
+    }
     [HttpPost("leave-drafts"), Authorize(Policy="workflow.leave.request")]
     [ProducesResponseType(typeof(LeaveDraftView),200)]
     public Task<IActionResult> Create(LeaveDraftInput input,[FromHeader(Name="Idempotency-Key")] Guid key,CancellationToken ct)=>
@@ -80,4 +91,8 @@ public sealed class LeaveUpload
     public required IFormFile File { get; init; }
     public int ExpectedVersion { get; init; }
     public int MetadataVersion { get; init; }
+}
+public sealed class TemplateUpload
+{
+    public required IFormFile File { get; init; }
 }
