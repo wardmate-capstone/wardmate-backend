@@ -3,6 +3,48 @@
 
 # WardMate — Nhật ký phát triển
 
+## LEAVE-TEMPLATE-01 — Quản lý mẫu đơn xin nghỉ phép Word theo phường cho Manager | 2026-11-20 14:50 (Asia/Saigon)
+
+- **Mục đích:** Chuyển đổi cơ chế quản lý mẫu đơn xin nghỉ phép Word (leave template) từ cấu hình cứng Azure env-var (`WorkSchedule:SharedLeaveTemplate`) sang quản lý động theo từng phường (ward-scoped). Manager của mỗi phường có thể trực tiếp upload mẫu Word mới qua giao diện web, thay thế mẫu cũ mà không cần can thiệp DevOps/Azure.
+- **Quy tắc nghiệp vụ & Ràng buộc:**
+  - Manager phường (`MANAGER`, `workflow.staffing.manage`) có quyền upload mẫu đơn Word mới cho phường của mình (`POST /api/v1/staffing/leave-templates`, multipart form `file`, tối đa 10 MiB, format DOCX zip an toàn không macro/VBA/external link).
+  - Mẫu mới được lưu vào Blob Container `workflow-leave-documents` tại `templates/{templateId:N}.docx`, lưu metadata vào bảng `ward_leave_templates` (`is_active = true`), tự động chuyển các mẫu cũ của phường đó thành `is_active = false`.
+  - Cán bộ hoặc Manager lấy thông tin mẫu hiện hành qua `GET /api/v1/staffing/leave-templates/current`:
+    1. Ưu tiên đọc mẫu active từ bảng `ward_leave_templates` của phường.
+    2. Nếu phường chưa upload mẫu trong DB (backward compatibility): tự động fallback về cấu hình `LeaveTemplateSettings` (shared/legacy config).
+    3. Nếu cả DB và config đều chưa có mẫu: trả về 503 `leave.template_unavailable`.
+  - Cả Manager và Cán bộ (`workflow.staffing.read`) đều có thể tải file Word mẫu qua `GET /api/v1/staffing/leave-templates/{id}/docx`.
+  - Manager có thể xem lịch sử các mẫu đã tải của phường qua `GET /api/v1/staffing/leave-templates` (sắp xếp giảm dần theo thời gian upload).
+  - Cán bộ (`!IsManager`) bị chặn khi cố upload mẫu mới (403 `leave.forbidden`).
+  - Các đơn nghỉ nháp và đã submit trước đó vẫn giữ nguyên `TemplateVersionId` và revision; không bị ảnh hưởng khi Manager đổi mẫu mới.
+- **Đường dẫn thay đổi / tạo mới:**
+  - Tạo mới: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Domain/WardLeaveTemplate.cs`
+  - Tạo mới: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261120074253_AddWardLeaveTemplates.cs`
+  - Tạo mới: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/20261120074253_AddWardLeaveTemplates.Designer.cs`
+  - Tạo mới: `docs/sql/workflow-ward-leave-templates.sql`
+  - Tạo mới: `tests/WardMate.UnitTests/Workflow/WardLeaveTemplateTests.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Application/LeaveDraftContracts.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/WorkflowDbContext.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/Migrations/WorkflowDbContextModelSnapshot.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/LeaveDraftService.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/StaffingService.cs`
+  - Chỉnh sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/LeaveDraftsController.cs`
+  - Chỉnh sửa: `docs/system-constraints.md` (thêm WF-WS-08)
+  - Chỉnh sửa: `docs/api-guide.md`
+  - Chỉnh sửa: `PROGRESS.md`
+- **Endpoints liên quan:**
+  - `POST /api/v1/staffing/leave-templates` → multipart form-data `file`, 200 `WardLeaveTemplateView` (Manager).
+  - `GET /api/v1/staffing/leave-templates` → 200 `WardLeaveTemplateView[]` (Manager xem lịch sử).
+  - `GET /api/v1/staffing/leave-templates/current` → 200 `LeaveTemplateDescriptor {versionId, sha256}` (Manager & Officer).
+  - `GET /api/v1/staffing/leave-templates/{id}/docx` → 200 `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (Manager & Officer).
+  - `GET /api/v1/staffing/capabilities` → cập nhật `templateConfigured` kiểm tra qua service async.
+- **Frontend DTO & Notes:**
+  - `WardLeaveTemplateView`: `{ id: string, wardCode: string, sha256: string, sizeBytes: number, fileName: string, uploadedBy: string, uploadedByName: string, uploadedAtUtc: string, isActive: boolean }`.
+  - Màn hình quản lý của Manager: thêm nút Upload mẫu đơn Word mới (gọi `POST /api/v1/staffing/leave-templates`), hiển thị danh sách lịch sử mẫu (`GET /api/v1/staffing/leave-templates`), nút tải file mẫu (`GET /api/v1/staffing/leave-templates/{id}/docx`).
+- **Kết quả Build & Test:**
+  - Release build toàn solution: **0 errors, 0 warnings** (`-warnaserror`).
+  - Unit tests: **185/185 passed (0 failed, 0 skipped)** — bao gồm 8 unit tests mới cho `WardLeaveTemplateTests`.
+
 ## STAFFING-TEST-01 — Chế độ thử nghiệm bỏ qua kiểm tra ca làm (SkipShiftCheck) | 2026-11-18 20:25 (Asia/Saigon)
 
 - **Mục đích:** Thêm cờ cấu hình `Staffing:SkipShiftCheck` (biến môi trường `Staffing__SkipShiftCheck`) cho `ApplicationWorkflow` service để phục vụ kiểm thử QA/tester trên môi trường test không cần tạo ca làm trùng thời điểm hiện tại.
