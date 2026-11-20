@@ -18,7 +18,7 @@ public sealed class ApprovedQrService : IApprovedQrService
     {
         // Fallback về endpoint pdf-redirect nếu chưa cấu hình
         _verificationBaseUrl = (configuration["QrCode:VerificationBaseUrl"]
-            ?? "https://wardmate-gateway.blackmeadow-a2f12767.japaneast.azurecontainerapps.io/api/v1/public/applications/")
+            ?? "https://wardmate-gateway.bravetree-f6485744.japaneast.azurecontainerapps.io/api/v1/public/applications/")
             .TrimEnd('/');
     }
 
