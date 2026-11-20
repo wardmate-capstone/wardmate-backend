@@ -11,9 +11,11 @@
 
 | Method và đường dẫn sau tiền tố | Người gọi, đầu vào, kết quả và cách xử lý |
 |---|---|
-| GET /capabilities | Khi vào màn hình, xem `wordRequired`, `templateConfigured`, `maxDocxBytes`. configured chỉ xác nhận cấu hình ID/hash. Nếu tải mẫu trả 503 hãy kiểm tra object, hash và quyền storage. |
-| GET /leave-templates/current | Cán bộ lấy `versionId,sha256` của mẫu dùng chung. Phường mới có wardCode từ IAM tự dùng cùng mẫu. Thiếu cấu hình hợp lệ trả 503. |
-| GET /leave-templates/{id}/docx | Cán bộ mở bản mẫu đang áp dụng. Trả DOCX binary; nếu version cũ trả 404 thì tải lại thông tin mẫu. |
+| GET /capabilities | Khi vào màn hình, xem `wordRequired`, `templateConfigured`, `maxDocxBytes`. templateConfigured xác nhận có mẫu đang hoạt động trong DB hoặc cấu hình Azure. |
+| GET /leave-templates/current | Cán bộ và Manager lấy `{versionId, sha256}` của mẫu đơn đang áp dụng cho phường. Hệ thống ưu tiên đọc mẫu active từ database của phường; nếu chưa có trong database thì tự động fallback về cấu hình chung/cũ trên Azure. Thiếu cấu hình/chưa có mẫu trả 503 `leave.template_unavailable`. |
+| GET /leave-templates/{id}/docx | Tải file DOCX mẫu đang áp dụng theo versionId. Dành cho cả cán bộ và Manager cùng phường. Trả file DOCX binary (`don-nghi.docx`). Nếu versionId không thuộc phường hoặc không tồn tại trả 404 `leave.not_found`. |
+| POST /leave-templates | **Manager phường upload mẫu đơn Word mới**. Header: `Authorization: Bearer <token>`, multipart form-data trường `file` (.docx, dung lượng ≤ 10 MiB, DOCX zip hợp lệ, không macro/VBA/link ngoài). Thành công trả 200 `WardLeaveTemplateView {id, wardCode, sha256, sizeBytes, fileName, uploadedBy, uploadedByName, uploadedAtUtc, isActive=true}`. Mẫu cũ của phường tự động chuyển sang `isActive=false`. 403 nếu không phải Manager, 413 nếu quá 10 MiB, 415 nếu không phải file .docx hợp lệ. |
+| GET /leave-templates | **Manager xem lịch sử các mẫu đơn đã tải lên** của phường. Trả về mảng `WardLeaveTemplateView[]` sắp xếp theo thời gian tải lên giảm dần (mẫu mới nhất ở đầu). |
 | POST /leave-drafts | Cán bộ gửi JSON `{startsAt,endsAt,reason,templateVersionId}` và header `Idempotency-Key` là UUID. Nhận `id,version,metadataVersion,documentRevisionId` và bản sao riêng của mẫu. Mất response thì gửi lại cùng key/body. |
 | GET /leave-drafts | Danh sách nháp cá nhân chưa nộp; `page=1&pageSize=20`, tối đa 100 dòng/trang; trả items/page/pageSize/total. |
 | GET /leave-drafts/{id} | Chủ đơn đọc metadata/version trước khi sửa. Nháp khác người/phường trả 404. |
