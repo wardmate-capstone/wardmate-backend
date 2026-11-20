@@ -1352,6 +1352,62 @@ namespace WardMate.Services.ApplicationWorkflow.Infrastructure.Migrations
                     b.ToTable("officer_shift_change_requests", (string)null);
                 });
 
+            modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.WardLeaveTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<int>("SizeBytes")
+                        .HasColumnType("integer")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<DateTime>("UploadedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at_utc");
+
+                    b.Property<Guid>("UploadedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by");
+
+                    b.Property<string>("UploadedByName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("uploaded_by_name");
+
+                    b.Property<string>("WardCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("ward_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ward_leave_templates");
+
+                    b.HasIndex("WardCode", "IsActive", "UploadedAtUtc")
+                        .HasDatabaseName("ix_ward_leave_templates_ward_code_is_active_uploaded_at_utc");
+
+                    b.ToTable("ward_leave_templates", (string)null);
+                });
+
             modelBuilder.Entity("WardMate.Services.ApplicationWorkflow.Domain.WeekPattern", b =>
                 {
                     b.Property<string>("WardCode")
