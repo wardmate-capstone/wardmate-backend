@@ -2505,7 +2505,7 @@ Vượt trần → 400 `validation.failed`, `errors` nêu trường (ví dụ `c
 - `formCodes`: mã các `formDefinitions[].formCode` gắn với giấy tờ (cột "Mẫu đơn, tờ khai" của Cổng). Mẫu phải dùng chung
   (`caseCode` null) hoặc cùng `caseCode` với giấy tờ; sai → 400 với thông báo "Giấy tờ 'GT01' gắn biểu mẫu 'X' không có
   trong formDefinitions...". Khi người dân tạo hồ sơ, mẫu được tham chiếu gắn vào dòng giấy tờ đó, không sinh dòng lặp.
-- Căn cứ pháp lý (`legalReferences`) không đổi: chỉ cần `documentName` + `documentNumber`; `issueDate`, `authority` tuỳ chọn.
+- Căn cứ pháp lý (`legalReferences`): **từ 23/11/2026 (PROC-LEGAL-01)** mỗi dòng có 4 trường theo bảng 4 cột của Cổng DVC: `documentNumber` (Số ký hiệu, ≤ 255), `documentName` (Trích yếu / Tên văn bản), `issueDate` (Ngày ban hành, `yyyy-MM-dd`), `authority` (Cơ quan ban hành). **Cả 4 trường đều được `null`** khi nguồn không ghi, nhưng mỗi dòng phải có `documentNumber` hoặc `documentName` (sai → 400 `ContentPayload.LegalReferences`). Chuỗi rỗng/khoảng trắng được lưu thành `null`. Bảng 2 cột (Tên văn bản, Mã văn bản) gửi `documentName` + `documentNumber`, hai trường còn lại `null`. FE hiển thị: có dòng nào có `issueDate` hoặc `authority` thì dùng bảng 4 cột (ô trống để trống), ngược lại bảng 2 cột. Không cần migration (dữ liệu JSONB); dữ liệu cũ giữ nguyên.
 
 **Lỗi thường gặp:** 400 `validation.failed` khi vượt trần, `formCodes` sai mã, `unit`/`kind` ngoài danh sách, số âm, bước
 không có tên lẫn nội dung, mục mở rộng thiếu tiêu đề. Sửa đúng trường trong `errors` rồi gửi lại.

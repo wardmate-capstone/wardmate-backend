@@ -5511,3 +5511,12 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Dọn dẹp:** bản xuất, state (JWT/RMQ) và mã nguồn đã xóa khỏi Cloud Shell; blob trung chuyển đã xóa.
 - **Budget (20/11):** `wardmate-monthly` $80/tháng, cảnh báo gửi theo vai trò Owner của subscription (thực tế 62.5% = $50, thực tế 100%, dự báo 100%), tạo bằng `az rest` từ máy chủ dự án.
 - **Chưa làm:** FE đổi `VITE_*_API_URL` và nghiệm thu; tải lại PDF/DOCX; `Knowledge__EmbeddingEnabled/RagEnabled` đã mang theo từ cấu hình cũ (chưa kiểm KB vì kho tri thức AIOCR ở DB riêng, không mất).
+
+## PROC-LEGAL-1123 — Căn cứ pháp lý 4 cột, các cột được để trống — 2026-11-23 (UTC+07)
+
+- **Yêu cầu chủ dự án:** căn cứ pháp lý đang hiển thị 2 cột (Tên văn bản, Mã văn bản); Cổng DVC có thủ tục dùng 4 cột (Số ký hiệu, Trích yếu, Ngày ban hành, Cơ quan ban hành), nhiều ô không ghi nên phải cho phép trống.
+- **Hiện trạng đã có:** model Catalog `LegalReferenceDetail` vốn lưu đủ 4 trường (`documentNumber`, `documentName`, `issueDate`, `authority`); giao diện chỉ hiện 2.
+- **Đã làm (PROC-LEGAL-01):** Catalog `Domain/JsonModels/LegalReferenceDetail.cs` (3 chuỗi thành nullable), `Application/Management/ProcedureInput.cs` (rỗng → null), `ProcedureInputValidator.cs` (dòng cần số ký hiệu hoặc trích yếu; giới hạn độ dài); AIOCR `ProcedureAiContract.cs` (`issueDate`/`authority` không cảnh báo khi trống; `LegalDate` đổi dd-MM-yyyy → yyyy-MM-dd), `AzureProcedureDocumentExtractor.cs` (prompt phân biệt bảng 4 cột/2 cột). Không migration (JSONB), API không đổi đường dẫn.
+- **Test:** mới `tests/WardMate.UnitTests/Catalog/LegalReferenceTests.cs` (11 test). Build Release `-warnaserror -m:1` 0/0; `dotnet test` 195/195.
+- **Docs:** `docs/api-guide.md` (mục căn cứ pháp lý), `docs/system-constraints.md` PROC-LEGAL-01, `docs/fe-handoff-2026-11-23.md`.
+- **Chưa làm:** deploy Catalog và AIOCR; FE đổi bảng hiển thị/nhập thành 4 cột.
