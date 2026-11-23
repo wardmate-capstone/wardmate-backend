@@ -168,6 +168,12 @@ public sealed class ProcedureInputValidator : AbstractValidator<ProcedureInput>
 
         if (legal.Any(x => x is null) || results.Any(string.IsNullOrWhiteSpace))
             context.AddFailure("ContentPayload", "Căn cứ pháp lý và kết quả không được chứa phần tử trống.");
+        // PROC-LEGAL-01: 4 cột đều được bỏ trống, nhưng mỗi dòng cần số ký hiệu hoặc trích yếu để nhận ra văn bản.
+        if (legal.Any(x => x is not null && string.IsNullOrWhiteSpace(x.DocumentNumber) && string.IsNullOrWhiteSpace(x.DocumentName)))
+            context.AddFailure("ContentPayload.LegalReferences", "Mỗi căn cứ pháp lý cần ít nhất số ký hiệu hoặc trích yếu.");
+        if (legal.Any(x => x is not null && ((x.DocumentNumber?.Trim().Length ?? 0) > 255
+            || (x.DocumentName?.Length ?? 0) > ProcedureLimits.Line || (x.Authority?.Length ?? 0) > ProcedureLimits.Line)))
+            context.AddFailure("ContentPayload.LegalReferences", $"Số ký hiệu tối đa 255 ký tự; trích yếu và cơ quan ban hành tối đa {Line} ký tự.");
 
         // BE-H (B.2): danh sách văn bản tuỳ chọn.
         ValidateList(payload.Levels, "ContentPayload.Levels", context);

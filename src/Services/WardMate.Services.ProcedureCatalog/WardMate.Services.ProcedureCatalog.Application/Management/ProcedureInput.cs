@@ -83,6 +83,11 @@ public class ProcedureInput
         payload.ReceivingAddress ??= string.Empty;
         payload.SubmissionMethods ??= [];
         payload.LegalReferences ??= [];
+        // PROC-LEGAL-01: cột để trống lưu null (không lưu chuỗi rỗng/khoảng trắng).
+        foreach (var l in payload.LegalReferences.Where(x => x is not null))
+        {
+            l.DocumentNumber = Clean(l.DocumentNumber); l.DocumentName = Clean(l.DocumentName); l.Authority = Clean(l.Authority);
+        }
         payload.Results ??= [];
         payload.Cases ??= [];
         foreach (var item in payload.Cases.Where(x => x is not null)) item.Steps = NormalizedSteps(item.Steps) ?? [];
