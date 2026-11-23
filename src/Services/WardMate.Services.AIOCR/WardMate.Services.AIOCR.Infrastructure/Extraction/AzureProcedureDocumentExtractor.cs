@@ -153,7 +153,7 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         coordinatingAgencies:[string],requirements,receivingAddresses:[string],keywords:[string],description,stepsText},
         checklistSchema:[{checklistId,caseCode,submissionType,itemName,documentCopyType,quantity,conditionNote,isMandatory,quantityText,note,formCodes:[string]}],
         formDefinitions:[{caseCode,formCode,formName,formType,quantity,isMandatory}].
-        issueDate có dạng yyyy-MM-dd hoặc null. submissionType: NOP hoặc XUAT_TRINH.
+        Căn cứ pháp lý: bảng 4 cột (Số ký hiệu, Trích yếu, Ngày ban hành, Cơ quan ban hành) → documentNumber, documentName, issueDate, authority; bảng 2 cột (Tên văn bản, Mã văn bản) → documentName, documentNumber, issueDate và authority null. Ô trống trả null, không tự đoán. issueDate có dạng yyyy-MM-dd hoặc null (nguồn ghi 29-11-2019 thì trả 2019-11-29). submissionType: NOP hoặc XUAT_TRINH.
         documentCopyType: ORIGINAL, CERTIFIED_COPY, REGULAR_COPY, OTHER (bản chụp, bản điện tử, bản dịch...) hoặc null khi nhiều loại bản. formType: DOCX_TEMPLATE hoặc ONLINE_INTERACTIVE.
         Bản xuất từ Cổng Dịch vụ công có thể lặp lại nội dung (cùng một đoạn lặp nhiều lần, nối bằng ", 4.1." hoặc tương tự): loại bỏ đoạn lặp, chỉ giữ một lần.
         Không tách được phí thành một số (nhiều mức, theo %, "theo quy định...") thì chép nguyên văn vào feeText và để feeAmount null.

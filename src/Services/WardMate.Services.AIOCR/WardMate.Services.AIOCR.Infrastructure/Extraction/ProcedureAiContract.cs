@@ -31,7 +31,9 @@ internal static class ProcedureAiContract
         "requirements", "receivingAddresses", "keywords", "description", "stepsText", "feeText", "processingTimeText",
         "quantityText", "note", "formCodes",
         // AI-02b: trường hợp chỉ dùng để nhóm thành phần hồ sơ thường không có bước riêng (bước nằm ở stepsText).
-        "steps"
+        "steps",
+        // PROC-LEGAL-01: Cổng DVC nhiều khi không ghi ngày ban hành/cơ quan ban hành của căn cứ pháp lý.
+        "issueDate", "authority"
     };
 
     public static object ResponseFormat => new
@@ -66,6 +68,15 @@ internal static class ProcedureAiContract
         // KB-TITLE-01: tên thủ tục trong ô bảng PDF bị ngắt dòng; giữ một dòng để Catalog và kho kiến thức nhận được.
         if (normalized["title"]?.GetValue<string>() is { } title)
             normalized["title"] = Knowledge.KnowledgeBaseService.OneLine(title);
+        // PROC-LEGAL-01: Catalog chỉ nhận ngày yyyy-MM-dd; đổi dạng dd-MM-yyyy / dd/MM/yyyy của Cổng DVC, ngày không đọc được → null.
+        var legal = normalized["contentPayload"]!["legalReferences"]!.AsArray();
+        for (var i = 0; i < legal.Count; i++)
+            if (legal[i] is JsonObject row && row["issueDate"]?.GetValue<string>() is { } raw)
+            {
+                var date = LegalDate(raw);
+                row["issueDate"] = date;
+                if (date is null) warnings.Add($"contentPayload.legalReferences[{i}].issueDate: Ngày ban hành \"{raw}\" không đọc được; nhập lại dạng ngày/tháng/năm.");
+            }
         // BE-H: processingTimeText (phẳng cho AI) → processingTime.text của Catalog.
         foreach (var method in normalized["contentPayload"]!["submissionMethods"]!.AsArray().OfType<JsonObject>())
         {
@@ -85,6 +96,13 @@ internal static class ProcedureAiContract
             }
         return JsonSerializer.SerializeToElement(normalized);
     }
+
+    private static readonly string[] DateFormats = ["yyyy-MM-dd", "dd-MM-yyyy", "d-M-yyyy", "dd/MM/yyyy", "d/M/yyyy", "dd.MM.yyyy"];
+
+    /// <summary>Ngày ban hành về dạng yyyy-MM-dd (Catalog đọc DateOnly ISO); không hợp lệ → null.</summary>
+    public static string? LegalDate(string? value) =>
+        DateOnly.TryParseExact(value?.Trim(), DateFormats, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var date) ? date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) : null;
 
     // Deterministic guard: template file names (.doc/.docx) in the source text are counted, never trusted to the AI alone.
     private static readonly Regex TemplateFile = new(@"\.docx?\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
