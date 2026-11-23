@@ -5520,3 +5520,14 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Test:** mới `tests/WardMate.UnitTests/Catalog/LegalReferenceTests.cs` (11 test). Build Release `-warnaserror -m:1` 0/0; `dotnet test` 195/195.
 - **Docs:** `docs/api-guide.md` (mục căn cứ pháp lý), `docs/system-constraints.md` PROC-LEGAL-01, `docs/fe-handoff-2026-11-23.md`.
 - **Chưa làm:** deploy Catalog và AIOCR; FE đổi bảng hiển thị/nhập thành 4 cột.
+
+## DEPLOY-1123a — PROC-LEGAL-1123 lên Azure mới (Catalog, AIOCR) — 2026-11-23 (UTC+07)
+
+- **Git:** rebase 5 commit lên 1 commit tài liệu của NguyenTrungNghia04 (59d3850), không xung đột; build Release 0/0, `dotnet test` 195/195; push `kha` `59d3850..2f1a733`.
+- **Đăng nhập:** thư mục `anhduc14299gmail.onmicrosoft.com` bật Security defaults → làm mới token và đăng nhập mã thiết bị bị chặn (`AADSTS530035`). Tắt broker Windows (`az config set core.enable_broker_on_windows=false`) và `az login --tenant …` bằng trình duyệt → chủ dự án đăng nhập thành công.
+- **Build:** Docker Desktop trên máy chủ dự án (ACR Tasks bị chặn), tag `legal-20261123-01`, đẩy bằng `az acr login`.
+- **Trước deploy:** Catalog và AIOCR `/health/ready` 200.
+- **Catalog:** `wardmate-procedure-catalog@sha256:37a5c8b29114c5c45e2b458a64e493e972d60711448673e3482a9326c35a53a0`, update `Succeeded`, image đang chạy đúng digest, health 200. Rollback `acrwardmate6ll4.azurecr.io/wardmate-procedure-catalog:rebuild-20261120`.
+- **AIOCR:** `wardmate-aiocr@sha256:e0645bb89af15c7149a7277f893bcc360b41798ae8309d30f72919fdb45f1b54`, update `Succeeded`, health 200, `Knowledge__EmbeddingEnabled`/`Knowledge__RagEnabled` vẫn `true`. Rollback `acrwardmate6ll4.azurecr.io/wardmate-aiocr:rebuild-20261120`.
+- **Không SQL/migration/cấu hình.** `main`/`deploy` chưa đồng bộ (chờ chủ dự án duyệt).
+- **Chưa làm:** FE kiểm theo `docs/fe-handoff-2026-11-23.md`.

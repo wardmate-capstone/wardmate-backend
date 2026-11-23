@@ -4,7 +4,7 @@ Người viết: Backend (Claude), 23/11/2026. Hợp đồng: `docs/api-guide.md
 
 ## 0. Trạng thái
 
-**Chưa deploy** Catalog và AIOCR. Không có SQL. API, đường dẫn và tên trường không đổi.
+**Đã deploy 23/11 (DEPLOY-1123a):** Catalog `wardmate-procedure-catalog:legal-20261123-01`, AIOCR `wardmate-aiocr:legal-20261123-01`, cả hai `/health/ready` 200. Không có SQL. API, đường dẫn và tên trường không đổi.
 
 ## 1. Dữ liệu
 
