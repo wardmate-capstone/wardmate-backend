@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WardMate.Services.DocumentForm.Application.Queries;
+using WardMate.Services.DocumentForm.Application.Services;
 using WardMate.SharedKernel.Common;
 
 namespace WardMate.Services.DocumentForm.API.Controllers;
@@ -27,7 +28,8 @@ public sealed class QrLookupController(IMediator mediator) : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     [HttpGet("applications/{applicationId:guid}/pdf-redirect")]
     [ProducesResponseType(StatusCodes.Status302Found)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK, "text/html")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound, "text/html")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PdfRedirect(
         Guid applicationId,
@@ -35,7 +37,14 @@ public sealed class QrLookupController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetQrPdfRedirectQuery(applicationId), cancellationToken);
         if (!result.IsSuccess)
-            return Failure(result.Error);
+        {
+            if (result.Error.Type != ErrorType.NotFound) return Failure(result.Error);
+            // DOC-QR-07: người quét QR bằng điện thoại nhận trang HTML thay vì JSON 404.
+            var lookup = await mediator.Send(new QrLookupQuery(applicationId.ToString()), cancellationToken);
+            return lookup.IsSuccess
+                ? Html(200, QrVerificationPage.Valid(lookup.Value, pdfMissing: true))
+                : Html(404, QrVerificationPage.NotFound());
+        }
 
         // Redirect trình duyệt / viewer thẳng đến SAS URL của Azure Blob
         return Redirect(result.Value.SasUrl);
@@ -83,6 +92,9 @@ public sealed class QrLookupController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new QrLookupQuery(token), cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
     }
+
+    private ContentResult Html(int status, string body) =>
+        new() { StatusCode = status, ContentType = "text/html; charset=utf-8", Content = body };
 
     private ObjectResult Failure(Error error)
     {
