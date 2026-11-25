@@ -53,20 +53,51 @@ public sealed class NotificationInboxWorker(IServiceScopeFactory scopes, IConfig
         Title = manager ? "Hồ sơ nộp lại chưa có cán bộ thụ lý"
             : e.Kind == "APPLICATION_ASSIGNED" && officer
             ? recipient == e.AssignedOfficerId ? "Hồ sơ được giao cho bạn" : e.AssignmentAction == "RELEASE" ? "Có hồ sơ cần tiếp nhận" : "Hồ sơ đã chuyển cho cán bộ khác"
-            : officer ? e.Status == "UNDER_REVIEW" ? "Hồ sơ được phân công" : "Có hồ sơ cần tiếp nhận" : e.Kind == "COMMENT" ? "Hồ sơ có nhận xét mới" : e.Status switch
+            : officer ? e.Status == "UNDER_REVIEW" ? "Hồ sơ được phân công" : e.Resubmitted == true ? "Công dân đã gửi lại hồ sơ" : "Có hồ sơ cần tiếp nhận"
+            : e.Kind == "COMMENT" ? "Hồ sơ có nhận xét mới" : e.Status switch
         {
-            "SUBMITTED" => "Hồ sơ đã được nộp", "UNDER_REVIEW" => "Giấy tờ đang được kiểm tra", "NEED_REVISION" => "Hồ sơ yêu cầu bổ sung",
+            "SUBMITTED" => e.Resubmitted == true ? "Hồ sơ đã được gửi lại" : "Hồ sơ đã được nộp",
+            "UNDER_REVIEW" => "Giấy tờ đang được kiểm tra", "NEED_REVISION" => "Hồ sơ yêu cầu bổ sung",
             "OFFICIALLY_RECEIVED" => "Hồ sơ đã được tiếp nhận tại quầy",
             "CANCELLED" => "Hồ sơ đã được hủy",
             "DOCUMENTS_READY" => "Giấy tờ đã sẵn sàng để mang đến phường",
             "APPROVED" or "REJECTED" => "Cập nhật hồ sơ từ luồng cũ", _ => "Trạng thái hồ sơ đã thay đổi"
         },
-        Content = $"Hồ sơ {e.ApplicationCode} có cập nhật. Vui lòng mở hồ sơ để xem chi tiết.",
+        Content = Body(e, recipient, officer, manager),
         Type = e.Kind == "APPLICATION_ASSIGNED" && officer ? e.AssignmentAction == "RELEASE" ? "APPLICATION_STATUS_CHANGED" : "ASSIGNED_OFFICER"
             : officer && e.Status == "UNDER_REVIEW" ? "ASSIGNED_OFFICER" : e.Kind == "COMMENT" ? "INLINE_COMMENT_ADDED" : "APPLICATION_STATUS_CHANGED",
         ActionUrl = officer ? $"/officer/applications/{e.ApplicationId}/review" : $"/applications/{e.ApplicationId}/edit",
         CreatedAt = e.OccurredAt
     };
+
+    /// <summary>
+    /// NOTIFY-TEXT-01: nội dung nói rõ việc gì đã xảy ra với hồ sơ thay cho câu chung "có cập nhật".
+    /// Không đưa lý do nội bộ hay nội dung nhận xét vào thông báo (vẫn phải mở hồ sơ để xem).
+    /// </summary>
+    public static string Body(WorkflowEvent e, Guid recipient, bool officer, bool manager = false)
+    {
+        var code = e.ApplicationCode;
+        if (manager) return $"Hồ sơ {code} được công dân gửi lại nhưng chưa có cán bộ thụ lý. Vui lòng phân công cán bộ.";
+        if (e.Kind == "APPLICATION_ASSIGNED" && officer)
+            return recipient == e.AssignedOfficerId ? $"Hồ sơ {code} đã được giao cho bạn thụ lý."
+                : e.AssignmentAction == "RELEASE" ? $"Hồ sơ {code} được trả về hàng đợi và đang chờ cán bộ nhận xử lý."
+                : $"Hồ sơ {code} đã được chuyển cho cán bộ khác thụ lý.";
+        if (officer)
+            return e.Status == "UNDER_REVIEW" ? $"Hồ sơ {code} đã được phân công cho bạn."
+                : e.Resubmitted == true ? $"Công dân đã bổ sung và gửi lại hồ sơ {code}. Vui lòng kiểm tra lại."
+                : $"Hồ sơ {code} vừa được gửi và đang chờ cán bộ tiếp nhận.";
+        if (e.Kind == "COMMENT") return $"Cán bộ vừa thêm nhận xét cho hồ sơ {code}. Mở hồ sơ để xem.";
+        return e.Status switch
+        {
+            "SUBMITTED" => e.Resubmitted == true ? $"Hồ sơ {code} đã được gửi lại để cán bộ kiểm tra." : $"Hồ sơ {code} đã được gửi để cán bộ kiểm tra giấy tờ.",
+            "UNDER_REVIEW" => $"Cán bộ đang kiểm tra giấy tờ của hồ sơ {code}.",
+            "NEED_REVISION" => $"Hồ sơ {code} cần bổ sung. Mở hồ sơ để xem nhận xét của cán bộ và gửi lại.",
+            "DOCUMENTS_READY" => $"Giấy tờ của hồ sơ {code} đã đủ. Mang bản giấy và mã QR đến Bộ phận Một cửa.",
+            "OFFICIALLY_RECEIVED" => $"Hồ sơ {code} đã được tiếp nhận tại quầy.",
+            "CANCELLED" => $"Hồ sơ {code} đã được hủy.",
+            _ => $"Hồ sơ {code} có cập nhật. Vui lòng mở hồ sơ để xem chi tiết."
+        };
+    }
 
     public async Task<bool> ProcessOne(CancellationToken ct)
     {
