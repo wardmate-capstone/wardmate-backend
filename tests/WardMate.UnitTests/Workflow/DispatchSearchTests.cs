@@ -36,6 +36,24 @@ public sealed class DispatchSearchTests
     }
 
     [Fact]
+    public void Drafts_are_outside_dispatch_scope_and_draft_filter_is_rejected()
+    {
+        var manager = new ReviewActor(Guid.NewGuid(), true, "TEST_A", IsManager: true);
+        var citizen = Guid.NewGuid();
+        var apps = new[]
+        {
+            new WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord { Id = Guid.NewGuid(), UserId = citizen, WardCode = "TEST_A", Status = "DRAFT" },
+            new WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord { Id = Guid.NewGuid(), UserId = citizen, WardCode = "TEST_A", Status = "SUBMITTED" },
+            new WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord { Id = Guid.NewGuid(), UserId = citizen, WardCode = "TEST_B", Status = "SUBMITTED" },
+            new WardMate.Services.ApplicationWorkflow.Domain.ApplicationRecord { Id = Guid.NewGuid(), UserId = manager.Id, WardCode = "TEST_A", Status = "SUBMITTED" },
+        };
+        var visible = DispatchService.InScope(apps.AsQueryable(), manager).ToArray();
+        Assert.Single(visible);
+        Assert.Equal("SUBMITTED", visible[0].Status);
+        Assert.Contains("status", DispatchService.InvalidQuery(new DispatchListQuery(Status: "DRAFT")));
+    }
+
+    [Fact]
     public void Each_word_becomes_an_and_pattern_with_wildcards_escaped()
     {
         Assert.Equal(["%khai%", "%tu%"], DispatchService.SearchPatterns("  khai   tu "));

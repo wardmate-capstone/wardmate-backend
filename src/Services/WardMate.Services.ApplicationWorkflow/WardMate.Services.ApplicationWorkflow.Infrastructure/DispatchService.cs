@@ -9,9 +9,12 @@ public sealed class DispatchService(WorkflowDbContext db, IDispatchDirectory dir
     private bool SkipShiftCheck => staffingOptions.Value.SkipShiftCheck;
     private static bool Manager(ReviewActor a) => a.IsManager && !string.IsNullOrWhiteSpace(a.WardCode);
     private static WorkflowResult<T> Fail<T>(int status, string code, string message) => WorkflowResult<T>.Fail(status, "dispatch." + code, message);
-    private IQueryable<ApplicationRecord> Scope(ReviewActor actor) => db.Applications.Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id);
+    private IQueryable<ApplicationRecord> Scope(ReviewActor actor) => InScope(db.Applications, actor);
+    /// <summary>DISPATCH-DRAFT-01: Manager chỉ thấy hồ sơ cùng phường đã gửi; bản nháp của công dân không thuộc phạm vi điều phối.</summary>
+    public static IQueryable<ApplicationRecord> InScope(IQueryable<ApplicationRecord> source, ReviewActor actor) =>
+        source.Where(x => x.WardCode == actor.WardCode && x.UserId != actor.Id && x.Status != ApplicationStates.Draft);
     public const string SortAsc = "createdAt_asc", SortDesc = "createdAt_desc";
-    private static readonly string[] Statuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "NEED_REVISION", "DOCUMENTS_READY", "OFFICIALLY_RECEIVED", "APPROVED", "CANCELLED", "REJECTED"];
+    private static readonly string[] Statuses = ["SUBMITTED", "UNDER_REVIEW", "NEED_REVISION", "DOCUMENTS_READY", "OFFICIALLY_RECEIVED", "APPROVED", "CANCELLED", "REJECTED"];
 
     /// <summary>
     /// DISPATCH-SEARCH-01: tách từ khóa thành các từ (tối đa 10), escape ký tự đại diện của LIKE (\ % _) để tìm đúng chữ.
