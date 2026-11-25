@@ -5531,3 +5531,19 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **AIOCR:** `wardmate-aiocr@sha256:e0645bb89af15c7149a7277f893bcc360b41798ae8309d30f72919fdb45f1b54`, update `Succeeded`, health 200, `Knowledge__EmbeddingEnabled`/`Knowledge__RagEnabled` vẫn `true`. Rollback `acrwardmate6ll4.azurecr.io/wardmate-aiocr:rebuild-20261120`.
 - **Không SQL/migration/cấu hình.** `main`/`deploy` chưa đồng bộ (chờ chủ dự án duyệt).
 - **Chưa làm:** FE kiểm theo `docs/fe-handoff-2026-11-23.md`.
+
+## FIX-UIREVIEW-1125 — Sửa lỗi BE sau rà soát UI (bản deploy) — 2026-11-25 (UTC+07)
+
+- **Bối cảnh:** chủ dự án yêu cầu sửa các lỗi BE trong báo cáo rà soát UI 18/11 và lần rà lại trên bản deploy (wardmate-frontend.vercel.app) ngày 25/11.
+- **Đã làm:**
+  - L06 DISPATCH-DRAFT-01: Workflow `DispatchService.InScope` loại `DRAFT` khỏi điều phối; bỏ `DRAFT` khỏi bộ lọc status.
+  - L13 DOC-READ-WARD-01: DocumentForm `ApplicationAccess` (+ `Application/Services/ApplicationReadRules.cs`) cho cán bộ cùng phường đọc tài liệu hồ sơ đã gửi (chỉ đọc).
+  - L01 DOC-QR-07: `pdf-redirect` trả trang HTML xác minh khi không có PDF (`Application/Services/QrVerificationPage.cs`, `QrLookupController`).
+  - DOC-FILE-MISSING-01: blob mất → 404 `document.file_missing` tiếng Việt; câu lỗi not_found đổi sang tiếng Việt.
+  - L07 KB-STALE-01: AIOCR `KnowledgeStaleProcedureWorker` + `KnowledgeBaseService.DeactivateUnpublishedProcedures` tự tắt nguồn của thủ tục đã ẩn (`Knowledge:StaleCheckMinutes`, mặc định 60).
+  - L17 NOTIFY-TEXT-01: Analytics `NotificationInboxWorker.Body` nội dung theo trạng thái; tiêu đề riêng cho nộp lại.
+  - L29 IAM-USERNAME-01: không đổi code (mọi đường tạo đã chuẩn hóa); thêm `docs/sql/iam-normalize-usernames.sql` sửa tài khoản tạo bằng SQL tay.
+- **Test mới:** `Workflow/DispatchSearchTests` (+1), `DocumentForm/ApplicationReadRulesTests`, `DocumentForm/QrVerificationPageTests`, `Aiocr/KnowledgeStaleProcedureTests`, `Analytics/NotificationTextTests`. Build Release `-warnaserror -m:1` 0 lỗi/0 cảnh báo; `dotnet test` 215/215.
+- **Docs:** `docs/api-guide.md`, `docs/system-constraints.md` (mục FIX-UIREVIEW-1125, NOTIFY-TEXT-01), `docs/fe-handoff-2026-11-25.md`.
+- **Không làm:** L02 (FE), L09 relay audit tắt theo thiết kế (vận hành), L10 dữ liệu ngày lễ, 503 cold start (`minReplicas: 0`), dữ liệu blob đã mất.
+- **Chưa làm:** deploy Workflow, DocumentForm, AIOCR, Analytics; chạy SQL IAM; FE kiểm theo handoff. Không có migration.
