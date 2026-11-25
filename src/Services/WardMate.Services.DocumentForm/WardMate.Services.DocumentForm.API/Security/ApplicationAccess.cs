@@ -21,7 +21,8 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
         var result = await Check(applicationId, checklistId, false, ct, requireReady: requireReady);
         if (result?.StatusCode is 404 or 403 && context.HttpContext!.User.IsInRole("FRONT_DESK_OFFICER"))
         {
-            var officerResult = await Check(applicationId, checklistId, false, ct, officer: true, requireReady: requireReady);
+            // DOC-READ-WARD-01: chỉ đọc — cán bộ cùng phường (Workflow đã giới hạn phường) xem được hồ sơ đã gửi kể cả khi chưa thụ lý.
+            var officerResult = await Check(applicationId, checklistId, false, ct, officer: true, requireReady: requireReady, wardRead: true);
             if (officerResult is null) return null;
             if (officerResult.StatusCode is 404 or 403)
             {
@@ -62,8 +63,9 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
     }
 
     public async Task<ObjectResult?> Check(Guid applicationId, Guid? checklistId, bool write, CancellationToken ct,
-        Guid? templateId = null, bool supporting = false, bool officer = false, bool requireReady = false)
+        Guid? templateId = null, bool supporting = false, bool officer = false, bool requireReady = false, bool wardRead = false)
     {
+        if (wardRead && (write || !officer)) wardRead = false;
         if (applicationId == Guid.Empty || checklistId == Guid.Empty)
             return Problem(400, "document.invalid_application", "ApplicationId/checklistId không hợp lệ.");
         var root = config["Services:ApplicationWorkflow:BaseUrl"];
@@ -83,7 +85,7 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
                 return Problem(503, "document.workflow_unavailable", "Không xác minh được hồ sơ. Vui lòng thử lại.");
             var application = await response.Content.ReadFromJsonAsync<WorkflowApplication>(cancellationToken: ct);
             if (application is null || application.Id != applicationId || !Guid.TryParse(context.HttpContext.User.FindFirst("sub")?.Value, out var userId)
-                || (officer ? application.AssignedOfficerId != userId || application.UserId == userId : application.UserId != userId))
+                || !WardMate.Services.DocumentForm.Application.Services.ApplicationReadRules.Allowed(application.UserId, application.AssignedOfficerId, application.Status, userId, officer, wardRead))
                 return Problem(403, "document.application_forbidden", "Hồ sơ không thuộc người đăng nhập.");
             if (application.Checklists is null)
                 return Problem(503, "document.workflow_unavailable", "ApplicationWorkflow trả checklist không hợp lệ.");
