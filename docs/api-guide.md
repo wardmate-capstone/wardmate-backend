@@ -1668,7 +1668,7 @@ Danh tính này cần đến từ lớp xác thực tin cậy của hệ thống
 | `POST /api/v1/applications/{applicationId}/supporting-documents` | Người dân/cán bộ đính kèm file minh chứng (CCCD, giấy khai sinh...); multipart `file` + optional `checklistId`. | 201 `{id, applicationId, checklistId, fileName, blobUrl, fileSizeBytes, contentType, createdAtUtc}` | 400 file rỗng, > 20MB, đuôi file không hỗ trợ (.pdf, .jpg, .jpeg, .png, .doc, .docx, .heic, .heif, .webp — từ 12/11/2026 ảnh HEIC/HEIF/WebP được tự chuyển thành .jpg, xem DOC-HEIC-01); 503 Blob upload lỗi. |
 | `GET /api/v1/applications/{applicationId}/supporting-documents` | FE hiển thị danh sách toàn bộ giấy tờ minh chứng đã tải lên của hồ sơ. | 200 danh sách `SupportingDocumentDto` | 401 chưa đăng nhập; 400 applicationId không hợp lệ. |
 | `DELETE /api/v1/supporting-documents/{documentId}` | Người dân/cán bộ xóa 1 giấy tờ minh chứng (soft-delete). | 204 No Content | 404 không tìm thấy file minh chứng; 401 chưa đăng nhập. |
-| `GET /api/v1/supporting-documents/{documentId}/download` | FE tải về hoặc mở xem file minh chứng trực tiếp từ Azure Blob. | 200 binary stream (`application/octet-stream` hoặc MIME gốc) | 404 không tìm thấy file hoặc blob bị xóa; 401 chưa đăng nhập. |
+| `GET /api/v1/supporting-documents/{documentId}/download` | FE tải về hoặc mở xem file minh chứng trực tiếp từ Azure Blob. | 200 binary stream (`application/octet-stream` hoặc MIME gốc) | 404 `document.supporting_document_not_found` (không có bản ghi) hoặc, từ 25/11/2026, 404 `document.file_missing` "Tệp không còn trên hệ thống lưu trữ…" khi bản ghi còn nhưng blob đã mất (DOC-FILE-MISSING-01; FE nên mời tải lên lại). Áp dụng cả `/preview` và tải PDF đã tạo; 401 chưa đăng nhập. |
 
 ### 3.4. Nhóm Văn bản kết xuất PDF (TASK-18 — Generated Documents)
 
@@ -3516,7 +3516,7 @@ và trạng thái DOCUMENTS_READY qua Workflow. Không chia sẻ trực tiếp U
 #### 2. Lấy danh sách đơn điện tử của hồ sơ dành riêng cho Cán bộ
 - **Endpoint**: `GET /api/v1/officer/submissions/by-application/{applicationId}`
 - **Mục đích**: Cán bộ một cửa lấy danh sách chi tiết các đơn người dân đã điền cho hồ sơ để lấy `submissionId`, trạng thái, thời gian nộp và ghi chú.
-- **Ai dùng**: Cán bộ một cửa (`FRONT_DESK_OFFICER`).
+- **Ai dùng**: Cán bộ một cửa (`FRONT_DESK_OFFICER`). **Từ 25/11/2026 (DOC-READ-WARD-01):** cán bộ cùng phường xem được (chỉ đọc) cả hồ sơ chưa nhận xử lý hoặc do cán bộ khác thụ lý, miễn hồ sơ đã gửi (không phải bản nháp) và không phải hồ sơ của chính mình. Áp dụng cho mọi đường đọc tài liệu dùng chung (`contents`, xem/tải giấy tờ, tải tờ khai, PDF đã sẵn sàng). Thao tác ghi (nhận xét trong DOCX, yêu cầu bổ sung, xác nhận) vẫn chỉ cán bộ thụ lý. Dùng cho chế độ "Chỉ xem" của trang xử lý hồ sơ — trước đây trả 403 `document.application_forbidden`.
 - **Kết quả thành công (200 OK)**: Danh sách `UserSubmissionSummaryDto[]` gồm:
   - `id`: submissionId của đơn điện tử.
   - `templateId`: Mẫu biểu DOCX gốc.
@@ -3553,7 +3553,7 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
   - `401 Unauthorized`: Token không hợp lệ hoặc hết hạn. Đăng nhập lại để lấy token mới.
   - `403 Forbidden` (`document.application_forbidden`): Người gọi không phải chủ hồ sơ hoặc không phải cán bộ được phân công.
   - `404 Not Found` (`document.qr_not_found`): từ 09/11/2026 gần như không còn xảy ra vì API tự tạo QR khi hồ sơ đã sẵn sàng. Nếu gặp, gọi lại một lần; vẫn lỗi thì báo BE kèm traceId.
-- **Ghi chú 09/11/2026**: QR được tạo ngay khi hồ sơ `DOCUMENTS_READY`/`OFFICIALLY_RECEIVED`, không cần gọi `generate-pdf` trước. `submissionId` có thể là `null` khi thủ tục chỉ có giấy tờ đính kèm. Quét QR của hồ sơ chưa xuất PDF sẽ ra 404 `qr.pdf_not_found` ở trang pdf-redirect; đây là giới hạn hiện tại.
+- **Ghi chú 09/11/2026**: QR được tạo ngay khi hồ sơ `DOCUMENTS_READY`/`OFFICIALLY_RECEIVED`, không cần gọi `generate-pdf` trước. `submissionId` có thể là `null` khi thủ tục chỉ có giấy tờ đính kèm. Quét QR của hồ sơ chưa xuất PDF: từ 25/11/2026 (DOC-QR-07) trang pdf-redirect hiện trang xác minh HTML thay vì JSON 404 (xem mục pdf-redirect).
   - `409 Conflict` (`document.application_not_ready`): Hồ sơ chưa đạt trạng thái DOCUMENTS_READY. Chờ cán bộ xác nhận giấy tờ sẵn sàng trước.
 
 #### 2. Tải file ảnh PNG của Mã QR tra cứu
@@ -3614,10 +3614,8 @@ Mã QR tham chiếu được tạo khi kết xuất PDF lần đầu cho hồ s�
   3. Tạo **SAS URL ngắn hạn 15 phút** trỏ đến file PDF (hoặc bản gộp) trên Azure Blob Storage.
   4. Trả về `302 Found` redirect → trình duyệt/camera tự động mở toàn bộ file PDF.
 - **Kết quả thành công (302 Found)**: Header `Location` chứa SAS URL Azure Blob. Trình duyệt tự redirect, người dùng thấy/tải PDF.
+- **Không có PDF (từ 25/11/2026, DOC-QR-07)**: thủ tục chỉ có giấy tờ (không có tờ khai Word), PDF chưa xuất hoặc tệp PDF đã mất → **200 `text/html`**: trang "Mã QR hợp lệ" tiếng Việt gồm mã tham chiếu, thời điểm cấp mã (giờ Việt Nam), lưu ý "đối chiếu trực tiếp giấy tờ gốc" và câu "không phải văn bản phê duyệt". Trang không hiện họ tên hay giấy tờ của công dân. Không tìm thấy mã QR → **404 `text/html`** trang "Không tìm thấy hồ sơ". Trước đây cả hai trường hợp trả JSON 404 (`qr.pdf_not_found`, `qr.not_found`, `qr.pdf_blob_missing`) mở thẳng trên điện thoại người quét.
 - **Lỗi thường gặp & Phục hồi**:
-  - `404` (`qr.not_found`): Hồ sơ chưa có mã QR — chưa generate PDF lần nào.
-  - `404` (`qr.pdf_not_found`): Hồ sơ có QR nhưng chưa có file PDF được xuất.
-  - `404` (`qr.pdf_blob_missing`): File PDF không còn trên Azure Blob — liên hệ cơ quan tiếp nhận.
   - `400` (`qr.invalid_application_id`): ApplicationId là GUID rỗng.
   - `429` (`qr.rate_limited`, từ 10/11/2026): một IP gọi các API `/api/v1/public/*` quá 30 lần/phút (cấu hình `PublicQr:MaxRequestsPerMinutePerIp`). Đợi một phút rồi quét lại.
 
@@ -4435,7 +4433,7 @@ Không body. Đọc thủ tục từ API công khai của Procedure Catalog, d�
 
 Tiêu đề tài liệu là tên thủ tục đã gộp về một dòng (xuống dòng/tab thành dấu cách, KB-TITLE-01), nên thủ tục có tên bóc từ bảng PDF bị ngắt dòng vẫn đồng bộ được; đồng bộ lại không bị coi là đổi tiêu đề.
 
-Đồng bộ **không tự bật lại** tài liệu đã ngừng dùng: nếu thủ tục được áp dụng lại trong Catalog, người quản lý gọi `/activation` để bật. Lỗi: 404 `knowledge.procedure_not_found` (thủ tục không có trong Catalog và chưa từng đồng bộ); 502 `knowledge.catalog_invalid_response`; 503 `knowledge.catalog_unavailable`, `knowledge.catalog_not_configured`.
+Đồng bộ **không tự bật lại** tài liệu đã ngừng dùng: nếu thủ tục được áp dụng lại trong Catalog, người quản lý gọi `/activation` để bật. **Từ 25/11/2026 (KB-STALE-01):** AIOCR tự chạy mỗi `Knowledge:StaleCheckMinutes` phút (mặc định 60; 0 = tắt) một lượt chỉ **tắt** nguồn loại PROCEDURE của thủ tục đã ẩn/ngừng áp dụng — không cần bấm "Đồng bộ tất cả", không tạo/cập nhật nguồn, không gọi AI, chỉ tắt khi danh sách Catalog đầy đủ và Catalog xác nhận lại từng thủ tục. Nguồn PDF/văn bản/FAQ không bị đụng tới (Quản lý thủ tục tự ngừng dùng). Lỗi: 404 `knowledge.procedure_not_found` (thủ tục không có trong Catalog và chưa từng đồng bộ); 502 `knowledge.catalog_invalid_response`; 503 `knowledge.catalog_unavailable`, `knowledge.catalog_not_configured`.
 
 ### POST `/procedures/sync` — đồng bộ toàn bộ
 
@@ -4676,8 +4674,8 @@ Manager cần quyền `workflow.dispatch.read`, thao tác ghi cần `workflow.di
 
 #### 1. Danh sách hồ sơ điều phối
 - **Method & Route:** `GET /api/v1/manager/applications?page=1&pageSize=20&search=&sort=&status=`
-- **Mục đích:** Manager xem toàn bộ hồ sơ trong phường (bao gồm chưa phân công và đã phân công) để điều phối.
-- **Query params:** `page` (1–1000000), `pageSize` (1–100). **Từ 13/11/2026 (DISPATCH-SEARCH-01), đều tùy chọn:** `search` (≤ 200 ký tự) tìm không phân biệt hoa thường và dấu tiếng Việt (kể cả đ/Đ) trong mã hồ sơ, tên thủ tục và tên cán bộ phụ trách; nhiều từ cách nhau bởi khoảng trắng thì mọi từ đều phải khớp (tối đa 10 từ); ký tự `%`, `_` được tìm đúng chữ. `sort` = `createdAt_asc` (mặc định, cũ nhất trước như cũ) hoặc `createdAt_desc` (mới nhất trước); luôn kèm `id` cùng chiều nên ghép các trang không trùng, không thiếu. `status` = một trạng thái Workflow (`SUBMITTED`, `UNDER_REVIEW`, `NEED_REVISION`, `DOCUMENTS_READY`, `OFFICIALLY_RECEIVED`, `APPROVED`, `CANCELLED`, `REJECTED`, `DRAFT`; không phân biệt hoa thường). Không truyền gì: kết quả giống hệt trước đây. `total` là số hồ sơ sau khi lọc. Ví dụ: `?page=1&pageSize=10&sort=createdAt_desc&search=khai%20tu&status=UNDER_REVIEW`.
+- **Mục đích:** Manager xem toàn bộ hồ sơ trong phường (bao gồm chưa phân công và đã phân công) để điều phối. **Từ 25/11/2026 (DISPATCH-DRAFT-01):** không còn trả bản nháp (`DRAFT`) của công dân; `status=DRAFT` trả 400 `dispatch.invalid_query`. Các API chi tiết/ứng viên/lịch sử phân công cũng coi bản nháp là ngoài phạm vi (404).
+- **Query params:** `page` (1–1000000), `pageSize` (1–100). **Từ 13/11/2026 (DISPATCH-SEARCH-01), đều tùy chọn:** `search` (≤ 200 ký tự) tìm không phân biệt hoa thường và dấu tiếng Việt (kể cả đ/Đ) trong mã hồ sơ, tên thủ tục và tên cán bộ phụ trách; nhiều từ cách nhau bởi khoảng trắng thì mọi từ đều phải khớp (tối đa 10 từ); ký tự `%`, `_` được tìm đúng chữ. `sort` = `createdAt_asc` (mặc định, cũ nhất trước như cũ) hoặc `createdAt_desc` (mới nhất trước); luôn kèm `id` cùng chiều nên ghép các trang không trùng, không thiếu. `status` = một trạng thái Workflow (`SUBMITTED`, `UNDER_REVIEW`, `NEED_REVISION`, `DOCUMENTS_READY`, `OFFICIALLY_RECEIVED`, `APPROVED`, `CANCELLED`, `REJECTED`; không phân biệt hoa thường; `DRAFT` bị bỏ từ 25/11/2026). Không truyền gì: kết quả giống hệt trước đây. `total` là số hồ sơ sau khi lọc. Ví dụ: `?page=1&pageSize=10&sort=createdAt_desc&search=khai%20tu&status=UNDER_REVIEW`.
 - **Kết quả 200:** Object `{ items: DispatchApplication[], page, pageSize, total }`. Mỗi item gồm: `id, applicationCode, procedureId, procedureTitle, status, assignedOfficerId, assignedOfficerName, assignmentVersion, procedureCategoryId`. Tên cán bộ được lưu tại thời điểm phân công. Nếu ID trống, hiển thị “Chưa phân công”. Nếu có ID nhưng tên trống, hiển thị “Chưa có tên cán bộ”.
 - **Lỗi & Khắc phục:** 400 `dispatch.invalid_page` (page/pageSize sai), 400 `dispatch.invalid_query` (search > 200 ký tự, sort hoặc status không hợp lệ — sửa tham số), 403 (không phải Manager có phường), 503 (IAM không khả dụng). Cần chạy `docs/sql/workflow-dispatch-search.sql` (bật extension `unaccent`, thêm index `(ward_code, created_at, id)`) trước khi deploy Workflow, nếu không tìm kiếm trả lỗi 500.
 
