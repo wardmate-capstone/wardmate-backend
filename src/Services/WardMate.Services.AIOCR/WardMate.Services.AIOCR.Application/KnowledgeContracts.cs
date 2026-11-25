@@ -34,6 +34,8 @@ public interface IKnowledgeBase
     Task<KnowledgeDocumentDto> Rechunk(Guid actor, Guid id, KnowledgeRevisionInput input, CancellationToken ct);
     Task<ProcedureSyncResult> SyncProcedure(Guid actor, Guid procedureId, CancellationToken ct);
     Task<ProcedureSyncAllResult> SyncAllProcedures(Guid actor, CancellationToken ct);
+    /// <summary>KB-STALE-01: tắt nguồn đồng bộ của thủ tục không còn công khai; trả số nguồn đã tắt.</summary>
+    Task<int> DeactivateUnpublishedProcedures(Guid actor, CancellationToken ct);
     Task<KnowledgeDocumentDto> Reindex(Guid actor, Guid id, KnowledgeRevisionInput input, CancellationToken ct);
     Task<KnowledgeIndexStatus> IndexStatus(CancellationToken ct);
     Task<KnowledgeSearchHitDto[]> Search(KnowledgeSearchInput input, CancellationToken ct);

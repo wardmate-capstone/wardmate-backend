@@ -154,19 +154,42 @@ public sealed class KnowledgeBaseService(ChatDbContext db, IProcedureCatalogSour
             }
             catch (AiFailure) { failed.Add(id); db.ChangeTracker.Clear(); }
         }
-        // Only a complete listing proves which procedures disappeared; a partial one must not deactivate anything.
-        if (listing.Complete)
-        {
-            var active = listing.Ids.ToHashSet();
-            var stale = await db.KnowledgeDocuments.Where(x => x.SourceType == KnowledgeSourceTypes.Procedure && x.IsActive)
-                .Select(x => x.ProcedureId!.Value).ToArrayAsync(ct);
-            foreach (var id in stale.Where(x => !active.Contains(x)))
-            {
-                try { if ((await SyncProcedure(actor, id, ct)).Outcome == "DEACTIVATED") deactivated++; }
-                catch (AiFailure) { failed.Add(id); db.ChangeTracker.Clear(); }
-            }
-        }
+        var (staleDeactivated, staleFailed) = await DeactivateStale(actor, listing, ct);
+        deactivated += staleDeactivated; failed.AddRange(staleFailed);
         return new(listing.Ids.Length, created, updated, unchanged, deactivated, failed.Count, listing.Complete, failed.ToArray());
+    }
+
+    /// <summary>
+    /// KB-STALE-01: chỉ tắt nguồn "Thủ tục (đồng bộ)" của thủ tục không còn công khai — không tạo/cập nhật nguồn,
+    /// không gọi AI. Dùng cho tác vụ nền định kỳ để chatbot không trả lời theo thủ tục đã ẩn.
+    /// </summary>
+    public async Task<int> DeactivateUnpublishedProcedures(Guid actor, CancellationToken ct)
+    {
+        var listing = await catalog.ListActive(MaxSyncProcedures, ct);
+        return (await DeactivateStale(actor, listing, ct)).Deactivated;
+    }
+
+    private async Task<(int Deactivated, List<Guid> Failed)> DeactivateStale(Guid actor, CatalogListing listing, CancellationToken ct)
+    {
+        var failed = new List<Guid>();
+        var deactivated = 0;
+        var known = await db.KnowledgeDocuments.Where(x => x.SourceType == KnowledgeSourceTypes.Procedure && x.IsActive)
+            .Select(x => x.ProcedureId!.Value).ToArrayAsync(ct);
+        foreach (var id in StaleProcedureIds(known, listing))
+        {
+            // SyncProcedure hỏi lại Catalog từng thủ tục: chỉ tắt khi Catalog xác nhận không còn công khai.
+            try { if ((await SyncProcedure(actor, id, ct)).Outcome == "DEACTIVATED") deactivated++; }
+            catch (AiFailure) { failed.Add(id); db.ChangeTracker.Clear(); }
+        }
+        return (deactivated, failed);
+    }
+
+    /// <summary>Only a complete listing proves which procedures disappeared; a partial one must not deactivate anything.</summary>
+    internal static Guid[] StaleProcedureIds(IEnumerable<Guid> activeKnowledgeProcedureIds, CatalogListing listing)
+    {
+        if (!listing.Complete) return [];
+        var published = listing.Ids.ToHashSet();
+        return activeKnowledgeProcedureIds.Where(x => !published.Contains(x)).Distinct().ToArray();
     }
 
     private async Task<KnowledgeDocumentDto> Add(Guid actor, string title, string sourceType, Guid? procedureId, string? reference,

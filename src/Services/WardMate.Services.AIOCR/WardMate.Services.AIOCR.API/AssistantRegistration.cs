@@ -87,6 +87,7 @@ public static class AssistantRegistration
         services.AddHttpClient<IEmbeddingProvider, WardMate.Services.AIOCR.Infrastructure.Knowledge.GeminiEmbeddingProvider>(h => { h.Timeout = TimeSpan.FromSeconds(60); h.MaxResponseContentBufferSize = 16 * 1024 * 1024; })
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddHostedService<WardMate.Services.AIOCR.Infrastructure.Knowledge.KnowledgeIndexingWorker>();
+        services.AddHostedService<WardMate.Services.AIOCR.Infrastructure.Knowledge.KnowledgeStaleProcedureWorker>();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(o =>
         {
