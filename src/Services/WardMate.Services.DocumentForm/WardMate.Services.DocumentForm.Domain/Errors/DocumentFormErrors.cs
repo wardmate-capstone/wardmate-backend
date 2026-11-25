@@ -63,11 +63,16 @@ public static class DocumentFormErrors
 
     public static Error SupportingDocumentNotFound(Guid documentId) =>
         Error.NotFound("document.supporting_document_not_found",
-            $"Supporting document with ID '{documentId}' was not found.");
+            "Không tìm thấy giấy tờ này trong hồ sơ.");
+
+    /// <summary>DOC-FILE-MISSING-01: bản ghi còn nhưng tệp không còn trong kho lưu trữ (vd. mất blob khi chuyển hạ tầng).</summary>
+    public static Error StoredFileMissing(Guid documentId) =>
+        Error.NotFound("document.file_missing",
+            "Tệp không còn trên hệ thống lưu trữ. Vui lòng tải lên lại (giấy tờ) hoặc tạo lại (bản PDF).");
 
     public static Error GeneratedDocumentNotFound(Guid documentId) =>
         Error.NotFound("document.generated_document_not_found",
-            $"Generated document with ID '{documentId}' was not found.");
+            "Không tìm thấy bản PDF này của hồ sơ.");
 
     public static Error UnsupportedFileType(string details) =>
         Error.Validation("document.unsupported_file_type", details);

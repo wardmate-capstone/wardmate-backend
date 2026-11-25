@@ -49,7 +49,7 @@ public sealed class DownloadSupportingDocumentQueryHandler
 
         if (stream is null)
         {
-            return DocumentFormErrors.SupportingDocumentNotFound(request.DocumentId);
+            return DocumentFormErrors.StoredFileMissing(request.DocumentId);
         }
 
         return new DownloadSupportingDocumentResult

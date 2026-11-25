@@ -74,7 +74,7 @@ public sealed class DownloadGeneratedDocumentQueryHandler
 
         if (stream is null)
         {
-            return DocumentFormErrors.GeneratedDocumentNotFound(request.DocumentId);
+            return DocumentFormErrors.StoredFileMissing(request.DocumentId);
         }
 
         var fileName = $"{doc.DocumentType.ToLowerInvariant()}_{doc.ApplicationId:N}.pdf";
