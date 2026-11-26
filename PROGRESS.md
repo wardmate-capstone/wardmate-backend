@@ -5583,3 +5583,24 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
   - Trợ cấp thất nghiệp: 200, `grounded: true`; có đơn Mẫu 10/11, sổ BHXH, giấy tờ chấm dứt HĐLĐ, 15 ngày làm việc. **Đạt.** Lưu ý: câu trả lời trích `[4]`, `[7, 9]`, `[1, 5]` nhưng `citations` chỉ có 1 mục.
 - **Không SQL/migration/cấu hình.** `main`/`deploy` chưa đồng bộ.
 - **Còn mở:** liệt kê đủ giấy tờ hộ kinh doanh; tách số nguồn dạng `[7, 9]` thành citations.
+
+## CHAT-CITE-1126 — Số nguồn gộp trong một ngoặc và kiểm lại câu hộ kinh doanh — 2026-11-26 (UTC+07)
+
+- **Lỗi 1 (DEPLOY-1126b, trợ cấp thất nghiệp):** câu trả lời ghi `[4]`, `[7, 9]`, `[1, 5]` nhưng `citations` chỉ có 1 mục, vì regex chỉ nhận `[n]`.
+  - **Đã sửa (CHAT-CITE-02):** `ChatService.Cite` nhận nhiều số trong một ngoặc, cách bằng `,`/`;`.
+  - Prompt (`GeminiAssistant.AnswerWithSources`) yêu cầu viết mỗi số một ngoặc, dạng `[1][3]`.
+- **Lỗi 2 (hộ kinh doanh "chưa đủ 8 giấy tờ"):** không sửa code; nguyên nhân là dữ liệu.
+  - Đã đọc thủ tục `1.001612` qua API công khai.
+  - 8 dòng `checklistSchema` thực chất là: Giấy đề nghị đăng ký hộ kinh doanh; bản sao văn bản ủy quyền của thành viên hộ; 4 dòng (i)–(iv) là điều kiện theo trường hợp ủy quyền; dòng (v) là trách nhiệm/xác thực điện tử, không phải giấy tờ; 1 dòng bản sao CCCD người ủy quyền khi chưa có định danh điện tử.
+  - Câu trả lời của AI đã nêu đủ các nhóm này.
+  - Cả 8 dòng đều đánh "bắt buộc", và giấy tờ chính nằm cuối danh sách.
+  - Cần Quản lý thủ tục sửa dữ liệu, rồi bấm đồng bộ lại kho kiến thức:
+    - gộp (i)–(iv) thành ghi chú điều kiện;
+    - bỏ dòng (v);
+    - đưa Giấy đề nghị lên đầu;
+    - các dòng theo trường hợp đánh "không bắt buộc".
+- **File:** `src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Infrastructure/ChatService.cs`, `.../GeminiAssistant.cs`, `tests/WardMate.UnitTests/Aiocr/ChatCitationTests.cs` (+4 case).
+- **Kiểm tra:** build Release `-warnaserror -m:1` 0 lỗi/0 cảnh báo; `dotnet test` 229/229. Unit test không gọi Gemini thật.
+- **Docs:** `docs/system-constraints.md` (CHAT-CITE-02 + lịch sử), `docs/api-guide.md` (FE nhận cả hai dạng số nguồn).
+- **API:** không đổi. Không migration, không SQL, không cấu hình mới.
+- **Chưa làm:** deploy AIOCR; kiểm lại câu trợ cấp thất nghiệp (citations đủ số đã ghi).
