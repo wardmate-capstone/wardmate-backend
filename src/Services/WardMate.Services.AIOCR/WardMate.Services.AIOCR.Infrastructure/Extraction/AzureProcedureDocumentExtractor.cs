@@ -95,6 +95,7 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         payload = ProcedureAiContract.Normalize(payload, warnings);
         ProcedureAiContract.CheckFormCoverage(content, payload, warnings);
         ProcedureAiContract.CheckCaseCoverage(content, payload, warnings);
+        ProcedureAiContract.CheckConditionalItems(payload, warnings);
         return new(payload.Clone(), content, warnings.Append("Dữ liệu do AI đề xuất; cán bộ phải kiểm tra PDF gốc. CategoryId phải chọn từ danh mục hệ thống.").ToArray());
         }
         catch (Exception e) when (attempt < 1 && e is JsonException or InvalidDataException or KeyNotFoundException or InvalidOperationException)
@@ -173,6 +174,11 @@ public sealed class AzureProcedureDocumentExtractor(HttpClient http, IConfigurat
         - mọi giấy tờ (checklistSchema) và mẫu (formDefinitions) trong bảng ngay dưới tiêu đề đó mang caseCode của trường hợp đó;
         - không bỏ nhóm nào, kể cả nhóm có bảng rỗng hoặc giấy tờ nằm ở trang sau; cùng một giấy tờ xuất hiện ở nhiều trường hợp thì tạo phần tử riêng cho từng trường hợp.
         Không có tiêu đề trường hợp thì caseCode null.
+        Thủ tục có thể vừa có giấy tờ CHUNG vừa có giấy tờ theo trường hợp (ví dụ 5 giấy tờ mọi người đều nộp, rồi "Trường hợp 1" thêm 2 giấy tờ, "Trường hợp 2" thêm 3 giấy tờ khác):
+        - giấy tờ nằm trước tiêu đề trường hợp đầu tiên, hoặc dưới tiêu đề kiểu "Giấy tờ chung", "Hồ sơ gồm", "Đối với tất cả các trường hợp" là giấy tờ chung: caseCode null, isMandatory theo nguồn; không lặp lại giấy tờ chung trong từng trường hợp;
+        - chỉ giấy tờ dưới tiêu đề "Trường hợp N" mới mang caseCode "TH-N".
+        Dòng giấy tờ tự mang điều kiện ngay trong tên (bắt đầu bằng "Trường hợp...", "(i) Trường hợp...", "Đối với trường hợp...", "Nếu...") mà không phải tiêu đề nhóm: không tạo trường hợp mới; để caseCode null, isMandatory false, chép điều kiện vào conditionNote và cảnh báo để cán bộ quyết định tách trường hợp.
+        Đoạn chỉ là quy định, trách nhiệm hoặc lưu ý (không phải một giấy tờ phải nộp) thì không tạo checklistSchema; nối vào contentPayload.requirements và cảnh báo.
         Mỗi dòng giấy tờ tạo đúng một phần tử checklistSchema, kể cả dòng có mẫu đơn. Một dòng có nhiều tệp mẫu vẫn chỉ là MỘT giấy tờ: itemName là nguyên văn cột "Tên giấy tờ", formCodes liệt kê formCode của tất cả mẫu trên dòng đó. Không tạo giấy tờ riêng cho từng tệp.
         Mỗi tệp hoặc mẫu trong cột "Mẫu đơn, tờ khai" tạo một phần tử formDefinitions riêng. Một dòng có nhiều tệp thì tạo nhiều phần tử formDefinitions (không phải nhiều giấy tờ). Không chỉ lấy các mẫu được nhắc trong tên giấy tờ.
         Mẫu chỉ dùng trong một tình huống thay thế ("trường hợp không có nhu cầu... thì nộp Mẫu số 11") thì isMandatory false.
