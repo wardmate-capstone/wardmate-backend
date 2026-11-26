@@ -1,6 +1,6 @@
 # Bàn giao FE — sửa BE sau rà soát UI (25/11/2026)
 
-Nguồn lỗi: báo cáo `docs/ui-review-2026-11-18.docx` và lần rà lại trên bản deploy ngày 25/11/2026. Chưa deploy; FE kiểm sau khi BE báo đã deploy Workflow, DocumentForm, AIOCR, Analytics.
+Nguồn lỗi: báo cáo `docs/ui-review-2026-11-18.docx` và lần rà lại trên bản deploy ngày 25/11/2026. **Đã deploy 26/11/2026 (DEPLOY-1126a):** Workflow, DocumentForm, AIOCR, Analytics tag `uireview-20261126-01`, health 200. FE kiểm theo các mục dưới. Script SQL IAM (L29) chưa chạy.
 
 ## 1. Mã QR của hồ sơ không có PDF (L01, DOC-QR-07)
 - `GET /api/v1/public/applications/{id}/pdf-redirect` giờ trả **trang HTML** (200 "Mã QR hợp lệ" hoặc 404 "Không tìm thấy hồ sơ") khi không có PDF, thay cho JSON 404.

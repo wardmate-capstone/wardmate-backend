@@ -5547,3 +5547,15 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Docs:** `docs/api-guide.md`, `docs/system-constraints.md` (mục FIX-UIREVIEW-1125, NOTIFY-TEXT-01), `docs/fe-handoff-2026-11-25.md`.
 - **Không làm:** L02 (FE), L09 relay audit tắt theo thiết kế (vận hành), L10 dữ liệu ngày lễ, 503 cold start (`minReplicas: 0`), dữ liệu blob đã mất.
 - **Chưa làm:** deploy Workflow, DocumentForm, AIOCR, Analytics; chạy SQL IAM; FE kiểm theo handoff. Không có migration.
+
+## DEPLOY-1126a — FIX-UIREVIEW-1125 lên Azure (Workflow, DocumentForm, AIOCR, Analytics) — 2026-11-26 (UTC+07)
+
+- **Git:** chủ dự án duyệt "Push và deploy"; push `kha` `238768d..5e06792` (17 commit, không force).
+- **Build:** Docker Desktop trên máy chủ dự án, tag `uireview-20261126-01`. Analytics đẩy vào repo ACR mới `wardmate-analytics-system` (repo cũ là `wardmate-analyticssystem`), image chạy bình thường.
+- **Trước deploy:** cả 4 service `/health/ready` 200.
+- **Workflow:** `wardmate-application-workflow@sha256:ff70f8813be1e5d6a2e0f1933d2ee412afb63f137773d9f131658070f70352c0`, `Succeeded`, health 200. Rollback `acrwardmate6ll4.azurecr.io/wardmate-application-workflow:rebuild-20261120`.
+- **DocumentForm:** `wardmate-documentform@sha256:fccde5b785b875c86ca4808611f99a182507550827e1945a6af56c478b23a3e7`, `Succeeded`, health 200. Rollback `acrwardmate6ll4.azurecr.io/wardmate-documentform:rebuild-20261120`.
+- **AIOCR:** `wardmate-aiocr@sha256:425866a1314df641f7520e165d6e9903f6f35135d0251366c298bfb0ab7bc05a`, `Succeeded`, health 200; `Knowledge__EmbeddingEnabled`/`Knowledge__RagEnabled` vẫn `true`; `Knowledge:StaleCheckMinutes` dùng mặc định 60. Rollback `acrwardmate6ll4.azurecr.io/wardmate-aiocr@sha256:e0645bb89af15c7149a7277f893bcc360b41798ae8309d30f72919fdb45f1b54`.
+- **Analytics:** `wardmate-analytics-system@sha256:56e23b67f8929b95cd11ced09d84ca6faa55a27177e9ec942ed34821b003033a`, `Succeeded`, health 200. Rollback `acrwardmate6ll4.azurecr.io/wardmate-analyticssystem:rebuild-20261120`.
+- **Gateway** `/health` 200. Không migration/cấu hình mới.
+- **Chưa làm:** `docs/sql/iam-normalize-usernames.sql` (chờ chủ dự án duyệt); Quản lý thủ tục bấm "Đồng bộ tất cả"; FE kiểm `docs/fe-handoff-2026-11-25.md`; `main`/`deploy` chưa đồng bộ.
