@@ -5572,3 +5572,14 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Docs:** `docs/system-constraints.md` (CHAT-CONTEXT-01 + lịch sử), `docs/api-guide.md` (mục chatbot hỏi lại).
 - **API:** không đổi request/response; `citations` có thể hơn 5 mục. Không migration, không SQL, không cấu hình mới.
 - **Chưa làm:** deploy AIOCR; kiểm lại 3 câu hỏi trên bản deploy (mỗi câu 2 lượt AI: embedding + trả lời; chú ý hạn mức miễn phí).
+
+## DEPLOY-1126b — CHAT-CONTEXT-1126 lên Azure (AIOCR) — 2026-11-26 (UTC+07)
+
+- **Git:** chủ dự án duyệt "Push và deploy"; push `kha` `fca6a93..eae7aeb` (6 commit, không force).
+- **Build:** Docker Desktop trên máy chủ dự án, tag `chatctx-20261126-01`.
+- **AIOCR:** `wardmate-aiocr@sha256:1219d3a1041a11bd1edb5b62cc54874966fffc5b2bf80cdb4c03d3d5818735b6`, update `Succeeded`, health 200; `Knowledge__EmbeddingEnabled`/`Knowledge__RagEnabled` vẫn `true`. Rollback `acrwardmate6ll4.azurecr.io/wardmate-aiocr@sha256:425866a1314df641f7520e165d6e9903f6f35135d0251366c298bfb0ab7bc05a` (bản DEPLOY-1126a). Health trước deploy không đo được (lỗi script); sáng 26/11 là 200.
+- **Thử chatbot (khách, `WARD_001`, 2 lượt AI):**
+  - Hộ kinh doanh: 200, `grounded: true`, 7 nguồn; nêu giấy đề nghị, văn bản ủy quyền thành viên hộ, giấy tờ ủy quyền/dịch vụ, CCCD người ủy quyền, phí do HĐND tỉnh quyết định, 03 ngày làm việc. **Chưa đạt kỳ vọng "đủ 8 giấy tờ"** (chỉ 4 nhóm).
+  - Trợ cấp thất nghiệp: 200, `grounded: true`; có đơn Mẫu 10/11, sổ BHXH, giấy tờ chấm dứt HĐLĐ, 15 ngày làm việc. **Đạt.** Lưu ý: câu trả lời trích `[4]`, `[7, 9]`, `[1, 5]` nhưng `citations` chỉ có 1 mục.
+- **Không SQL/migration/cấu hình.** `main`/`deploy` chưa đồng bộ.
+- **Còn mở:** liệt kê đủ giấy tờ hộ kinh doanh; tách số nguồn dạng `[7, 9]` thành citations.
