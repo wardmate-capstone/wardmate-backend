@@ -449,6 +449,20 @@ AIOCR API `Controllers/ProcedureExtractionsController.cs`, Infrastructure `Extra
 - FormData phải JSON object, tối đa 65.536 byte UTF-8.
 - Chọn checklist dùng chung cộng checklist đúng case; sao chép metadata vào hồ sơ:
   mã, tên, thứ tự, bắt buộc, case, số lượng, nộp/xuất trình, loại bản sao, điều kiện, template.
+- **WF-CASE-01 (26/11/2026) — Giấy tờ chung + giấy tờ theo trường hợp.** Một thủ tục được vừa có giấy tờ chung vừa có giấy
+  tờ riêng từng trường hợp (ví dụ 5 giấy tờ bắt buộc cho mọi người; trường hợp A thêm 2, trường hợp B thêm 3). Giấy tờ/biểu
+  mẫu **không gắn `caseCode` là giấy tờ chung**, áp dụng cho mọi trường hợp; giấy tờ gắn `caseCode` chỉ thuộc trường hợp đó.
+  Hồ sơ chọn trường hợp A nhận 5 + 2 giấy tờ, không có giấy tờ của B, nên khi nộp chỉ bị kiểm các giấy tờ này. Có từ 2 trường
+  hợp mà không chọn, hoặc mã sai (phân biệt hoa thường) → 400 `application.invalid_case`; 1 trường hợp thì tự chọn. Hành vi này
+  đã có từ trước, nay có test đơn vị. AI bóc tách: giấy tờ trước tiêu đề "Trường hợp N" đầu tiên hoặc dưới tiêu đề kiểu "Giấy
+  tờ chung" để `caseCode` null; dòng giấy tờ tự mang điều kiện ("(i) Trường hợp…", "Đối với trường hợp…", "Nếu…") để không bắt
+  buộc kèm `conditionNote`, không tự tạo trường hợp; đoạn chỉ là quy định/trách nhiệm đưa vào `requirements`. Cảnh báo bóc
+  tách: giấy tờ chưa gắn trường hợp khi nguồn chia trường hợp → "sẽ là giấy tờ chung, mọi trường hợp đều phải nộp", kèm tên
+  (trước đây yêu cầu gắn `caseCode` cho mọi dòng); dòng có điều kiện đang là giấy tờ chung bắt buộc → cảnh báo tách trường hợp
+  hoặc đặt không bắt buộc. Giới hạn: chưa đổi được trường hợp sau khi đã tạo hồ sơ (phải hủy và tạo lại); Catalog không cảnh
+  báo khi thủ tục có nhiều trường hợp mà không giấy tờ nào gắn mã; chưa chạy thử AI thật. Nguồn: Workflow
+  `WorkflowRequests.cs` (CreateApplicationCommand); AIOCR `ProcedureAiContract.CheckCaseCoverage/CheckConditionalItems`,
+  `AzureProcedureDocumentExtractor`; test `Workflow/CreateApplicationTests`, `Aiocr/ProcedureCaseExtractionTests`.
 - Dữ liệu checklist/form nguồn thiếu hoặc không hợp lệ bị từ chối; không tạo hồ sơ
   với các yêu cầu giấy tờ trùng mã/không thể xác định.
 - Mã hồ sơ duy nhất; trạng thái đầu DRAFT. Thủ tục đổi về sau không tự sửa yêu cầu hồ sơ cũ.
@@ -1461,6 +1475,7 @@ Nguồn: ApplicationConsultation.cs, ConsultationService.cs, DispatchService.cs,
 - **CHAT-CONTEXT-01 — Đủ mục của thủ tục khớp nhất (26/11/2026).** Chỉ áp dụng cho chatbot (`expand: true`); "Tìm thử nguồn" (`/knowledge/search`) giữ nguyên xếp hạng TopK. Sau khi lấy TopK đoạn đạt ngưỡng, với tài liệu của đoạn xếp đầu, Backend thêm: (1) mọi đoạn còn lại của cùng mục mà kết quả đã chạm tới (mục dài bị cắt thành nhiều đoạn); (2) theo từ trong câu hỏi: "giấy tờ/hồ sơ/thành phần/chuẩn bị…" → mục "Thành phần hồ sơ"; "phí/lệ phí/bao nhiêu tiền" hoặc "bao lâu/thời hạn/thời gian/có kết quả" → khối thông tin chung (đoạn đầu) và "Cách thức thực hiện"; "trình tự/các bước/nộp ở đâu" → "Trình tự thực hiện". Có nhận chữ không dấu. Thêm tối đa 6 đoạn và 9.000 ký tự, theo thứ tự trong tài liệu, không lặp; không gọi thêm AI (một truy vấn DB). Đoạn thêm vẫn là nguồn đánh số [n] bình thường. Prompt thêm: câu hỏi nhiều ý trả lời từng ý; liệt kê đủ mọi dòng Thành phần hồ sơ; thiếu một ý thì nói riêng ý đó chưa có trong nguồn, không khẳng định thủ tục không có. Giới hạn: chỉ mở rộng tài liệu xếp đầu (câu hỏi so sánh hai thủ tục không được bổ sung thủ tục thứ hai); nhận ý hỏi bằng từ khóa, câu diễn đạt khác có thể không được nhận; chưa kiểm với Gemini thật. Nguồn: AIOCR `Application/KnowledgeContext.cs`, `Knowledge/KnowledgeRetriever.Search`, `ChatService.Complete`, `GeminiAssistant.AnswerWithSources`; test `Aiocr/KnowledgeContextTests`.
 - **CHAT-FEEDBACK-01 — Đánh giá câu trả lời.** Chỉ đánh giá tin nhắn Assistant thuộc cuộc trò chuyện của người gọi (khách đánh giá tin của phiên khách); khác → 404 `chat.message_not_found`. `reason` thuộc WRONG_INFO, NOT_WHAT_I_ASKED, HARD_TO_UNDERSTAND, MISSING_INFO, OTHER (bỏ qua khi `helpful=true`); `comment` ≤ 1000 ký tự, không ký tự điều khiển (trừ xuống dòng/tab); sai → 400 `chat.invalid_feedback`. Đánh giá lại ghi đè. Danh sách cho quản lý tri thức cần `knowledge.manage` + vai trò PROCEDURE_MANAGER/IT_ADMIN, trang 1–100000, cỡ 1–100. Giới hạn: endpoint đánh giá không có giới hạn tần suất riêng; đánh giá không tự sửa kho kiến thức. Nguồn: AIOCR `ChatService.Feedback/ValidateFeedback/FeedbackList`, `AssistantController`, `KnowledgeController`; migration `ChatQualityFeedback`; SQL `docs/sql/aiocr-chat-quality-feedback.sql`.
 - Lịch sử: 2026-11-13 (DISPATCH-SEARCH-1113) thêm DISPATCH-SEARCH-01: search/sort/status cho danh sách điều phối Manager. Build 0/0, test 152/152; chưa chạy SQL, chưa deploy Workflow.
+- Lịch sử: 2026-11-26 (WF-CASE-1126) thêm WF-CASE-01: giấy tờ chung + giấy tờ theo trường hợp; AI để giấy tờ chung `caseCode` null, dòng có điều kiện không bắt buộc; đổi câu cảnh báo AI-02b. Build 0/0, test 244/244; chưa deploy AIOCR.
 - Lịch sử: 2026-11-26 (CHAT-CITE-1126) KB-02 thêm CHAT-CITE-02: đọc nhiều số nguồn trong một ngoặc. Build 0/0, test 229/229; chưa deploy AIOCR.
 - Lịch sử: 2026-11-26 (CHAT-CONTEXT-1126) thêm CHAT-CONTEXT-01: chatbot kèm đủ mục Thành phần hồ sơ/phí/thời hạn của thủ tục khớp nhất cho câu hỏi gộp nhiều ý. Build 0/0, test 225/225; chưa deploy AIOCR.
 - Lịch sử: 2026-11-17 (DOC-FILEVER-1117) thêm mục DOC-FILEVER-01: tệp theo lần gửi và so sánh tờ khai. Build 0/0, test 158/158; chưa chạy SQL, chưa deploy DocumentForm/Workflow/Gateway.

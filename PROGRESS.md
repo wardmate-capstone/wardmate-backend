@@ -5631,3 +5631,38 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
   - Quản lý thủ tục sửa checklist 1.001612 và dữ liệu test.
   - Vận hành: `Audit:RelayEnabled`, ngày lễ thật, `minReplicas`, tải lại blob mất sau 20/11.
   - Owner: Android package, Firebase, chính sách dọn blob.
+
+## WF-CASE-1126 — Giấy tờ chung + giấy tờ theo trường hợp — 2026-11-26 (UTC+07)
+
+- **Yêu cầu chủ dự án:**
+  - Hồ sơ nhiều trường hợp: người dân chọn trường hợp, chỉ nộp giấy tờ của trường hợp đó.
+  - Tạo thủ tục thêm được trường hợp.
+  - Thủ tục vừa có giấy tờ bắt buộc chung (ví dụ 5) vừa có giấy tờ riêng của từng trường hợp.
+  - Bổ sung AI nếu cần.
+- **Kết quả kiểm code:**
+  - Workflow và Catalog đã hỗ trợ cả ba từ trước. Giấy tờ/biểu mẫu `caseCode` null là chung; hồ sơ nhận chung + đúng trường hợp đã chọn.
+  - Có từ 2 trường hợp mà không chọn, hoặc chọn sai → 400 `application.invalid_case`.
+  - Catalog: `contentPayload.cases`, mã duy nhất, `caseCode` của giấy tờ/biểu mẫu/cách nộp phải thuộc `cases`.
+  - Không đổi code Workflow/Catalog.
+- **Đã làm:**
+  - Test Workflow `tests/WardMate.UnitTests/Workflow/CreateApplicationTests.cs` (+7):
+    - 5 chung + TH-A 2 / TH-B 3 → TH-A nhận 7, TH-B nhận 8;
+    - thiếu/sai/khác hoa thường → `invalid_case`;
+    - 1 trường hợp tự chọn;
+    - biểu mẫu theo trường hợp.
+  - AIOCR `Extraction/AzureProcedureDocumentExtractor.cs` (prompt):
+    - giấy tờ trước tiêu đề trường hợp đầu tiên hoặc dưới "Giấy tờ chung" → `caseCode` null, không lặp trong từng trường hợp;
+    - dòng tự mang điều kiện ("(i) Trường hợp…", "Đối với trường hợp…", "Nếu…") → không bắt buộc + `conditionNote`, không tự tạo trường hợp;
+    - đoạn quy định/trách nhiệm → `requirements`.
+  - AIOCR `Extraction/ProcedureAiContract.cs`:
+    - cảnh báo giấy tờ chưa gắn trường hợp nay nói "sẽ là giấy tờ chung" và kèm tên (trước đây bảo gắn `caseCode` cho mọi dòng, dễ làm mất giấy tờ chung);
+    - mới `CheckConditionalItems`: cảnh báo dòng có điều kiện đang là giấy tờ chung bắt buộc.
+  - Test `tests/WardMate.UnitTests/Aiocr/ProcedureCaseExtractionTests.cs` (+8).
+- **Kiểm tra:** build Release `-warnaserror -m:1` 0 lỗi/0 cảnh báo; `dotnet test` 244/244. Chưa chạy AI thật.
+- **Docs:** `docs/system-constraints.md` (WF-CASE-01 dưới WF-01 + lịch sử), `docs/api-guide.md` (mục ví dụ ProcedureInput).
+- **API:** không đổi. Không migration/SQL/cấu hình.
+- **Chưa làm / giới hạn:**
+  - Deploy AIOCR.
+  - Chưa đổi được trường hợp sau khi tạo hồ sơ nháp (phải hủy và tạo lại; đổi được cần xử lý tệp đã tải theo giấy tờ cũ — chờ chủ dự án quyết).
+  - Catalog chưa cảnh báo khi có nhiều trường hợp mà không giấy tờ nào gắn mã.
+  - FE cần bước chọn trường hợp trước khi tạo hồ sơ.

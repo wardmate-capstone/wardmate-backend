@@ -2404,6 +2404,15 @@ DB:
 }
 ```
 
+**Giấy tờ chung và giấy tờ theo trường hợp (WF-CASE-01).** Thủ tục có giấy tờ mọi người đều nộp và giấy tờ riêng từng trường hợp:
+- khai báo các trường hợp trong `contentPayload.cases`;
+- để `caseCode: null` cho giấy tờ chung;
+- gắn `caseCode` cho giấy tờ riêng. Ví dụ: `DOC_01..05` có `caseCode: null`; `A_01`, `A_02` có `caseCode: "TH-1"`; `B_01..03` có `caseCode: "TH-2"`.
+
+Người dân tạo hồ sơ với `caseCode: "TH-1"` thì nhận 7 giấy tờ (5 chung + 2 của TH-1), không phải nộp giấy tờ của TH-2. Thủ tục có từ 2 trường hợp trở lên thì FE phải cho người dân chọn trường hợp trước khi tạo hồ sơ, nếu không Backend trả 400 `application.invalid_case`. Chưa đổi được trường hợp sau khi tạo; chọn sai thì hủy hồ sơ nháp và tạo lại.
+
+AI bóc tách PDF: giấy tờ chung để `caseCode` null. Dòng giấy tờ tự ghi điều kiện ("(i) Trường hợp ủy quyền…") được đặt không bắt buộc và có cảnh báo để Quản lý thủ tục quyết định tách thành trường hợp riêng.
+
 Đây là cấu trúc ProcedureInput/ReviewedProcedureInput. Khi PUT cập nhật, gửi toàn bộ dữ liệu mới, bổ sung **ở
 cấp ngoài cùng** `decisionNumber` và `effectiveDate`, ví dụ `"effectiveDate": "2026-10-04"`. EffectiveDate
 ghi metadata phiên bản, không tự lên lịch xuất bản.
