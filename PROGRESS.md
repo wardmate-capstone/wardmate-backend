@@ -5611,3 +5611,23 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **AIOCR:** tag `chatcite-20261126-01`, `wardmate-aiocr@sha256:1f0aa5ccf2067562f6fe06d5b92d0bf39d0163094ada2b0ce16e7cbcf1befbaf`; health trước 200, update `Succeeded`, health sau 200; `Knowledge__EmbeddingEnabled`/`Knowledge__RagEnabled` vẫn `true`. Rollback `acrwardmate6ll4.azurecr.io/wardmate-aiocr@sha256:1219d3a1041a11bd1edb5b62cc54874966fffc5b2bf80cdb4c03d3d5818735b6` (`chatctx-20261126-01`).
 - **Thử chatbot (khách, `WARD_001`):** câu trợ cấp thất nghiệp 200, `grounded: true`; câu trả lời ghi `[4]`, `[7][9]`, `[1][5]` (không còn dạng gộp) và `citations` có đủ 5 mục 1, 4, 5, 7, 9; có giấy tờ chấm dứt HĐLĐ, 15 ngày làm việc. **Đạt.**
 - **Không SQL/migration/cấu hình.** Hộ kinh doanh 1.001612: chờ Quản lý thủ tục sửa dữ liệu checklist. `main`/`deploy` chưa đồng bộ cho lượt này.
+
+## SYNC-1126 — Đối chiếu 3 phiên Code, Deploy, FE — 2026-11-26 (UTC+07)
+
+- **Nhánh:** `origin/kha`, `origin/main`, `origin/deploy` cùng ở `83151aa` (DEPLOY-1126c). `main`/`deploy` local fast-forward theo remote, không đổi lịch sử.
+- **Đã deploy 26/11 trên Azure (japaneast, gateway `wardmate-gateway.bravetree-f6485744`):**
+  - DEPLOY-1126a: Workflow, DocumentForm, AIOCR, Analytics `uireview-20261126-01`.
+  - DEPLOY-1126b: AIOCR `chatctx-20261126-01`.
+  - DEPLOY-1126c: AIOCR `chatcite-20261126-01` (đang chạy).
+  - Đã chạy SQL IAM username (1 dòng).
+- **FE (phiên rà soát):**
+  - Kho kiến thức đã đồng bộ 3 thủ tục công khai.
+  - 19 lỗi FE nằm ở `docs/fe-handoff-2026-11-26-ui-review.md`.
+  - Lượt này cập nhật mục E: chatbot đã sửa và deploy; lưu ý `citations` > 5 mục, số nguồn dạng `[7][9]`/`[7, 9]`; dữ liệu checklist hộ kinh doanh 1.001612 cần sửa.
+- **Docs:** `docs/CLAUDE_HANDOFF.md` (dòng FIX-UIREVIEW-1125: kho đã đồng bộ, nhánh đã đồng bộ), `docs/fe-handoff-2026-11-26-ui-review.md`.
+- **Không commit (của phiên khác/tệp tạm):** `docs/ui-test-scenarios.md` (đang sửa), `docs/ui-review-2026-11-18.docx/.md`, `docs/~$-review-2026-11-18.docx`, `.claude/`.
+- **Còn mở:**
+  - FE sửa 19 lỗi và kiểm `fe-handoff-2026-11-25.md`.
+  - Quản lý thủ tục sửa checklist 1.001612 và dữ liệu test.
+  - Vận hành: `Audit:RelayEnabled`, ngày lễ thật, `minReplicas`, tải lại blob mất sau 20/11.
+  - Owner: Android package, Firebase, chính sách dọn blob.
