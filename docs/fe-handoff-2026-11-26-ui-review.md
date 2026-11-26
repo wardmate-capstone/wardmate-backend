@@ -47,4 +47,7 @@ Mức: **Cao** = chặn hoặc sai nghiệp vụ; **Vừa** = gây hiểu sai, k
 
 - Dữ liệu: lĩnh vực "Hộ Tịch Test", thủ tục/mẫu test (`Test_demo_2`, `Kb04-ks-test`, "đơn 001", "kb04"), tên tệp mẫu méo (`Mus10tiPhlcbanhnhkmtheo _VL.docx`), "Cấp thực hiện: Tỉnh" của thủ tục trợ cấp thất nghiệp, ngày lễ chỉ có "le 20/11" — Quản lý thủ tục/Admin nhập lại.
 - Nhật ký nghiệp vụ trống (relay audit tắt theo thiết kế), 503 lần gọi đầu (`minReplicas: 0`) — vận hành.
-- Chatbot hỏi gộp nhiều ý (giấy tờ + lệ phí + thời gian) trả thiếu danh mục giấy tờ — đã chuyển BE xử lý.
+- Chatbot hỏi gộp nhiều ý (giấy tờ + lệ phí + thời gian) trả thiếu danh mục giấy tờ — **BE đã sửa và deploy 26/11** (CHAT-CONTEXT-01, DEPLOY-1126b; CHAT-CITE-02, DEPLOY-1126c, AIOCR `chatcite-20261126-01`). API không đổi. FE lưu ý:
+  - `citations` có thể nhiều hơn 5 mục.
+  - Câu trả lời mới ghi số nguồn dạng `[7][9]`; câu trả lời cũ trong lịch sử có thể còn dạng `[7, 9]`. Nếu FE biến số nguồn thành liên kết thì nhận cả hai dạng.
+- Thủ tục hộ kinh doanh 1.001612: danh mục giấy tờ có 8 dòng nhưng 5 dòng là điều kiện ủy quyền/ghi chú, cả 8 đều đánh "bắt buộc" — Quản lý thủ tục sửa dữ liệu rồi đồng bộ lại kho kiến thức.
