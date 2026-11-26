@@ -42,7 +42,34 @@ public sealed class ProcedureCaseExtractionTests
             Payload([new { caseCode = "TH-2" }, new { caseCode = "TH-3" }, new { caseCode = "TH-5" }],
                 [new { caseCode = (string?)"TH-2", itemName = "Tờ khai" }, new { caseCode = (string?)null, itemName = "Giấy ra viện" }]), warnings);
         var warning = Assert.Single(warnings);
-        Assert.StartsWith("checklistSchema: 1 giấy tờ chưa gắn trường hợp", warning);
+        Assert.StartsWith("checklistSchema: 1 giấy tờ chưa gắn trường hợp nên sẽ là giấy tờ chung", warning);
+        Assert.Contains("\"Giấy ra viện\"", warning);
+        Assert.DoesNotContain("trước khi xuất bản", warning);
+    }
+
+    // WF-CASE-01: dòng giấy tờ tự mang điều kiện (vd thủ tục hộ kinh doanh 1.001612) không được là giấy tờ chung bắt buộc.
+    [Theory]
+    [InlineData("(i) Trường hợp ủy quyền cho cá nhân thực hiện thủ tục", true, true)]
+    [InlineData("Trường hợp chưa có tài khoản định danh điện tử thì kèm bản sao CCCD", true, true)]
+    [InlineData("- Đối với trường hợp người nước ngoài: hộ chiếu", true, true)]
+    [InlineData("Nếu có: giấy xác nhận", true, true)]
+    [InlineData("(i) Trường hợp ủy quyền cho cá nhân thực hiện thủ tục", false, false)]
+    [InlineData("Giấy đề nghị đăng ký hộ kinh doanh", true, false)]
+    [InlineData("Bản sao giấy tờ trong trường hợp đổi tên", true, false)]
+    public void Conditional_common_mandatory_items_are_reported(string name, bool mandatory, bool warned)
+    {
+        var warnings = new List<string>();
+        ProcedureAiContract.CheckConditionalItems(Payload([], [new { caseCode = (string?)null, itemName = name, isMandatory = mandatory }]), warnings);
+        Assert.Equal(warned, warnings.Count == 1);
+    }
+
+    [Fact]
+    public void Conditional_item_already_in_a_case_is_not_reported()
+    {
+        var warnings = new List<string>();
+        ProcedureAiContract.CheckConditionalItems(Payload([new { caseCode = "TH-1" }],
+            [new { caseCode = (string?)"TH-1", itemName = "Trường hợp ủy quyền: văn bản ủy quyền", isMandatory = true }]), warnings);
+        Assert.Empty(warnings);
     }
 
     [Fact]
