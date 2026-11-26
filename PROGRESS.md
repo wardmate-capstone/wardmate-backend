@@ -5604,3 +5604,10 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Docs:** `docs/system-constraints.md` (CHAT-CITE-02 + lịch sử), `docs/api-guide.md` (FE nhận cả hai dạng số nguồn).
 - **API:** không đổi. Không migration, không SQL, không cấu hình mới.
 - **Chưa làm:** deploy AIOCR; kiểm lại câu trợ cấp thất nghiệp (citations đủ số đã ghi).
+
+## DEPLOY-1126c — CHAT-CITE-1126 lên Azure (AIOCR) — 2026-11-26 (UTC+07)
+
+- **Git:** chủ dự án duyệt "Push và deploy"; push `kha` `4078f9e..f88c24c` (4 commit, không force).
+- **AIOCR:** tag `chatcite-20261126-01`, `wardmate-aiocr@sha256:1f0aa5ccf2067562f6fe06d5b92d0bf39d0163094ada2b0ce16e7cbcf1befbaf`; health trước 200, update `Succeeded`, health sau 200; `Knowledge__EmbeddingEnabled`/`Knowledge__RagEnabled` vẫn `true`. Rollback `acrwardmate6ll4.azurecr.io/wardmate-aiocr@sha256:1219d3a1041a11bd1edb5b62cc54874966fffc5b2bf80cdb4c03d3d5818735b6` (`chatctx-20261126-01`).
+- **Thử chatbot (khách, `WARD_001`):** câu trợ cấp thất nghiệp 200, `grounded: true`; câu trả lời ghi `[4]`, `[7][9]`, `[1][5]` (không còn dạng gộp) và `citations` có đủ 5 mục 1, 4, 5, 7, 9; có giấy tờ chấm dứt HĐLĐ, 15 ngày làm việc. **Đạt.**
+- **Không SQL/migration/cấu hình.** Hộ kinh doanh 1.001612: chờ Quản lý thủ tục sửa dữ liệu checklist. `main`/`deploy` chưa đồng bộ cho lượt này.
