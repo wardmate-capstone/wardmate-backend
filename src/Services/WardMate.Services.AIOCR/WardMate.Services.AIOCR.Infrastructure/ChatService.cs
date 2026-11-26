@@ -35,7 +35,7 @@ public sealed partial class ChatService(ChatDbContext db, IAssistantModel model,
                 previous = await db.Messages.AsNoTracking()
                     .Where(x => x.SessionId == sid && x.Role == "User" && db.Sessions.Any(s => s.Id == sid && s.UserId == userId))
                     .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Select(x => x.Content).FirstOrDefaultAsync(ct);
-            sources = await retriever.Search(RetrievalQuery(previous, question), knowledge.TopK, ct);
+            sources = await retriever.Search(RetrievalQuery(previous, question), knowledge.TopK, ct, expand: true);
         }
         // Serialize turns in one session across replicas. A failed AI turn is rolled back, not a fake answer.
         await using var tx = await db.Database.BeginTransactionAsync(ct);

@@ -14,7 +14,8 @@ public sealed record KnowledgeHit(Guid ChunkId, Guid DocumentId, string Document
     string? Heading, string Content, double Score);
 public interface IKnowledgeRetriever
 {
-    Task<KnowledgeHit[]> Search(string query, int topK, CancellationToken ct);
+    /// <summary><paramref name="expand"/> = true (chatbot): thêm đoạn của tài liệu khớp nhất theo CHAT-CONTEXT-01.</summary>
+    Task<KnowledgeHit[]> Search(string query, int topK, CancellationToken ct, bool expand = false);
 }
 
 public sealed record ChatCitation(int Index, Guid DocumentId, string Title, string SourceType, Guid? ProcedureId, Guid ChunkId, string? Heading, double Score);

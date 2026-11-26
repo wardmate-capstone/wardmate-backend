@@ -16,7 +16,7 @@ public sealed class KnowledgeVectorCache
 
 public sealed class KnowledgeRetriever(ChatDbContext db, IEmbeddingProvider embedder, KnowledgeSettings settings, KnowledgeVectorCache cache) : IKnowledgeRetriever
 {
-    public async Task<KnowledgeHit[]> Search(string query, int topK, CancellationToken ct)
+    public async Task<KnowledgeHit[]> Search(string query, int topK, CancellationToken ct, bool expand = false)
     {
         if (!embedder.Enabled) throw new AiFailure(503, "knowledge.embedding_disabled", "Chưa bật tìm kiếm Knowledge Base (Knowledge:EmbeddingEnabled).");
         var signature = embedder.Signature;
@@ -42,6 +42,23 @@ public sealed class KnowledgeRetriever(ChatDbContext db, IEmbeddingProvider embe
             .Select(e => (e.ChunkId, Score: Vectors.Dot(e.Vector, vector)))
             .Where(x => x.Score >= settings.MinScore)
             .OrderByDescending(x => x.Score).ThenBy(x => x.ChunkId).Take(topK).ToArray();
+        if (top.Length == 0) return [];
+        var hits = await Load(top, ct);
+        if (!expand || hits.Length == 0) return hits;
+        // CHAT-CONTEXT-01: đủ mục giấy tờ/phí/thời hạn của thủ tục khớp nhất cho câu hỏi gộp nhiều ý.
+        var main = hits[0].DocumentId;
+        var mainChunks = await searchable.Where(c => c.DocumentId == main)
+            .Select(c => new SectionChunk(c.Id, c.ChunkIndex, c.Heading, c.CharCount)).ToListAsync(ct);
+        var extraIds = KnowledgeContext.Expand(query, hits, mainChunks);
+        if (extraIds.Length == 0) return hits;
+        var vectors = snapshot.Entries.Where(e => extraIds.Contains(e.ChunkId)).ToDictionary(e => e.ChunkId, e => e.Vector);
+        var extra = extraIds.Where(vectors.ContainsKey)
+            .Select(id => (ChunkId: id, Score: vectors[id].Length == vector.Length ? Vectors.Dot(vectors[id], vector) : 0d)).ToArray();
+        return [.. hits, .. await Load(extra, ct)];
+    }
+
+    private async Task<KnowledgeHit[]> Load((Guid ChunkId, double Score)[] top, CancellationToken ct)
+    {
         if (top.Length == 0) return [];
         var ids = top.Select(x => x.ChunkId).ToArray();
         var details = await db.KnowledgeChunks.AsNoTracking().Where(c => ids.Contains(c.Id))
