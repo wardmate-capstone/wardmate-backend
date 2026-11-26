@@ -14,13 +14,65 @@ public sealed class CreateApplicationTests
 
     private static ProcedureForm Form(string code, Guid? template, bool mandatory = true) => new(template, null, code, "Mẫu " + code, mandatory);
 
-    private static async Task<WorkflowResult<ApplicationDto>> Create(ProcedureChecklist[] items, ProcedureForm[] forms)
+    private static async Task<WorkflowResult<ApplicationDto>> Create(ProcedureChecklist[] items, ProcedureForm[] forms,
+        string[]? cases = null, string? caseCode = null)
     {
         var procedureId = Guid.NewGuid();
-        var snapshot = new ProcedureSnapshot(procedureId, "Thủ tục thử", true, new ProcedureContent([]), items, forms, 1, "Đất đai");
+        var content = new ProcedureContent((cases ?? []).Select(x => new ProcedureCase(x)).ToArray());
+        var snapshot = new ProcedureSnapshot(procedureId, "Thủ tục thử", true, content, items, forms, 1, "Đất đai");
         var handler = new WorkflowHandlers(new Store(), new Catalog(snapshot), TimeProvider.System, new Directory(), new ReviewDeadlinePolicy());
         return await handler.Handle(new CreateApplicationCommand(Guid.NewGuid(),
-            new CreateApplicationInput(procedureId, JsonSerializer.SerializeToElement(new { }), null, "W01")), default);
+            new CreateApplicationInput(procedureId, JsonSerializer.SerializeToElement(new { }), caseCode, "W01")), default);
+    }
+
+    // WF-CASE-01: giấy tờ chung (không gắn trường hợp) + giấy tờ riêng của từng trường hợp.
+    // Ví dụ: 5 giấy tờ bắt buộc cho mọi người; trường hợp A thêm 2, trường hợp B thêm 3.
+    private static readonly ProcedureChecklist[] CommonAndCases =
+    [
+        .. Enumerable.Range(1, 5).Select(i => Item($"C{i}")),
+        Item("A1") with { CaseCode = "TH-A" }, Item("A2", mandatory: false) with { CaseCode = "TH-A" },
+        Item("B1") with { CaseCode = "TH-B" }, Item("B2") with { CaseCode = "TH-B" }, Item("B3") with { CaseCode = "TH-B" },
+    ];
+
+    [Theory]
+    [InlineData("TH-A", new[] { "C1", "C2", "C3", "C4", "C5", "A1", "A2" })]
+    [InlineData("TH-B", new[] { "C1", "C2", "C3", "C4", "C5", "B1", "B2", "B3" })]
+    public async Task Chosen_case_gets_common_items_plus_its_own_only(string caseCode, string[] expected)
+    {
+        var result = await Create(CommonAndCases, [], ["TH-A", "TH-B"], caseCode);
+        Assert.Null(result.Error);
+        Assert.Equal(caseCode, result.Value!.CaseCode);
+        Assert.Equal(expected, result.Value.Checklists.Select(x => x.Code));
+        Assert.All(result.Value.Checklists.Where(x => x.Code.StartsWith('C')), x => Assert.True(x.IsRequired));
+        if (caseCode == "TH-A") Assert.False(result.Value.Checklists.Single(x => x.Code == "A2").IsRequired);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("TH-C")]
+    [InlineData("th-a")]
+    public async Task Several_cases_require_a_valid_choice(string? caseCode)
+    {
+        var result = await Create(CommonAndCases, [], ["TH-A", "TH-B"], caseCode);
+        Assert.Equal("application.invalid_case", result.Error!.Code);
+    }
+
+    [Fact]
+    public async Task Single_case_is_chosen_automatically()
+    {
+        var items = CommonAndCases.Where(x => x.CaseCode is null or "TH-A").ToArray();
+        var result = await Create(items, [], ["TH-A"]);
+        Assert.Equal("TH-A", result.Value!.CaseCode);
+        Assert.Equal(7, result.Value.Checklists.Length);
+    }
+
+    [Fact]
+    public async Task Case_forms_follow_the_chosen_case()
+    {
+        Guid ta = Guid.NewGuid(), tb = Guid.NewGuid();
+        var forms = new[] { Form("TK-CHUNG", T25), Form("TK-A", ta) with { CaseCode = "TH-A" }, Form("TK-B", tb) with { CaseCode = "TH-B" } };
+        var rows = (await Create([Item("C1")], forms, ["TH-A", "TH-B"], "TH-B")).Value!.Checklists;
+        Assert.Equal(new[] { "C1", "TK-CHUNG", "TK-B" }, rows.Select(x => x.Code));
     }
 
     [Fact]
