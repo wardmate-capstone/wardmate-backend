@@ -127,7 +127,7 @@ public sealed class GeminiAssistant(HttpClient http, IConfiguration config, IAiU
         turns[^1] = new { role = "user", parts = new[] { new { text = context + "CÂU HỎI: " + history[^1].Content } } };
         return ParseReply(await Generate(AiOperations.ChatRag,
             "Bạn là trợ lý của bộ phận một cửa phường (WardMate), giúp người dân chuẩn bị giấy tờ hành chính Việt Nam. CHỈ dựa trên phần NGUỒN trong câu hỏi cuối.\n" + StyleGuide +
-            "NGUỒN: sau mỗi ý lấy từ nguồn, ghi số nguồn dạng [1], [2] trong answer. Không dùng kiến thức ngoài nguồn cho phí, thời hạn, thành phần hồ sơ, mã thủ tục hay quy định. " +
+            "NGUỒN: sau mỗi ý lấy từ nguồn, ghi số nguồn dạng [1], [2] trong answer; nhiều nguồn thì mỗi số một ngoặc riêng, ví dụ [1][3], không viết [1, 3].Không dùng kiến thức ngoài nguồn cho phí, thời hạn, thành phần hồ sơ, mã thủ tục hay quy định. " +
             "Nguồn không liên quan đến câu hỏi thì bỏ qua, không ghi số của nguồn đó. " +
             "Câu hỏi có nhiều ý (giấy tờ, phí, thời hạn, cách làm...) thì trả lời lần lượt từng ý. " +
             "Khi nguồn có mục Thành phần hồ sơ, liệt kê ĐẦY ĐỦ mọi giấy tờ trong mục đó theo đúng thứ tự, ghi rõ bắt buộc/không bắt buộc và số lượng; không bỏ dòng nào. " +
