@@ -5560,3 +5560,15 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Gateway** `/health` 200. Không migration/cấu hình mới.
 - **Chưa làm:** `docs/sql/iam-normalize-usernames.sql` (chờ chủ dự án duyệt); Quản lý thủ tục bấm "Đồng bộ tất cả"; FE kiểm `docs/fe-handoff-2026-11-25.md`; `main`/`deploy` chưa đồng bộ.
 - **26/11 bổ sung:** chủ dự án duyệt; chạy `docs/sql/iam-normalize-usernames.sql` trên DB IAM (Supabase): SELECT 1 dòng (`  test_mgr_a`, không trùng), UPDATE 1 dòng trong transaction, kiểm lại 0 dòng, COMMIT. Username giờ là `test_mgr_a`.
+
+## CHAT-CONTEXT-1126 — Chatbot trả thiếu giấy tờ khi hỏi gộp nhiều ý — 2026-11-26 (UTC+07)
+
+- **Lỗi (FE kiểm bản deploy 26/11):** "Đăng ký thành lập hộ kinh doanh cần giấy tờ gì, lệ phí bao nhiêu và mất bao lâu?" → "chưa có thông tin chi tiết về các giấy tờ" dù thủ tục có 8 giấy tờ; "Hưởng trợ cấp thất nghiệp cần chuẩn bị những giấy tờ gì và bao lâu…" thiếu giấy tờ chấm dứt HĐLĐ (dòng đầu). Nguyên nhân: chỉ TopK=5 đoạn đưa cho AI; đoạn phí/thời hạn chiếm chỗ, còn mục Thành phần hồ sơ dài bị cắt 2 đoạn và chỉ lấy được một.
+- **Đã làm (CHAT-CONTEXT-01):**
+  - Mới `src/Services/WardMate.Services.AIOCR/WardMate.Services.AIOCR.Application/KnowledgeContext.cs`: nhận ý hỏi (giấy tờ, phí, thời hạn, trình tự; có chữ không dấu) và chọn thêm đoạn của tài liệu xếp đầu — đủ mục đã chạm tới + mục theo ý hỏi; tối đa 6 đoạn/9.000 ký tự.
+  - `IKnowledgeRetriever.Search(..., bool expand = false)`; `KnowledgeRetriever` thêm đoạn khi `expand`; `ChatService.Complete` gọi `expand: true`. `/knowledge/search` giữ nguyên.
+  - `GeminiAssistant.AnswerWithSources`: trả lời từng ý; liệt kê đủ Thành phần hồ sơ; thiếu một ý thì nói riêng ý đó, không khẳng định thủ tục không có.
+- **Test:** mới `tests/WardMate.UnitTests/Aiocr/KnowledgeContextTests.cs` (10). Build Release `-warnaserror -m:1` 0 lỗi/0 cảnh báo; `dotnet test` 225/225. Không gọi Gemini thật (unit test không chứng minh chất lượng câu trả lời).
+- **Docs:** `docs/system-constraints.md` (CHAT-CONTEXT-01 + lịch sử), `docs/api-guide.md` (mục chatbot hỏi lại).
+- **API:** không đổi request/response; `citations` có thể hơn 5 mục. Không migration, không SQL, không cấu hình mới.
+- **Chưa làm:** deploy AIOCR; kiểm lại 3 câu hỏi trên bản deploy (mỗi câu 2 lượt AI: embedding + trả lời; chú ý hạn mức miễn phí).
