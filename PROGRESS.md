@@ -5673,3 +5673,21 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **AIOCR:** tag `wfcase-20261126-01`, `wardmate-aiocr@sha256:67199920aa2b981a64f873f4d82a59fcb223d622eea685cbbde12ab21d9db879`; health trước 200, update `Succeeded`, health sau 200; `Knowledge__EmbeddingEnabled`/`Knowledge__RagEnabled` vẫn `true`. Rollback `acrwardmate6ll4.azurecr.io/wardmate-aiocr@sha256:1f0aa5ccf2067562f6fe06d5b92d0bf39d0163094ada2b0ce16e7cbcf1befbaf` (`chatcite-20261126-01`).
 - **Workflow:** chỉ thêm test, không deploy. Không SQL/migration/cấu hình.
 - **Chưa làm:** thử bóc tách AI thật (PDF có "Trường hợp N:" hoặc 1.001612) — không bắt buộc, tốn hạn mức. `main`/`deploy` chưa đồng bộ cho lượt này.
+
+## FE-HANDOFF-CASES-1126 — Bàn giao FE: trường hợp của thủ tục — 2026-11-26 (UTC+07)
+
+- **Bối cảnh:** chủ dự án báo FE cho rằng chưa có 3 ràng buộc:
+  - chọn trường hợp và chỉ nộp giấy tờ của trường hợp đó;
+  - tạo thủ tục thêm được trường hợp;
+  - giấy tờ bắt buộc chung + giấy tờ riêng từng trường hợp.
+- **Kiểm tra:**
+  - Catalog/Workflow đã hỗ trợ cả ba (WF-01, WF-CASE-01; test `Workflow/CreateApplicationTests`).
+  - Đã đọc 4 thủ tục công khai qua Gateway (`bravetree-f6485744`): không thủ tục nào có từ 2 trường hợp (1.001776, 1.001612, 1.014748 có 0; 1.008309 có 1, tự chọn), nên FE chưa từng gặp bước chọn trường hợp.
+  - Đã đối chiếu code: nộp bị chặn khi thiếu giấy tờ bắt buộc (`WorkflowRequests` submit); hủy được hồ sơ DRAFT/NEED_REVISION.
+- **Mới:** `docs/fe-handoff-2026-11-26-procedure-cases.md`:
+  - cấu trúc dữ liệu và lỗi validation;
+  - việc FE cần làm cho Quản lý thủ tục, người dân, cán bộ;
+  - 12 bước kiểm với thủ tục thử 5 chung + TH-1 (2) + TH-2 (3);
+  - giới hạn.
+- **Không đổi code, API, cấu hình.** Không cần deploy.
+- **Tiếp theo:** FE làm theo mục 3 và kiểm theo mục 4. Chủ dự án quyết có cho đổi trường hợp của hồ sơ nháp không.
