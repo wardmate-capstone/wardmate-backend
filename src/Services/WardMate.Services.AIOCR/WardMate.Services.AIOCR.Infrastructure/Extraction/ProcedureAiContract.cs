@@ -127,14 +127,42 @@ internal static class ProcedureAiContract
             ? list.EnumerateArray().Count(x => x.ValueKind == JsonValueKind.Object) : 0;
         if (cases < numbers.Length)
             warnings.Add($"contentPayload.cases: Văn bản nguồn có {numbers.Length} trường hợp (Trường hợp {string.Join(", ", numbers)}) nhưng chỉ bóc tách được {cases}; kiểm tra thành phần hồ sơ từng trường hợp và bổ sung.");
-        if (payload.TryGetProperty("checklistSchema", out var items) && items.ValueKind == JsonValueKind.Array)
+        // WF-CASE-01: giấy tờ không gắn trường hợp là giấy tờ CHUNG, áp dụng cho mọi trường hợp (vd 5 giấy tờ bắt buộc cho
+        // mọi người + giấy tờ riêng từng trường hợp). Chỉ nhắc kiểm tra, không yêu cầu gắn caseCode cho mọi dòng.
+        var unassigned = Unassigned(payload).ToArray();
+        if (unassigned.Length > 0)
+            warnings.Add($"checklistSchema: {unassigned.Length} giấy tờ chưa gắn trường hợp nên sẽ là giấy tờ chung, mọi trường hợp đều phải nộp ({Names(unassigned)}); " +
+                "kiểm tra đúng là giấy tờ chung, nếu chỉ thuộc một trường hợp thì gắn caseCode.");
+    }
+
+    // WF-CASE-01: điều kiện viết ngay trong dòng giấy tờ ("(i) Trường hợp ủy quyền...", "Đối với trường hợp...") — không phải
+    // tiêu đề nhóm. Dòng như vậy để chung và bắt buộc thì mọi người dân đều bị đòi nộp.
+    private static readonly Regex ConditionalItem = new(@"^\s*(\(\s*[ivxlc\d]+\s*\)\s*|[a-zđ]\)\s*|-\s*)?(trường hợp|đối với trường hợp|nếu)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+    public static void CheckConditionalItems(JsonElement payload, List<string> warnings)
+    {
+        var conditional = Unassigned(payload).Where(x => x.Mandatory && ConditionalItem.IsMatch(x.Name)).ToArray();
+        if (conditional.Length > 0)
+            warnings.Add($"checklistSchema: {conditional.Length} giấy tờ có điều kiện (bắt đầu bằng \"Trường hợp…\"/\"Nếu…\") đang là giấy tờ chung bắt buộc ({Names(conditional)}); " +
+                "tách thành trường hợp riêng hoặc đặt isMandatory false kèm conditionNote, nếu không mọi người dân đều phải nộp.");
+    }
+
+    private static IEnumerable<(string Name, bool Mandatory)> Unassigned(JsonElement payload)
+    {
+        if (!payload.TryGetProperty("checklistSchema", out var items) || items.ValueKind != JsonValueKind.Array) yield break;
+        foreach (var x in items.EnumerateArray())
         {
-            var unassigned = items.EnumerateArray().Count(x => x.ValueKind == JsonValueKind.Object &&
-                (!x.TryGetProperty("caseCode", out var code) || code.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(code.GetString())));
-            if (unassigned > 0)
-                warnings.Add($"checklistSchema: {unassigned} giấy tờ chưa gắn trường hợp trong khi nguồn chia theo trường hợp; gắn caseCode trước khi xuất bản.");
+            if (x.ValueKind != JsonValueKind.Object) continue;
+            if (x.TryGetProperty("caseCode", out var code) && code.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(code.GetString())) continue;
+            var name = x.TryGetProperty("itemName", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString()!.Trim() : "";
+            var mandatory = !x.TryGetProperty("isMandatory", out var m) || m.ValueKind != JsonValueKind.False;
+            yield return (name, mandatory);
         }
     }
+
+    private static string Names((string Name, bool Mandatory)[] items) =>
+        string.Join("; ", items.Take(5).Select(x => "\"" + (x.Name.Length > 60 ? x.Name[..60] + "…" : x.Name) + "\"")) + (items.Length > 5 ? "; …" : "");
 
     private static JsonNode? Read(JsonNode template, JsonNode? value, string path, List<string> warnings, bool optional = false)
     {
