@@ -5666,3 +5666,10 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
   - Chưa đổi được trường hợp sau khi tạo hồ sơ nháp (phải hủy và tạo lại; đổi được cần xử lý tệp đã tải theo giấy tờ cũ — chờ chủ dự án quyết).
   - Catalog chưa cảnh báo khi có nhiều trường hợp mà không giấy tờ nào gắn mã.
   - FE cần bước chọn trường hợp trước khi tạo hồ sơ.
+
+## DEPLOY-1126d — WF-CASE-1126 lên Azure (AIOCR) — 2026-11-26 (UTC+07)
+
+- **Git:** chủ dự án duyệt "Push và deploy"; push `kha` `a0ae5c9..9657592` (5 commit, không force). Trước đó một phiên khác đã đưa 2 commit docs (`2f1bd6d`, `a0ae5c9`) lên cả 3 nhánh.
+- **AIOCR:** tag `wfcase-20261126-01`, `wardmate-aiocr@sha256:67199920aa2b981a64f873f4d82a59fcb223d622eea685cbbde12ab21d9db879`; health trước 200, update `Succeeded`, health sau 200; `Knowledge__EmbeddingEnabled`/`Knowledge__RagEnabled` vẫn `true`. Rollback `acrwardmate6ll4.azurecr.io/wardmate-aiocr@sha256:1f0aa5ccf2067562f6fe06d5b92d0bf39d0163094ada2b0ce16e7cbcf1befbaf` (`chatcite-20261126-01`).
+- **Workflow:** chỉ thêm test, không deploy. Không SQL/migration/cấu hình.
+- **Chưa làm:** thử bóc tách AI thật (PDF có "Trường hợp N:" hoặc 1.001612) — không bắt buộc, tốn hạn mức. `main`/`deploy` chưa đồng bộ cho lượt này.
