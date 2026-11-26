@@ -98,7 +98,10 @@ public sealed partial class ChatService(ChatDbContext db, IAssistantModel model,
     // sources (typically "chưa đủ thông tin" for an off-topic question), so nothing is cited and the turn is not grounded.
     public static ChatCitation[]? Cite(string answer, IReadOnlyList<KnowledgeHit> sources)
     {
-        var cited = CitationMarker().Matches(answer).Select(m => int.Parse(m.Groups[1].Value))
+        // CHAT-CITE-02: một ngoặc có thể chứa nhiều số ("[7, 9]", "[1; 5]").
+        var cited = CitationMarker().Matches(answer)
+            .SelectMany(m => m.Groups[1].Value.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Select(int.Parse)
             .Where(i => i >= 1 && i <= sources.Count).Distinct().Order().ToArray();
         if (cited.Length == 0) return null;
         return cited.Select(i =>
@@ -172,5 +175,5 @@ public sealed partial class ChatService(ChatDbContext db, IAssistantModel model,
             x.SuggestedQuestions is null ? null : JsonSerializer.Deserialize<string[]>(x.SuggestedQuestions, Json), x.FeedbackHelpful)).ToList(), page, size, total);
     }
 
-    [GeneratedRegex(@"\[(\d{1,2})\]")] private static partial Regex CitationMarker();
+    [GeneratedRegex(@"\[(\d{1,2}(?:\s*[,;]\s*\d{1,2})*)\]")] private static partial Regex CitationMarker();
 }
