@@ -27,6 +27,22 @@ public sealed class ChatCitationTests
         Assert.Equal("Gia hạn thẻ BHYT", only.Title);
     }
 
+    [Theory]
+    [InlineData("Cần tờ khai [1, 2].")]
+    [InlineData("Cần tờ khai [2;1].")]
+    [InlineData("Cần tờ khai [1,2, 7] và sổ [2].")]
+    public void Several_numbers_in_one_bracket_are_all_cited(string answer)
+    {
+        var citations = ChatService.Cite(answer, Sources)!;
+        Assert.Equal([1, 2], citations.Select(c => c.Index));
+    }
+
+    [Fact]
+    public void Non_citation_brackets_are_ignored()
+    {
+        Assert.Null(ChatService.Cite("Mục [a, 1] hoặc [1-2] hoặc [ ]", Sources));
+    }
+
     [Fact]
     public void Out_of_range_markers_alone_return_no_citations()
     {
