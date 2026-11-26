@@ -5559,3 +5559,4 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Analytics:** `wardmate-analytics-system@sha256:56e23b67f8929b95cd11ced09d84ca6faa55a27177e9ec942ed34821b003033a`, `Succeeded`, health 200. Rollback `acrwardmate6ll4.azurecr.io/wardmate-analyticssystem:rebuild-20261120`.
 - **Gateway** `/health` 200. Không migration/cấu hình mới.
 - **Chưa làm:** `docs/sql/iam-normalize-usernames.sql` (chờ chủ dự án duyệt); Quản lý thủ tục bấm "Đồng bộ tất cả"; FE kiểm `docs/fe-handoff-2026-11-25.md`; `main`/`deploy` chưa đồng bộ.
+- **26/11 bổ sung:** chủ dự án duyệt; chạy `docs/sql/iam-normalize-usernames.sql` trên DB IAM (Supabase): SELECT 1 dòng (`  test_mgr_a`, không trùng), UPDATE 1 dòng trong transaction, kiểm lại 0 dòng, COMMIT. Username giờ là `test_mgr_a`.

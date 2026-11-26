@@ -1,4 +1,4 @@
-# Bàn giao WardMate cho Claude
+﻿# Bàn giao WardMate cho Claude
 
 ## Cập nhật 24/10/2026 — TASK-28 Knowledge Base (KB-01)
 
@@ -155,7 +155,7 @@ Bộ EF model kiểm kê ngày 24/10: 41 bảng ứng dụng, 410 cột, 22 FK t
 
 | Ưu tiên | Việc | Trạng thái và bước tiếp theo |
 |---|---|---|
-| **Ưu tiên cao** | Sửa BE sau rà soát UI (FIX-UIREVIEW-1125, 25/11) | **Đã deploy 26/11 (DEPLOY-1126a): Workflow, DocumentForm, AIOCR, Analytics `uireview-20261126-01`, health 200; Knowledge vẫn bật.** Còn: chạy `docs/sql/iam-normalize-usernames.sql` (chờ chủ dự án duyệt, xem SELECT trước); Quản lý thủ tục bấm "Đồng bộ tất cả"; FE kiểm `docs/fe-handoff-2026-11-25.md`; main/deploy chưa đồng bộ. |
+| **Ưu tiên cao** | Sửa BE sau rà soát UI (FIX-UIREVIEW-1125, 25/11) | **Đã deploy 26/11 (DEPLOY-1126a): Workflow, DocumentForm, AIOCR, Analytics `uireview-20261126-01`, health 200; Knowledge vẫn bật.** SQL IAM username đã chạy 26/11 (1 dòng). Còn: Quản lý thủ tục bấm "Đồng bộ tất cả"; FE kiểm `docs/fe-handoff-2026-11-25.md`; main/deploy chưa đồng bộ. |
 | Gần nhất | Đồng bộ Azure + Gateway (AZURE-SYNC-1111, 11/11) | Mọi service chạy code mới nhất; Gateway cập nhật `gateway-20261111-01` (thêm route `/api/v1/system/*`, trước đó 404). Health 6 service qua gateway 200. |
 | Gần nhất | BE-I sửa Catalog (DEPLOY-1111a, 11/11) | `catalog-20261111-01` lúc 16:03 UTC+07, 200 Healthy, API quản trị không token 401. Chờ FE nghiệm thu bằng tài khoản Procedure Manager. |
 | Gần nhất | BE-J tải phôi công khai (DEPLOY-1110d, 10/11) | DocumentForm `documentform-20261110-03`, 200 Healthy; kiểm ẩn danh 200/404/401/429 đạt. FE dùng `GET /api/v1/public/form-templates/{id}/download-docx`. **FE nghiệm thu xong 12/11 (chủ dự án xác nhận, SYNC-1112).** |
