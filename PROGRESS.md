@@ -5760,3 +5760,33 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
   - Analytics `sha256:54991b198d6fced9b82e75fd0456558549107ac2357c9ca1b395b5024f09f0b0`; rollback `wardmate-analytics-system@sha256:56e23b67f8929b95cd11ced09d84ca6faa55a27177e9ec942ed34821b003033a`.
 - **Gateway** `/health` 200; `GET /api/v1/rbac/roles` và `GET /api/v1/analytics/procedures` không token → 401 (route có). Chưa gọi có token để xem `procedureTitle`, chưa thử trang QR "Mã hồ sơ".
 - Cấu hình mới `Analytics:IntradayCron`, `SystemHealth:RetryTimeoutSeconds` dùng mặc định, không đặt. `main`/`deploy` chưa đồng bộ.
+
+## RESET-DATA-1128 — Chuẩn bị xóa toàn bộ dữ liệu nghiệp vụ — 2026-11-28 (UTC+07)
+
+- **Quyết định chủ dự án:** xóa hết dữ liệu nghiệp vụ (cách 2), không giữ thủ tục nào, xóa cả tệp trên blob, để nhập lại từ đầu.
+- **Mới (`docs/reset/`):**
+  - `README.md`: runbook gồm phạm vi, sao lưu `pg_dump` + bản sao blob, chạy SQL, xóa blob, kiểm tra, nhập lại, khôi phục.
+  - `pg-env.sh`: nạp chuỗi kết nối từ Container App vào biến PG*, không in mật khẩu.
+  - `1-catalog.sql`, `2-documentform.sql`, `3-workflow.sql`, `4-aiocr.sql`, `5-analytics.sql`, `6-iam.sql`.
+- **Phạm vi xóa:**
+  - Thủ tục, phiên bản, bản nháp, lĩnh vực.
+  - Biểu mẫu, bản khai, giấy tờ, PDF, QR.
+  - Hồ sơ và dữ liệu con, outbox.
+  - Kho kiến thức, phiên chat.
+  - Thống kê, đánh giá, thông báo.
+  - Lĩnh vực gán cho cán bộ (đặt rỗng).
+  - Mọi tệp trong blob `procedure-sources`, `form-templates`.
+- **Giữ:**
+  - Tài khoản, vai trò, quyền, phường.
+  - Ca, lịch tuần, nghỉ phép, ngày lễ.
+  - Nhật ký kiểm toán/sức khỏe/sao lưu, cấu hình.
+  - Thiết bị push, nhật ký lượt gọi AI.
+  - Container `wardmate-files`, `workflow-leave-documents`, `wardmate-backups`.
+- **Kiểm tra local:** chạy `2-documentform.sql`, `6-iam.sql`, `1-catalog.sql` trên PostgreSQL 16 tạm (Docker):
+  - xóa đúng bảng trong danh sách, bảng thiếu thì bỏ qua;
+  - còn khóa ngoại từ bảng ngoài danh sách thì lỗi và quay lại toàn bộ.
+  - Chưa chạy trên Supabase/Azure.
+- **Không đổi code, API, cấu hình;** không cần build/test.
+- **Tiếp theo:**
+  - Chủ dự án hoặc phiên Deploy làm theo `docs/reset/README.md` trong Cloud Shell (sao lưu trước).
+  - Quản lý thủ tục nhập lại dữ liệu; Quản lý phường gán lại lĩnh vực cho cán bộ.
