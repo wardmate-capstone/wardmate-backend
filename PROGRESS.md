@@ -3,6 +3,25 @@
 
 # WardMate — Nhật ký phát triển
 
+## DEPLOY-DOC-1128 — Deploy DocumentForm và ApplicationWorkflow hỗ trợ .doc template lên Azure | 2026-11-28 23:42 (Asia/Saigon)
+
+- **Mục đích:** Đưa tính năng hỗ trợ upload biểu mẫu template định dạng `.doc` (OLE2 binary) lên môi trường Azure Container Apps cho 2 service: `wardmate-documentform` và `wardmate-application-workflow`.
+- **Thông tin deploy:**
+  - Resource group: `rg-wardmate`, Subscription: `Azure for Students` (`e3691990-ce97-42fd-ad8b-846dcf7dc4ef`), ACR: `acrwardmate6ll4`.
+  - Service 1: `wardmate-documentform`
+    + Tag mới: `documentform-20261128-02`
+    + Digest: `sha256:e5b42ec51638b4de2080436b838c4f948876ddbbfed0f120aed513675a40cfd9`
+    + Image cũ: `acrwardmate6ll4.azurecr.io/wardmate-documentform@sha256:b93d3dbb80e01793b2091035ea80a4755ba045db5efb6dc4d65f27123c44bbf8`
+    + Provisioning state: `Succeeded`, Revision: `wardmate-documentform--latest` (Healthy, Running)
+  - Service 2: `wardmate-application-workflow`
+    + Tag mới: `workflow-20261128-02`
+    + Digest: `sha256:679539da9fdca4fcc7ccc2f14cd40ba519ab816c046055fc097ef83cc718e746`
+    + Image cũ: `acrwardmate6ll4.azurecr.io/wardmate-application-workflow@sha256:e7b6397113063be699bcb9c55469b1ce4bc75c3109f31d15f25b1a0fa15c981e`
+    + Provisioning state: `Succeeded`, Revision: `wardmate-application-workflow--latest` (Healthy, Running)
+- **Kết quả kiểm tra qua Gateway:**
+  - `/api/document-form/health/ready` → HTTP 200 `{"status":"Healthy","checks":[{"name":"database","status":"Healthy"}]}`
+  - `/api/application-workflow/health/ready` → HTTP 200 `{"status":"Healthy","checks":[{"name":"database","status":"Healthy"},{"name":"rabbitmq","status":"Healthy"}]}`
+
 ## DOC-TEMPLATE-DOCEXT-01 — Hỗ trợ upload template .doc thêm vào .docx | 2026-11-28 22:47 (Asia/Saigon)
 
 - **Mục đích:** Cho phép upload file Word định dạng `.doc` (OLE2 binary) bên cạnh `.docx` (OpenXML) khi thêm biểu mẫu template, đáp ứng thực tế một số biểu mẫu nhà nước chỉ có dạng `.doc`.
