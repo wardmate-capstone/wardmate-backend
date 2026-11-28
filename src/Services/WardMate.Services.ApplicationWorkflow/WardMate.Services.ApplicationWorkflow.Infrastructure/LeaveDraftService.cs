@@ -119,13 +119,32 @@ public sealed class LeaveDraftService(WorkflowDbContext db, IConfiguration confi
         }
         catch(Exception ex) when(ex is IOException or InvalidDataException or XmlException or OverflowException) { return false; }
     }
+    private static readonly byte[] Ole2Header = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+    private static readonly byte[] WordDocumentStreamUtf16 = [0x57, 0x00, 0x6F, 0x00, 0x72, 0x00, 0x64, 0x00, 0x44, 0x00, 0x6F, 0x00, 0x63, 0x00, 0x75, 0x00, 0x6D, 0x00, 0x65, 0x00, 0x6E, 0x00, 0x74, 0x00];
+    private static readonly byte[] WordDocumentStreamAscii = "WordDocument"u8.ToArray();
+    private static readonly byte[] VbaProjectUtf16 = [0x5F, 0x00, 0x56, 0x00, 0x42, 0x00, 0x41, 0x00, 0x5F, 0x00, 0x50, 0x00, 0x52, 0x00, 0x4F, 0x00, 0x4A, 0x00, 0x45, 0x00, 0x43, 0x00, 0x54, 0x00];
+    private static readonly byte[] VbaProjectAscii = "_VBA_PROJECT"u8.ToArray();
+
+    public static bool IsDoc(byte[] content)
+    {
+        if (content.Length < 512) return false;
+        var span = content.AsSpan();
+        if (!span.StartsWith(Ole2Header)) return false;
+        bool hasWord = span.IndexOf(WordDocumentStreamUtf16) >= 0 || span.IndexOf(WordDocumentStreamAscii) >= 0;
+        if (!hasWord) return false;
+        bool hasVba = span.IndexOf(VbaProjectUtf16) >= 0 || span.IndexOf(VbaProjectAscii) >= 0;
+        return !hasVba;
+    }
+
+    public static bool IsWordDocument(byte[] content) => Docx(content) || IsDoc(content);
+
     private async Task<WorkflowResult<byte[]>> Fetch(string key, string hash, CancellationToken ct)
     {
         if(storage is null || blobService is not null && !await LeaveBlobMaintenance.Private(blobService,ct)) return Fail<byte[]>(503,"storage_unavailable");
         await using var stream=await storage.DownloadAsync(key,Container,ct);
         if(stream is null) return Fail<byte[]>(503,"storage_unavailable");
         var bytes=await Bounded(stream,ct);
-        return bytes is not null && Digest(bytes)==hash && Docx(bytes) ? WorkflowResult<byte[]>.Ok(bytes) : Fail<byte[]>(503,"storage_unavailable");
+        return bytes is not null && Digest(bytes)==hash && IsWordDocument(bytes) ? WorkflowResult<byte[]>.Ok(bytes) : Fail<byte[]>(503,"storage_unavailable");
     }
     public async Task<WorkflowResult<byte[]>> TemplateFile(ReviewActor a, Guid id, CancellationToken ct)
     {
@@ -149,16 +168,18 @@ public sealed class LeaveDraftService(WorkflowDbContext db, IConfiguration confi
         if (storage is null || blobService is not null && !await LeaveBlobMaintenance.Private(blobService,ct)) return Fail<WardLeaveTemplateView>(503,"storage_unavailable");
         var bytes = await Bounded(data, ct);
         if (bytes is null) return Fail<WardLeaveTemplateView>(413,"too_large");
-        if (!string.Equals(Path.GetExtension(filename), ".docx", StringComparison.OrdinalIgnoreCase) || !Docx(bytes)) return Fail<WardLeaveTemplateView>(415,"invalid_docx");
+        var ext = Path.GetExtension(filename);
+        if ((!string.Equals(ext, ".docx", StringComparison.OrdinalIgnoreCase) && !string.Equals(ext, ".doc", StringComparison.OrdinalIgnoreCase)) || !IsWordDocument(bytes)) return Fail<WardLeaveTemplateView>(415,"invalid_docx");
         var templateId = Guid.NewGuid();
         var sha256 = Digest(bytes);
+        var defaultName = string.Equals(ext, ".doc", StringComparison.OrdinalIgnoreCase) ? "don-nghi.doc" : "don-nghi.docx";
         var tpl = new WardLeaveTemplate
         {
             Id = templateId,
             WardCode = a.WardCode!,
             Sha256 = sha256,
             SizeBytes = bytes.Length,
-            FileName = string.IsNullOrWhiteSpace(filename) ? "don-nghi.docx" : Path.GetFileName(filename),
+            FileName = string.IsNullOrWhiteSpace(filename) ? defaultName : Path.GetFileName(filename),
             UploadedBy = a.Id,
             UploadedByName = a.FullName ?? string.Empty,
             UploadedAtUtc = Now,
@@ -166,7 +187,8 @@ public sealed class LeaveDraftService(WorkflowDbContext db, IConfiguration confi
         };
         var key = TemplateKey(templateId);
         using var stream = new MemoryStream(bytes, false);
-        await storage.UploadAsync(stream, key, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", Container, ct);
+        var contentType = string.Equals(ext, ".doc", StringComparison.OrdinalIgnoreCase) ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        await storage.UploadAsync(stream, key, contentType, Container, ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await StaffingLocks.Ward(db, a.WardCode!, ct);
         var existing = await db.WardLeaveTemplates.Where(x => x.WardCode == a.WardCode && x.IsActive).ToListAsync(ct);
@@ -268,11 +290,13 @@ public sealed class LeaveDraftService(WorkflowDbContext db, IConfiguration confi
         if(storage is null || blobService is not null && !await LeaveBlobMaintenance.Private(blobService,ct)) return Fail<LeaveDraftView>(503,"storage_unavailable");
         var bytes=await Bounded(data,ct);
         if(bytes is null) return Fail<LeaveDraftView>(413,"too_large");
-        if(!string.Equals(Path.GetExtension(filename),".docx",StringComparison.OrdinalIgnoreCase) || !Docx(bytes)) return Fail<LeaveDraftView>(415,"invalid_docx");
+        var ext = Path.GetExtension(filename);
+        if((!string.Equals(ext,".docx",StringComparison.OrdinalIgnoreCase) && !string.Equals(ext,".doc",StringComparison.OrdinalIgnoreCase)) || !IsWordDocument(bytes)) return Fail<LeaveDraftView>(415,"invalid_docx");
         var rev=new LeaveDocumentRevision { DraftId=id,MetadataVersion=metadataVersion,Sha256=Digest(bytes),SizeBytes=bytes.Length,SavedAtUtc=Now };
         var key=RevisionKey(id,rev.Id);
         using var stream=new MemoryStream(bytes,false);
-        await storage.UploadAsync(stream,key,"application/vnd.openxmlformats-officedocument.wordprocessingml.document",Container,ct);
+        var contentType = string.Equals(ext, ".doc", StringComparison.OrdinalIgnoreCase) ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        await storage.UploadAsync(stream,key,contentType,Container,ct);
         var result=await Change(a,id,version,"SAVE_WORD",d=>{ db.LeaveRevisions.Add(rev); d.CurrentRevisionId=rev.Id; },ct);
         if(result.Error is not null) await storage.DeleteAsync(key,Container,ct);
         return result;
