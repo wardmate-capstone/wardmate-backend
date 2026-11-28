@@ -12,7 +12,8 @@ public sealed class AnalyticsService(AnalyticsDbContext db, IAnalyticsWorkflowCl
     private static MetricTotals Totals(IEnumerable<ProcedureMetric> rows) => new(
         rows.Sum(x => (long)x.ReceivedCount), rows.Sum(x => (long)x.ReadyCount), rows.Sum(x => (long)x.RevisionRequestedCount),
         rows.Sum(x => (long)x.ResubmittedCount), rows.Sum(x => (long)x.CancelledCount),
-        rows.Sum(x => (long)x.LegacyApprovedCount), rows.Sum(x => (long)x.LegacyRejectedCount));
+        rows.Sum(x => (long)x.LegacyApprovedCount), rows.Sum(x => (long)x.LegacyRejectedCount),
+        rows.Sum(x => (long)x.OfficiallyReceivedCount));
     private IQueryable<ProcedureMetric> Metrics(string ward, AnalyticsQuery q) => db.Procedures.AsNoTracking()
         .Where(x => x.WardCode == ward && x.MetricDate >= q.From && x.MetricDate <= q.To &&
             (q.ProcedureId == null || x.ProcedureId == q.ProcedureId));
@@ -58,11 +59,18 @@ public sealed class AnalyticsService(AnalyticsDbContext db, IAnalyticsWorkflowCl
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
         var metrics = (await Metrics(ward, q).ToArrayAsync(ct)).GroupBy(x => x.ProcedureId).ToDictionary(x => x.Key, Totals);
         // Include live-only groups even when the cached aggregation job has not run yet.
+        var titles = ProcedureTitles(source);
         var rows = metrics.Keys.Union(deadlines.Select(x => x.Key))
-            .Select(id => new ProcedureStatistics(id, metrics.GetValueOrDefault(id, Zero), DeadlineAggregation.Subset(source, deadlines[id])))
+            .Select(id => new ProcedureStatistics(id, metrics.GetValueOrDefault(id, Zero), DeadlineAggregation.Subset(source, deadlines[id]),
+                titles.GetValueOrDefault(id)))
             .OrderByDescending(x => x.Totals.ReceivedCount).ThenBy(x => x.ProcedureId).ToArray();
         return new(rows.Skip((q.Page - 1) * q.PageSize).Take(q.PageSize).ToArray(), q.Page, q.PageSize, rows.Length, await Coverage(q, ct));
     }
+    // ANA-11: tên thủ tục lấy từ bản chụp trong hồ sơ (Workflow), có cả thủ tục đã ẩn; thiếu thì null để FE tự tra.
+    public static Dictionary<Guid, string> ProcedureTitles(DeadlineFacts source) =>
+        (source.Procedures ?? []).Where(x => x is not null && x.ProcedureId != Guid.Empty && !string.IsNullOrWhiteSpace(x.Title))
+            .GroupBy(x => x.ProcedureId).ToDictionary(g => g.Key, g => g.First().Title.Trim());
+
     public async Task<AnalyticsPage<OfficerStatistics>> Officers(string ward, AnalyticsQuery q, CancellationToken ct)
     {
         var source = await DeadlineSource(ward, q, ct);

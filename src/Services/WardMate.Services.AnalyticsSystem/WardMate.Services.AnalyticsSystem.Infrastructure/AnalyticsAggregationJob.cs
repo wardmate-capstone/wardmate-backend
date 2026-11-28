@@ -20,6 +20,13 @@ public sealed class AnalyticsAggregationJob(AnalyticsDbContext db, IAnalyticsWor
                 .Select(x => (int?)x.Value).SingleOrDefaultAsync(ct) ?? days;
         await Rebuild(today.AddDays(1 - days), today, ct);
     }
+    /// <summary>ANA-08b: chỉ tổng hợp lại ngày hôm nay (UTC+7) để số liệu trong ngày không phải chờ lịch 01:15.</summary>
+    [AutomaticRetry(Attempts = 1)]
+    public Task RefreshToday(CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(clock.GetUtcNow().ToOffset(TimeSpan.FromHours(7)).DateTime);
+        return Rebuild(today, today, ct);
+    }
     [AutomaticRetry(Attempts = 3)]
     public async Task Rebuild(DateOnly from, DateOnly to, CancellationToken ct)
     {
@@ -38,7 +45,8 @@ public sealed class AnalyticsAggregationJob(AnalyticsDbContext db, IAnalyticsWor
             db.Procedures.AddRange(source.Procedures.Select(x => new ProcedureMetric { MetricDate = date,
                 WardCode = x.WardCode, ProcedureId = x.ProcedureId, ReceivedCount = x.ReceivedCount, ReadyCount = x.ReadyCount,
                 RevisionRequestedCount = x.RevisionRequestedCount, ResubmittedCount = x.ResubmittedCount,
-                CancelledCount = x.CancelledCount, LegacyApprovedCount = x.LegacyApprovedCount, LegacyRejectedCount = x.LegacyRejectedCount }));
+                CancelledCount = x.CancelledCount, LegacyApprovedCount = x.LegacyApprovedCount, LegacyRejectedCount = x.LegacyRejectedCount,
+                OfficiallyReceivedCount = x.OfficiallyReceivedCount }));
             db.Officers.AddRange(source.Officers.Select(x => new OfficerMetric { MetricDate = date,
                 WardCode = x.WardCode, ProcedureId = x.ProcedureId, OfficerId = x.OfficerId, ReadyCount = x.ReadyCount,
                 RevisionRequestedCount = x.RevisionRequestedCount, DurationSampleCount = x.DurationSampleCount,
@@ -59,7 +67,7 @@ public sealed class AnalyticsAggregationJob(AnalyticsDbContext db, IAnalyticsWor
         if (s.ContractVersion != 1 || s.Date != date || s.TimeZone != "Asia/Ho_Chi_Minh" ||
             s.GeneratedAtUtc.Kind != DateTimeKind.Utc || s.Procedures is null || s.Officers is null ||
             s.Procedures.Any(x => x is null || x.ProcedureId == Guid.Empty || x.WardCode is null || x.WardCode.Length > 50 ||
-                new[] { x.ReceivedCount, x.ReadyCount, x.RevisionRequestedCount, x.ResubmittedCount, x.CancelledCount, x.LegacyApprovedCount, x.LegacyRejectedCount }.Any(n => n < 0)) ||
+                new[] { x.ReceivedCount, x.ReadyCount, x.RevisionRequestedCount, x.ResubmittedCount, x.CancelledCount, x.LegacyApprovedCount, x.LegacyRejectedCount, x.OfficiallyReceivedCount }.Any(n => n < 0)) ||
             s.Officers.Any(x => x is null || x.OfficerId == Guid.Empty || x.ProcedureId == Guid.Empty || x.WardCode is null || x.WardCode.Length > 50 ||
                 x.ReadyCount < 0 || x.RevisionRequestedCount < 0 || x.DurationSampleCount < 0 || x.DurationSampleCount > x.ReadyCount ||
                 !double.IsFinite(x.TotalProcessingMinutes) || x.TotalProcessingMinutes < 0) ||

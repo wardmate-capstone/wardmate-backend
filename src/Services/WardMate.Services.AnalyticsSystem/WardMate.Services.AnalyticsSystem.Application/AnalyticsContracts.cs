@@ -3,7 +3,8 @@ using System.ComponentModel.DataAnnotations;
 namespace WardMate.Services.AnalyticsSystem.Application;
 
 public sealed record ProcedureDay(Guid ProcedureId, string WardCode, int ReceivedCount, int ReadyCount,
-    int RevisionRequestedCount, int ResubmittedCount, int CancelledCount, int LegacyApprovedCount, int LegacyRejectedCount);
+    int RevisionRequestedCount, int ResubmittedCount, int CancelledCount, int LegacyApprovedCount, int LegacyRejectedCount,
+    int OfficiallyReceivedCount = 0);
 public sealed record OfficerDay(Guid OfficerId, Guid ProcedureId, string WardCode, int ReadyCount,
     int RevisionRequestedCount, int DurationSampleCount, double TotalProcessingMinutes);
 public sealed record AnalyticsDay(int ContractVersion, DateOnly Date, DateTime GeneratedAtUtc, string TimeZone,
@@ -30,14 +31,15 @@ public sealed class AnalyticsQuery
     [Range(1, 100)] public int PageSize { get; set; } = 20;
 }
 public sealed record MetricTotals(long ReceivedCount, long ReadyCount, long RevisionRequestedCount,
-    long ResubmittedCount, long CancelledCount, long LegacyApprovedCount, long LegacyRejectedCount);
+    long ResubmittedCount, long CancelledCount, long LegacyApprovedCount, long LegacyRejectedCount,
+    long OfficiallyReceivedCount = 0);
 public sealed record Coverage(DateOnly From, DateOnly To, DateOnly[] MissingDates, DateTime? OldestSourceAtUtc,
     DateTime? LatestRefreshAtUtc, string TimeZone = "Asia/Ho_Chi_Minh");
 public sealed record DashboardOverview(MetricTotals Totals, Coverage Coverage, double? OnTimeRate,
     double? LateRate, string TimelinessStatus = "UNAVAILABLE_NO_WORKFLOW_DEADLINE", DeadlineStatistics? Deadlines = null);
 public sealed record TrendPoint(DateOnly Date, MetricTotals Totals, DeadlineStatistics? Deadlines = null);
 public sealed record TrendResult(TrendPoint[] Items, Coverage Coverage, DeadlineStatistics? CurrentBacklog = null);
-public sealed record ProcedureStatistics(Guid ProcedureId, MetricTotals Totals, DeadlineStatistics? Deadlines = null);
+public sealed record ProcedureStatistics(Guid ProcedureId, MetricTotals Totals, DeadlineStatistics? Deadlines = null, string? ProcedureTitle = null);
 public sealed record OfficerStatistics(Guid OfficerId, long ReadyCount, long RevisionRequestedCount,
     long DurationSampleCount, double? AverageElapsedMinutes, DeadlineStatistics? Deadlines = null);
 public sealed record AnalyticsPage<T>(T[] Items, int Page, int PageSize, int TotalCount, Coverage? Coverage = null, DeadlineStatistics? UnassignedDeadlines = null);

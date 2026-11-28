@@ -229,6 +229,9 @@ namespace WardMate.Services.AnalyticsSystem.Infrastructure.Migrations.Analytics
                     b.Property<int>("LegacyRejectedCount")
                         .HasColumnType("integer");
 
+                    b.Property<int>("OfficiallyReceivedCount")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ReadyCount")
                         .HasColumnType("integer");
 

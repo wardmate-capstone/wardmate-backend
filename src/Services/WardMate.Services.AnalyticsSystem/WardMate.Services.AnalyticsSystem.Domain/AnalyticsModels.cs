@@ -12,6 +12,8 @@ public sealed class ProcedureMetric
     public int CancelledCount { get; set; }
     public int LegacyApprovedCount { get; set; }
     public int LegacyRejectedCount { get; set; }
+    // ANA-10: số hồ sơ chuyển sang OFFICIALLY_RECEIVED (tiếp nhận tại quầy) trong ngày.
+    public int OfficiallyReceivedCount { get; set; }
 }
 
 public sealed class OfficerMetric

@@ -1,7 +1,9 @@
 namespace WardMate.Services.AnalyticsSystem.Application;
 public sealed record DeadlineFact(Guid Id, string Status, DateTime? FirstSubmittedAtUtc, DateTime? DueAtUtc,
     DateTime? DocumentsReadyAtUtc, string DeadlineStatus, DateTime? PausedAtUtc, Guid ProcedureId = default, Guid? AssignedOfficerId = null);
-public sealed record DeadlineFacts(int ContractVersion, DateTime AsOfUtc, DeadlineFact[] Items);
+public sealed record DeadlineFacts(int ContractVersion, DateTime AsOfUtc, DeadlineFact[] Items, ProcedureName[]? Procedures = null);
+// ANA-11: tên thủ tục do Workflow chụp trong hồ sơ, có cả thủ tục đã ẩn.
+public sealed record ProcedureName(Guid ProcedureId, string Title);
 public sealed record DeadlineStatistics(long CompletedOnTime, long CompletedLate, long CompletedMissingDeadline,
     long CompletedNotApplicable, long CompletedSampleCount, long OpenOverdue, long OpenMissingDeadline,
     long OpenNotApplicable, long OpenPaused, DateTime AsOfUtc)
