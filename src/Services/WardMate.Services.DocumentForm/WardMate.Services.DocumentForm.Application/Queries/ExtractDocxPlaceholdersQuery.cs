@@ -25,7 +25,7 @@ public sealed class ExtractDocxPlaceholdersQueryHandler : IQueryHandler<ExtractD
         var extension = Path.GetExtension(request.FileName);
         if (!string.Equals(extension, ".docx", StringComparison.OrdinalIgnoreCase))
         {
-            return DocumentFormErrors.InvalidDocxFile("Only .docx files are supported for placeholder extraction.");
+            return DocumentFormErrors.InvalidDocxFile("Chỉ hỗ trợ trích xuất biến giữ chỗ từ tệp .docx.");
         }
 
         using var ms = new MemoryStream();
