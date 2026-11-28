@@ -51,13 +51,17 @@ public sealed class UploadFormTemplateDocxCommandHandler : ICommandHandler<Uploa
         var docxBytes = file.Value;
         using var uploadStream = new MemoryStream(docxBytes);
         var blobPath = $"form-templates/{template.Code.ToLowerInvariant()}/{Guid.NewGuid():N}_{Path.GetFileName(request.FileName)}";
+        var ext = Path.GetExtension(request.FileName);
+        var contentType = string.Equals(ext, ".doc", StringComparison.OrdinalIgnoreCase)
+            ? "application/msword"
+            : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         string blobUrl;
         try
         {
             blobUrl = await _blobClient.UploadAsync(
                 uploadStream,
                 blobPath,
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                contentType,
                 ct: cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
