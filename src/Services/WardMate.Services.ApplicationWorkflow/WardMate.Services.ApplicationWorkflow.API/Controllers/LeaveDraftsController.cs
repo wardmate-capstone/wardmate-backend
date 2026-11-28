@@ -26,7 +26,10 @@ public sealed class LeaveDraftsController(ILeaveDrafts drafts,IConfiguration con
             if(result.Value is byte[] file && result.Error is null)
             {
                 Response.Headers.CacheControl="private, no-store";
-                return File(file,DocxMime,"don-nghi.docx");
+                var isDoc = file.Length >= 8 && file[0] == 0xD0 && file[1] == 0xCF && file[2] == 0x11 && file[3] == 0xE0;
+                var mime = isDoc ? "application/msword" : DocxMime;
+                var defaultName = isDoc ? "don-nghi.doc" : "don-nghi.docx";
+                return File(file, mime, defaultName);
             }
             return Respond(result);
         }
