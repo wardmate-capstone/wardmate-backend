@@ -5691,3 +5691,29 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
   - giới hạn.
 - **Không đổi code, API, cấu hình.** Không cần deploy.
 - **Tiếp theo:** FE làm theo mục 3 và kiểm theo mục 4. Chủ dự án quyết có cho đổi trường hợp của hồ sơ nháp không.
+
+## FIX-FULLTEST-1128 — Sửa 10 lỗi BE sau kiểm thử toàn hệ thống 27–28/11 — 2026-11-28 (UTC+07)
+
+- **Nguồn:** phiên FE (kiểm thử) chuyển `docs/full-test-2026-11-28-BE.docx` phần A, B theo yêu cầu chủ dự án.
+- **Đã sửa:**
+  - M-03 DocumentForm: `Domain/Errors/DocumentFormErrors.cs` Việt hóa toàn bộ detail, giữ code; `blob_upload_failed` không lộ lỗi kỹ thuật; dung lượng ghi MB.
+  - M-06 Workflow: `ApplicationRecord.CaseName`, `ApplicationDto.caseName`, `WorkflowRequests.CaseNameOf`, `ProcedureCase.CaseName`; migration `20261128030425_ApplicationCaseName`.
+  - M-10 Workflow + Analytics: `DeadlineFacts.procedures` (tên thủ tục từ hồ sơ), `ProcedureStatistics.procedureTitle`.
+  - M-11 Workflow + Analytics: `ProcedureDay/MetricTotals.officiallyReceivedCount`, cột `OfficiallyReceivedCount` (migration `20261128030430_OfficiallyReceivedMetric`); job `analytics-intraday` (`Analytics:IntradayCron`, mặc định `10 7-18 * * *`) tổng hợp lại hôm nay.
+  - M-12 Catalog: danh sách Quản lý thủ tục sắp thẳng theo tên (`ProcedureSearchOptions.PreferCommune`); không đổi collation.
+  - M-15 Analytics: `SystemHealth.cs` `HealthProbe` đo lại 1 lần (`SystemHealth:RetryTimeoutSeconds`, mặc định 30) khi timeout/unreachable/502–504.
+  - L-11 Analytics: tiêu đề "Hồ sơ đã gửi tiền kiểm"/"Hồ sơ đã gửi lại tiền kiểm"; câu email SUBMITTED.
+  - L-30 IAM: mô tả vai trò tiếng Việt (seed + migration `20261128030412_RoleDescriptionsVi` chỉ ghi khi trống/còn câu tiếng Anh cũ).
+  - L-33 DocumentForm: `ApprovedQr.ApplicationCode` (migration `20261128030419_QrApplicationCode`), `ApplicationAccess.EnsureQr` lưu/bổ sung mã, trang QR có dòng "Mã hồ sơ".
+  - M-05: không sửa BE — hai vai trò đọc cùng `checklists` và `contents`; lệch là do FE, cách đếm ghi trong api-guide. Kết luận theo code, chưa đọc dữ liệu thật hồ sơ 062.
+- **SQL mới:** `docs/sql/iam-role-descriptions-vi.sql`, `docs/sql/documentform-qr-application-code.sql`, `docs/sql/workflow-application-case-name.sql`, `docs/sql/analytics-officially-received-metric.sql` (idempotent, sinh bằng `dotnet ef migrations script`).
+- **Test mới/sửa:** `DocumentForm/QrApplicationCodeTests.cs` (4), `DocumentForm/DocumentFormErrorTextTests.cs` (theory toàn bộ lỗi + 1), `Analytics/HealthProbeTests.cs` (10), `Analytics/ProcedureTitleStatisticsTests.cs` (2), `Workflow/CreateApplicationTests.cs` (+1, kiểm `caseName`), `Analytics/NotificationTextTests.cs` (đổi tiêu đề).
+- **Kiểm tra:** `dotnet build WardMate.sln -c Release -warnaserror -m:1` 0 lỗi/0 cảnh báo; `dotnet test WardMate.sln -c Release` 285/285 đạt. Không chạy DB/HTTP thật.
+- **API:** không thêm endpoint; thêm trường `caseName` (ApplicationDto), `procedureTitle` (analytics procedures), `totals.officiallyReceivedCount`. Docs: `docs/api-guide.md` mục FIX-FULLTEST-1128, `docs/system-constraints.md` (WF-CASE-02, DOC-QR-08, DOC-ERR-VI-01, ANA-08b, ANA-10, ANA-11, HEALTH-02, CAT-SORT-01, IAM-ROLE-DESC-01, NOTIFY-TEXT-02).
+- **Chưa làm / giới hạn:**
+  - Chưa commit, chưa chạy SQL, chưa deploy (thứ tự: SQL → IAM, Catalog, DocumentForm, Workflow, Analytics).
+  - Hồ sơ cũ (gồm 062) có `caseName` null; không backfill.
+  - Ngày cũ ngoài lookback 7 ngày có `officiallyReceivedCount` = 0 tới khi rebuild.
+  - Sắp xếp tiếng Việt vẫn theo collation DB hiện tại.
+  - Job trong ngày chỉ chạy khi AnalyticsSystem có bản đang chạy.
+  - FE cần dùng `caseName`, `procedureTitle`, `officiallyReceivedCount` và sửa cách đếm M-05 (nhóm FE).
