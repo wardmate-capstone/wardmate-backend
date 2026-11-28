@@ -3,6 +3,32 @@
 
 # WardMate — Nhật ký phát triển
 
+## DOC-TEMPLATE-DOCEXT-01 — Hỗ trợ upload template .doc thêm vào .docx | 2026-11-28 22:47 (Asia/Saigon)
+
+- **Mục đích:** Cho phép upload file Word định dạng `.doc` (OLE2 binary) bên cạnh `.docx` (OpenXML) khi thêm biểu mẫu template, đáp ứng thực tế một số biểu mẫu nhà nước chỉ có dạng `.doc`.
+- **Quy tắc nghiệp vụ & Ràng buộc:**
+  - `.docx`: Phải mở được bằng OpenXML, đúng loại Document, có document body, không VBA project, gói tối đa 5.000 entry / 100 MiB giải nén. MIME: `application/vnd.openxmlformats-officedocument.wordprocessingml.document`.
+  - `.doc`: OLE2 header (`D0 CF 11 E0 A1 B1 1A E1`), ít nhất 512 byte, chứa stream `WordDocument`, không chứa stream `_VBA_PROJECT`. MIME: `application/msword`.
+  - Tệp khác đuôi (`.pdf`, `.png`, v.v.) vẫn bị từ chối. File đổi tên thành `.doc` nhưng không có OLE2 header hợp lệ sẽ bị từ chối.
+  - Áp dụng cho cả hai điểm upload: `POST /api/v1/form-templates/{templateId}/upload-docx` (admin) và `POST /api/v1/staffing/leave-templates` (Manager phường).
+  - Download giữ nguyên MIME type và extension theo file gốc đã upload.
+- **Đường dẫn thay đổi:**
+  - Sửa: `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Services/DocxUpload.cs`
+  - Sửa: `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Commands/UploadFormTemplateDocxCommand.cs`
+  - Sửa: `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/DownloadFormTemplateDocxQuery.cs`
+  - Sửa: `src/Services/WardMate.Services.DocumentForm/WardMate.Services.DocumentForm.Application/Queries/ExtractDocxPlaceholdersQuery.cs` (error message → tiếng Việt)
+  - Sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.Infrastructure/LeaveDraftService.cs`
+  - Sửa: `src/Services/WardMate.Services.ApplicationWorkflow/WardMate.Services.ApplicationWorkflow.API/Controllers/LeaveDraftsController.cs`
+  - Tạo mới: `tests/WardMate.UnitTests/DocumentForm/DocxUploadTests.cs`
+  - Sửa: `tests/WardMate.UnitTests/DocumentForm/PublicTemplateDownloadTests.cs` (thêm test PublicFileName với .doc)
+  - Sửa: `tests/WardMate.UnitTests/Workflow/WardLeaveTemplateTests.cs` (thêm 2 test .doc)
+  - Sửa: `docs/system-constraints.md` (DOC-01, WF-WS-08)
+  - Sửa: `docs/api-guide.md` (POST /leave-templates, POST /form-templates/upload-docx)
+- **Kết quả build & test:**
+  - `dotnet build WardMate.sln -c Release -warnaserror`: **0 error, 0 warning**
+  - `dotnet test WardMate.sln -c Release --no-build`: **294/294 passed** (trước: 285, thêm 9 test mới)
+- **Ghi chú frontend:** API `upload-docx` và `leave-templates POST` giờ chấp nhận cả `.doc` và `.docx`. Response `ContentType` sẽ là `application/msword` cho `.doc`. Tên file download giữ nguyên extension.
+
 ## LEAVE-TEMPLATE-01 — Quản lý mẫu đơn xin nghỉ phép Word theo phường cho Manager | 2026-11-20 14:50 (Asia/Saigon)
 
 - **Mục đích:** Chuyển đổi cơ chế quản lý mẫu đơn xin nghỉ phép Word (leave template) từ cấu hình cứng Azure env-var (`WorkSchedule:SharedLeaveTemplate`) sang quản lý động theo từng phường (ward-scoped). Manager của mỗi phường có thể trực tiếp upload mẫu Word mới qua giao diện web, thay thế mẫu cũ mà không cần can thiệp DevOps/Azure.
