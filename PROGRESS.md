@@ -5790,3 +5790,14 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
 - **Tiếp theo:**
   - Chủ dự án hoặc phiên Deploy làm theo `docs/reset/README.md` trong Cloud Shell (sao lưu trước).
   - Quản lý thủ tục nhập lại dữ liệu; Quản lý phường gán lại lĩnh vực cho cán bộ.
+
+## DEPLOY-1128b — RESET-DATA-1128: xóa toàn bộ dữ liệu nghiệp vụ trên Supabase/Azure — 2026-11-28 (UTC+07)
+
+- **Duyệt:** chủ dự án duyệt "Push và sao lưu", sau đó xác nhận lần cuối "Xóa ngay". Push `kha` `7b11553..fdc355c` (9 commit docs, rebase lên 12 commit DOC-TEMPLATE-DOCEXT-01 của người khác, không xung đột).
+- **Thực tế chỉ có 2 DB Supabase:** A = Catalog + IAM + Thông báo/Analytics (schema `analytics`); B = DocumentForm (schema `document`) + Workflow + AIOCR. DB A còn bộ bảng chatbot cũ không dùng (AIOCR trỏ DB B) — không xóa.
+- **Sao lưu:** `pg_dump -Fc` (Docker `postgres:17`) ra ngoài repo `E:\Code\CODE_FPT\9\SEP490\reset-backup-20261128\`: `catalog.dump` (DB A, 2.257 KB, 892 mục), `documentform.dump` (DB B, 1.268 KB, 853 mục). Blob: `wardmate-backups/reset-20261128/` — `procedure-sources` 4 tệp 293 KB, `form-templates` 13 tệp 167 KB, khớp bản gốc.
+- **Xóa DB A:** `1-catalog.sql` (procedures, procedure_versions, procedure_drafts, procedure_categories), `5-analytics.sql` (4 bảng analytics + 4 bảng thông báo), `6-iam.sql` (UPDATE 7 cán bộ bỏ lĩnh vực; 43 tài khoản giữ nguyên).
+- **Xóa DB B:** `2-documentform.sql` (8 bảng `document.*`), `4-aiocr.sql` (knowledge_*, chat_*). `3-workflow.sql` lần 1 lỗi khóa ngoại `staffing_assignment_history`, lần 2 bị trigger kiểm toán `audit_transport.reject_truncate` chặn TRUNCATE (cả hai quay lại, không xóa gì) → sửa script dùng DELETE theo thứ tự con→cha và thêm `staffing_assignment_history`: xóa 217 checklist, 181 lịch sử trạng thái, 51 phân công, 25 nhận xét, 3 tham vấn, 46 phiên bản, 52 hồ sơ, 214 outbox (mỗi dòng có nhật ký kiểm toán).
+- **Blob:** `delete-batch` `procedure-sources`, `form-templates` → 0 tệp; container giữ nguyên; bản sao 17 tệp còn.
+- **Kiểm:** đếm các bảng trên = 0; health 6 service 200; `GET /api/v1/procedures` → `items: []`; chatbot hỏi trợ cấp thất nghiệp → `grounded: false`, không nguồn (không cần khởi động lại AIOCR). Chưa thử đăng nhập bằng tài khoản thật.
+- **Còn lại:** Quản lý thủ tục nhập lại lĩnh vực, biểu mẫu, thủ tục rồi "Đồng bộ thủ tục → Tất cả"; Quản lý phường gán lại lĩnh vực cán bộ; Admin nhập ngày lễ nếu thiếu. Khôi phục: `pg_restore --clean --if-exists` từ 2 tệp dump, blob chép ngược từ `wardmate-backups/reset-20261128/`.
