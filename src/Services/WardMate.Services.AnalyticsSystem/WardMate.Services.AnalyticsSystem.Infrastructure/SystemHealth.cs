@@ -99,31 +99,15 @@ public sealed class SystemHealthWorker(IServiceScopeFactory scopes, IHttpClientF
                 var pending = await db.HealthCheckRequests.Where(x => x.CompletedAtUtc == null).ToArrayAsync(stoppingToken);
                 if (pending.Length > 0 || !newest.HasValue || newest < DateTime.UtcNow.AddSeconds(-interval))
                 {
+                    var retryTimeout = TimeSpan.FromSeconds(Math.Clamp(config.GetValue("SystemHealth:RetryTimeoutSeconds", 30), 5, 60));
                     foreach (var target in targets)
                     {
                         var watch = Stopwatch.StartNew();
-                        var row = new ServiceHealthLog { Id = Guid.NewGuid(), ServiceName = target.Name, Status = "Unhealthy" };
-                        try
-                        {
-                            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                            timeout.CancelAfter(TimeSpan.FromSeconds(5));
-                            using var response = await clients.CreateClient("system-health").GetAsync(target.Url, timeout.Token);
-                            row.HttpStatus = (int)response.StatusCode;
-                            if (response.IsSuccessStatusCode)
-                            {
-                                using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(timeout.Token));
-                                if (json.RootElement.TryGetProperty("status", out var status) &&
-                                    status.GetString() is "Healthy" or "Degraded" or "Unhealthy") row.Status = status.GetString()!;
-                                else row.ErrorCode = "invalid_response";
-                            }
-                            else row.ErrorCode = "dependency_unhealthy";
-                        }
-                        catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested) { row.ErrorCode = "timeout"; }
-                        catch (HttpRequestException) { row.ErrorCode = "unreachable"; }
-                        catch (JsonException) { row.ErrorCode = "invalid_response"; }
-                        row.ResponseTimeMs = watch.ElapsedMilliseconds;
-                        row.CheckedAtUtc = DateTime.UtcNow;
-                        db.ServiceHealthLogs.Add(row);
+                        var result = await HealthProbe.WithRetry(
+                            (limit, ct) => Probe(target.Url!, limit, ct), TimeSpan.FromSeconds(5), retryTimeout, stoppingToken);
+                        db.ServiceHealthLogs.Add(new ServiceHealthLog { Id = Guid.NewGuid(), ServiceName = target.Name,
+                            Status = result.Status, HttpStatus = result.HttpStatus, ErrorCode = result.ErrorCode,
+                            ResponseTimeMs = watch.ElapsedMilliseconds, CheckedAtUtc = DateTime.UtcNow });
                     }
                     foreach (var request in pending) request.CompletedAtUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(stoppingToken);
@@ -134,5 +118,43 @@ public sealed class SystemHealthWorker(IServiceScopeFactory scopes, IHttpClientF
             catch (Exception ex) { logger.LogWarning("Health collection failed: {ErrorType}", ex.GetType().Name); }
             await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
         }
+    }
+
+    private async Task<HealthProbeResult> Probe(string url, TimeSpan limit, CancellationToken stoppingToken)
+    {
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            timeout.CancelAfter(limit);
+            using var response = await clients.CreateClient("system-health").GetAsync(url, timeout.Token);
+            var http = (int)response.StatusCode;
+            if (!response.IsSuccessStatusCode) return new("Unhealthy", http, "dependency_unhealthy");
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(timeout.Token));
+            return json.RootElement.TryGetProperty("status", out var status) &&
+                status.GetString() is "Healthy" or "Degraded" or "Unhealthy"
+                ? new(status.GetString()!, http, null) : new("Unhealthy", http, "invalid_response");
+        }
+        catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested) { return new("Unhealthy", null, "timeout"); }
+        catch (HttpRequestException) { return new("Unhealthy", null, "unreachable"); }
+        catch (JsonException) { return new("Unhealthy", null, "invalid_response"); }
+    }
+}
+
+public sealed record HealthProbeResult(string Status, int? HttpStatus, string? ErrorCode);
+
+/// <summary>
+/// HEALTH-02: dịch vụ scale về 0 bản (minReplicas 0) cần vài chục giây để khởi động. Lần đo đầu hết giờ,
+/// không kết nối được hoặc trả 502/503/504 thì đo lại một lần với thời gian chờ dài hơn rồi mới ghi sự cố.
+/// </summary>
+public static class HealthProbe
+{
+    public static bool Transient(HealthProbeResult r) =>
+        r.ErrorCode is "timeout" or "unreachable" || r.HttpStatus is 502 or 503 or 504;
+
+    public static async Task<HealthProbeResult> WithRetry(Func<TimeSpan, CancellationToken, Task<HealthProbeResult>> probe,
+        TimeSpan first, TimeSpan retry, CancellationToken ct)
+    {
+        var result = await probe(first, ct);
+        return Transient(result) && !ct.IsCancellationRequested ? await probe(retry, ct) : result;
     }
 }
