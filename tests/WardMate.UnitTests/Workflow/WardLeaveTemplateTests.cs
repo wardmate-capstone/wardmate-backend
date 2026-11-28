@@ -76,6 +76,16 @@ public sealed class WardLeaveTemplateTests
         return ms.ToArray();
     }
 
+    private static byte[] CreateValidDoc()
+    {
+        var bytes = new byte[512];
+        byte[] header = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+        Array.Copy(header, bytes, header.Length);
+        byte[] wordDoc = Encoding.Unicode.GetBytes("WordDocument");
+        Array.Copy(wordDoc, 0, bytes, 64, wordDoc.Length);
+        return bytes;
+    }
+
     private static WorkflowDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<WorkflowDbContext>()
@@ -279,5 +289,47 @@ public sealed class WardLeaveTemplateTests
         Assert.Equal(2, result.Value.Length);
         Assert.Equal("v2.docx", result.Value[0].FileName);
         Assert.Equal("v1.docx", result.Value[1].FileName);
+    }
+
+    [Fact]
+    public async Task UploadTemplate_WithDocExtension_SucceedsAndSetsActive()
+    {
+        using var db = CreateDbContext();
+        var blobClient = new MemoryBlobClient();
+        var config = new ConfigurationBuilder().Build();
+        var service = new LeaveDraftService(db, config, TimeProvider.System, blobClient);
+
+        var docBytes = CreateValidDoc();
+        using var stream = new MemoryStream(docBytes);
+
+        var result = await service.UploadTemplate(ManagerActor("W01"), stream, "mau.doc", default);
+
+        Assert.Null(result.Error);
+        Assert.NotNull(result.Value);
+        Assert.True(result.Value.IsActive);
+        Assert.Equal("mau.doc", result.Value.FileName);
+
+        var fetched = await service.TemplateFile(ManagerActor("W01"), result.Value.Id, default);
+        Assert.Null(fetched.Error);
+        Assert.NotNull(fetched.Value);
+        Assert.Equal(docBytes.Length, fetched.Value.Length);
+    }
+
+    [Fact]
+    public async Task UploadTemplate_WithCorruptDoc_Returns415()
+    {
+        using var db = CreateDbContext();
+        var blobClient = new MemoryBlobClient();
+        var config = new ConfigurationBuilder().Build();
+        var service = new LeaveDraftService(db, config, TimeProvider.System, blobClient);
+
+        var corruptBytes = Encoding.UTF8.GetBytes("not an ole2 binary document");
+        using var stream = new MemoryStream(corruptBytes);
+
+        var result = await service.UploadTemplate(ManagerActor("W01"), stream, "corrupt.doc", default);
+
+        Assert.NotNull(result.Error);
+        Assert.Equal(415, result.Error.Status);
+        Assert.Equal("leave.invalid_docx", result.Error.Code);
     }
 }
