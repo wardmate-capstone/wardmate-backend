@@ -5278,3 +5278,29 @@ Cách FE đánh dấu giữa lần gửi A và B theo từng mục: tệp có �
 **`PUT /api/v1/applications/{applicationId}/file-versions/{versionNumber}`** — Chỉ Workflow gọi (bằng token người nộp) ngay trước khi tạo lần gửi; FE **không** gọi. Chỉ nhận đúng lần gửi kế tiếp khi hồ sơ đang DRAFT/NEED_REVISION; sau khi lần gửi được tạo thì bản ghi không sửa được (409 `document.invalid_version` / `document.application_locked`).
 
 **Triển khai:** chạy `docs/sql/documentform-submission-file-versions.sql` (bảng `document.submission_file_versions`); deploy **DocumentForm trước**, rồi Workflow, rồi Gateway (route mới `/api/v1/applications/{applicationId}/file-versions` và `/file-versions/{**catch-all}` → DocumentForm).
+
+## Sửa lỗi BE sau kiểm thử toàn hệ thống — 28/11/2026 (FIX-FULLTEST-1128)
+
+Đợt này không thêm endpoint mới; chỉ thêm trường vào phản hồi (FE cũ bỏ qua được) và đổi câu chữ. Phải chạy SQL trước khi deploy dịch vụ tương ứng (xem cuối mục).
+
+**Hồ sơ có tên trường hợp — `GET /api/v1/applications/{id}`, `GET /api/v1/officer/applications/{id}`, `POST /api/v1/applications` (M-06).** Phản hồi `ApplicationDto` có thêm `caseName` cạnh `caseCode`. Đây là tên trường hợp chụp lúc tạo hồ sơ nên vẫn đúng khi thủ tục đã ẩn hoặc đổi tên. FE hiện "Trường hợp: {caseName}"; `caseName` null (hồ sơ tạo trước 28/11/2026, hoặc thủ tục không đặt tên) thì hiện `caseCode` như cũ, không tra tên từ thủ tục công khai (thủ tục ẩn sẽ không tra được). Danh sách hồ sơ (`ApplicationSummaryDto`) chưa có trường này.
+
+**Thống kê thủ tục có tên — `GET /api/v1/analytics/procedures` (M-10).** Mỗi phần tử `items[]` có thêm `procedureTitle` (tên thủ tục lấy từ hồ sơ của phường, có cả thủ tục đã ẩn). FE dùng `procedureTitle`; chỉ khi null mới tự tra hoặc hiện "Thủ tục không còn trong danh mục", không hiện GUID.
+
+**Chỉ số "Đã tiếp nhận tại quầy" — `GET /api/v1/analytics/overview`, `/trends`, `/procedures` (M-11).** Đối tượng `totals` có thêm `officiallyReceivedCount`: số hồ sơ được cán bộ ghi nhận tiếp nhận tại quầy (`OFFICIALLY_RECEIVED`) trong khoảng ngày. Lưu ý `receivedCount` hiện có là số hồ sơ **gửi tiền kiểm lần đầu**, không phải tiếp nhận tại quầy; FE nên đặt nhãn rõ hai ô này. Số liệu ngày hôm nay được tổng hợp lại mỗi giờ từ 07:10 đến 18:10 (giờ Việt Nam), nên có thể chậm tới 1 giờ; xem `coverage.latestRefreshAtUtc`. Ngày cũ hơn 7 ngày trước khi deploy có `officiallyReceivedCount` = 0 tới khi Quản trị hệ thống chạy tổng hợp lại (`POST /api/v1/analytics/jobs/rebuild`, IT_ADMIN).
+
+**Danh sách Quản lý thủ tục sắp theo tên — `GET /api/v1/procedure-manager/procedures?sortBy=Title&isAscending=true` (M-12).** Nay sắp thẳng theo tên A→Z (hoặc Z→A), không còn tách thủ tục cấp xã/phường lên trước. Danh sách công khai `GET /api/v1/procedures` giữ ưu tiên cấp xã như cũ. Tên bắt đầu bằng dấu ngoặc, số hoặc ký hiệu đứng trước chữ cái.
+
+**Trang xác minh QR — `GET /api/v1/public/applications/{id}/pdf-redirect` khi không có PDF (L-33).** Trang "Mã QR hợp lệ" có thêm dòng "Mã hồ sơ" (HS-…) trên dòng mã tham chiếu. QR cấp trước 28/11/2026 hiện "Chưa có" cho tới khi người nộp hoặc cán bộ mở lại hồ sơ đó một lần.
+
+**Câu lỗi DocumentForm tiếng Việt (M-03).** Mã lỗi giữ nguyên, chỉ đổi `title`/`detail`. Ví dụ `document.file_not_uploaded`: "Biểu mẫu này chưa có tệp Word (DOCX)."; `document.template_not_found`: "Không tìm thấy biểu mẫu '{id}'."; `document.file_too_large`: "Tệp vượt quá dung lượng cho phép (10 MB)."; `document.blob_upload_failed`: "Không lưu được tệp lên hệ thống lưu trữ. Vui lòng thử lại sau."; `document.submission_not_owned`: "Bản khai này không thuộc tài khoản của bạn.". FE nên xử lý theo `code`, không so sánh chuỗi `detail`.
+
+**Thông báo khi gửi tiền kiểm (L-11).** Tiêu đề thông báo cho công dân khi hồ sơ chuyển `SUBMITTED`: "Hồ sơ đã gửi tiền kiểm" (lần đầu) và "Hồ sơ đã gửi lại tiền kiểm" (sau khi bổ sung). Thông báo cũ giữ tiêu đề cũ.
+
+**Mô tả vai trò (L-30).** `GET /api/v1/rbac/roles` trả mô tả tiếng Việt cho 5 vai trò sau khi chạy SQL; mô tả Admin đã tự sửa được giữ nguyên.
+
+**Sức khỏe dịch vụ (M-15).** `GET /api/v1/system/health/services` và `/history` (Admin): dịch vụ đang khởi động được đo lại một lần (chờ tới 30 giây) trước khi ghi "Unhealthy", nên không còn báo "Gặp sự cố" chỉ vì dịch vụ đang ngủ. `responseTimeMs` của lần đó sẽ lớn (cộng cả hai lần đo).
+
+**Đếm giấy tờ bắt buộc lệch giữa công dân và cán bộ (M-05).** Hai vai trò nhận cùng `checklists` và cùng `contents` từ API. FE phải đếm giống nhau ở hai màn: tử số = số mục `isRequired = true` có ít nhất một đơn hoặc giấy tờ trong `contents` (theo `checklistId`), mẫu số = số mục `isRequired = true` trong `checklists`.
+
+**Triển khai (theo thứ tự):** chạy `docs/sql/iam-role-descriptions-vi.sql`, `docs/sql/documentform-qr-application-code.sql`, `docs/sql/workflow-application-case-name.sql`, `docs/sql/analytics-officially-received-metric.sql` trên DB tương ứng; rồi deploy IAM, Catalog, DocumentForm, Workflow, AnalyticsSystem. Thiếu cột thì dịch vụ mới trả 500 khi đọc bảng. Cấu hình mới (tùy chọn, có mặc định): `Analytics:IntradayCron`, `SystemHealth:RetryTimeoutSeconds`.
