@@ -5717,3 +5717,20 @@ FE handoff | 2026-11-12 16:04 +07:00 | docs/fe-handoff-tham-van-chuyen-mon.md: 9
   - Sắp xếp tiếng Việt vẫn theo collation DB hiện tại.
   - Job trong ngày chỉ chạy khi AnalyticsSystem có bản đang chạy.
   - FE cần dùng `caseName`, `procedureTitle`, `officiallyReceivedCount` và sửa cách đếm M-05 (nhóm FE).
+
+## DEPLOY-1128a — FIX-FULLTEST-1128 lên Azure (IAM, Catalog, Workflow, DocumentForm, Analytics) — 2026-11-28 (UTC+07)
+
+- **Git:** chủ dự án duyệt "Push và deploy"; push `kha` `00ad4c3..1603cc0` (30 commit, không force).
+- **SQL (chạy trước deploy, đã kiểm cột lịch sử migration từng DB khớp script):**
+  - IAM `iam-role-descriptions-vi.sql`: 5 vai trò có mô tả tiếng Việt.
+  - DocumentForm `documentform-qr-application-code.sql`: có cột `document.approved_qrs.application_code`.
+  - Workflow `workflow-application-case-name.sql`: có cột `applications.case_name`.
+  - Analytics (DB thông báo) `analytics-officially-received-metric.sql`: có cột `analytics.application_procedure_metrics."OfficiallyReceivedCount"`.
+- **Deploy** tag `fulltest-20261128-01`, mỗi service health trước 200, update `Succeeded`, health sau 200:
+  - IAM `sha256:fd4b79300ae345903012ad6a73e3243091b90e37ecbccdb736fd91bba33aec39`; rollback `wardmate-iam:rebuild-20261120`.
+  - Catalog `sha256:95821ae9d2efbd2318d9a289678f0ecd00eacdd3783316e5b061d5d0aecda6fa`; rollback `wardmate-procedure-catalog@sha256:37a5c8b29114c5c45e2b458a64e493e972d60711448673e3482a9326c35a53a0`.
+  - Workflow `sha256:e7b6397113063be699bcb9c55469b1ce4bc75c3109f31d15f25b1a0fa15c981e`; rollback `wardmate-application-workflow@sha256:ff70f8813be1e5d6a2e0f1933d2ee412afb63f137773d9f131658070f70352c0`.
+  - DocumentForm `sha256:b93d3dbb80e01793b2091035ea80a4755ba045db5efb6dc4d65f27123c44bbf8`; rollback `wardmate-documentform@sha256:fccde5b785b875c86ca4808611f99a182507550827e1945a6af56c478b23a3e7`.
+  - Analytics `sha256:54991b198d6fced9b82e75fd0456558549107ac2357c9ca1b395b5024f09f0b0`; rollback `wardmate-analytics-system@sha256:56e23b67f8929b95cd11ced09d84ca6faa55a27177e9ec942ed34821b003033a`.
+- **Gateway** `/health` 200; `GET /api/v1/rbac/roles` và `GET /api/v1/analytics/procedures` không token → 401 (route có). Chưa gọi có token để xem `procedureTitle`, chưa thử trang QR "Mã hồ sơ".
+- Cấu hình mới `Analytics:IntradayCron`, `SystemHealth:RetryTimeoutSeconds` dùng mặc định, không đặt. `main`/`deploy` chưa đồng bộ.
