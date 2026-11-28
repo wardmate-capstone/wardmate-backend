@@ -206,31 +206,31 @@ namespace WardMate.Services.IAM.Infrastructure.Persistence.Migrations
                         new
                         {
                             Id = 1,
-                            Description = "Registered citizen",
+                            Description = "Công dân đã đăng ký tài khoản, tự tạo và theo dõi hồ sơ của mình",
                             RoleName = "REGISTERED_CITIZEN"
                         },
                         new
                         {
                             Id = 2,
-                            Description = "Front desk officer",
+                            Description = "Cán bộ một cửa: kiểm tra giấy tờ và tiếp nhận hồ sơ tại quầy",
                             RoleName = "FRONT_DESK_OFFICER"
                         },
                         new
                         {
                             Id = 3,
-                            Description = "Manager",
+                            Description = "Quản lý phường: giám sát hồ sơ, phân công và xếp ca cán bộ",
                             RoleName = "MANAGER"
                         },
                         new
                         {
                             Id = 4,
-                            Description = "Procedure catalog manager",
+                            Description = "Quản lý thủ tục: soạn, xuất bản thủ tục và biểu mẫu",
                             RoleName = "PROCEDURE_MANAGER"
                         },
                         new
                         {
                             Id = 5,
-                            Description = "IT administrator",
+                            Description = "Quản trị hệ thống: tài khoản, vai trò, phường và cấu hình",
                             RoleName = "IT_ADMIN"
                         });
                 });

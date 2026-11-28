@@ -65,11 +65,11 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
         b.HasIndex(x => x.RoleName).IsUnique();
         b.Property(x => x.Description).HasColumnType("text");
         b.HasData(
-            new Role { Id = 1, RoleName = RoleNames.RegisteredCitizen, Description = "Registered citizen" },
-            new Role { Id = 2, RoleName = RoleNames.FrontDeskOfficer, Description = "Front desk officer" },
-            new Role { Id = 3, RoleName = RoleNames.Manager, Description = "Manager" },
-            new Role { Id = 4, RoleName = RoleNames.ProcedureManager, Description = "Procedure catalog manager" },
-            new Role { Id = 5, RoleName = RoleNames.ItAdmin, Description = "IT administrator" });
+            new Role { Id = 1, RoleName = RoleNames.RegisteredCitizen, Description = "Công dân đã đăng ký tài khoản, tự tạo và theo dõi hồ sơ của mình" },
+            new Role { Id = 2, RoleName = RoleNames.FrontDeskOfficer, Description = "Cán bộ một cửa: kiểm tra giấy tờ và tiếp nhận hồ sơ tại quầy" },
+            new Role { Id = 3, RoleName = RoleNames.Manager, Description = "Quản lý phường: giám sát hồ sơ, phân công và xếp ca cán bộ" },
+            new Role { Id = 4, RoleName = RoleNames.ProcedureManager, Description = "Quản lý thủ tục: soạn, xuất bản thủ tục và biểu mẫu" },
+            new Role { Id = 5, RoleName = RoleNames.ItAdmin, Description = "Quản trị hệ thống: tài khoản, vai trò, phường và cấu hình" });
     }
 }
 public sealed class PermissionConfiguration : IEntityTypeConfiguration<Permission>
