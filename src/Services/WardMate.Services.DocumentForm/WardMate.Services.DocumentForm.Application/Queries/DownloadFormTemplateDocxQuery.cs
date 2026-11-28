@@ -44,12 +44,17 @@ public sealed class DownloadFormTemplateDocxQueryHandler : IQueryHandler<Downloa
         var stream = await _blobClient.DownloadAsync(blobName, ct: cancellationToken);
         if (stream is null)
             return request.PublicOnly ? DocumentFormErrors.TemplateNotFound(request.TemplateId) : DocumentFormErrors.FileNotUploaded;
-        var fileName = request.PublicOnly ? PublicFileName(template.Title, template.Code) : Path.GetFileName(blobName);
-        return new DownloadDocxResult { FileStream = stream, FileName = fileName, ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+        var ext = Path.GetExtension(blobName);
+        if (string.IsNullOrWhiteSpace(ext)) ext = ".docx";
+        var contentType = string.Equals(ext, ".doc", StringComparison.OrdinalIgnoreCase)
+            ? "application/msword"
+            : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        var fileName = request.PublicOnly ? PublicFileName(template.Title, template.Code, ext) : Path.GetFileName(blobName);
+        return new DownloadDocxResult { FileStream = stream, FileName = fileName, ContentType = contentType };
     }
 
-    /// <summary>Tên file dễ đọc cho người dân: tên mẫu (hoặc mã), bỏ ký tự không hợp lệ, tối đa 150 ký tự, đuôi .docx.</summary>
-    public static string PublicFileName(string? title, string? code)
+    /// <summary>Tên file dễ đọc cho người dân: tên mẫu (hoặc mã), bỏ ký tự không hợp lệ, tối đa 150 ký tự, giữ đuôi .docx hoặc .doc.</summary>
+    public static string PublicFileName(string? title, string? code, string extension = ".docx")
     {
         var name = string.IsNullOrWhiteSpace(title) ? code : title;
         var invalid = Path.GetInvalidFileNameChars();
@@ -57,7 +62,8 @@ public sealed class DownloadFormTemplateDocxQueryHandler : IQueryHandler<Downloa
         cleaned = string.Join(' ', cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
         if (cleaned.Length == 0) cleaned = "mau-don";
         if (cleaned.Length > 150) cleaned = cleaned[..150].TrimEnd();
-        return cleaned + ".docx";
+        var dotExt = extension.StartsWith('.') ? extension : "." + extension;
+        return cleaned + dotExt;
     }
 
     private static string ExtractBlobName(string blobUrl)
