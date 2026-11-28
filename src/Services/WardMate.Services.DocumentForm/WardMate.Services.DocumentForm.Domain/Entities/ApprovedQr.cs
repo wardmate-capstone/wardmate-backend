@@ -45,6 +45,17 @@ public sealed class ApprovedQr
     /// <summary>Thời điểm sinh mã QR (UTC).</summary>
     public DateTime GeneratedAt { get; private set; }
 
+    /// <summary>DOC-QR-08: mã hồ sơ HS-… (Workflow) để cán bộ đối chiếu trên trang xác minh; null với QR cấp trước 28/11/2026 cho tới lần đồng bộ kế tiếp.</summary>
+    public string? ApplicationCode { get; private set; }
+
+    /// <summary>Ghi mã hồ sơ do Workflow cấp; bỏ qua giá trị rỗng, không ghi đè mã đã có.</summary>
+    public bool SetApplicationCode(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code) || ApplicationCode is not null) return false;
+        ApplicationCode = code.Trim().Length > 64 ? code.Trim()[..64] : code.Trim();
+        return true;
+    }
+
     /// <summary>Cập nhật mã QR khi URL tra cứu hoặc nội dung thay đổi.</summary>
     public void Update(string qrCodeValue, byte[] qrImagePng)
     {

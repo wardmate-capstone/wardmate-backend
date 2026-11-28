@@ -19,6 +19,8 @@ public static class QrVerificationPage
         "Mã QR hợp lệ",
         QrLookupQueryHandler.QrValidMessage,
         [
+            // DOC-QR-08: mã HS-… để cán bộ đối chiếu với hồ sơ trên hệ thống; QR cũ chưa đồng bộ thì báo rõ.
+            ("Mã hồ sơ", string.IsNullOrWhiteSpace(qr.ApplicationCode) ? "Chưa có (tra theo mã tham chiếu bên dưới)" : qr.ApplicationCode),
             ("Mã tham chiếu", qr.ApplicationId.ToString()),
             ("Thời điểm cấp mã", ToVietnamTime(qr.GeneratedAt) + " (giờ Việt Nam)"),
         ],

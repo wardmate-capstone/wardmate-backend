@@ -111,7 +111,7 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
                     && x.Status == WardMate.Services.DocumentForm.Domain.Models.SubmissionStatus.Submitted).ToListAsync(ct);
                 foreach (var s in submissions) s.ConfirmReadiness(reviewer, "workflow-readiness");
                 if (submissions.Count > 0) await db.SaveChangesAsync(ct);
-                await EnsureQr(applicationId, ct);
+                await EnsureQr(applicationId, application.ApplicationCode, ct);
             }
             return null;
         }
@@ -131,14 +131,21 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
 
     // QR tham chiếu được tạo ngay khi Workflow báo DOCUMENTS_READY/OFFICIALLY_RECEIVED,
     // không đợi kết xuất PDF; hồ sơ chỉ có giấy tờ đính kèm thì SubmissionId = null.
-    private async Task EnsureQr(Guid applicationId, CancellationToken ct)
+    private async Task EnsureQr(Guid applicationId, string? applicationCode, CancellationToken ct)
     {
-        if (await db.ApprovedQrs.AsNoTracking().AnyAsync(q => q.ApplicationId == applicationId, ct)) return;
+        var existing = await db.ApprovedQrs.FirstOrDefaultAsync(q => q.ApplicationId == applicationId, ct);
+        if (existing is not null)
+        {
+            // DOC-QR-08: QR cấp trước khi có cột mã hồ sơ được bổ sung ở lần đồng bộ kế tiếp.
+            if (existing.SetApplicationCode(applicationCode)) await db.SaveChangesAsync(ct);
+            return;
+        }
         var submissionId = await db.UserSubmissions.AsNoTracking()
             .Where(x => x.ApplicationId == applicationId && !x.IsDeleted
                 && x.Status == WardMate.Services.DocumentForm.Domain.Models.SubmissionStatus.ReadyForDownload)
             .OrderBy(x => x.SubmittedAt).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);
         var qr = qrService.Generate(applicationId, submissionId);
+        qr.SetApplicationCode(applicationCode);
         db.ApprovedQrs.Add(qr);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException)
@@ -210,7 +217,7 @@ public sealed class ApplicationAccess(HttpClient http, IConfiguration config, IH
         Status = status, Title = message, Extensions = { ["code"] = code, ["traceId"] = context.HttpContext!.TraceIdentifier }
     }) { StatusCode = status, ContentTypes = { "application/problem+json" } };
 
-    private sealed record WorkflowApplication(Guid Id, Guid UserId, string Status, WorkflowChecklist[] Checklists, Guid? AssignedOfficerId, int CurrentVersionNumber = 0);
+    private sealed record WorkflowApplication(Guid Id, Guid UserId, string Status, WorkflowChecklist[] Checklists, Guid? AssignedOfficerId, int CurrentVersionNumber = 0, string? ApplicationCode = null);
     private sealed record WorkflowChecklist(Guid Id, Guid? FormTemplateId, WorkflowChecklistForm[]? Forms = null)
     {
         public Guid[] AcceptedTemplates() => (Forms ?? []).Select(x => x?.FormTemplateId).OfType<Guid>()

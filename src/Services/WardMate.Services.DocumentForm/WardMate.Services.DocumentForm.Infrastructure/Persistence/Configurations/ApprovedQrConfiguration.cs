@@ -42,6 +42,11 @@ public sealed class ApprovedQrConfiguration : IEntityTypeConfiguration<ApprovedQ
             .HasColumnName("qr_image_png")
             .IsRequired();
 
+        builder.Property(q => q.ApplicationCode)
+            .HasColumnName("application_code")
+            .HasMaxLength(64)
+            .IsRequired(false);
+
         builder.Property(q => q.GeneratedAt)
             .HasColumnName("generated_at")
             .HasColumnType("timestamptz");

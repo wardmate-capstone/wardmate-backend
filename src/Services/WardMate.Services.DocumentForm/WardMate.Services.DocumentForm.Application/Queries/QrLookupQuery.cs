@@ -17,7 +17,8 @@ public sealed record QrLookupResultDto(
     string Status,
     string? DocumentName,
     bool IsValid,
-    string Message);
+    string Message,
+    string? ApplicationCode = null);
 
 /// <summary>
 /// Query tra cứu hồ sơ bằng giá trị mã QR (token hoặc URL quét từ camera).
@@ -95,7 +96,8 @@ public sealed class QrLookupQueryHandler(IDocumentDbContext dbContext)
             status,
             docName,
             IsValid: true,
-            Message: QrValidMessage);
+            Message: QrValidMessage,
+            ApplicationCode: qr.ApplicationCode);
     }
 
     private const int MaxTokenLength = 2048;
