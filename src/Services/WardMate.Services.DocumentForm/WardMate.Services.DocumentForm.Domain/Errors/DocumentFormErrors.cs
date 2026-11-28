@@ -8,13 +8,13 @@ namespace WardMate.Services.DocumentForm.Domain.Errors;
 public static class DocumentFormErrors
 {
     public static Error TemplateNotFound(Guid templateId) =>
-        Error.NotFound("document.template_not_found", $"Form template with ID '{templateId}' was not found.");
+        Error.NotFound("document.template_not_found", $"Không tìm thấy biểu mẫu '{templateId}'.");
 
     public static Error TemplateCodeAlreadyExists(string code) =>
-        Error.Conflict("document.template_code_conflict", $"Form template with code '{code}' already exists.");
+        Error.Conflict("document.template_code_conflict", $"Mã biểu mẫu '{code}' đã tồn tại.");
 
     public static Error VersionNotFound(Guid templateId, int versionNumber) =>
-        Error.NotFound("document.version_not_found", $"Version '{versionNumber}' for template '{templateId}' was not found.");
+        Error.NotFound("document.version_not_found", $"Không tìm thấy phiên bản {versionNumber} của biểu mẫu '{templateId}'.");
 
     public static Error InvalidSchema(string message) =>
         Error.Validation("document.invalid_schema", message);
@@ -26,40 +26,45 @@ public static class DocumentFormErrors
         Error.Validation("document.invalid_docx_file", message);
 
     public static Error EmptyFile =>
-        Error.Validation("document.empty_file", "The uploaded file is empty.");
+        Error.Validation("document.empty_file", "Tệp tải lên đang trống.");
 
     public static Error FileTooLarge(long maxBytes) =>
-        Error.Validation("document.file_too_large", $"File size exceeds the maximum allowed limit of {maxBytes} bytes.");
+        Error.Validation("document.file_too_large", $"Tệp vượt quá dung lượng cho phép ({FormatSize(maxBytes)}).");
+
+    private static string FormatSize(long bytes) =>
+        bytes >= 1024 * 1024 && bytes % (1024 * 1024) == 0 ? $"{bytes / (1024 * 1024)} MB"
+        : bytes >= 1024 * 1024 ? $"{bytes / (1024d * 1024):0.#} MB"
+        : $"{bytes} byte";
 
     public static Error PlaceholderMismatch(string details) =>
         Error.Validation("document.placeholder_mismatch", details);
 
     public static Error FileNotUploaded =>
-        Error.NotFound("document.file_not_uploaded", "No DOCX file has been uploaded for this template yet.");
+        Error.NotFound("document.file_not_uploaded", "Biểu mẫu này chưa có tệp Word (DOCX).");
 
     // ── UserSubmission errors ────────────────────────────────────────
 
     public static Error SubmissionNotFound(Guid submissionId) =>
-        Error.NotFound("document.submission_not_found", $"User submission with ID '{submissionId}' was not found.");
+        Error.NotFound("document.submission_not_found", $"Không tìm thấy bản khai '{submissionId}'.");
 
     public static Error SubmissionNotOwnedByApplicant(Guid submissionId, Guid applicantId) =>
-        Error.Forbidden("document.submission_not_owned", $"Submission '{submissionId}' does not belong to applicant '{applicantId}'.");
+        Error.Forbidden("document.submission_not_owned", "Bản khai này không thuộc tài khoản của bạn.");
 
     public static Error SubmissionInvalidStatusTransition(string currentStatus, string action) =>
         Error.Validation("document.submission_invalid_transition",
-            $"Cannot perform '{action}' on a submission with status '{currentStatus}'.");
+            $"Không thể thực hiện '{action}' khi bản khai đang ở trạng thái '{currentStatus}'.");
 
     public static Error SubmissionFileNotFound(Guid submissionId) =>
         Error.NotFound("document.submission_file_not_found",
-            $"No DOCX file found for submission '{submissionId}'.");
+            "Bản khai này chưa có tệp Word (DOCX).");
 
     public static Error BlobUploadFailed(string detail) =>
         Error.Failure("document.blob_upload_failed",
-            $"Failed to upload file to storage: {detail}");
+            "Không lưu được tệp lên hệ thống lưu trữ. Vui lòng thử lại sau.");
 
     public static Error FormDataRequired =>
         Error.Validation("document.form_data_required",
-            "Form data must contain at least one field value.");
+            "Cần nhập ít nhất một trường trong biểu mẫu.");
 
     public static Error SupportingDocumentNotFound(Guid documentId) =>
         Error.NotFound("document.supporting_document_not_found",
@@ -83,7 +88,7 @@ public static class DocumentFormErrors
 
     public static Error SubmissionNotReady(Guid submissionId, string currentStatus) =>
         Error.Validation("document.submission_not_ready",
-            $"Hồ sơ '{submissionId}' chưa được xác nhận giấy tờ sẵn sàng (trạng thái hiện tại: {currentStatus}). Người dân chỉ được phép xuất file PDF khi hồ sơ đã được cán bộ kiểm tra và xác nhận giấy tờ sẵn sàng (Status = ReadyForDownload).");
+            $"Bản khai chưa được xác nhận giấy tờ sẵn sàng (trạng thái hiện tại: {currentStatus}). Chỉ xuất được bản PDF sau khi cán bộ kiểm tra và xác nhận giấy tờ sẵn sàng.");
 
     public static Error QrNotFound(Guid applicationId) =>
         Error.NotFound("document.qr_not_found",
