@@ -18,7 +18,7 @@ public sealed class CreateApplicationTests
         string[]? cases = null, string? caseCode = null)
     {
         var procedureId = Guid.NewGuid();
-        var content = new ProcedureContent((cases ?? []).Select(x => new ProcedureCase(x)).ToArray());
+        var content = new ProcedureContent((cases ?? []).Select(x => new ProcedureCase(x, x == "TH-NONAME" ? null : "  Trường hợp " + x + " ")).ToArray());
         var snapshot = new ProcedureSnapshot(procedureId, "Thủ tục thử", true, content, items, forms, 1, "Đất đai");
         var handler = new WorkflowHandlers(new Store(), new Catalog(snapshot), TimeProvider.System, new Directory(), new ReviewDeadlinePolicy());
         return await handler.Handle(new CreateApplicationCommand(Guid.NewGuid(),
@@ -42,6 +42,7 @@ public sealed class CreateApplicationTests
         var result = await Create(CommonAndCases, [], ["TH-A", "TH-B"], caseCode);
         Assert.Null(result.Error);
         Assert.Equal(caseCode, result.Value!.CaseCode);
+        Assert.Equal("Trường hợp " + caseCode, result.Value.CaseName);
         Assert.Equal(expected, result.Value.Checklists.Select(x => x.Code));
         Assert.All(result.Value.Checklists.Where(x => x.Code.StartsWith('C')), x => Assert.True(x.IsRequired));
         if (caseCode == "TH-A") Assert.False(result.Value.Checklists.Single(x => x.Code == "A2").IsRequired);
@@ -64,6 +65,18 @@ public sealed class CreateApplicationTests
         var result = await Create(items, [], ["TH-A"]);
         Assert.Equal("TH-A", result.Value!.CaseCode);
         Assert.Equal(7, result.Value.Checklists.Length);
+    }
+
+    // WF-CASE-02: tên trường hợp được chụp vào hồ sơ; thủ tục không đặt tên thì null, hồ sơ không có trường hợp thì null.
+    [Fact]
+    public async Task Case_name_is_snapshotted_or_null()
+    {
+        var unnamed = await Create([Item("C1")], [], ["TH-NONAME", "TH-B"], "TH-NONAME");
+        Assert.Equal("TH-NONAME", unnamed.Value!.CaseCode);
+        Assert.Null(unnamed.Value.CaseName);
+        var none = await Create([Item("C1")], []);
+        Assert.Null(none.Value!.CaseCode);
+        Assert.Null(none.Value.CaseName);
     }
 
     [Fact]
