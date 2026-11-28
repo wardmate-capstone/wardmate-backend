@@ -18,6 +18,14 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
 {
     /// <summary>BE-H: trần tên giấy tờ/biểu mẫu, khớp ProcedureLimits.Line của Catalog.</summary>
     private const int MaxTextLength = 10_000;
+    private const int MaxCaseNameLength = 500;
+
+    // WF-CASE-02: tên trường hợp lấy từ thủ tục lúc tạo hồ sơ; thủ tục không có tên thì để null (FE hiện mã).
+    public static string? CaseNameOf(IEnumerable<ProcedureCase> cases, string caseCode)
+    {
+        var name = cases.FirstOrDefault(x => x.CaseCode == caseCode)?.CaseName?.Trim();
+        return string.IsNullOrEmpty(name) ? null : name.Length > MaxCaseNameLength ? name[..MaxCaseNameLength] : name;
+    }
 
     public async Task<WorkflowResult<ApplicationDto>> Handle(CreateApplicationCommand r, CancellationToken ct)
     {
@@ -51,7 +59,8 @@ public sealed class WorkflowHandlers(IApplicationStore store, IProcedureCatalogC
             return WorkflowResult<ApplicationDto>.Fail(502, "application.invalid_schema", "Mã checklist của thủ tục bị trùng.");
         var now = clock.GetUtcNow().UtcDateTime;
         var application = new ApplicationRecord { WardCode = ward, ApplicationCode = await store.NextCode(now, ct), UserId = r.UserId, ProcedureId = procedure.Id,
-            ProcedureTitle = procedure.Title, CategoryId = procedure.CategoryId, CategoryName = procedure.CategoryName, CaseCode = caseCode, FormData = r.Input.FormData.GetRawText(), CreatedAt = now, UpdatedAt = now };
+            ProcedureTitle = procedure.Title, CategoryId = procedure.CategoryId, CategoryName = procedure.CategoryName, CaseCode = caseCode,
+            CaseName = caseCode is null ? null : CaseNameOf(cases, caseCode), FormData = r.Input.FormData.GetRawText(), CreatedAt = now, UpdatedAt = now };
         application.Checklists.AddRange(selected.Select((x, index) => new ApplicationChecklist { ApplicationId = application.Id,
             Code = x.ChecklistId, Title = x.ItemName, IsRequired = x.IsMandatory!.Value, CreatedAt = now, UpdatedAt = now,
             SortOrder = index, CaseCode = x.CaseCode, SubmissionType = x.SubmissionType,

@@ -128,6 +128,7 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         a.HasIndex(x => new { x.UserId, x.CreatedAt });
         a.Property(x => x.ProcedureTitle).HasMaxLength(1000).IsRequired();
         a.Property(x => x.CaseCode).HasMaxLength(100);
+        a.Property(x => x.CaseName).HasMaxLength(500);
         a.Property(x => x.Status).HasMaxLength(50).HasDefaultValue(ApplicationStates.Draft);
         a.Property(x => x.ResubmitCount).HasDefaultValue(0);
         a.Property(x => x.Notes).HasColumnType("text");

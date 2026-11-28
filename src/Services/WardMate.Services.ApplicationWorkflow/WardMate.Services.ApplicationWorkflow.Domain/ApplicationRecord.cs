@@ -38,6 +38,8 @@ public sealed class ApplicationRecord
     public long AssignmentVersion { get; set; }
     public List<ApplicationAssignmentHistory> AssignmentHistory { get; set; } = [];
     public string? CaseCode { get; set; }
+    // WF-CASE-02: tên trường hợp chụp lúc tạo hồ sơ; không đổi khi thủ tục đổi tên hoặc bị ẩn. Null ở hồ sơ cũ.
+    public string? CaseName { get; set; }
     public string Status { get; set; } = ApplicationStates.Draft;
     public string FormData { get; set; } = "{}";
     public DateTime? SubmittedAt { get; set; }
