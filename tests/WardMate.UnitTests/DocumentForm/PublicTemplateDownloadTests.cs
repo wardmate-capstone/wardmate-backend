@@ -57,6 +57,12 @@ public sealed class PublicTemplateDownloadTests
     public void Public_file_name_is_sanitized(string? title, string? code, string expected) =>
         Assert.Equal(expected, DownloadFormTemplateDocxQueryHandler.PublicFileName(title, code));
 
+    [Fact]
+    public void Public_file_name_preserves_doc_extension()
+    {
+        Assert.Equal("Mẫu số 25 Đơn đăng ký.doc", DownloadFormTemplateDocxQueryHandler.PublicFileName("Mẫu số 25: Đơn đăng ký", "M25", ".doc"));
+    }
+
     private sealed class Blobs : IBlobStorageClient
     {
         public Task<Stream?> DownloadAsync(string blobName, string? containerName = null, CancellationToken ct = default) =>
