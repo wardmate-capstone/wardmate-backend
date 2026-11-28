@@ -12,7 +12,7 @@ public static class NotificationEmailTemplate
         static string Time(DateTime value) => new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)).ToOffset(TimeSpan.FromHours(7)).ToString("dd/MM/yyyy HH:mm 'UTC+07:00'");
         var statusText = detail?.Status switch
         {
-            "SUBMITTED" => "Hồ sơ đã được nộp thành công để kiểm tra giấy tờ. Đây chưa phải việc tiếp nhận chính thức tại quầy.",
+            "SUBMITTED" => "Hồ sơ đã được gửi để cán bộ kiểm tra trước giấy tờ (tiền kiểm). Đây chưa phải việc nộp hồ sơ hay tiếp nhận chính thức tại quầy.",
             "NEED_REVISION" => "Cán bộ đề nghị sửa đổi, bổ sung giấy tờ. Vui lòng đọc ý kiến bên dưới, cập nhật hồ sơ và nộp lại để được kiểm tra.",
             "DOCUMENTS_READY" => "Giấy tờ đã sẵn sàng. Vui lòng tải các biểu mẫu đã chuẩn bị và mang giấy tờ gốc cùng các bản sao theo yêu cầu đến bộ phận Một cửa của phường. Đây không phải quyết định phê duyệt thủ tục hành chính.",
             "OFFICIALLY_RECEIVED" => "Hồ sơ đã được tiếp nhận tại quầy. Vui lòng lưu số biên nhận và theo dõi ngày hẹn trả kết quả bên dưới.",

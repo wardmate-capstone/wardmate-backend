@@ -20,7 +20,7 @@ public sealed class NotificationTextTests
 
         Assert.Equal("Công dân đã gửi lại hồ sơ", officerNotice.Title);
         Assert.Contains("bổ sung và gửi lại hồ sơ HS-1", officerNotice.Content);
-        Assert.Equal("Hồ sơ đã được gửi lại", citizenNotice.Title);
+        Assert.Equal("Hồ sơ đã gửi lại tiền kiểm", citizenNotice.Title);
         Assert.Contains("gửi lại", citizenNotice.Content);
     }
 
@@ -29,7 +29,7 @@ public sealed class NotificationTextTests
     {
         var e = Status("SUBMITTED");
         Assert.Equal("Có hồ sơ cần tiếp nhận", NotificationInboxWorker.Create(e, Officer, officer: true).Title);
-        Assert.Equal("Hồ sơ đã được nộp", NotificationInboxWorker.Create(e, Citizen, officer: false).Title);
+        Assert.Equal("Hồ sơ đã gửi tiền kiểm", NotificationInboxWorker.Create(e, Citizen, officer: false).Title);
         Assert.Contains("đang chờ cán bộ tiếp nhận", NotificationInboxWorker.Create(e, Officer, officer: true).Content);
     }
 
