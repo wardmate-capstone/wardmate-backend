@@ -57,6 +57,11 @@ if (builder.Configuration.GetValue("Analytics:JobsEnabled", false))
     jobs.AddOrUpdate<AnalyticsAggregationJob>("analytics-daily", job => job.Refresh(CancellationToken.None),
         builder.Configuration["Analytics:Cron"] ?? "15 1 * * *", new RecurringJobOptions
         { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh") });
+    // ANA-08b: tổng hợp lại ngày hôm nay mỗi giờ trong giờ hành chính; đặt Analytics:IntradayCron rỗng để tắt.
+    var intraday = builder.Configuration["Analytics:IntradayCron"] ?? "10 7-18 * * *";
+    if (string.IsNullOrWhiteSpace(intraday)) jobs.RemoveIfExists("analytics-intraday");
+    else jobs.AddOrUpdate<AnalyticsAggregationJob>("analytics-intraday", job => job.RefreshToday(CancellationToken.None),
+        intraday, new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh") });
 }
 app.UseCors(BrowserCorsExtensions.PolicyName);
 app.UseAuditTrustedProxy(builder.Configuration);
