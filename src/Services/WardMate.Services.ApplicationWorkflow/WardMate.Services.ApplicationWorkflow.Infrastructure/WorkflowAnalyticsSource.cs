@@ -26,7 +26,12 @@ public sealed class WorkflowAnalyticsSource(WorkflowDbContext db, TimeProvider c
             .Select(a => new DeadlineFact(a.Id, a.Status, a.FirstSubmittedAtUtc, a.DueAtUtc, a.DocumentsReadyAt, a.DeadlineStatus, a.DeadlinePausedAtUtc, a.ProcedureId, a.AssignedOfficerId))
             .Take(100001).ToArrayAsync(ct);
         if (rows.Length > 100000) throw new InvalidOperationException("analytics.daily_source_limit");
-        return new(1, asOf, rows);
+        // ANA-11: tên mới nhất của mọi thủ tục từng có hồ sơ ở phường (kể cả thủ tục đã ẩn), để thống kê không hiện GUID.
+        var names = await db.Applications.AsNoTracking().Where(a => a.WardCode == ward && (procedureId == null || a.ProcedureId == procedureId))
+            .GroupBy(a => a.ProcedureId)
+            .Select(g => new ProcedureName(g.Key, g.OrderByDescending(a => a.CreatedAt).Select(a => a.ProcedureTitle).First()))
+            .Take(5000).ToArrayAsync(ct);
+        return new(1, asOf, rows, names);
     }
     public async Task<AnalyticsDay> ReadDay(DateOnly date, CancellationToken ct)
     {
@@ -51,7 +56,9 @@ public sealed class WorkflowAnalyticsSource(WorkflowDbContext db, TimeProvider c
             g.Count(x => x.ToStatus == "SUBMITTED" && x.FromStatus == "NEED_REVISION"),
             g.Where(x => x.ToStatus == "CANCELLED").Select(x => x.ApplicationId).Distinct().Count(),
             g.Where(x => x.ToStatus == "APPROVED").Select(x => x.ApplicationId).Distinct().Count(),
-            g.Where(x => x.ToStatus == "REJECTED").Select(x => x.ApplicationId).Distinct().Count())).ToArray();
+            g.Where(x => x.ToStatus == "REJECTED").Select(x => x.ApplicationId).Distinct().Count(),
+            // ANA-10: hồ sơ được tiếp nhận tại quầy trong ngày (đếm theo hồ sơ).
+            g.Where(x => x.ToStatus == "OFFICIALLY_RECEIVED").Select(x => x.ApplicationId).Distinct().Count())).ToArray();
         var officers = rows.Where(x => x.ChangedBy != Guid.Empty && x.ToStatus is "DOCUMENTS_READY" or "NEED_REVISION")
             .GroupBy(x => new { x.ChangedBy, x.ProcedureId, x.Ward }).Select(g =>
             {

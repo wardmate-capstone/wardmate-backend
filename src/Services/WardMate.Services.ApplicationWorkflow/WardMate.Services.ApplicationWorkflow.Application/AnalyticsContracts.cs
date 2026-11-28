@@ -3,7 +3,7 @@ namespace WardMate.Services.ApplicationWorkflow.Application;
 // Internal HTTP contracts; no cross-service database access. Email context requires a service key.
 public sealed record ProcedureDay(Guid ProcedureId, string WardCode, int ReceivedCount,
     int ReadyCount, int RevisionRequestedCount, int ResubmittedCount, int CancelledCount,
-    int LegacyApprovedCount, int LegacyRejectedCount);
+    int LegacyApprovedCount, int LegacyRejectedCount, int OfficiallyReceivedCount = 0);
 public sealed record OfficerDay(Guid OfficerId, Guid ProcedureId, string WardCode, int ReadyCount,
     int RevisionRequestedCount, int DurationSampleCount, double TotalProcessingMinutes);
 public sealed record AnalyticsDay(int ContractVersion, DateOnly Date, DateTime GeneratedAtUtc,
