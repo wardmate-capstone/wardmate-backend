@@ -15,7 +15,9 @@ public sealed class GetManagerProceduresPagedHandler(IProcedureRepository reposi
     public async Task<ProcedureResult<PagedResult<ProcedureManagerSummaryDto>>> Handle(GetManagerProceduresPagedQuery request, CancellationToken ct)
     {
         var options = new ProcedureSearchOptions(request.Keyword, request.CategoryId, request.LevelOfImplementation,
-            request.IsActive, request.PageNumber, request.PageSize, request.SortBy, request.IsAscending);
+            request.IsActive, request.PageNumber, request.PageSize, request.SortBy, request.IsAscending,
+            // CAT-SORT-01: màn Quản lý thủ tục sắp đúng theo cột đã chọn, không ưu tiên cấp xã như trang công khai.
+            PreferCommune: false);
         var validation = await new ProcedureSearchValidator().ValidateAsync(options, ct);
         if (!validation.IsValid) return ProcedureResult<PagedResult<ProcedureManagerSummaryDto>>.Fail("validation.failed", "Dữ liệu không hợp lệ.", 400, validation.ToDictionary());
         return ProcedureResult<PagedResult<ProcedureManagerSummaryDto>>.Ok(await repository.ListManager(options, ct));

@@ -62,8 +62,9 @@ public sealed class ProcedureRepository(ProcedureDbContext db) : IProcedureRepos
                 || EF.Functions.ILike(ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? ""), ProcedureDbContext.Unaccent(middle), "\\")
                 || EF.Functions.ILike(ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? ""), ProcedureDbContext.Unaccent(last), "\\"));
         }
-        // Prefer commune/ward entries for default title ordering, without excluding other levels.
-        var ordered = source.OrderBy(x => query.SortBy.ToLower() == "title" && string.IsNullOrWhiteSpace(query.LevelOfImplementation) &&
+        // Prefer commune/ward entries for default public title ordering, without excluding other levels (CAT-SORT-01: không áp dụng cho màn quản lý).
+        var preferCommune = query.PreferCommune && query.SortBy.ToLowerInvariant() == "title" && string.IsNullOrWhiteSpace(query.LevelOfImplementation);
+        var ordered = source.OrderBy(x => preferCommune &&
             (ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? "").ToLower() == "cap xa" ||
              ProcedureDbContext.Unaccent(x.LevelOfImplementation ?? "").ToLower() == "cap phuong") ? 0 : 1);
         ordered = query.SortBy.ToLowerInvariant() switch

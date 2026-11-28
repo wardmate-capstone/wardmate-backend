@@ -8,7 +8,7 @@ namespace WardMate.Services.ProcedureCatalog.Application.Queries;
 
 public sealed record ProcedureSearchOptions(string? Keyword = null, int? CategoryId = null,
     string? LevelOfImplementation = null, bool? IsActive = true, int PageNumber = 1, int PageSize = 10,
-    string SortBy = "Title", bool IsAscending = true);
+    string SortBy = "Title", bool IsAscending = true, bool PreferCommune = true);
 
 public sealed class ProcedureSearchValidator : AbstractValidator<ProcedureSearchOptions>
 {
